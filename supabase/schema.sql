@@ -83,6 +83,42 @@ create policy "Partite visibili a tutti"
   to anon, authenticated
   using (true);
 
+-- =========================================================
+-- training_blocks — blocchi di allenamento riutilizzabili
+-- (libreria "puzzle", visibile solo a Developer e Admin)
+-- =========================================================
+create table if not exists training_blocks (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  duration_minutes integer not null check (duration_minutes > 0),
+  content text not null default '',
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table training_blocks enable row level security;
+-- Nessuna policy pubblica: contenuto riservato allo staff, letto/scritto
+-- solo tramite la service role key lato server.
+
+-- =========================================================
+-- training_plans — schede allenamento (composizione ordinata
+-- di blocchi), visibili solo a Developer e Admin
+-- =========================================================
+create table if not exists training_plans (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  plan_date date,
+  notes text,
+  block_ids uuid[] not null default '{}',
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table training_plans enable row level security;
+-- Nessuna policy pubblica: stessa logica di training_blocks.
+
 -- Nota: l'applicazione Next.js legge e scrive sempre tramite la service
 -- role key lato server, che ignora la Row Level Security. Le policy sopra
 -- sono una protezione aggiuntiva nel caso in futuro venga usata la chiave

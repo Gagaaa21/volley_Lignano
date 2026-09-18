@@ -1,6 +1,16 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import type { Match, MatchInput, StaffMember, TrainingRule, TrainingRuleInput } from "@/lib/types";
+import type {
+  Match,
+  MatchInput,
+  StaffMember,
+  TrainingBlock,
+  TrainingBlockInput,
+  TrainingPlan,
+  TrainingPlanInput,
+  TrainingRule,
+  TrainingRuleInput,
+} from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo } from "@/lib/db/repo";
 
 type TrainingRow = {
@@ -111,6 +121,69 @@ function staffFromRow(row: StaffRow): StaffMember {
     mustChangePassword: row.must_change_password,
     createdBy: row.created_by,
     createdAt: row.created_at,
+  };
+}
+
+type TrainingBlockRow = {
+  id: string;
+  title: string;
+  duration_minutes: number;
+  content: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TrainingPlanRow = {
+  id: string;
+  title: string;
+  plan_date: string | null;
+  notes: string | null;
+  block_ids: string[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function trainingBlockFromRow(row: TrainingBlockRow): TrainingBlock {
+  return {
+    id: row.id,
+    title: row.title,
+    durationMinutes: row.duration_minutes,
+    content: row.content,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function trainingBlockToRow(input: TrainingBlockInput) {
+  return {
+    title: input.title,
+    duration_minutes: input.durationMinutes,
+    content: input.content,
+  };
+}
+
+function trainingPlanFromRow(row: TrainingPlanRow): TrainingPlan {
+  return {
+    id: row.id,
+    title: row.title,
+    planDate: row.plan_date,
+    notes: row.notes,
+    blockIds: row.block_ids ?? [],
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function trainingPlanToRow(input: TrainingPlanInput) {
+  return {
+    title: input.title,
+    plan_date: input.planDate,
+    notes: input.notes,
+    block_ids: input.blockIds,
   };
 }
 
@@ -251,6 +324,101 @@ export const supabaseRepo: Repo = {
   async deleteStaff(id) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("staff").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listTrainingBlocks() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("training_blocks")
+      .select("*")
+      .order("title", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as TrainingBlockRow[]).map(trainingBlockFromRow);
+  },
+  async getTrainingBlock(id) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("training_blocks").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? trainingBlockFromRow(data as TrainingBlockRow) : null;
+  },
+  async createTrainingBlock(input, createdBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("training_blocks")
+      .insert({ ...trainingBlockToRow(input), created_by: createdBy })
+      .select("*")
+      .single();
+    return trainingBlockFromRow(unwrap(result) as TrainingBlockRow);
+  },
+  async updateTrainingBlock(id, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("training_blocks")
+      .update({ ...trainingBlockToRow(input), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return trainingBlockFromRow(unwrap(result) as TrainingBlockRow);
+  },
+  async deleteTrainingBlock(id) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("training_blocks").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+
+    const { data: affected, error: findError } = await db
+      .from("training_plans")
+      .select("id, block_ids")
+      .contains("block_ids", [id]);
+    if (findError) throw new Error(findError.message);
+
+    for (const plan of (affected ?? []) as Array<{ id: string; block_ids: string[] }>) {
+      const nextBlockIds = plan.block_ids.filter((blockId) => blockId !== id);
+      const { error: updateError } = await db
+        .from("training_plans")
+        .update({ block_ids: nextBlockIds, updated_at: new Date().toISOString() })
+        .eq("id", plan.id);
+      if (updateError) throw new Error(updateError.message);
+    }
+  },
+
+  async listTrainingPlans() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("training_plans")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as TrainingPlanRow[]).map(trainingPlanFromRow);
+  },
+  async getTrainingPlan(id) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("training_plans").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? trainingPlanFromRow(data as TrainingPlanRow) : null;
+  },
+  async createTrainingPlan(input, createdBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("training_plans")
+      .insert({ ...trainingPlanToRow(input), created_by: createdBy })
+      .select("*")
+      .single();
+    return trainingPlanFromRow(unwrap(result) as TrainingPlanRow);
+  },
+  async updateTrainingPlan(id, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("training_plans")
+      .update({ ...trainingPlanToRow(input), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return trainingPlanFromRow(unwrap(result) as TrainingPlanRow);
+  },
+  async deleteTrainingPlan(id) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("training_plans").delete().eq("id", id);
     if (error) throw new Error(error.message);
   },
 };

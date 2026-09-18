@@ -1,5 +1,15 @@
 import bcrypt from "bcryptjs";
-import type { Match, MatchInput, StaffMember, TrainingRule, TrainingRuleInput } from "@/lib/types";
+import type {
+  Match,
+  MatchInput,
+  StaffMember,
+  TrainingBlock,
+  TrainingBlockInput,
+  TrainingPlan,
+  TrainingPlanInput,
+  TrainingRule,
+  TrainingRuleInput,
+} from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo } from "@/lib/db/repo";
 
 /**
@@ -97,6 +107,76 @@ const matches: Match[] = [
     location: "Palestra Comunale, Lignano Sabbiadoro",
     matchDate: nextDate(16, 18, 0),
     notes: null,
+    createdBy: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+const blockSeeds: Array<Omit<TrainingBlock, "id" | "createdBy" | "createdAt" | "updatedAt">> = [
+  {
+    title: "Foam roll + elastici",
+    durationMinutes: 10,
+    content: "Solito lavoro di preparazione con foam roll, elastici e attivazione.",
+  },
+  {
+    title: "Riscaldamento a coppie con palla",
+    durationMinutes: 15,
+    content: `Lavoro a coppie con:
+
+* Palleggio
+* Bagher frontale
+* Bagher laterale con spostamento
+
+Progressione dell'intensità mantenendo attenzione alla tecnica e alla qualità del gesto.`,
+  },
+  {
+    title: "Progressione analitica ricezione",
+    durationMinutes: 30,
+    content: `Esercizio "Pippo", con progressione:
+
+1. Lancio
+2. Palleggio
+3. Palleggio spinto
+4. Battuta controllata
+
+La battuta viene eseguita prima centrale e poi esterna, lavorando sulla capacità di leggere la traiettoria e adattare lo spostamento.`,
+  },
+  {
+    title: "Battuta + ricezione + attacco",
+    durationMinutes: 30,
+    content: `Tre giocatrici in ricezione, con un palleggiatore in zona 2.
+
+Dall'altra parte le altre ragazze in battuta, con un tecnico che interviene per rinforzare le battute sbagliate e mantenere continuità nel lavoro.
+
+Dopo un giro di ricezioni viene inserito il centrale: battuta, ricezione, palleggio, attacco.
+
+Successivamente, se il livello del gruppo lo permette, viene inserito anche il muro.`,
+  },
+  {
+    title: "P3 + P4",
+    durationMinutes: 45,
+    content: `Studio e gioco nei sistemi P3 e P4, con battuta effettuata dalle ragazze.
+
+Applicazione del lavoro svolto durante l'allenamento: battuta, ricezione, costruzione, attacco, gioco.`,
+  },
+];
+
+const trainingBlocks: TrainingBlock[] = blockSeeds.map((seed) => ({
+  ...seed,
+  id: uid(),
+  createdBy: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+}));
+
+const trainingPlans: TrainingPlan[] = [
+  {
+    id: uid(),
+    title: "Ricezione e sistema P3/P4",
+    planDate: isoDate(2),
+    notes: "Durata complessiva: 130 minuti.",
+    blockIds: trainingBlocks.map((b) => b.id),
     createdBy: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -201,5 +281,58 @@ export const memoryRepo: Repo = {
     await ensureStaffSeeded();
     const idx = staff.findIndex((s) => s.id === id);
     if (idx !== -1) staff.splice(idx, 1);
+  },
+
+  async listTrainingBlocks() {
+    return [...trainingBlocks].sort((a, b) => a.title.localeCompare(b.title));
+  },
+  async getTrainingBlock(id) {
+    return trainingBlocks.find((b) => b.id === id) ?? null;
+  },
+  async createTrainingBlock(input: TrainingBlockInput, createdBy) {
+    const now = new Date().toISOString();
+    const row: TrainingBlock = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+    trainingBlocks.push(row);
+    return row;
+  },
+  async updateTrainingBlock(id, input: TrainingBlockInput) {
+    const idx = trainingBlocks.findIndex((b) => b.id === id);
+    if (idx === -1) throw new Error("Blocco non trovato");
+    trainingBlocks[idx] = { ...trainingBlocks[idx], ...input, updatedAt: new Date().toISOString() };
+    return trainingBlocks[idx];
+  },
+  async deleteTrainingBlock(id) {
+    const idx = trainingBlocks.findIndex((b) => b.id === id);
+    if (idx !== -1) trainingBlocks.splice(idx, 1);
+    for (const plan of trainingPlans) {
+      const pos = plan.blockIds.indexOf(id);
+      if (pos !== -1) {
+        plan.blockIds.splice(pos, 1);
+        plan.updatedAt = new Date().toISOString();
+      }
+    }
+  },
+
+  async listTrainingPlans() {
+    return [...trainingPlans].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  async getTrainingPlan(id) {
+    return trainingPlans.find((p) => p.id === id) ?? null;
+  },
+  async createTrainingPlan(input: TrainingPlanInput, createdBy) {
+    const now = new Date().toISOString();
+    const row: TrainingPlan = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+    trainingPlans.push(row);
+    return row;
+  },
+  async updateTrainingPlan(id, input: TrainingPlanInput) {
+    const idx = trainingPlans.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error("Scheda non trovata");
+    trainingPlans[idx] = { ...trainingPlans[idx], ...input, updatedAt: new Date().toISOString() };
+    return trainingPlans[idx];
+  },
+  async deleteTrainingPlan(id) {
+    const idx = trainingPlans.findIndex((p) => p.id === id);
+    if (idx !== -1) trainingPlans.splice(idx, 1);
   },
 };

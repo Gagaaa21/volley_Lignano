@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Volleyball, Waves } from "lucide-react";
+import { ShieldCheck, Waves } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
 import { LoginForm } from "./LoginForm";
 
@@ -23,7 +23,7 @@ export default function LoginPage() {
         <Logo variant="inverted" />
         <div className="relative z-10 max-w-md">
           <span className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur">
-            <Volleyball className="h-7 w-7" strokeWidth={2} />
+            <ShieldCheck className="h-7 w-7" strokeWidth={2} />
           </span>
           <h1 className="font-display text-4xl font-bold leading-tight tracking-tight">
             Area riservata dello staff

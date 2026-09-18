@@ -3,6 +3,10 @@ import type {
   MatchInput,
   StaffMember,
   StaffRole,
+  TrainingBlock,
+  TrainingBlockInput,
+  TrainingPlan,
+  TrainingPlanInput,
   TrainingRule,
   TrainingRuleInput,
 } from "@/lib/types";
@@ -44,4 +48,18 @@ export interface Repo {
   createStaff(input: NewStaffInput): Promise<StaffMember>;
   setStaffPassword(id: string, passwordHash: string, mustChangePassword: boolean): Promise<void>;
   deleteStaff(id: string): Promise<void>;
+
+  // Blocchi allenamento riutilizzabili (libreria "puzzle")
+  listTrainingBlocks(): Promise<TrainingBlock[]>;
+  getTrainingBlock(id: string): Promise<TrainingBlock | null>;
+  createTrainingBlock(input: TrainingBlockInput, createdBy: string | null): Promise<TrainingBlock>;
+  updateTrainingBlock(id: string, input: TrainingBlockInput): Promise<TrainingBlock>;
+  deleteTrainingBlock(id: string): Promise<void>;
+
+  // Schede allenamento (composizione ordinata di blocchi)
+  listTrainingPlans(): Promise<TrainingPlan[]>;
+  getTrainingPlan(id: string): Promise<TrainingPlan | null>;
+  createTrainingPlan(input: TrainingPlanInput, createdBy: string | null): Promise<TrainingPlan>;
+  updateTrainingPlan(id: string, input: TrainingPlanInput): Promise<TrainingPlan>;
+  deleteTrainingPlan(id: string): Promise<void>;
 }

@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { CalendarClock, LayoutDashboard, LogOut, Swords, Users, Volleyball } from "lucide-react";
+import { CalendarClock, ClipboardCheck, LayoutDashboard, LogOut, Puzzle, Swords, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { logoutAction } from "@/lib/auth/actions";
 import type { SessionPayload } from "@/lib/auth/session";
+import crest from "@/assets/lignano-crest.png";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false },
   { href: "/admin/partite", label: "Partite", icon: Swords, exact: false },
+  { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false },
+  { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false },
 ];
 
@@ -53,9 +57,7 @@ export function AdminSidebar({ session }: { session: SessionPayload }) {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:flex-col lg:bg-sea-900 lg:text-white">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sand-400 to-sand-600 text-sea-950">
-            <Volleyball className="h-4.5 w-4.5" strokeWidth={2.25} />
-          </span>
+          <Image src={crest} alt="Stemma Volley Lignano" className="h-10 w-10 shrink-0 object-contain" priority />
           <div className="leading-tight">
             <p className="font-display text-sm font-bold">Volley Lignano</p>
             <p className="text-[11px] uppercase tracking-wider text-sea-200">Area riservata</p>
@@ -89,9 +91,7 @@ export function AdminSidebar({ session }: { session: SessionPayload }) {
       <div className="sticky top-0 z-40 flex flex-col bg-sea-900 text-white lg:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sand-400 to-sand-600 text-sea-950">
-              <Volleyball className="h-4 w-4" strokeWidth={2.25} />
-            </span>
+            <Image src={crest} alt="Stemma Volley Lignano" className="h-9 w-9 shrink-0 object-contain" priority />
             <p className="font-display text-sm font-bold">Volley Lignano</p>
           </div>
           <form action={logoutAction}>

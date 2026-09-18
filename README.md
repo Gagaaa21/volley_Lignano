@@ -21,6 +21,14 @@ staff (Developer e Admin).
   avversario, casa/trasferta, data/ora, luogo.
 - **Gestione staff** (`/admin/staff`) — creazione nuovi account admin con
   password temporanea.
+- **Schede allenamento** (`/admin/schede`) — visibili solo a Developer e
+  Admin. Incolla il testo di un allenamento (es. "1. TITOLO – 10' ...") e
+  viene diviso automaticamente in macro blocchi riutilizzabili in stile
+  puzzle (libreria in `/admin/schede/blocchi`): modificando un blocco si
+  aggiorna ovunque venga usato, e le schede successive si compongono
+  riordinando/riusando i blocchi esistenti.
+- **Presenze** (`/admin/presenze`) — sezione riservata, per ora segnaposto
+  "in costruzione".
 
 ## Stack tecnico
 

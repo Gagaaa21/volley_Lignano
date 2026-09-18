@@ -65,6 +65,37 @@ export interface Match {
 
 export type MatchInput = Omit<Match, "id" | "createdBy" | "createdAt" | "updatedAt">;
 
+export interface TrainingBlock {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  content: string; // testo libero, righe con "-"/"*" o "1." diventano liste
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TrainingBlockInput = Omit<
+  TrainingBlock,
+  "id" | "createdBy" | "createdAt" | "updatedAt"
+>;
+
+export interface TrainingPlan {
+  id: string;
+  title: string;
+  planDate: string | null; // ISO date
+  notes: string | null;
+  blockIds: string[]; // ordine dei blocchi nella scheda
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TrainingPlanInput = Omit<
+  TrainingPlan,
+  "id" | "createdBy" | "createdAt" | "updatedAt"
+>;
+
 export type CalendarEvent =
   | {
       kind: "training";
