@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
 import "./globals.css";
 
-const body = Inter({
+const body = IBM_Plex_Sans({
   variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const display = Poppins({
+const display = Libre_Baskerville({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {

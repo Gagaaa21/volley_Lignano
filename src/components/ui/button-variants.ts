@@ -4,14 +4,16 @@ export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "dan
 export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sea-500 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-[-0.005em] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring whitespace-nowrap";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-sea-700 text-white hover:bg-sea-600 shadow-sm shadow-sea-900/20",
+  primary:
+    "bg-[linear-gradient(135deg,var(--color-sea-500),var(--color-sea-900))] text-primary-foreground shadow-[0_10px_24px_-12px_color-mix(in_oklab,var(--primary)_65%,transparent)] hover:shadow-[0_14px_30px_-12px_color-mix(in_oklab,var(--primary)_70%,transparent)] hover:-translate-y-px",
   secondary: "bg-sand-400 text-sea-950 hover:bg-sand-300 shadow-sm shadow-sand-900/10",
-  outline: "border border-border-subtle bg-surface text-foreground hover:bg-surface-muted",
-  ghost: "text-sea-700 hover:bg-sea-100",
-  danger: "bg-red-600 text-white hover:bg-red-500",
+  outline:
+    "border border-border-subtle bg-surface text-foreground hover:border-primary/30 hover:bg-surface-muted",
+  ghost: "text-primary hover:bg-primary/8",
+  danger: "bg-destructive text-destructive-foreground hover:opacity-90",
 };
 
 const sizes: Record<ButtonSize, string> = {

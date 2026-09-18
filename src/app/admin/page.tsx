@@ -4,7 +4,7 @@ import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { formatDateShort } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/lib/category";
-import { Card, CardBody } from "@/components/ui/Card";
+import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 
 export const metadata: Metadata = {
@@ -41,68 +41,67 @@ export default async function AdminDashboardPage({
         </div>
       )}
 
-      <h1 className="font-display text-2xl font-bold text-foreground">Ciao, {session.fullName} 👋</h1>
-      <p className="mt-1 text-sm text-foreground/60">
+      <p className="eyebrow">Dashboard</p>
+      <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Ciao, {session.fullName}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
         Ecco una panoramica del calendario di Volley Lignano.
       </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Card>
+        <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-training-soft)] text-[var(--color-training-strong)]">
+              <span className="icon-chip">
                 <CalendarClock className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-2xl font-bold text-foreground">{activeTrainings.length}</p>
-                <p className="text-xs text-foreground/55">Allenamenti attivi</p>
+                <p className="text-xs text-muted-foreground">Allenamenti attivi</p>
               </div>
             </div>
           </CardBody>
-        </Card>
-        <Card>
+        </div>
+        <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-u15-soft)] text-[var(--color-u15-strong)]">
+              <span className="icon-chip">
                 <Swords className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-2xl font-bold text-foreground">{matches.length}</p>
-                <p className="text-xs text-foreground/55">Partite in calendario</p>
+                <p className="text-xs text-muted-foreground">Partite in calendario</p>
               </div>
             </div>
           </CardBody>
-        </Card>
-        <Card>
+        </div>
+        <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sea-100 text-sea-700">
+              <span className="icon-chip">
                 <Users className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-2xl font-bold text-foreground">{staff.length}</p>
-                <p className="text-xs text-foreground/55">Membri dello staff</p>
+                <p className="text-xs text-muted-foreground">Membri dello staff</p>
               </div>
             </div>
           </CardBody>
-        </Card>
+        </div>
       </div>
 
       {nextMatch && (
-        <Card className="mt-6">
-          <CardBody className="pt-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
-              Prossima partita
-            </p>
-            <p className="mt-1.5 font-display text-lg font-bold text-foreground">
+        <div className="section-card mt-6">
+          <CardBody className="pt-6">
+            <p className="eyebrow">Prossima partita</p>
+            <p className="mt-2 font-display text-lg font-bold text-foreground">
               {CATEGORY_LABELS[nextMatch.category]} · {nextMatch.isHome ? "vs" : "@"} {nextMatch.opponent}
             </p>
-            <p className="mt-1 text-sm text-foreground/60">
+            <p className="mt-1 text-sm text-muted-foreground">
               {formatDateShort(nextMatch.matchDate.slice(0, 10))} alle {nextMatch.matchDate.slice(11, 16)} ·{" "}
               {nextMatch.location}
             </p>
           </CardBody>
-        </Card>
+        </div>
       )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">

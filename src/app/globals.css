@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Sea (primary) — deep Adriatic blue */
+  /* Sea — identità del club (stemma blu) */
   --color-sea-50: #eef7fb;
   --color-sea-100: #d9edf5;
   --color-sea-200: #b3dbec;
@@ -12,9 +12,9 @@
   --color-sea-700: #145470;
   --color-sea-800: #14455c;
   --color-sea-900: #133a4d;
-  --color-sea-950: #091f2a;
+  --color-sea-950: #081821;
 
-  /* Sand (accent) — Sabbiadoro gold */
+  /* Sand — identità del club (stemma oro) */
   --color-sand-50: #fdf8ee;
   --color-sand-100: #f9ecd0;
   --color-sand-200: #f2d89f;
@@ -26,27 +26,72 @@
   --color-sand-800: #78441e;
   --color-sand-900: #63391c;
 
-  /* Category / event accent colors */
+  /* Categoria / tipo evento */
   --color-u14: #0d9488;
   --color-u14-soft: #ccfbf1;
   --color-u14-strong: #0f766e;
   --color-u15: #7c3aed;
   --color-u15-soft: #ede9fe;
   --color-u15-strong: #6d28d9;
-  --color-training: #b45309;
-  --color-training-soft: #fef3c7;
-  --color-training-strong: #92400e;
+  --color-training: var(--color-sand-500);
+  --color-training-soft: var(--color-sand-100);
+  --color-training-strong: var(--color-sand-800);
 
-  --background: var(--color-sea-50);
-  --foreground: var(--color-sea-950);
-  --surface: #ffffff;
-  --surface-muted: #f4f8fb;
-  --border-subtle: #dde8ee;
+  /* Token semantici */
+  --background: #f5f8fa;
+  --foreground: #0c1e2a;
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+  --primary: var(--color-sea-700);
+  --primary-foreground: #f5f9fb;
+  --secondary: #eef3f6;
+  --secondary-foreground: var(--foreground);
+  --muted: #eef1f4;
+  --muted-foreground: #596975;
+  --accent: var(--color-sand-100);
+  --accent-foreground: var(--color-sand-800);
+  --destructive: #b3261e;
+  --destructive-foreground: #fff5f4;
+  --border: #dbe3e8;
+  --input: #dbe3e8;
+  --ring: var(--primary);
+
+  --surface: var(--card);
+  --surface-muted: var(--muted);
+  --border-subtle: var(--border);
+
+  --gradient-primary: linear-gradient(135deg, var(--color-sea-500), var(--color-sea-900));
+  --shadow-elegant: 0 24px 48px -22px color-mix(in oklab, var(--foreground) 34%, transparent);
+  --shadow-card: 0 1px 2px rgba(9, 27, 38, 0.05), 0 14px 30px -20px rgba(9, 27, 38, 0.16);
+  --shadow-hover: 0 24px 48px -20px color-mix(in oklab, var(--primary) 38%, transparent);
+
+  --font-display: "Libre Baskerville", "IBM Plex Serif", Georgia, serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-border-subtle: var(--border-subtle);
@@ -90,24 +135,313 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: var(--color-sea-950);
-    --foreground: #eef6fa;
-    --surface: #0f2b3a;
-    --surface-muted: #0c2330;
-    --border-subtle: #1c3e4f;
+    --background: #0a161f;
+    --foreground: #eef3f6;
+    --card: #0f2029;
+    --popover: #0f2029;
+    --secondary: #142834;
+    --muted: #132430;
+    --muted-foreground: #91a3af;
+    --accent: #24303a;
+    --accent-foreground: var(--color-sand-300);
+    --border: rgba(255, 255, 255, 0.09);
+    --input: rgba(255, 255, 255, 0.12);
 
-    --color-u14-soft: #0f3b35;
-    --color-u15-soft: #2c1f57;
-    --color-training-soft: #3a2708;
+    --surface: var(--card);
+    --surface-muted: var(--muted);
+    --border-subtle: var(--border);
+
+    --color-u14-soft: #0f2e29;
+    --color-u15-soft: #241a42;
+    --color-training-soft: #2c2210;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.014em;
+    font-weight: 700;
+  }
+
+  ::selection {
+    background: var(--color-sand-300);
+    color: var(--color-sea-950);
+  }
+
+  :where(button, a, [role="button"], input, select, textarea):focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--primary) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
 }
 
-::selection {
-  background: var(--color-sand-300);
-  color: var(--color-sea-950);
+/* Eyebrow / kicker con trattino */
+/* Nota sui layer: le regole in questo file che devono poter essere
+   sovrascritte da varianti responsive di Tailwind (es. sm:hidden) sui
+   medesimi elementi vanno dichiarate con @utility oppure dentro
+   @layer base — CSS "non layerizzato" vince sempre sulle utility di
+   Tailwind (che vivono nei layer theme/base/components/utilities),
+   indipendentemente dall'ordine nel file. */
+@layer base {
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--primary) 82%, var(--foreground));
+  }
+  .eyebrow::before {
+    content: "";
+    height: 1px;
+    width: 1.5rem;
+    background: color-mix(in oklab, var(--primary) 55%, transparent);
+    display: inline-block;
+  }
+  .eyebrow.eyebrow-inverted {
+    color: color-mix(in oklab, white 85%, var(--color-sand-300));
+  }
+  .eyebrow.eyebrow-inverted::before {
+    background: color-mix(in oklab, white 55%, transparent);
+  }
+
+  /* Divider centrato con etichetta (il colore del testo si eredita: imposta
+     text-* sull'elemento che usa questa classe) */
+  .rule-center {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: inherit;
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .rule-center::before,
+  .rule-center::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: color-mix(in oklab, var(--border) 90%, transparent);
+  }
+}
+
+/* Sfondo decorativo: bagliori radiali + trama a puntini */
+@utility app-surface {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 12% -10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 110% 0%, color-mix(in oklab, var(--color-sand-400) 12%, transparent), transparent 65%),
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 7%, transparent) 1px, transparent 0);
+  background-size: auto, auto, 22px 22px;
+  background-attachment: fixed, fixed, fixed;
+}
+@media (max-width: 640px) {
+  .app-surface {
+    background-attachment: scroll, scroll, scroll;
+  }
+}
+
+/* Header di pagina: pannello sticky traslucido */
+@utility page-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--card) 96%, transparent), color-mix(in oklab, var(--card) 84%, transparent));
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+}
+
+/* Rail di navigazione a pillole */
+@utility nav-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted) 65%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+.nav-rail::-webkit-scrollbar {
+  display: none;
+}
+
+@utility nav-tile {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: color-mix(in oklab, var(--foreground) 68%, transparent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  white-space: nowrap;
+}
+.nav-tile:hover {
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  color: var(--foreground);
+}
+.nav-tile[data-active="true"] {
+  background: var(--card);
+  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(12, 30, 42, 0.06);
+}
+
+@utility nav-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--card) 85%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+/* Pastiglia icona con gradiente */
+@utility icon-chip {
+  display: grid;
+  place-items: center;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 0.85rem;
+  background: var(--gradient-primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-elegant);
+}
+
+/* Card con barra superiore sfumata */
+@utility section-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.15rem;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background: var(--card);
+  box-shadow: 0 1px 0 color-mix(in oklab, white 55%, transparent) inset, var(--shadow-card);
+  transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
+}
+.section-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  opacity: 0.9;
+}
+.section-card:hover {
+  box-shadow: 0 1px 0 color-mix(in oklab, white 60%, transparent) inset, var(--shadow-hover);
+}
+
+/* Stat card con barra laterale */
+@utility stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--primary) 4%, var(--card)));
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  box-shadow: var(--shadow-card);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--gradient-primary);
+  opacity: 0.9;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elegant);
+}
+
+/* Ritorno contestuale */
+@utility back-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--card) 96%, transparent), color-mix(in oklab, var(--primary) 8%, var(--card)));
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border));
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: 0 1px 0 color-mix(in oklab, white 60%, transparent) inset, 0 8px 20px -14px color-mix(in oklab, var(--primary) 55%, transparent);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+.back-pill:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+}
+
+/* Pastiglia bianca per lo stemma — unica in tutto il sito */
+@utility brand-chip {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 26px -16px rgba(9, 27, 38, 0.5);
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+}
+
+/* Scena di accesso */
+@utility auth-stage {
+  background-color: var(--color-sea-950);
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% -10%, color-mix(in oklab, var(--color-sea-500) 35%, transparent), transparent 65%),
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, white 7%, transparent) 1px, transparent 0);
+  background-size: auto, 22px 22px;
+}
+@utility auth-stage-logo {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  translate: -50% -50%;
+  width: min(120vw, 900px);
+  max-width: none;
+  opacity: 0.12;
+  filter: blur(14px) saturate(0.9);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+@utility auth-card {
+  border-radius: 1.4rem;
+  border: 1px solid color-mix(in oklab, white 14%, transparent);
+  background: color-mix(in oklab, var(--card) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 1px 0 color-mix(in oklab, white 65%, transparent) inset, 0 40px 70px -30px rgba(2, 10, 16, 0.65);
 }

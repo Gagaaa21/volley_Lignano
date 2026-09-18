@@ -15,7 +15,7 @@ export function MonthNav({ monthDate, cat }: { monthDate: Date; cat?: string }) 
       <Link
         href={`/?month=${prev}${suffix}`}
         aria-label="Mese precedente"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-surface text-foreground/70 transition-colors hover:bg-surface-muted"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-surface text-foreground/70 transition-colors hover:border-primary/30 hover:text-primary"
       >
         <ChevronLeft className="h-4 w-4" />
       </Link>
@@ -25,13 +25,13 @@ export function MonthNav({ monthDate, cat }: { monthDate: Date; cat?: string }) 
       <Link
         href={`/?month=${next}${suffix}`}
         aria-label="Mese successivo"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-surface text-foreground/70 transition-colors hover:bg-surface-muted"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-surface text-foreground/70 transition-colors hover:border-primary/30 hover:text-primary"
       >
         <ChevronRight className="h-4 w-4" />
       </Link>
       <Link
         href={`/?month=${current}${suffix}`}
-        className="ml-1 rounded-full border border-border-subtle bg-surface px-3 py-1.5 text-xs font-semibold text-foreground/60 transition-colors hover:bg-surface-muted"
+        className="ml-1 rounded-full border border-border-subtle bg-surface px-3 py-1.5 text-xs font-semibold text-foreground/60 transition-colors hover:border-primary/30 hover:text-primary"
       >
         Oggi
       </Link>
