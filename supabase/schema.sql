@@ -1,0 +1,89 @@
+-- Volley Lignano — schema Supabase
+--
+-- Come eseguirlo:
+-- 1. Apri il progetto Supabase -> SQL Editor -> New query
+-- 2. Incolla questo intero file ed esegui (RUN)
+-- 3. Imposta le variabili d'ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY
+--    (Project Settings -> API) nel progetto Next.js / Vercel
+-- 4. Esegui `npm run seed` per creare l'account DEV "Gaga"
+
+create extension if not exists pgcrypto;
+
+-- =========================================================
+-- staff — account Developer e Admin (nessun accesso pubblico)
+-- =========================================================
+create table if not exists staff (
+  id uuid primary key default gen_random_uuid(),
+  username text not null,
+  password_hash text not null,
+  full_name text not null,
+  role text not null check (role in ('dev', 'admin')),
+  must_change_password boolean not null default true,
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists staff_username_lower_idx on staff (lower(username));
+
+alter table staff enable row level security;
+-- Nessuna policy: la tabella staff è raggiungibile solo tramite la
+-- service role key, usata esclusivamente lato server.
+
+-- =========================================================
+-- training_sessions — regole di allenamento ricorrente
+-- =========================================================
+create table if not exists training_sessions (
+  id uuid primary key default gen_random_uuid(),
+  title text not null default 'Allenamento',
+  location text not null,
+  weekdays smallint[] not null,
+  start_time time not null,
+  end_time time not null,
+  start_date date not null,
+  end_date date,
+  notes text,
+  is_active boolean not null default true,
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists training_sessions_is_active_idx on training_sessions (is_active);
+
+alter table training_sessions enable row level security;
+
+create policy "Allenamenti attivi visibili a tutti"
+  on training_sessions for select
+  to anon, authenticated
+  using (is_active = true);
+
+-- =========================================================
+-- matches — partite di campionato per categoria
+-- =========================================================
+create table if not exists matches (
+  id uuid primary key default gen_random_uuid(),
+  category text not null check (category in ('U14', 'U15')),
+  opponent text not null,
+  is_home boolean not null default true,
+  location text not null,
+  match_date timestamp not null,
+  notes text,
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists matches_match_date_idx on matches (match_date);
+create index if not exists matches_category_idx on matches (category);
+
+alter table matches enable row level security;
+
+create policy "Partite visibili a tutti"
+  on matches for select
+  to anon, authenticated
+  using (true);
+
+-- Nota: l'applicazione Next.js legge e scrive sempre tramite la service
+-- role key lato server, che ignora la Row Level Security. Le policy sopra
+-- sono una protezione aggiuntiva nel caso in futuro venga usata la chiave
+-- pubblica (anon) direttamente dal browser.

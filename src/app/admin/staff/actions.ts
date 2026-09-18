@@ -1,0 +1,69 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { getRepo } from "@/lib/db";
+import { requireDev, requireStaff } from "@/lib/auth/guard";
+import { hashPassword } from "@/lib/auth/password";
+
+const schema = z.object({
+  username: z
+    .string()
+    .min(3, "Il nome utente deve avere almeno 3 caratteri.")
+    .regex(/^[a-zA-Z0-9._-]+$/, "Usa solo lettere, numeri, punti, trattini e underscore."),
+  fullName: z.string().min(1, "Inserisci nome e cognome."),
+  temporaryPassword: z.string().min(8, "La password temporanea deve avere almeno 8 caratteri."),
+});
+
+export interface StaffFormState {
+  error?: string;
+  created?: { username: string; password: string };
+}
+
+export async function createStaffAction(
+  _prevState: StaffFormState,
+  formData: FormData,
+): Promise<StaffFormState> {
+  const session = await requireStaff();
+
+  const parsed = schema.safeParse({
+    username: formData.get("username")?.toString().trim() ?? "",
+    fullName: formData.get("fullName")?.toString().trim() ?? "",
+    temporaryPassword: formData.get("temporaryPassword")?.toString() ?? "",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
+  }
+
+  const repo = await getRepo();
+  const existing = await repo.getStaffByUsername(parsed.data.username);
+  if (existing) {
+    return { error: "Questo nome utente è già in uso." };
+  }
+
+  const passwordHash = await hashPassword(parsed.data.temporaryPassword);
+  await repo.createStaff({
+    username: parsed.data.username,
+    fullName: parsed.data.fullName,
+    passwordHash,
+    role: "admin",
+    mustChangePassword: true,
+    createdBy: session.sub,
+  });
+
+  revalidatePath("/admin/staff");
+  return { created: { username: parsed.data.username, password: parsed.data.temporaryPassword } };
+}
+
+export async function deleteStaffAction(formData: FormData): Promise<void> {
+  const session = await requireDev();
+  const id = formData.get("id")?.toString();
+  if (!id || id === session.sub) return;
+
+  const repo = await getRepo();
+  const target = await repo.getStaffById(id);
+  if (!target || target.role === "dev") return;
+
+  await repo.deleteStaff(id);
+  revalidatePath("/admin/staff");
+}
