@@ -1,8 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Dumbbell, Home, MapPin, Plane, Swords } from "lucide-react";
+import { ChevronRight, Dumbbell, Home, MapPin, Plane, Swords } from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { EventDetailDialog } from "./EventDetailDialog";
 import type { CalendarEvent } from "@/lib/types";
 
 function dateHeading(dateStr: string) {
@@ -20,6 +24,7 @@ export function AgendaList({
   emptyMessage?: string;
 }) {
   const dates = [...eventsByDate.keys()].sort();
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   if (dates.length === 0) {
     return (
@@ -38,19 +43,25 @@ export function AgendaList({
           </h3>
           <div className="space-y-2.5">
             {eventsByDate.get(dateStr)!.map((event) => (
-              <EventRow key={event.id} event={event} />
+              <EventRow key={event.id} event={event} onSelect={() => setSelectedEvent(event)} />
             ))}
           </div>
         </div>
       ))}
+
+      <EventDetailDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </div>
   );
 }
 
-function EventRow({ event }: { event: CalendarEvent }) {
+function EventRow({ event, onSelect }: { event: CalendarEvent; onSelect: () => void }) {
   if (event.kind === "training") {
     return (
-      <div className="flex items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 shadow-sm shadow-sea-950/5">
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex w-full items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left shadow-sm shadow-sea-950/5 transition-colors hover:border-primary/25 hover:bg-primary/[0.03]"
+      >
         <span
           className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", TRAINING_BADGE)}
         >
@@ -77,12 +88,17 @@ function EventRow({ event }: { event: CalendarEvent }) {
             <span className="truncate">{event.location}</span>
           </p>
         </div>
-      </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-foreground/30" />
+      </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 shadow-sm shadow-sea-950/5">
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex w-full items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left shadow-sm shadow-sea-950/5 transition-colors hover:border-primary/25 hover:bg-primary/[0.03]"
+    >
       <span
         className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
@@ -114,6 +130,7 @@ function EventRow({ event }: { event: CalendarEvent }) {
           <span className="truncate">{event.location}</span>
         </p>
       </div>
-    </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-foreground/30" />
+    </button>
   );
 }
