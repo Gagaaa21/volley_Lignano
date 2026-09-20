@@ -9,8 +9,11 @@ export interface ParsedTrainingText {
   blocks: ParsedBlock[];
 }
 
-// Riconosce righe come "1. FOAM ROLL + ELASTICI – 10'" oppure "2. Riscaldamento - 15 min"
-const HEADING_RE = /^\d+[.)]\s*(.+?)\s*[–—-]\s*(\d+)\s*(?:['’′]|min(?:uti)?\.?)?\s*$/i;
+// Riconosce righe come "1. FOAM ROLL + ELASTICI – 10'", "2. Riscaldamento - 15 min"
+// oppure "3. Circuito fisico – circa 60'" (durata approssimativa) e titoli che
+// contengono a loro volta un trattino, es. "5. Gioco finale – attacco + muro – 30'".
+const HEADING_RE =
+  /^\d+[.)]\s*(.+?)\s*[–—-]\s*(?:circa\s*|ca\.?\s*|~\s*)?(\d+)\s*(?:['’′]|min(?:uti)?\.?)?\s*$/i;
 const TOTAL_RE = /^totale\b/i;
 
 /**
