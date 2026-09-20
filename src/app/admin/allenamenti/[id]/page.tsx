@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addDays, format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, CalendarDays, ChevronRight, Puzzle } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarRange, ChevronRight, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { expandTrainings, occurrenceKey } from "@/lib/calendar";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: "Modifica allenamento",
 };
 
-const MAX_OCCURRENCES = 12;
+const MAX_OCCURRENCES_PREVIEW = 5;
 
 export default async function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,7 +30,9 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
   const today = new Date();
   const rangeStart = training.repeat === "once" ? new Date(`${training.startDate}T00:00:00`) : today;
   const rangeEnd = training.repeat === "once" ? rangeStart : addDays(today, 90);
-  const occurrences = expandTrainings([training], rangeStart, rangeEnd).slice(0, MAX_OCCURRENCES);
+  const allOccurrences = expandTrainings([training], rangeStart, rangeEnd);
+  const occurrences = allOccurrences.slice(0, MAX_OCCURRENCES_PREVIEW);
+  const remainingCount = allOccurrences.length - occurrences.length;
 
   const planIdByOccurrenceKey = new Map(
     occurrencePlans
@@ -60,15 +62,25 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
 
       <Card className="mt-6">
         <CardHeader>
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
-            <CalendarDays className="h-4 w-4 text-sea-700" />
-            Scheda per singola data
-          </h2>
-          <p className="mt-1 text-sm text-foreground/60">
-            {training.repeat === "once"
-              ? "Collega una scheda a questo allenamento: le atlete la vedranno nei dettagli dell'evento nel calendario pubblico."
-              : "Collega una scheda a una data specifica: vale solo per quel giorno, non per l'intera serie ricorrente. Le atlete la vedranno nei dettagli di quell'evento nel calendario pubblico."}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
+                <CalendarDays className="h-4 w-4 text-sea-700" />
+                {training.repeat === "once" ? "Scheda" : "Prossime date"}
+              </h2>
+              <p className="mt-1 text-sm text-foreground/60">
+                {training.repeat === "once"
+                  ? "Collega una scheda a questo allenamento: le atlete la vedranno nei dettagli dell'evento nel calendario pubblico."
+                  : "Vale solo per la data scelta, non per l'intera serie ricorrente. Le atlete la vedranno nei dettagli di quell'evento nel calendario pubblico."}
+              </p>
+            </div>
+            {training.repeat !== "once" && (
+              <LinkButton href="/admin/allenamenti/calendario" variant="ghost" size="sm" className="shrink-0">
+                <CalendarRange className="h-3.5 w-3.5" />
+                Calendario completo
+              </LinkButton>
+            )}
+          </div>
         </CardHeader>
         <CardBody className="space-y-1.5">
           {occurrences.length === 0 ? (
@@ -100,6 +112,14 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
                 </Link>
               );
             })
+          )}
+          {remainingCount > 0 && (
+            <Link
+              href="/admin/allenamenti/calendario"
+              className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium text-primary hover:underline"
+            >
+              +{remainingCount} altre date nei prossimi 90 giorni · vedi calendario completo
+            </Link>
           )}
         </CardBody>
       </Card>

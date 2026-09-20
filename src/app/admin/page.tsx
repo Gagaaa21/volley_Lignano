@@ -33,7 +33,7 @@ const SECTIONS = [
   {
     href: "/admin/allenamenti",
     label: "Allenamenti",
-    description: "Regole ricorrenti e singoli giorni",
+    description: "Calendario, regole e schede per data",
     icon: CalendarClock,
   },
   {
