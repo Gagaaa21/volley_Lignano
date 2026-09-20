@@ -93,6 +93,21 @@ export function PlanCreateForm({ blocks = [] }: { blocks?: TrainingBlock[] }) {
           lo stesso titolo viene riusato invece di duplicarlo. Lascia vuoto per creare una scheda
           vuota e comporla dopo con blocchi esistenti.
         </FieldHint>
+        <label className="mt-2.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5">
+          <input
+            type="checkbox"
+            name="useAi"
+            className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+          />
+          <span className="text-sm font-medium text-foreground/85">
+            Dividi con l&apos;aiuto dell&apos;IA
+          </span>
+        </label>
+        <FieldHint>
+          Consigliato per testi con formattazione irregolare. Se non selezionato, l&apos;IA viene
+          comunque usata automaticamente come ripiego solo se il riconoscimento automatico non
+          trova nessun blocco.
+        </FieldHint>
       </div>
 
       <div>

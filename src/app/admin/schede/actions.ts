@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
+import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import type { TrainingBlock } from "@/lib/types";
 
 const createSchema = z.object({
@@ -14,6 +15,7 @@ const createSchema = z.object({
   notes: z.string().optional(),
   pastedText: z.string().optional(),
   blockIds: z.array(z.string()),
+  useAi: z.boolean().optional(),
 });
 
 export interface PlanFormState {
@@ -31,13 +33,23 @@ export async function createPlanAction(
     notes: formData.get("notes")?.toString().trim() || undefined,
     pastedText: formData.get("pastedText")?.toString() ?? "",
     blockIds: formData.getAll("blockIds").map((v) => v.toString()),
+    useAi: formData.get("useAi") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
   const repo = await getRepo();
-  const { preamble, blocks: parsedBlocks } = parseTrainingPlanText(parsed.data.pastedText ?? "");
+  const pastedText = parsed.data.pastedText ?? "";
+  let { preamble, blocks: parsedBlocks } = parseTrainingPlanText(pastedText);
+
+  if (pastedText.trim() && (parsed.data.useAi || parsedBlocks.length === 0)) {
+    const aiResult = await parseTrainingPlanWithAI(pastedText);
+    if (aiResult) {
+      preamble = aiResult.preamble;
+      parsedBlocks = aiResult.blocks;
+    }
+  }
 
   const existingBlocks = await repo.listTrainingBlocks();
   const byTitle = new Map(existingBlocks.map((b) => [b.title.trim().toLowerCase(), b] as const));
