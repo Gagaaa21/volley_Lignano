@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Clock, MapPin, Pencil, Plus } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, Clock, MapPin, Pencil, Plus, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
 
 export default async function TrainingsListPage() {
   const repo = await getRepo();
-  const trainings = await repo.listTrainings();
+  const [trainings, plans] = await Promise.all([repo.listTrainings(), repo.listTrainingPlans()]);
+  const planById = new Map(plans.map((p) => [p.id, p]));
 
   return (
     <div>
@@ -53,7 +55,16 @@ export default async function TrainingsListPage() {
                   </Badge>
                 </div>
 
-                <p className="mt-3 text-sm font-semibold text-sea-700">{formatWeekdays(training.weekdays)}</p>
+                <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-sea-700">
+                  {training.repeat === "once" ? (
+                    <>
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Singolo giorno
+                    </>
+                  ) : (
+                    formatWeekdays(training.weekdays)
+                  )}
+                </p>
 
                 <div className="mt-2 space-y-1.5 text-sm text-foreground/65">
                   <p className="flex items-center gap-2">
@@ -67,9 +78,22 @@ export default async function TrainingsListPage() {
                 </div>
 
                 <p className="mt-3 text-xs text-foreground/45">
-                  Dal {formatDateShort(training.startDate)}
-                  {training.endDate ? ` al ${formatDateShort(training.endDate)}` : " · senza scadenza"}
+                  {training.repeat === "once"
+                    ? `Il ${formatDateShort(training.startDate)}`
+                    : `Dal ${formatDateShort(training.startDate)}${
+                        training.endDate ? ` al ${formatDateShort(training.endDate)}` : " · senza scadenza"
+                      }`}
                 </p>
+
+                {training.planId && planById.get(training.planId) && (
+                  <Link
+                    href={`/admin/schede/${training.planId}`}
+                    className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <Puzzle className="h-3.5 w-3.5" />
+                    Scheda: {planById.get(training.planId)!.title}
+                  </Link>
+                )}
 
                 <div className="mt-4 flex items-center gap-2 border-t border-border-subtle pt-4">
                   <LinkButton
@@ -84,7 +108,11 @@ export default async function TrainingsListPage() {
                   <form action={deleteTrainingAction}>
                     <input type="hidden" name="id" value={training.id} />
                     <ConfirmSubmitButton
-                      confirmMessage={`Eliminare l'allenamento "${training.title}" (${formatWeekdays(training.weekdays)})?`}
+                      confirmMessage={`Eliminare l'allenamento "${training.title}" (${
+                        training.repeat === "once"
+                          ? formatDateShort(training.startDate)
+                          : formatWeekdays(training.weekdays)
+                      })?`}
                       variant="ghost"
                       size="sm"
                       className="text-red-600 hover:bg-red-50"

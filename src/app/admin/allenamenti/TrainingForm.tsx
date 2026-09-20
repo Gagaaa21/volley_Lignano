@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Save } from "lucide-react";
+import Link from "next/link";
+import { Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { WeekdayPicker } from "@/components/forms/WeekdayPicker";
 import { saveTrainingAction, type TrainingFormState } from "./actions";
-import type { TrainingRule } from "@/lib/types";
+import type { TrainingPlan, TrainingRepeat, TrainingRule } from "@/lib/types";
 
 const initialState: TrainingFormState = {};
 
@@ -21,8 +22,9 @@ function SubmitButton() {
   );
 }
 
-export function TrainingForm({ training }: { training?: TrainingRule }) {
+export function TrainingForm({ training, plans = [] }: { training?: TrainingRule; plans?: TrainingPlan[] }) {
   const [state, formAction] = useActionState(saveTrainingAction, initialState);
+  const [repeat, setRepeat] = useState<TrainingRepeat>(training?.repeat ?? "weekly");
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
@@ -46,10 +48,44 @@ export function TrainingForm({ training }: { training?: TrainingRule }) {
       </div>
 
       <div>
-        <Label>Giorni della settimana</Label>
-        <WeekdayPicker selected={training?.weekdays} />
-        <FieldHint>L&apos;allenamento si ripete ogni settimana nei giorni selezionati.</FieldHint>
+        <Label>Ripetizione</Label>
+        <div className="flex gap-2">
+          <label
+            className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-3.5 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
+          >
+            <input
+              type="radio"
+              name="repeat"
+              value="weekly"
+              checked={repeat === "weekly"}
+              onChange={() => setRepeat("weekly")}
+              className="sr-only"
+            />
+            Settimanale
+          </label>
+          <label
+            className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-3.5 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
+          >
+            <input
+              type="radio"
+              name="repeat"
+              value="once"
+              checked={repeat === "once"}
+              onChange={() => setRepeat("once")}
+              className="sr-only"
+            />
+            Singolo giorno
+          </label>
+        </div>
       </div>
+
+      {repeat === "weekly" ? (
+        <div>
+          <Label>Giorni della settimana</Label>
+          <WeekdayPicker selected={training?.weekdays} />
+          <FieldHint>L&apos;allenamento si ripete ogni settimana nei giorni selezionati.</FieldHint>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -74,9 +110,9 @@ export function TrainingForm({ training }: { training?: TrainingRule }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {repeat === "once" ? (
         <div>
-          <Label htmlFor="startDate">Valido dal</Label>
+          <Label htmlFor="startDate">Data</Label>
           <Input
             id="startDate"
             name="startDate"
@@ -85,11 +121,49 @@ export function TrainingForm({ training }: { training?: TrainingRule }) {
             required
           />
         </div>
-        <div>
-          <Label htmlFor="endDate">Valido fino al (opzionale)</Label>
-          <Input id="endDate" name="endDate" type="date" defaultValue={training?.endDate ?? ""} />
-          <FieldHint>Lascia vuoto per un allenamento senza scadenza.</FieldHint>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="startDate">Valido dal</Label>
+            <Input
+              id="startDate"
+              name="startDate"
+              type="date"
+              defaultValue={training?.startDate ?? todayStr}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="endDate">Valido fino al (opzionale)</Label>
+            <Input id="endDate" name="endDate" type="date" defaultValue={training?.endDate ?? ""} />
+            <FieldHint>Lascia vuoto per un allenamento senza scadenza.</FieldHint>
+          </div>
         </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="planId">Scheda allenamento (opzionale)</Label>
+          <Link
+            href="/admin/schede/nuova"
+            className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            <Plus className="h-3 w-3" />
+            Nuova scheda
+          </Link>
+        </div>
+        <Select id="planId" name="planId" defaultValue={training?.planId ?? ""}>
+          <option value="">Nessuna scheda collegata</option>
+          {plans.map((plan) => (
+            <option key={plan.id} value={plan.id}>
+              {plan.title}
+            </option>
+          ))}
+        </Select>
+        <FieldHint>
+          Collega una scheda composta con i blocchi della libreria per definire il contenuto di questo
+          allenamento.
+        </FieldHint>
       </div>
 
       <div>

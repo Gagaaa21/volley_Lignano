@@ -30,17 +30,21 @@ export const WEEKDAY_LABELS = [
 
 export const WEEKDAY_LABELS_SHORT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"] as const;
 
+export type TrainingRepeat = "weekly" | "once";
+
 export interface TrainingRule {
   id: string;
   title: string;
   location: string;
-  weekdays: number[]; // 0 = Sunday ... 6 = Saturday
+  repeat: TrainingRepeat;
+  weekdays: number[]; // 0 = Sunday ... 6 = Saturday (ignorato se repeat = "once")
   startTime: string; // "HH:mm"
   endTime: string; // "HH:mm"
-  startDate: string; // ISO date "YYYY-MM-DD"
-  endDate: string | null; // ISO date or null = indefinite
+  startDate: string; // ISO date "YYYY-MM-DD" (per "once" è la data dell'evento)
+  endDate: string | null; // ISO date o null = indefinito (ignorato se repeat = "once")
   notes: string | null;
   isActive: boolean;
+  planId: string | null; // scheda allenamento collegata (opzionale)
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

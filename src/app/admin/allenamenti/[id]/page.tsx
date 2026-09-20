@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default async function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const repo = await getRepo();
-  const training = await repo.getTraining(id);
+  const [training, plans] = await Promise.all([repo.getTraining(id), repo.listTrainingPlans()]);
   if (!training) notFound();
 
   return (
@@ -31,7 +31,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <TrainingForm training={training} />
+          <TrainingForm training={training} plans={plans} />
         </CardBody>
       </Card>
     </div>

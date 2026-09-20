@@ -22,6 +22,7 @@ type TrainingRow = {
   id: string;
   title: string;
   location: string;
+  repeat: TrainingRule["repeat"];
   weekdays: number[];
   start_time: string;
   end_time: string;
@@ -29,6 +30,7 @@ type TrainingRow = {
   end_date: string | null;
   notes: string | null;
   is_active: boolean;
+  plan_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -64,6 +66,7 @@ function trainingFromRow(row: TrainingRow): TrainingRule {
     id: row.id,
     title: row.title,
     location: row.location,
+    repeat: row.repeat,
     weekdays: row.weekdays,
     startTime: row.start_time.slice(0, 5),
     endTime: row.end_time.slice(0, 5),
@@ -71,6 +74,7 @@ function trainingFromRow(row: TrainingRow): TrainingRule {
     endDate: row.end_date,
     notes: row.notes,
     isActive: row.is_active,
+    planId: row.plan_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -81,6 +85,7 @@ function trainingToRow(input: TrainingRuleInput) {
   return {
     title: input.title,
     location: input.location,
+    repeat: input.repeat,
     weekdays: input.weekdays,
     start_time: input.startTime,
     end_time: input.endTime,
@@ -88,6 +93,7 @@ function trainingToRow(input: TrainingRuleInput) {
     end_date: input.endDate,
     notes: input.notes,
     is_active: input.isActive,
+    plan_id: input.planId,
   };
 }
 

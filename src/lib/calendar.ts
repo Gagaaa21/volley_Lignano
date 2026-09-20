@@ -29,7 +29,27 @@ export function expandTrainings(
   const events: CalendarEvent[] = [];
 
   for (const rule of trainings) {
-    if (!rule.isActive || rule.weekdays.length === 0) continue;
+    if (!rule.isActive) continue;
+
+    if (rule.repeat === "once") {
+      const eventDate = parseISO(rule.startDate);
+      if (eventDate >= rangeStart && eventDate <= rangeEnd) {
+        events.push({
+          kind: "training",
+          id: `${rule.id}:${rule.startDate}`,
+          ruleId: rule.id,
+          date: rule.startDate,
+          startTime: rule.startTime,
+          endTime: rule.endTime,
+          title: rule.title,
+          location: rule.location,
+          notes: rule.notes,
+        });
+      }
+      continue;
+    }
+
+    if (rule.weekdays.length === 0) continue;
 
     const ruleStart = parseISO(rule.startDate);
     const ruleEnd = rule.endDate ? parseISO(rule.endDate) : null;

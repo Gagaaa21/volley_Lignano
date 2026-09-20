@@ -37,6 +37,7 @@ create table if not exists training_sessions (
   id uuid primary key default gen_random_uuid(),
   title text not null default 'Allenamento',
   location text not null,
+  repeat text not null default 'weekly' check (repeat in ('weekly', 'once')),
   weekdays smallint[] not null,
   start_time time not null,
   end_time time not null,
@@ -201,3 +202,9 @@ alter table push_subscriptions enable row level security;
 -- =========================================================
 alter table athletes alter column category drop not null;
 alter table staff add column if not exists has_seen_guide boolean not null default false;
+alter table training_sessions add column if not exists plan_id uuid references training_plans(id) on delete set null;
+alter table training_sessions add column if not exists repeat text not null default 'weekly';
+do $$ begin
+  alter table training_sessions add constraint training_sessions_repeat_check check (repeat in ('weekly', 'once'));
+exception when duplicate_object then null;
+end $$;
