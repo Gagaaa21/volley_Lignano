@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/cn";
 import { logoutAction } from "@/lib/auth/actions";
 import type { SessionPayload } from "@/lib/auth/session";
+import { InstallButton } from "@/components/pwa/InstallButton";
 import crest from "@/assets/lignano-crest.png";
 
 const NAV_ITEMS = [
@@ -110,6 +111,7 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
           </nav>
 
           <div className="nav-cluster w-full shrink-0 sm:w-auto">
+            <InstallButton variant="nav-tile" />
             <Link
               href="/"
               onClick={() => setMobileOpen(false)}

@@ -3,14 +3,10 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { usePwaInstall } from "./PwaInstallContext";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
 const NOTIFY_PROMPTED_KEY = "vl-pwa-notify-prompted";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -69,7 +65,7 @@ function isNotifyEligible(): boolean {
 export function PwaClient() {
   const mounted = useMounted();
   const [step, setStep] = useState<"install" | "notify" | "done">(computeInitialStep);
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const { canInstall, isStandalone, promptInstall } = usePwaInstall();
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -79,35 +75,18 @@ export function PwaClient() {
 
   useEffect(() => {
     if (step !== "install") return;
-
-    let promptReceived = false;
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      promptReceived = true;
-      setInstallEvent(event as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-
     const timeout = setTimeout(() => {
-      if (!promptReceived) setStep("notify");
+      if (!canInstall) setStep("notify");
     }, 2500);
+    return () => clearTimeout(timeout);
+  }, [step, canInstall]);
 
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-      clearTimeout(timeout);
-    };
-  }, [step]);
-
-  const showInstallBanner = mounted && step === "install" && installEvent !== null;
+  const showInstallBanner = mounted && step === "install" && canInstall && !isStandalone;
   const showNotifyBanner = mounted && step === "notify" && isNotifyEligible();
 
   async function handleInstall(accept: boolean) {
     localStorage.setItem(INSTALL_PROMPTED_KEY, "1");
-    if (accept && installEvent) {
-      await installEvent.prompt();
-      await installEvent.userChoice.catch(() => {});
-    }
-    setInstallEvent(null);
+    if (accept) await promptInstall();
     setStep("notify");
   }
 

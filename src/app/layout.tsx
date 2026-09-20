@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
 import { PwaClient } from "@/components/pwa/PwaClient";
+import { PwaInstallProvider } from "@/components/pwa/PwaInstallContext";
 import "./globals.css";
 
 const body = IBM_Plex_Sans({
@@ -42,8 +43,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${body.variable} ${display.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        {children}
-        <PwaClient />
+        <PwaInstallProvider>
+          {children}
+          <PwaClient />
+        </PwaInstallProvider>
       </body>
     </html>
   );
