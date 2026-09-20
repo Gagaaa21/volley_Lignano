@@ -47,13 +47,20 @@ export async function changePasswordAction(
   const newHash = await hashPassword(parsed.data.newPassword);
   await repo.setStaffPassword(staff.id, newHash, false);
 
-  await setSessionCookie({
-    sub: staff.id,
-    username: staff.username,
-    fullName: staff.fullName,
-    role: staff.role,
-    mustChangePassword: false,
-  });
+  try {
+    await setSessionCookie({
+      sub: staff.id,
+      username: staff.username,
+      fullName: staff.fullName,
+      role: staff.role,
+      mustChangePassword: false,
+    });
+  } catch (err) {
+    console.error("[cambia-password] impossibile aggiornare la sessione:", err);
+    return {
+      error: "Configurazione del server incompleta (SESSION_SECRET mancante). Contatta l'amministratore.",
+    };
+  }
 
   redirect("/admin?password_changed=1");
 }

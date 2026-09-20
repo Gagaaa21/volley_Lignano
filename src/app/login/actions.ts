@@ -31,13 +31,20 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const valid = await verifyPassword(parsed.data.password, staff.passwordHash);
   if (!valid) return { error: "Nome utente o password errati." };
 
-  await setSessionCookie({
-    sub: staff.id,
-    username: staff.username,
-    fullName: staff.fullName,
-    role: staff.role,
-    mustChangePassword: staff.mustChangePassword,
-  });
+  try {
+    await setSessionCookie({
+      sub: staff.id,
+      username: staff.username,
+      fullName: staff.fullName,
+      role: staff.role,
+      mustChangePassword: staff.mustChangePassword,
+    });
+  } catch (err) {
+    console.error("[login] impossibile creare la sessione:", err);
+    return {
+      error: "Configurazione del server incompleta (SESSION_SECRET mancante). Contatta l'amministratore.",
+    };
+  }
 
   redirect(staff.mustChangePassword ? "/admin/cambia-password" : "/admin");
 }
