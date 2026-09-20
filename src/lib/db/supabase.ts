@@ -11,6 +11,7 @@ import type {
   StaffMember,
   TrainingBlock,
   TrainingBlockInput,
+  TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
   TrainingRule,
@@ -197,6 +198,28 @@ function trainingPlanToRow(input: TrainingPlanInput) {
     plan_date: input.planDate,
     notes: input.notes,
     block_ids: input.blockIds,
+  };
+}
+
+type TrainingOccurrencePlanRow = {
+  id: string;
+  training_rule_id: string;
+  occurrence_date: string;
+  plan_id: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function occurrencePlanFromRow(row: TrainingOccurrencePlanRow): TrainingOccurrencePlan {
+  return {
+    id: row.id,
+    trainingRuleId: row.training_rule_id,
+    occurrenceDate: row.occurrence_date,
+    planId: row.plan_id,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -534,6 +557,51 @@ export const supabaseRepo: Repo = {
   async deleteTrainingPlan(id) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("training_plans").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listTrainingOccurrencePlans() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("training_occurrence_plans").select("*");
+    if (error) throw new Error(error.message);
+    return (data as TrainingOccurrencePlanRow[]).map(occurrencePlanFromRow);
+  },
+  async getTrainingOccurrencePlan(trainingRuleId, occurrenceDate) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("training_occurrence_plans")
+      .select("*")
+      .eq("training_rule_id", trainingRuleId)
+      .eq("occurrence_date", occurrenceDate)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? occurrencePlanFromRow(data as TrainingOccurrencePlanRow) : null;
+  },
+  async setTrainingOccurrencePlan(trainingRuleId, occurrenceDate, planId, createdBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("training_occurrence_plans")
+      .upsert(
+        {
+          training_rule_id: trainingRuleId,
+          occurrence_date: occurrenceDate,
+          plan_id: planId,
+          created_by: createdBy,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "training_rule_id,occurrence_date" },
+      )
+      .select("*")
+      .single();
+    return occurrencePlanFromRow(unwrap(result) as TrainingOccurrencePlanRow);
+  },
+  async removeTrainingOccurrencePlan(trainingRuleId, occurrenceDate) {
+    const db = getSupabaseAdmin();
+    const { error } = await db
+      .from("training_occurrence_plans")
+      .delete()
+      .eq("training_rule_id", trainingRuleId)
+      .eq("occurrence_date", occurrenceDate);
     if (error) throw new Error(error.message);
   },
 

@@ -144,6 +144,31 @@ export async function saveTrainingAction(
   redirect("/admin/allenamenti");
 }
 
+export async function setOccurrencePlanAction(formData: FormData): Promise<void> {
+  const session = await requireStaff();
+  const ruleId = formData.get("ruleId")?.toString();
+  const date = formData.get("date")?.toString();
+  const planId = formData.get("planId")?.toString();
+  if (!ruleId || !date || !planId) return;
+
+  const repo = await getRepo();
+  await repo.setTrainingOccurrencePlan(ruleId, date, planId, session.sub);
+  revalidatePath(`/admin/allenamenti/${ruleId}`);
+  revalidatePath("/");
+}
+
+export async function removeOccurrencePlanAction(formData: FormData): Promise<void> {
+  await requireStaff();
+  const ruleId = formData.get("ruleId")?.toString();
+  const date = formData.get("date")?.toString();
+  if (!ruleId || !date) return;
+
+  const repo = await getRepo();
+  await repo.removeTrainingOccurrencePlan(ruleId, date);
+  revalidatePath(`/admin/allenamenti/${ruleId}`);
+  revalidatePath("/");
+}
+
 export async function deleteTrainingAction(formData: FormData): Promise<void> {
   await requireStaff();
   const id = formData.get("id")?.toString();

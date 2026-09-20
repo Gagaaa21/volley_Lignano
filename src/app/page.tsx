@@ -14,10 +14,12 @@ import {
   getMonthGridRange,
   groupEventsByDate,
   matchesToEvents,
+  occurrenceKey,
   sortEvents,
 } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { Category } from "@/lib/types";
+import type { EventPlan } from "@/components/calendar/EventDetailDialog";
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
@@ -34,19 +36,39 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const endStr = format(end, "yyyy-MM-dd");
 
   const repo = await getRepo();
-  const [trainings, matches] = await Promise.all([
+  const [trainings, matches, occurrencePlans, plans, blocks] = await Promise.all([
     repo.listTrainings(),
     repo.listMatches({
       from: startStr,
       to: endStr,
       category: activeCategory === "all" ? undefined : activeCategory,
     }),
+    repo.listTrainingOccurrencePlans(),
+    repo.listTrainingPlans(),
+    repo.listTrainingBlocks(),
   ]);
 
-  const trainingEvents = expandTrainings(trainings, start, end);
+  const occurrencePlanIds = new Map(
+    occurrencePlans.map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o.planId] as const),
+  );
+  const trainingEvents = expandTrainings(trainings, start, end, occurrencePlanIds);
   const matchEvents = matchesToEvents(matches);
   const monthEvents = sortEvents([...trainingEvents, ...matchEvents]);
   const eventsByDate = groupEventsByDate(monthEvents);
+
+  const planById = new Map(plans.map((p) => [p.id, p] as const));
+  const blockById = new Map(blocks.map((b) => [b.id, b] as const));
+  const plansByEventId: Record<string, EventPlan> = {};
+  for (const event of monthEvents) {
+    if (event.kind !== "training" || !event.planId) continue;
+    const plan = planById.get(event.planId);
+    if (!plan) continue;
+    const planBlocks = plan.blockIds
+      .map((blockId) => blockById.get(blockId))
+      .filter((b): b is NonNullable<typeof b> => Boolean(b))
+      .map((b) => ({ id: b.id, title: b.title, durationMinutes: b.durationMinutes, content: b.content }));
+    plansByEventId[event.id] = { title: plan.title, blocks: planBlocks };
+  }
 
   const isCurrentMonthView = monthParam === formatMonthParam(new Date());
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -102,7 +124,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <h2 className="mb-4 mt-1.5 font-display text-lg font-bold capitalize text-foreground">
               Eventi di {format(monthDate, "MMMM", { locale: it })}
             </h2>
-            <AgendaList eventsByDate={eventsByDate} />
+            <AgendaList eventsByDate={eventsByDate} plansByEventId={plansByEventId} />
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-border-subtle bg-surface px-5 py-4 text-xs font-medium text-muted-foreground">

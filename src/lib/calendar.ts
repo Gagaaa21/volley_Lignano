@@ -17,14 +17,22 @@ export function groupEventsByDate(events: CalendarEvent[]): Map<string, Calendar
   return map;
 }
 
+export function occurrenceKey(trainingRuleId: string, date: string): string {
+  return `${trainingRuleId}_${date}`;
+}
+
 /**
  * Expands recurring training rules into concrete dated instances within
- * [rangeStart, rangeEnd] (inclusive, both at day precision).
+ * [rangeStart, rangeEnd] (inclusive, both at day precision). occurrencePlanIds
+ * maps occurrenceKey(ruleId, date) -> planId, per una scheda collegata a una
+ * singola data (vedi TrainingOccurrencePlan): se assente, l'evento ha
+ * planId: null anche se la regola stessa è ricorrente.
  */
 export function expandTrainings(
   trainings: TrainingRule[],
   rangeStart: Date,
   rangeEnd: Date,
+  occurrencePlanIds: Map<string, string> = new Map(),
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
 
@@ -44,6 +52,7 @@ export function expandTrainings(
           title: rule.title,
           location: rule.location,
           notes: rule.notes,
+          planId: occurrencePlanIds.get(occurrenceKey(rule.id, rule.startDate)) ?? null,
         });
       }
       continue;
@@ -72,6 +81,7 @@ export function expandTrainings(
           title: rule.title,
           location: rule.location,
           notes: rule.notes,
+          planId: occurrencePlanIds.get(occurrenceKey(rule.id, dateStr)) ?? null,
         });
       }
       cursor = addDays(cursor, 1);

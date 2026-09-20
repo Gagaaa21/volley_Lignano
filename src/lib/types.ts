@@ -101,6 +101,18 @@ export type TrainingPlanInput = Omit<
   "id" | "createdBy" | "createdAt" | "updatedAt"
 >;
 
+// Scheda collegata a un singolo giorno di allenamento: anche se la regola
+// (TrainingRule) è ricorrente, questo collegamento vale solo per quella data.
+export interface TrainingOccurrencePlan {
+  id: string;
+  trainingRuleId: string;
+  occurrenceDate: string; // "YYYY-MM-DD"
+  planId: string;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Athlete {
   id: string;
   fullName: string;
@@ -152,6 +164,7 @@ export type CalendarEvent =
       title: string;
       location: string;
       notes: string | null;
+      planId: string | null; // scheda collegata a questa singola data (opzionale)
     }
   | {
       kind: "match";

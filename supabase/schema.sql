@@ -122,6 +122,28 @@ alter table training_plans enable row level security;
 -- Nessuna policy pubblica: stessa logica di training_blocks.
 
 -- =========================================================
+-- training_occurrence_plans — scheda collegata a un singolo giorno di
+-- allenamento: anche se la regola (training_sessions) è ricorrente, questo
+-- collegamento vale solo per quella data, non per l'intera serie.
+-- =========================================================
+create table if not exists training_occurrence_plans (
+  id uuid primary key default gen_random_uuid(),
+  training_rule_id uuid not null references training_sessions(id) on delete cascade,
+  occurrence_date date not null,
+  plan_id uuid not null references training_plans(id) on delete cascade,
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists training_occurrence_plans_occurrence_idx
+  on training_occurrence_plans (training_rule_id, occurrence_date);
+
+alter table training_occurrence_plans enable row level security;
+-- Nessuna policy pubblica: scritture solo da staff, lette lato server (anche
+-- dalla home page pubblica) sempre tramite la service role key.
+
+-- =========================================================
 -- athletes — anagrafica atlete (dati minori, nessun accesso
 -- pubblico: solo Developer e Admin)
 -- =========================================================

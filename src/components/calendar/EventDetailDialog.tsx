@@ -3,16 +3,24 @@
 import { useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Clock, Dumbbell, ExternalLink, Home, MapPin, Plane, Swords, X } from "lucide-react";
+import { Clock, Dumbbell, ExternalLink, Home, MapPin, Plane, Puzzle, Swords, X } from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { BlockContent } from "@/components/schede/BlockContent";
 import type { CalendarEvent } from "@/lib/types";
+
+export interface EventPlan {
+  title: string;
+  blocks: { id: string; title: string; durationMinutes: number; content: string }[];
+}
 
 export function EventDetailDialog({
   event,
+  plan,
   onClose,
 }: {
   event: CalendarEvent | null;
+  plan?: EventPlan;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -43,7 +51,7 @@ export function EventDetailDialog({
       role="presentation"
     >
       <div
-        className="w-full max-w-md rounded-t-2xl border border-border-subtle bg-surface p-5 shadow-[0_-20px_50px_-20px_rgba(9,27,38,0.35)] sm:rounded-2xl sm:p-6 sm:shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)]"
+        className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-5 shadow-[0_-20px_50px_-20px_rgba(9,27,38,0.35)] sm:rounded-2xl sm:p-6 sm:shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -108,6 +116,31 @@ export function EventDetailDialog({
             </p>
           )}
         </div>
+
+        {isTraining && plan && (
+          <div className="mt-5 border-t border-border-subtle pt-4">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sea-700">
+              <Puzzle className="h-3.5 w-3.5" />
+              Cosa si fa · {plan.title}
+            </p>
+            <ol className="mt-3 space-y-3">
+              {plan.blocks.map((block, index) => (
+                <li key={block.id} className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-foreground">
+                      {index + 1}. {block.title}
+                    </p>
+                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-training-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-training-strong)]">
+                      <Clock className="h-2.5 w-2.5" />
+                      {block.durationMinutes}&apos;
+                    </span>
+                  </div>
+                  <BlockContent content={block.content} className="mt-2" />
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     </div>
   );

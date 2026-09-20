@@ -6,7 +6,7 @@ import { it } from "date-fns/locale";
 import { ChevronRight, Dumbbell, Home, MapPin, Plane, Swords } from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import { EventDetailDialog } from "./EventDetailDialog";
+import { EventDetailDialog, type EventPlan } from "./EventDetailDialog";
 import type { CalendarEvent } from "@/lib/types";
 
 function dateHeading(dateStr: string) {
@@ -18,9 +18,11 @@ function dateHeading(dateStr: string) {
 
 export function AgendaList({
   eventsByDate,
+  plansByEventId = {},
   emptyMessage = "Nessun evento in programma per questo periodo.",
 }: {
   eventsByDate: Map<string, CalendarEvent[]>;
+  plansByEventId?: Record<string, EventPlan>;
   emptyMessage?: string;
 }) {
   const dates = [...eventsByDate.keys()].sort();
@@ -49,7 +51,11 @@ export function AgendaList({
         </div>
       ))}
 
-      <EventDetailDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <EventDetailDialog
+        event={selectedEvent}
+        plan={selectedEvent ? plansByEventId[selectedEvent.id] : undefined}
+        onClose={() => setSelectedEvent(null)}
+      />
     </div>
   );
 }

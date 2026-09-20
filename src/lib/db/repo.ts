@@ -10,6 +10,7 @@ import type {
   StaffRole,
   TrainingBlock,
   TrainingBlockInput,
+  TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
   TrainingRule,
@@ -69,6 +70,21 @@ export interface Repo {
   createTrainingPlan(input: TrainingPlanInput, createdBy: string | null): Promise<TrainingPlan>;
   updateTrainingPlan(id: string, input: TrainingPlanInput): Promise<TrainingPlan>;
   deleteTrainingPlan(id: string): Promise<void>;
+
+  // Scheda collegata a un singolo giorno di allenamento (vale solo per quella
+  // data, anche se la regola è ricorrente)
+  listTrainingOccurrencePlans(): Promise<TrainingOccurrencePlan[]>;
+  getTrainingOccurrencePlan(
+    trainingRuleId: string,
+    occurrenceDate: string,
+  ): Promise<TrainingOccurrencePlan | null>;
+  setTrainingOccurrencePlan(
+    trainingRuleId: string,
+    occurrenceDate: string,
+    planId: string,
+    createdBy: string | null,
+  ): Promise<TrainingOccurrencePlan>;
+  removeTrainingOccurrencePlan(trainingRuleId: string, occurrenceDate: string): Promise<void>;
 
   // Atlete
   listAthletes(): Promise<Athlete[]>;

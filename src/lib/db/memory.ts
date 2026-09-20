@@ -10,6 +10,7 @@ import type {
   StaffMember,
   TrainingBlock,
   TrainingBlockInput,
+  TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
   TrainingRule,
@@ -34,6 +35,8 @@ const matches: Match[] = [];
 const trainingBlocks: TrainingBlock[] = [];
 
 const trainingPlans: TrainingPlan[] = [];
+
+const trainingOccurrencePlans: TrainingOccurrencePlan[] = [];
 
 const athletes: Athlete[] = [];
 
@@ -210,6 +213,44 @@ export const memoryRepo: Repo = {
   async deleteTrainingPlan(id) {
     const idx = trainingPlans.findIndex((p) => p.id === id);
     if (idx !== -1) trainingPlans.splice(idx, 1);
+  },
+
+  async listTrainingOccurrencePlans() {
+    return [...trainingOccurrencePlans];
+  },
+  async getTrainingOccurrencePlan(trainingRuleId, occurrenceDate) {
+    return (
+      trainingOccurrencePlans.find(
+        (o) => o.trainingRuleId === trainingRuleId && o.occurrenceDate === occurrenceDate,
+      ) ?? null
+    );
+  },
+  async setTrainingOccurrencePlan(trainingRuleId, occurrenceDate, planId, createdBy) {
+    const now = new Date().toISOString();
+    const idx = trainingOccurrencePlans.findIndex(
+      (o) => o.trainingRuleId === trainingRuleId && o.occurrenceDate === occurrenceDate,
+    );
+    if (idx !== -1) {
+      trainingOccurrencePlans[idx] = { ...trainingOccurrencePlans[idx], planId, updatedAt: now };
+      return trainingOccurrencePlans[idx];
+    }
+    const row: TrainingOccurrencePlan = {
+      id: uid(),
+      trainingRuleId,
+      occurrenceDate,
+      planId,
+      createdBy,
+      createdAt: now,
+      updatedAt: now,
+    };
+    trainingOccurrencePlans.push(row);
+    return row;
+  },
+  async removeTrainingOccurrencePlan(trainingRuleId, occurrenceDate) {
+    const idx = trainingOccurrencePlans.findIndex(
+      (o) => o.trainingRuleId === trainingRuleId && o.occurrenceDate === occurrenceDate,
+    );
+    if (idx !== -1) trainingOccurrencePlans.splice(idx, 1);
   },
 
   async listAthletes() {
