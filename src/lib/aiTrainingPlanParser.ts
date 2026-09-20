@@ -38,6 +38,29 @@ function getClient(): GoogleGenAI | null {
   return new GoogleGenAI({ apiKey });
 }
 
+async function generateWithRetry(client: GoogleGenAI, text: string) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await client.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: text,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+          temperature: 0.1,
+        },
+      });
+    } catch (err) {
+      // Il modello flash può restituire 503 (sovraccarico temporaneo): un solo
+      // ritentativo dopo una breve pausa evita di rinunciare all'IA per un blip.
+      if (attempt === 2) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 /**
  * Ripiego basato su IA per dividere un testo di allenamento in blocchi quando il parser
  * regex (parseTrainingPlanText) non riesce a riconoscere la formattazione. Ritorna null
@@ -52,16 +75,7 @@ export async function parseTrainingPlanWithAI(raw: string): Promise<ParsedTraini
   if (!client) return null;
 
   try {
-    const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: text,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-        temperature: 0.1,
-      },
-    });
+    const response = await generateWithRetry(client, text);
 
     const raw2 = response.text;
     if (!raw2) return null;
