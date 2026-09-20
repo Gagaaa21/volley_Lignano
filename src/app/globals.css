@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
+
   /* Sea — identità del club (stemma blu) */
   --color-sea-50: #eef7fb;
   --color-sea-100: #d9edf5;
@@ -133,29 +135,8 @@
   --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a161f;
-    --foreground: #eef3f6;
-    --card: #0f2029;
-    --popover: #0f2029;
-    --secondary: #142834;
-    --muted: #132430;
-    --muted-foreground: #91a3af;
-    --accent: #24303a;
-    --accent-foreground: var(--color-sand-300);
-    --border: rgba(255, 255, 255, 0.09);
-    --input: rgba(255, 255, 255, 0.12);
-
-    --surface: var(--card);
-    --surface-muted: var(--muted);
-    --border-subtle: var(--border);
-
-    --color-u14-soft: #0f2e29;
-    --color-u15-soft: #241a42;
-    --color-training-soft: #2c2210;
-  }
-}
+/* Il sito usa sempre il tema chiaro, indipendentemente dalle preferenze
+   di sistema del visitatore (nessun @media prefers-color-scheme: dark). */
 
 @layer base {
   * {
