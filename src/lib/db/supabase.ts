@@ -7,6 +7,7 @@ import type {
   AttendanceSessionInput,
   Match,
   MatchInput,
+  PushSubscriptionRecord,
   StaffMember,
   TrainingBlock,
   TrainingBlockInput,
@@ -53,6 +54,7 @@ type StaffRow = {
   full_name: string;
   role: StaffMember["role"];
   must_change_password: boolean;
+  has_seen_guide: boolean;
   created_by: string | null;
   created_at: string;
 };
@@ -123,6 +125,7 @@ function staffFromRow(row: StaffRow): StaffMember {
     fullName: row.full_name,
     role: row.role,
     mustChangePassword: row.must_change_password,
+    hasSeenGuide: row.has_seen_guide,
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
@@ -260,6 +263,24 @@ function attendanceSessionToRow(input: AttendanceSessionInput) {
   };
 }
 
+type PushSubscriptionRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+};
+
+function pushSubscriptionFromRow(row: PushSubscriptionRow): PushSubscriptionRecord {
+  return {
+    id: row.id,
+    endpoint: row.endpoint,
+    p256dh: row.p256dh,
+    auth: row.auth,
+    createdAt: row.created_at,
+  };
+}
+
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
   if (result.data == null) throw new Error("Nessun dato restituito da Supabase");
@@ -386,12 +407,27 @@ export const supabaseRepo: Repo = {
       .single();
     return staffFromRow(unwrap(result) as StaffRow);
   },
+  async updateStaffProfile(id, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("staff")
+      .update({ username: input.username, full_name: input.fullName })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return staffFromRow(unwrap(result) as StaffRow);
+  },
   async setStaffPassword(id, passwordHash, mustChangePassword) {
     const db = getSupabaseAdmin();
     const { error } = await db
       .from("staff")
       .update({ password_hash: passwordHash, must_change_password: mustChangePassword })
       .eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+  async markGuideSeen(id) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("staff").update({ has_seen_guide: true }).eq("id", id);
     if (error) throw new Error(error.message);
   },
   async deleteStaff(id) {
@@ -519,6 +555,16 @@ export const supabaseRepo: Repo = {
       .single();
     return athleteFromRow(unwrap(result) as AthleteRow);
   },
+  async createAthletesBulk(inputs, createdBy) {
+    if (inputs.length === 0) return [];
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("athletes")
+      .insert(inputs.map((input) => ({ ...athleteToRow(input), created_by: createdBy })))
+      .select("*");
+    if (error) throw new Error(error.message);
+    return (data as AthleteRow[]).map(athleteFromRow);
+  },
   async updateAthlete(id, input) {
     const db = getSupabaseAdmin();
     const result = await db
@@ -587,6 +633,28 @@ export const supabaseRepo: Repo = {
   async deleteAttendanceSession(id) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("attendance_sessions").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listPushSubscriptions() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("push_subscriptions").select("*");
+    if (error) throw new Error(error.message);
+    return (data as PushSubscriptionRow[]).map(pushSubscriptionFromRow);
+  },
+  async upsertPushSubscription(input) {
+    const db = getSupabaseAdmin();
+    const { error } = await db
+      .from("push_subscriptions")
+      .upsert(
+        { endpoint: input.endpoint, p256dh: input.p256dh, auth: input.auth },
+        { onConflict: "endpoint" },
+      );
+    if (error) throw new Error(error.message);
+  },
+  async deletePushSubscriptionByEndpoint(endpoint) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("push_subscriptions").delete().eq("endpoint", endpoint);
     if (error) throw new Error(error.message);
   },
 };

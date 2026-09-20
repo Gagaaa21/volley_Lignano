@@ -46,5 +46,6 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     };
   }
 
-  redirect(staff.mustChangePassword ? "/admin/cambia-password" : "/admin");
+  if (staff.mustChangePassword) redirect("/admin/cambia-password");
+  redirect(staff.hasSeenGuide ? "/admin" : "/admin/guida");
 }

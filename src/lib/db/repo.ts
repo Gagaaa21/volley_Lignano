@@ -5,6 +5,7 @@ import type {
   AttendanceSessionInput,
   Match,
   MatchInput,
+  PushSubscriptionRecord,
   StaffMember,
   StaffRole,
   TrainingBlock,
@@ -50,7 +51,9 @@ export interface Repo {
   getStaffById(id: string): Promise<StaffMember | null>;
   getStaffByUsername(username: string): Promise<StaffMember | null>;
   createStaff(input: NewStaffInput): Promise<StaffMember>;
+  updateStaffProfile(id: string, input: { username: string; fullName: string }): Promise<StaffMember>;
   setStaffPassword(id: string, passwordHash: string, mustChangePassword: boolean): Promise<void>;
+  markGuideSeen(id: string): Promise<void>;
   deleteStaff(id: string): Promise<void>;
 
   // Blocchi allenamento riutilizzabili (libreria "puzzle")
@@ -71,6 +74,7 @@ export interface Repo {
   listAthletes(): Promise<Athlete[]>;
   getAthlete(id: string): Promise<Athlete | null>;
   createAthlete(input: AthleteInput, createdBy: string | null): Promise<Athlete>;
+  createAthletesBulk(inputs: AthleteInput[], createdBy: string | null): Promise<Athlete[]>;
   updateAthlete(id: string, input: AthleteInput): Promise<Athlete>;
   deleteAthlete(id: string): Promise<void>;
 
@@ -87,4 +91,9 @@ export interface Repo {
   ): Promise<AttendanceSession>;
   updateAttendanceSession(id: string, input: AttendanceSessionInput): Promise<AttendanceSession>;
   deleteAttendanceSession(id: string): Promise<void>;
+
+  // Iscrizioni notifiche push (PWA)
+  listPushSubscriptions(): Promise<PushSubscriptionRecord[]>;
+  upsertPushSubscription(input: { endpoint: string; p256dh: string; auth: string }): Promise<void>;
+  deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
 }

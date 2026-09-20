@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
+import { PwaClient } from "@/components/pwa/PwaClient";
 import "./globals.css";
 
 const body = IBM_Plex_Sans({
@@ -21,6 +22,16 @@ export const metadata: Metadata = {
   },
   description:
     "Calendario ufficiale di allenamenti e partite delle squadre femminili Under 14 e Under 15 di Volley Lignano.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Volley Lignano",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#145470",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -32,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         {children}
+        <PwaClient />
       </body>
     </html>
   );

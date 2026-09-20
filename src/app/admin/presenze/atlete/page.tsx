@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Plus, Users } from "lucide-react";
+import { ArrowLeft, ListPlus, Pencil, Plus, Users } from "lucide-react";
 import { getRepo } from "@/lib/db";
-import { CATEGORY_LABELS } from "@/lib/category";
+import { categoryLabel } from "@/lib/category";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
@@ -14,11 +14,11 @@ export const metadata: Metadata = {
   title: "Atlete",
 };
 
-function AthleteGroup({ category, athletes }: { category: Category; athletes: Athlete[] }) {
+function AthleteGroup({ category, athletes }: { category: Category | null; athletes: Athlete[] }) {
   if (athletes.length === 0) return null;
   return (
     <div>
-      <p className="eyebrow">{CATEGORY_LABELS[category]}</p>
+      <p className="eyebrow">{categoryLabel(category)}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {athletes.map((athlete) => (
           <Card key={athlete.id}>
@@ -89,10 +89,16 @@ export default async function AthletesPage() {
             L&apos;anagrafica usata per registrare le presenze agli allenamenti.
           </p>
         </div>
-        <LinkButton href="/admin/presenze/atlete/nuova">
-          <Plus className="h-4 w-4" />
-          Nuova atleta
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/admin/presenze/atlete/elenco" variant="outline">
+            <ListPlus className="h-4 w-4" />
+            Aggiungi in elenco
+          </LinkButton>
+          <LinkButton href="/admin/presenze/atlete/nuova">
+            <Plus className="h-4 w-4" />
+            Nuova atleta
+          </LinkButton>
+        </div>
       </div>
 
       {athletes.length === 0 ? (
@@ -103,6 +109,7 @@ export default async function AthletesPage() {
         <div className="mt-6 space-y-8">
           <AthleteGroup category="U14" athletes={athletes.filter((a) => a.category === "U14")} />
           <AthleteGroup category="U15" athletes={athletes.filter((a) => a.category === "U15")} />
+          <AthleteGroup category={null} athletes={athletes.filter((a) => a.category === null)} />
         </div>
       )}
     </div>

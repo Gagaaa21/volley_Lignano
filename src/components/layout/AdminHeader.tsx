@@ -5,8 +5,10 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  BookOpen,
   CalendarClock,
   ClipboardCheck,
+  Globe,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -28,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false },
   { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false },
+  { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false },
 ];
 
 function isActive(pathname: string, href: string, exact: boolean) {
@@ -83,7 +86,11 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
             mobileOpen ? "flex flex-col" : "hidden sm:flex",
           )}
         >
-          <nav className="nav-rail w-full min-w-0 flex-1" aria-label="Sezioni area riservata">
+          <nav
+            className="nav-rail w-full min-w-0 flex-1"
+            data-mobile={mobileOpen ? "true" : undefined}
+            aria-label="Sezioni area riservata"
+          >
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href, item.exact);
               const Icon = item.icon;
@@ -103,6 +110,15 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
           </nav>
 
           <div className="nav-cluster w-full shrink-0 sm:w-auto">
+            <Link
+              href="/"
+              onClick={() => setMobileOpen(false)}
+              className="nav-tile w-full sm:w-auto"
+              aria-label="Vai al sito pubblico"
+            >
+              <Globe className="h-4 w-4" />
+              Sito pubblico
+            </Link>
             <form action={logoutAction} className="w-full sm:w-auto">
               <button type="submit" className="nav-tile w-full sm:w-auto" aria-label="Esci">
                 <LogOut className="h-4 w-4" />

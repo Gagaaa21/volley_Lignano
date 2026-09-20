@@ -6,6 +6,7 @@ import type {
   AttendanceSessionInput,
   Match,
   MatchInput,
+  PushSubscriptionRecord,
   StaffMember,
   TrainingBlock,
   TrainingBlockInput,
@@ -38,6 +39,8 @@ const athletes: Athlete[] = [];
 
 const attendanceSessions: AttendanceSession[] = [];
 
+const pushSubscriptions: PushSubscriptionRecord[] = [];
+
 const staff: StaffMember[] = [];
 let staffSeeded = false;
 
@@ -52,6 +55,7 @@ async function ensureStaffSeeded() {
     fullName: "Gaga",
     role: "dev",
     mustChangePassword: true,
+    hasSeenGuide: false,
     createdBy: null,
     createdAt: new Date().toISOString(),
   });
@@ -122,15 +126,32 @@ export const memoryRepo: Repo = {
   },
   async createStaff(input: NewStaffInput) {
     await ensureStaffSeeded();
-    const row: StaffMember = { ...input, id: uid(), createdAt: new Date().toISOString() };
+    const row: StaffMember = {
+      ...input,
+      id: uid(),
+      hasSeenGuide: false,
+      createdAt: new Date().toISOString(),
+    };
     staff.push(row);
     return row;
+  },
+  async updateStaffProfile(id, input) {
+    await ensureStaffSeeded();
+    const idx = staff.findIndex((s) => s.id === id);
+    if (idx === -1) throw new Error("Utente non trovato");
+    staff[idx] = { ...staff[idx], username: input.username, fullName: input.fullName };
+    return staff[idx];
   },
   async setStaffPassword(id, passwordHash, mustChangePassword) {
     await ensureStaffSeeded();
     const idx = staff.findIndex((s) => s.id === id);
     if (idx === -1) throw new Error("Utente non trovato");
     staff[idx] = { ...staff[idx], passwordHash, mustChangePassword };
+  },
+  async markGuideSeen(id) {
+    await ensureStaffSeeded();
+    const idx = staff.findIndex((s) => s.id === id);
+    if (idx !== -1) staff[idx] = { ...staff[idx], hasSeenGuide: true };
   },
   async deleteStaff(id) {
     await ensureStaffSeeded();
@@ -203,6 +224,18 @@ export const memoryRepo: Repo = {
     athletes.push(row);
     return row;
   },
+  async createAthletesBulk(inputs: AthleteInput[], createdBy) {
+    const now = new Date().toISOString();
+    const rows: Athlete[] = inputs.map((input) => ({
+      ...input,
+      id: uid(),
+      createdBy,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    athletes.push(...rows);
+    return rows;
+  },
   async updateAthlete(id, input: AthleteInput) {
     const idx = athletes.findIndex((a) => a.id === id);
     if (idx === -1) throw new Error("Atleta non trovata");
@@ -246,5 +279,27 @@ export const memoryRepo: Repo = {
   async deleteAttendanceSession(id) {
     const idx = attendanceSessions.findIndex((s) => s.id === id);
     if (idx !== -1) attendanceSessions.splice(idx, 1);
+  },
+
+  async listPushSubscriptions() {
+    return [...pushSubscriptions];
+  },
+  async upsertPushSubscription(input) {
+    const idx = pushSubscriptions.findIndex((s) => s.endpoint === input.endpoint);
+    if (idx !== -1) {
+      pushSubscriptions[idx] = { ...pushSubscriptions[idx], p256dh: input.p256dh, auth: input.auth };
+      return;
+    }
+    pushSubscriptions.push({
+      id: uid(),
+      endpoint: input.endpoint,
+      p256dh: input.p256dh,
+      auth: input.auth,
+      createdAt: new Date().toISOString(),
+    });
+  },
+  async deletePushSubscriptionByEndpoint(endpoint) {
+    const idx = pushSubscriptions.findIndex((s) => s.endpoint === endpoint);
+    if (idx !== -1) pushSubscriptions.splice(idx, 1);
   },
 };

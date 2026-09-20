@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
+import { notifyCalendarChange } from "@/lib/push";
+import { CATEGORY_LABELS } from "@/lib/category";
 import type { MatchInput } from "@/lib/types";
 
 const schema = z.object({
@@ -52,10 +54,21 @@ export async function saveMatchAction(
   };
 
   const repo = await getRepo();
+  const matchup = `${CATEGORY_LABELS[input.category]} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
   if (id) {
     await repo.updateMatch(id, input);
+    await notifyCalendarChange({
+      title: "Partita aggiornata",
+      body: matchup,
+      url: "/",
+    });
   } else {
     await repo.createMatch(input, session.sub);
+    await notifyCalendarChange({
+      title: "Nuova partita in calendario",
+      body: matchup,
+      url: "/",
+    });
   }
 
   revalidatePath("/admin/partite");
@@ -68,7 +81,15 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getRepo();
+  const match = await repo.getMatch(id);
   await repo.deleteMatch(id);
+  if (match) {
+    await notifyCalendarChange({
+      title: "Partita rimossa",
+      body: `${CATEGORY_LABELS[match.category]} ${match.isHome ? "vs" : "@"} ${match.opponent} non è più in calendario.`,
+      url: "/",
+    });
+  }
   revalidatePath("/admin/partite");
   revalidatePath("/");
 }

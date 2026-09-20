@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Check, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
-import { CATEGORY_BADGE, CATEGORY_LABELS } from "@/lib/category";
+import { categoryBadgeClass, categoryLabel } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -67,10 +67,10 @@ export default async function AthleteAttendancePage({
         <span
           className={cn(
             "rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
-            CATEGORY_BADGE[athlete.category],
+            categoryBadgeClass(athlete.category),
           )}
         >
-          {CATEGORY_LABELS[athlete.category]}
+          {categoryLabel(athlete.category)}
         </span>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">Storico presenze agli allenamenti.</p>

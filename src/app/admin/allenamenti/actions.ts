@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
+import { notifyCalendarChange } from "@/lib/push";
+import { formatWeekdays } from "@/lib/format";
 import type { TrainingRuleInput } from "@/lib/types";
 
 const schema = z
@@ -74,8 +76,18 @@ export async function saveTrainingAction(
   const repo = await getRepo();
   if (id) {
     await repo.updateTraining(id, input);
+    await notifyCalendarChange({
+      title: "Allenamento aggiornato",
+      body: `${input.title} · ${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`,
+      url: "/",
+    });
   } else {
     await repo.createTraining(input, session.sub);
+    await notifyCalendarChange({
+      title: "Nuovo allenamento",
+      body: `${input.title} · ${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`,
+      url: "/",
+    });
   }
 
   revalidatePath("/admin/allenamenti");
@@ -88,7 +100,15 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getRepo();
+  const training = await repo.getTraining(id);
   await repo.deleteTraining(id);
+  if (training) {
+    await notifyCalendarChange({
+      title: "Allenamento rimosso",
+      body: `${training.title} · ${formatWeekdays(training.weekdays)} non è più in calendario.`,
+      url: "/",
+    });
+  }
   revalidatePath("/admin/allenamenti");
   revalidatePath("/");
 }

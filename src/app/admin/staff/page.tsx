@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { ShieldCheck, UserCog } from "lucide-react";
+import { Pencil, ShieldCheck, UserCog } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/LinkButton";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { StaffForm } from "./StaffForm";
 import { deleteStaffAction } from "./actions";
@@ -40,7 +41,7 @@ export default async function StaffPage() {
 
         <div className="space-y-3">
           {staff.map((member) => {
-            const canDelete = session.role === "dev" && member.role !== "dev" && member.id !== session.sub;
+            const canManage = session.role === "dev" && member.role !== "dev" && member.id !== session.sub;
             return (
               <Card key={member.id}>
                 <CardBody className="flex items-center justify-between gap-4 pt-5">
@@ -72,18 +73,23 @@ export default async function StaffPage() {
                     )}
                   </div>
 
-                  {canDelete && (
-                    <form action={deleteStaffAction}>
-                      <input type="hidden" name="id" value={member.id} />
-                      <ConfirmSubmitButton
-                        confirmMessage={`Rimuovere l'accesso di ${member.fullName} (@${member.username})?`}
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 text-red-600 hover:bg-red-50"
-                      >
-                        Rimuovi
-                      </ConfirmSubmitButton>
-                    </form>
+                  {canManage && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <LinkButton href={`/admin/staff/${member.id}`} variant="outline" size="sm" aria-label="Modifica">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </LinkButton>
+                      <form action={deleteStaffAction}>
+                        <input type="hidden" name="id" value={member.id} />
+                        <ConfirmSubmitButton
+                          confirmMessage={`Rimuovere l'accesso di ${member.fullName} (@${member.username})?`}
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          Rimuovi
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
                   )}
                 </CardBody>
               </Card>

@@ -7,6 +7,7 @@ export interface StaffMember {
   fullName: string;
   role: StaffRole;
   mustChangePassword: boolean;
+  hasSeenGuide: boolean;
   createdBy: string | null;
   createdAt: string;
 }
@@ -99,7 +100,7 @@ export type TrainingPlanInput = Omit<
 export interface Athlete {
   id: string;
   fullName: string;
-  category: Category;
+  category: Category | null;
   isActive: boolean;
   notes: string | null;
   createdBy: string | null;
@@ -127,6 +128,14 @@ export type AttendanceSessionInput = Omit<
   AttendanceSession,
   "id" | "createdBy" | "createdAt" | "updatedAt"
 >;
+
+export interface PushSubscriptionRecord {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  createdAt: string;
+}
 
 export type CalendarEvent =
   | {

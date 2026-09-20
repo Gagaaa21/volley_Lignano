@@ -34,8 +34,9 @@ export function AthleteForm({ athlete }: { athlete?: Athlete }) {
       </div>
 
       <div>
-        <Label htmlFor="category">Categoria</Label>
-        <Select id="category" name="category" defaultValue={athlete?.category ?? "U14"} required>
+        <Label htmlFor="category">Categoria (opzionale)</Label>
+        <Select id="category" name="category" defaultValue={athlete?.category ?? ""}>
+          <option value="">Nessuna categoria</option>
           <option value="U14">{CATEGORY_LABELS.U14}</option>
           <option value="U15">{CATEGORY_LABELS.U15}</option>
         </Select>

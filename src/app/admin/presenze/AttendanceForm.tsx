@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Check, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FieldError } from "@/components/ui/Field";
-import { CATEGORY_BADGE, CATEGORY_LABELS } from "@/lib/category";
+import { categoryBadgeClass, categoryLabel } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { saveAttendanceAction, type AttendanceFormState } from "./actions";
 import type { Athlete, AttendanceStatus } from "@/lib/types";
@@ -113,10 +113,10 @@ export function AttendanceForm({
                   <span
                     className={cn(
                       "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                      CATEGORY_BADGE[athlete.category],
+                      categoryBadgeClass(athlete.category),
                     )}
                   >
-                    {CATEGORY_LABELS[athlete.category]}
+                    {categoryLabel(athlete.category)}
                   </span>
                 </div>
                 <div className="flex w-full max-w-[220px] gap-1.5 sm:w-auto">

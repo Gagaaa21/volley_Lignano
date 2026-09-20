@@ -19,6 +19,7 @@ create table if not exists staff (
   full_name text not null,
   role text not null check (role in ('dev', 'admin')),
   must_change_password boolean not null default true,
+  has_seen_guide boolean not null default false,
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -126,7 +127,7 @@ alter table training_plans enable row level security;
 create table if not exists athletes (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
-  category text not null check (category in ('U14', 'U15')),
+  category text check (category in ('U14', 'U15')),
   is_active boolean not null default true,
   notes text,
   created_by uuid references staff(id) on delete set null,
@@ -167,7 +168,36 @@ create unique index if not exists attendance_sessions_occurrence_idx
 alter table attendance_sessions enable row level security;
 -- Nessuna policy pubblica: stessa logica di athletes.
 
+-- =========================================================
+-- push_subscriptions — iscrizioni alle notifiche push della PWA
+-- (un dispositivo/browser per riga, nessun account collegato:
+-- il calendario è pubblico e chiunque installi l'app può iscriversi)
+-- =========================================================
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists push_subscriptions_endpoint_idx on push_subscriptions (endpoint);
+
+alter table push_subscriptions enable row level security;
+-- Nessuna policy pubblica: la sottoscrizione/cancellazione avviene tramite
+-- le API route del server (service role key), mai direttamente dal browser.
+
 -- Nota: l'applicazione Next.js legge e scrive sempre tramite la service
 -- role key lato server, che ignora la Row Level Security. Le policy sopra
 -- sono una protezione aggiuntiva nel caso in futuro venga usata la chiave
 -- pubblica (anon) direttamente dal browser.
+
+-- =========================================================
+-- Migrazioni per installazioni Supabase già esistenti
+-- (chi ha eseguito questo file prima delle atlete/presenze o del
+-- campo categoria opzionale può rilanciare in sicurezza i comandi
+-- qui sotto: create table/index "if not exists" non toccano dati
+-- già presenti, e l'ALTER è idempotente anche se già applicato)
+-- =========================================================
+alter table athletes alter column category drop not null;
+alter table staff add column if not exists has_seen_guide boolean not null default false;

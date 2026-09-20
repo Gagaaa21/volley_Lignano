@@ -32,7 +32,7 @@ export default async function AttendanceSessionDetailPage({
         athleteMap.get(athleteId) ?? {
           id: athleteId,
           fullName: "Atleta rimossa",
-          category: "U14" as const,
+          category: null,
           isActive: false,
           notes: null,
           createdBy: null,

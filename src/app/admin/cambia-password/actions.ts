@@ -62,5 +62,5 @@ export async function changePasswordAction(
     };
   }
 
-  redirect("/admin?password_changed=1");
+  redirect(staff.hasSeenGuide ? "/admin?password_changed=1" : "/admin/guida?password_changed=1");
 }
