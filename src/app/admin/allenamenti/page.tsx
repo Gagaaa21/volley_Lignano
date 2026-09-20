@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { format } from "date-fns";
-import { CalendarDays, Clock, MapPin, Pencil, Plus, Puzzle } from "lucide-react";
+import { CalendarDays, CalendarRange, Clock, MapPin, Pencil, Plus, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -35,10 +35,16 @@ export default async function TrainingsListPage() {
             Gestisci il calendario ricorrente degli allenamenti congiunti U14 e U15.
           </p>
         </div>
-        <LinkButton href="/admin/allenamenti/nuovo">
-          <Plus className="h-4 w-4" />
-          Nuovo allenamento
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/admin/allenamenti/calendario" variant="outline">
+            <CalendarRange className="h-4 w-4" />
+            Calendario schede
+          </LinkButton>
+          <LinkButton href="/admin/allenamenti/nuovo">
+            <Plus className="h-4 w-4" />
+            Nuovo allenamento
+          </LinkButton>
+        </div>
       </div>
 
       {trainings.length === 0 ? (

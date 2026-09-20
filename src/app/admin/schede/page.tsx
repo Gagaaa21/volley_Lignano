@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Clock, ListChecks, Plus, Puzzle } from "lucide-react";
+import { format } from "date-fns";
+import { Plus, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
-import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { SchedeLibrary, type SchedeCardData } from "./SchedeLibrary";
 
 export const metadata: Metadata = {
   title: "Schede allenamento",
@@ -12,8 +12,45 @@ export const metadata: Metadata = {
 
 export default async function TrainingPlansPage() {
   const repo = await getRepo();
-  const [plans, blocks] = await Promise.all([repo.listTrainingPlans(), repo.listTrainingBlocks()]);
+  const [plans, blocks, occurrencePlans] = await Promise.all([
+    repo.listTrainingPlans(),
+    repo.listTrainingBlocks(),
+    repo.listTrainingOccurrencePlans(),
+  ]);
   const blockMap = new Map(blocks.map((b) => [b.id, b] as const));
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const upcomingDatesByPlan = new Map<string, string[]>();
+  for (const o of occurrencePlans) {
+    if (o.occurrenceDate < todayStr) continue;
+    const list = upcomingDatesByPlan.get(o.planId);
+    if (list) list.push(o.occurrenceDate);
+    else upcomingDatesByPlan.set(o.planId, [o.occurrenceDate]);
+  }
+
+  const cards: SchedeCardData[] = plans.map((plan) => {
+    const totalMinutes = plan.blockIds.reduce((sum, id) => sum + (blockMap.get(id)?.durationMinutes ?? 0), 0);
+    const upcomingDates = (upcomingDatesByPlan.get(plan.id) ?? []).sort();
+    return {
+      id: plan.id,
+      title: plan.title,
+      planDate: plan.planDate ? formatDateLong(plan.planDate) : null,
+      notes: plan.notes,
+      blockCount: plan.blockIds.length,
+      totalMinutes,
+      upcomingCount: upcomingDates.length,
+      nearestDateLabel: upcomingDates[0] ? formatDateLong(upcomingDates[0]) : null,
+    };
+  });
+
+  cards.sort((a, b) => {
+    if (a.upcomingCount > 0 && b.upcomingCount > 0) {
+      return (upcomingDatesByPlan.get(a.id)![0] ?? "").localeCompare(upcomingDatesByPlan.get(b.id)![0] ?? "");
+    }
+    if (a.upcomingCount > 0) return -1;
+    if (b.upcomingCount > 0) return 1;
+    return a.title.localeCompare(b.title, "it");
+  });
 
   return (
     <div>
@@ -37,48 +74,13 @@ export default async function TrainingPlansPage() {
         </div>
       </div>
 
-      {plans.length === 0 ? (
+      {cards.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
           Nessuna scheda ancora. Crea la prima incollando il testo di un allenamento oppure
           componendola da zero con blocchi esistenti.
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {plans.map((plan) => {
-            const totalMinutes = plan.blockIds.reduce(
-              (sum, id) => sum + (blockMap.get(id)?.durationMinutes ?? 0),
-              0,
-            );
-            return (
-              <Link key={plan.id} href={`/admin/schede/${plan.id}`} className="block">
-                <Card className="h-full transition-colors hover:border-sea-300 hover:bg-sea-50/40">
-                  <CardBody className="pt-5">
-                    <h2 className="font-display text-base font-bold text-foreground">{plan.title}</h2>
-                    {plan.planDate && (
-                      <p className="mt-1 text-sm text-foreground/60">{formatDateLong(plan.planDate)}</p>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-medium text-foreground/55">
-                      <span className="flex items-center gap-1.5">
-                        <Puzzle className="h-3.5 w-3.5" />
-                        {plan.blockIds.length} blocch{plan.blockIds.length === 1 ? "o" : "i"}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        {totalMinutes}&apos; totali
-                      </span>
-                    </div>
-                    {plan.notes && (
-                      <p className="mt-3 flex items-start gap-1.5 text-xs text-foreground/45">
-                        <ListChecks className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        <span className="line-clamp-2">{plan.notes}</span>
-                      </p>
-                    )}
-                  </CardBody>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+        <SchedeLibrary plans={cards} />
       )}
     </div>
   );
