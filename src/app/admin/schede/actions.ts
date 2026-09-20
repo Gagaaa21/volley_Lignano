@@ -13,6 +13,7 @@ const createSchema = z.object({
   planDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
   notes: z.string().optional(),
   pastedText: z.string().optional(),
+  blockIds: z.array(z.string()),
 });
 
 export interface PlanFormState {
@@ -29,6 +30,7 @@ export async function createPlanAction(
     planDate: formData.get("planDate")?.toString() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
     pastedText: formData.get("pastedText")?.toString() ?? "",
+    blockIds: formData.getAll("blockIds").map((v) => v.toString()),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -40,12 +42,12 @@ export async function createPlanAction(
   const existingBlocks = await repo.listTrainingBlocks();
   const byTitle = new Map(existingBlocks.map((b) => [b.title.trim().toLowerCase(), b] as const));
 
-  const blockIds: string[] = [];
+  const blockIds: string[] = [...new Set(parsed.data.blockIds)];
   for (const parsedBlock of parsedBlocks) {
     const key = parsedBlock.title.trim().toLowerCase();
     const existing: TrainingBlock | undefined = byTitle.get(key);
     if (existing) {
-      blockIds.push(existing.id);
+      if (!blockIds.includes(existing.id)) blockIds.push(existing.id);
       continue;
     }
     const created = await repo.createTrainingBlock(
