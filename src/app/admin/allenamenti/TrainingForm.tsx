@@ -3,12 +3,13 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { Plus, Save } from "lucide-react";
+import { Clock, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { WeekdayPicker } from "@/components/forms/WeekdayPicker";
+import { cn } from "@/lib/cn";
 import { saveTrainingAction, type TrainingFormState } from "./actions";
-import type { TrainingPlan, TrainingRepeat, TrainingRule } from "@/lib/types";
+import type { TrainingBlock, TrainingRepeat, TrainingRule } from "@/lib/types";
 
 const initialState: TrainingFormState = {};
 
@@ -22,7 +23,15 @@ function SubmitButton() {
   );
 }
 
-export function TrainingForm({ training, plans = [] }: { training?: TrainingRule; plans?: TrainingPlan[] }) {
+export function TrainingForm({
+  training,
+  blocks = [],
+  selectedBlockIds = [],
+}: {
+  training?: TrainingRule;
+  blocks?: TrainingBlock[];
+  selectedBlockIds?: string[];
+}) {
   const [state, formAction] = useActionState(saveTrainingAction, initialState);
   const [repeat, setRepeat] = useState<TrainingRepeat>(training?.repeat ?? "weekly");
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -143,26 +152,56 @@ export function TrainingForm({ training, plans = [] }: { training?: TrainingRule
 
       <div>
         <div className="flex items-center justify-between">
-          <Label htmlFor="planId">Scheda allenamento (opzionale)</Label>
+          <Label>Blocchi allenamento (opzionale)</Label>
           <Link
-            href="/admin/schede/nuova"
+            href="/admin/schede/blocchi/nuovo"
             className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
           >
             <Plus className="h-3 w-3" />
-            Nuova scheda
+            Nuovo blocco
           </Link>
         </div>
-        <Select id="planId" name="planId" defaultValue={training?.planId ?? ""}>
-          <option value="">Nessuna scheda collegata</option>
-          {plans.map((plan) => (
-            <option key={plan.id} value={plan.id}>
-              {plan.title}
-            </option>
-          ))}
-        </Select>
+        {blocks.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border-subtle bg-surface px-3.5 py-3 text-sm text-foreground/50">
+            Nessun blocco in libreria.{" "}
+            <Link href="/admin/schede/blocchi/nuovo" className="font-semibold text-primary hover:underline">
+              Creane uno
+            </Link>{" "}
+            per poterlo scegliere qui.
+          </p>
+        ) : (
+          <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-border-subtle bg-surface p-2">
+            {blocks.map((block) => (
+              <label
+                key={block.id}
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors has-[:checked]:bg-primary/8"
+              >
+                <input
+                  type="checkbox"
+                  name="blockIds"
+                  value={block.id}
+                  defaultChecked={selectedBlockIds.includes(block.id)}
+                  className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/85">
+                  {block.title}
+                </span>
+                <span
+                  className={cn(
+                    "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-[var(--color-training-strong)]",
+                    "bg-[var(--color-training-soft)]",
+                  )}
+                >
+                  <Clock className="h-2.5 w-2.5" />
+                  {block.durationMinutes}&apos;
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
         <FieldHint>
-          Collega una scheda composta con i blocchi della libreria per definire il contenuto di questo
-          allenamento.
+          Scegli i blocchi già pronti nella libreria da usare in questo allenamento: modificarli in
+          seguito aggiorna il contenuto ovunque vengano usati.
         </FieldHint>
       </div>
 

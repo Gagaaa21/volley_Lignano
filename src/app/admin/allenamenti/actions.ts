@@ -23,7 +23,7 @@ const schema = z
       .optional(),
     notes: z.string().optional(),
     isActive: z.boolean(),
-    planId: z.string().optional(),
+    blockIds: z.array(z.string()),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: "L'orario di fine deve essere successivo a quello di inizio.",
@@ -54,7 +54,7 @@ function parseTrainingForm(formData: FormData) {
     endDate: formData.get("endDate")?.toString() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
     isActive: formData.get("isActive") === "on",
-    planId: formData.get("planId")?.toString() ?? "",
+    blockIds: formData.getAll("blockIds").map((v) => v.toString()),
   });
 }
 
@@ -70,6 +70,41 @@ export async function saveTrainingAction(
 
   const id = formData.get("id")?.toString();
   const isOnce = parsed.data.repeat === "once";
+  const repo = await getRepo();
+
+  const existing = id ? await repo.getTraining(id) : null;
+  const blockIds = [...new Set(parsed.data.blockIds)];
+  let planId = existing?.planId ?? null;
+  if (blockIds.length > 0) {
+    if (planId) {
+      const plan = await repo.getTrainingPlan(planId);
+      if (plan) {
+        await repo.updateTrainingPlan(planId, {
+          title: plan.title,
+          planDate: plan.planDate,
+          notes: plan.notes,
+          blockIds,
+        });
+      } else {
+        planId = null;
+      }
+    }
+    if (!planId) {
+      const created = await repo.createTrainingPlan(
+        {
+          title: parsed.data.title,
+          planDate: isOnce ? parsed.data.startDate : null,
+          notes: null,
+          blockIds,
+        },
+        session.sub,
+      );
+      planId = created.id;
+    }
+  } else {
+    planId = null;
+  }
+
   const input: TrainingRuleInput = {
     title: parsed.data.title,
     location: parsed.data.location,
@@ -81,14 +116,13 @@ export async function saveTrainingAction(
     endDate: isOnce ? parsed.data.startDate : parsed.data.endDate || null,
     notes: parsed.data.notes ?? null,
     isActive: parsed.data.isActive,
-    planId: parsed.data.planId || null,
+    planId,
   };
 
   const scheduleLabel = isOnce
     ? `il ${input.startDate}`
     : `${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`;
 
-  const repo = await getRepo();
   if (id) {
     await repo.updateTraining(id, input);
     await notifyCalendarChange({

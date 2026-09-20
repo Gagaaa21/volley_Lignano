@@ -13,8 +13,11 @@ export const metadata: Metadata = {
 export default async function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const repo = await getRepo();
-  const [training, plans] = await Promise.all([repo.getTraining(id), repo.listTrainingPlans()]);
+  const [training, blocks] = await Promise.all([repo.getTraining(id), repo.listTrainingBlocks()]);
   if (!training) notFound();
+
+  const linkedPlan = training.planId ? await repo.getTrainingPlan(training.planId) : null;
+  const selectedBlockIds = linkedPlan?.blockIds ?? [];
 
   return (
     <div className="mx-auto max-w-xl">
@@ -31,7 +34,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <TrainingForm training={training} plans={plans} />
+          <TrainingForm training={training} blocks={blocks} selectedBlockIds={selectedBlockIds} />
         </CardBody>
       </Card>
     </div>

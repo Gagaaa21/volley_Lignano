@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function NewTrainingPage() {
   const repo = await getRepo();
-  const plans = await repo.listTrainingPlans();
+  const blocks = await repo.listTrainingBlocks();
 
   return (
     <div className="mx-auto max-w-xl">
@@ -30,7 +30,7 @@ export default async function NewTrainingPage() {
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <TrainingForm plans={plans} />
+          <TrainingForm blocks={blocks} />
         </CardBody>
       </Card>
     </div>
