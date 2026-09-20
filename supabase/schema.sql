@@ -119,6 +119,54 @@ create table if not exists training_plans (
 alter table training_plans enable row level security;
 -- Nessuna policy pubblica: stessa logica di training_blocks.
 
+-- =========================================================
+-- athletes — anagrafica atlete (dati minori, nessun accesso
+-- pubblico: solo Developer e Admin)
+-- =========================================================
+create table if not exists athletes (
+  id uuid primary key default gen_random_uuid(),
+  full_name text not null,
+  category text not null check (category in ('U14', 'U15')),
+  is_active boolean not null default true,
+  notes text,
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists athletes_category_idx on athletes (category);
+
+alter table athletes enable row level security;
+-- Nessuna policy pubblica: dati personali di minori, accesso solo staff
+-- tramite la service role key lato server.
+
+-- =========================================================
+-- attendance_sessions — registro presenze per allenamento
+-- (una riga per ogni allenamento registrato; "records" è una
+-- mappa athlete_id -> 'present' | 'excused' | 'unexcused')
+-- =========================================================
+create table if not exists attendance_sessions (
+  id uuid primary key default gen_random_uuid(),
+  training_rule_id uuid references training_sessions(id) on delete set null,
+  session_date date not null,
+  title text not null,
+  location text not null,
+  records jsonb not null default '{}',
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists attendance_sessions_date_idx on attendance_sessions (session_date);
+
+-- Evita doppie registrazioni per lo stesso allenamento nello stesso giorno.
+create unique index if not exists attendance_sessions_occurrence_idx
+  on attendance_sessions (training_rule_id, session_date)
+  where training_rule_id is not null;
+
+alter table attendance_sessions enable row level security;
+-- Nessuna policy pubblica: stessa logica di athletes.
+
 -- Nota: l'applicazione Next.js legge e scrive sempre tramite la service
 -- role key lato server, che ignora la Row Level Security. Le policy sopra
 -- sono una protezione aggiuntiva nel caso in futuro venga usata la chiave

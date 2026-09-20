@@ -1,4 +1,8 @@
 import type {
+  Athlete,
+  AthleteInput,
+  AttendanceSession,
+  AttendanceSessionInput,
   Match,
   MatchInput,
   StaffMember,
@@ -62,4 +66,25 @@ export interface Repo {
   createTrainingPlan(input: TrainingPlanInput, createdBy: string | null): Promise<TrainingPlan>;
   updateTrainingPlan(id: string, input: TrainingPlanInput): Promise<TrainingPlan>;
   deleteTrainingPlan(id: string): Promise<void>;
+
+  // Atlete
+  listAthletes(): Promise<Athlete[]>;
+  getAthlete(id: string): Promise<Athlete | null>;
+  createAthlete(input: AthleteInput, createdBy: string | null): Promise<Athlete>;
+  updateAthlete(id: string, input: AthleteInput): Promise<Athlete>;
+  deleteAthlete(id: string): Promise<void>;
+
+  // Registro presenze
+  listAttendanceSessions(): Promise<AttendanceSession[]>;
+  getAttendanceSession(id: string): Promise<AttendanceSession | null>;
+  getAttendanceSessionByOccurrence(
+    trainingRuleId: string,
+    sessionDate: string,
+  ): Promise<AttendanceSession | null>;
+  createAttendanceSession(
+    input: AttendanceSessionInput,
+    createdBy: string | null,
+  ): Promise<AttendanceSession>;
+  updateAttendanceSession(id: string, input: AttendanceSessionInput): Promise<AttendanceSession>;
+  deleteAttendanceSession(id: string): Promise<void>;
 }

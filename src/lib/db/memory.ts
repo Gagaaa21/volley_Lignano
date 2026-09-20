@@ -1,5 +1,9 @@
 import bcrypt from "bcryptjs";
 import type {
+  Athlete,
+  AthleteInput,
+  AttendanceSession,
+  AttendanceSessionInput,
   Match,
   MatchInput,
   StaffMember,
@@ -29,6 +33,10 @@ const matches: Match[] = [];
 const trainingBlocks: TrainingBlock[] = [];
 
 const trainingPlans: TrainingPlan[] = [];
+
+const athletes: Athlete[] = [];
+
+const attendanceSessions: AttendanceSession[] = [];
 
 const staff: StaffMember[] = [];
 let staffSeeded = false;
@@ -181,5 +189,62 @@ export const memoryRepo: Repo = {
   async deleteTrainingPlan(id) {
     const idx = trainingPlans.findIndex((p) => p.id === id);
     if (idx !== -1) trainingPlans.splice(idx, 1);
+  },
+
+  async listAthletes() {
+    return [...athletes].sort((a, b) => a.fullName.localeCompare(b.fullName));
+  },
+  async getAthlete(id) {
+    return athletes.find((a) => a.id === id) ?? null;
+  },
+  async createAthlete(input: AthleteInput, createdBy) {
+    const now = new Date().toISOString();
+    const row: Athlete = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+    athletes.push(row);
+    return row;
+  },
+  async updateAthlete(id, input: AthleteInput) {
+    const idx = athletes.findIndex((a) => a.id === id);
+    if (idx === -1) throw new Error("Atleta non trovata");
+    athletes[idx] = { ...athletes[idx], ...input, updatedAt: new Date().toISOString() };
+    return athletes[idx];
+  },
+  async deleteAthlete(id) {
+    const idx = athletes.findIndex((a) => a.id === id);
+    if (idx !== -1) athletes.splice(idx, 1);
+  },
+
+  async listAttendanceSessions() {
+    return [...attendanceSessions].sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
+  },
+  async getAttendanceSession(id) {
+    return attendanceSessions.find((s) => s.id === id) ?? null;
+  },
+  async getAttendanceSessionByOccurrence(trainingRuleId, sessionDate) {
+    return (
+      attendanceSessions.find(
+        (s) => s.trainingRuleId === trainingRuleId && s.sessionDate === sessionDate,
+      ) ?? null
+    );
+  },
+  async createAttendanceSession(input: AttendanceSessionInput, createdBy) {
+    const now = new Date().toISOString();
+    const row: AttendanceSession = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+    attendanceSessions.push(row);
+    return row;
+  },
+  async updateAttendanceSession(id, input: AttendanceSessionInput) {
+    const idx = attendanceSessions.findIndex((s) => s.id === id);
+    if (idx === -1) throw new Error("Registro non trovato");
+    attendanceSessions[idx] = {
+      ...attendanceSessions[idx],
+      ...input,
+      updatedAt: new Date().toISOString(),
+    };
+    return attendanceSessions[idx];
+  },
+  async deleteAttendanceSession(id) {
+    const idx = attendanceSessions.findIndex((s) => s.id === id);
+    if (idx !== -1) attendanceSessions.splice(idx, 1);
   },
 };

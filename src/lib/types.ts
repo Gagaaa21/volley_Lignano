@@ -96,6 +96,38 @@ export type TrainingPlanInput = Omit<
   "id" | "createdBy" | "createdAt" | "updatedAt"
 >;
 
+export interface Athlete {
+  id: string;
+  fullName: string;
+  category: Category;
+  isActive: boolean;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AthleteInput = Omit<Athlete, "id" | "createdBy" | "createdAt" | "updatedAt">;
+
+export type AttendanceStatus = "present" | "excused" | "unexcused";
+
+export interface AttendanceSession {
+  id: string;
+  trainingRuleId: string | null;
+  sessionDate: string; // "YYYY-MM-DD"
+  title: string; // istantanea del titolo dell'allenamento al momento della registrazione
+  location: string; // istantanea del luogo
+  records: Record<string, AttendanceStatus>; // athleteId -> stato
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AttendanceSessionInput = Omit<
+  AttendanceSession,
+  "id" | "createdBy" | "createdAt" | "updatedAt"
+>;
+
 export type CalendarEvent =
   | {
       kind: "training";

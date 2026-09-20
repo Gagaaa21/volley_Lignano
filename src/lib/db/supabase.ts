@@ -1,6 +1,10 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import type {
+  Athlete,
+  AthleteInput,
+  AttendanceSession,
+  AttendanceSessionInput,
   Match,
   MatchInput,
   StaffMember,
@@ -184,6 +188,75 @@ function trainingPlanToRow(input: TrainingPlanInput) {
     plan_date: input.planDate,
     notes: input.notes,
     block_ids: input.blockIds,
+  };
+}
+
+type AthleteRow = {
+  id: string;
+  full_name: string;
+  category: Athlete["category"];
+  is_active: boolean;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type AttendanceSessionRow = {
+  id: string;
+  training_rule_id: string | null;
+  session_date: string;
+  title: string;
+  location: string;
+  records: Record<string, AttendanceSession["records"][string]>;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function athleteFromRow(row: AthleteRow): Athlete {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    category: row.category,
+    isActive: row.is_active,
+    notes: row.notes,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function athleteToRow(input: AthleteInput) {
+  return {
+    full_name: input.fullName,
+    category: input.category,
+    is_active: input.isActive,
+    notes: input.notes,
+  };
+}
+
+function attendanceSessionFromRow(row: AttendanceSessionRow): AttendanceSession {
+  return {
+    id: row.id,
+    trainingRuleId: row.training_rule_id,
+    sessionDate: row.session_date,
+    title: row.title,
+    location: row.location,
+    records: row.records ?? {},
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function attendanceSessionToRow(input: AttendanceSessionInput) {
+  return {
+    training_rule_id: input.trainingRuleId,
+    session_date: input.sessionDate,
+    title: input.title,
+    location: input.location,
+    records: input.records,
   };
 }
 
@@ -419,6 +492,101 @@ export const supabaseRepo: Repo = {
   async deleteTrainingPlan(id) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("training_plans").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listAthletes() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("athletes")
+      .select("*")
+      .order("full_name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as AthleteRow[]).map(athleteFromRow);
+  },
+  async getAthlete(id) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("athletes").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? athleteFromRow(data as AthleteRow) : null;
+  },
+  async createAthlete(input, createdBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("athletes")
+      .insert({ ...athleteToRow(input), created_by: createdBy })
+      .select("*")
+      .single();
+    return athleteFromRow(unwrap(result) as AthleteRow);
+  },
+  async updateAthlete(id, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("athletes")
+      .update({ ...athleteToRow(input), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return athleteFromRow(unwrap(result) as AthleteRow);
+  },
+  async deleteAthlete(id) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("athletes").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listAttendanceSessions() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("attendance_sessions")
+      .select("*")
+      .order("session_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as AttendanceSessionRow[]).map(attendanceSessionFromRow);
+  },
+  async getAttendanceSession(id) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("attendance_sessions")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? attendanceSessionFromRow(data as AttendanceSessionRow) : null;
+  },
+  async getAttendanceSessionByOccurrence(trainingRuleId, sessionDate) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("attendance_sessions")
+      .select("*")
+      .eq("training_rule_id", trainingRuleId)
+      .eq("session_date", sessionDate)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? attendanceSessionFromRow(data as AttendanceSessionRow) : null;
+  },
+  async createAttendanceSession(input, createdBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("attendance_sessions")
+      .insert({ ...attendanceSessionToRow(input), created_by: createdBy })
+      .select("*")
+      .single();
+    return attendanceSessionFromRow(unwrap(result) as AttendanceSessionRow);
+  },
+  async updateAttendanceSession(id, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("attendance_sessions")
+      .update({ ...attendanceSessionToRow(input), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return attendanceSessionFromRow(unwrap(result) as AttendanceSessionRow);
+  },
+  async deleteAttendanceSession(id) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("attendance_sessions").delete().eq("id", id);
     if (error) throw new Error(error.message);
   },
 };

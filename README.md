@@ -27,8 +27,12 @@ staff (Developer e Admin).
   puzzle (libreria in `/admin/schede/blocchi`): modificando un blocco si
   aggiorna ovunque venga usato, e le schede successive si compongono
   riordinando/riusando i blocchi esistenti.
-- **Presenze** (`/admin/presenze`) — sezione riservata, per ora segnaposto
-  "in costruzione".
+- **Presenze** (`/admin/presenze`) — registro presenze legato agli
+  allenamenti del calendario: si sceglie l'allenamento da registrare e per
+  ogni atleta si segna Presente/Assente (di default tutte presenti), con
+  Assenza giustificata/non giustificata come dettaglio dell'assenza.
+  Anagrafica atlete gestibile in `/admin/presenze/atlete`, storico dei
+  registri salvati (anche per singola atleta) in `/admin/presenze/storico`.
 
 ## Stack tecnico
 
