@@ -8,7 +8,7 @@ export function PublicHeader() {
     <header className="page-header">
       <div className="mx-auto flex h-[4.25rem] max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Logo />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <InstallButton />
           <LinkButton href="/login" variant="ghost" size="sm">
             <LogIn className="h-4 w-4" />

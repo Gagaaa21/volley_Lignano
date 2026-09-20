@@ -3,16 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, Share, SquarePlus, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { buttonVariants } from "@/components/ui/button-variants";
 import { usePwaInstall } from "./PwaInstallContext";
 
-export function InstallButton({
-  variant = "button",
-  className,
-}: {
-  variant?: "button" | "nav-tile";
-  className?: string;
-}) {
+/** Icona discreta, sempre presente quando l'installazione è possibile: non compete
+ * con le azioni principali dell'header, ma resta a portata di click. */
+export function InstallButton({ className }: { className?: string }) {
   const { canInstall, isIOS, isStandalone, promptInstall } = usePwaInstall();
   const [showIOSHint, setShowIOSHint] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -37,18 +32,15 @@ export function InstallButton({
   }
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className={cn("relative", className)}>
       <button
         type="button"
         onClick={handleClick}
+        title="Installa l'app"
         aria-label="Installa l'app"
-        className={cn(
-          variant === "nav-tile" ? "nav-tile w-full sm:w-auto" : buttonVariants({ variant: "ghost", size: "sm" }),
-          className,
-        )}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/35 transition-colors hover:bg-muted hover:text-foreground"
       >
         <Download className="h-4 w-4" />
-        <span className={variant === "button" ? "hidden sm:inline" : undefined}>Installa app</span>
       </button>
 
       {showIOSHint && (

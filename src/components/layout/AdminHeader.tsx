@@ -69,16 +69,19 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
               </span>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-expanded={mobileOpen}
-            aria-label={mobileOpen ? "Chiudi menu" : "Apri menu"}
-            className="nav-tile shrink-0 sm:hidden"
-          >
-            {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            {mobileOpen ? "Chiudi" : "Menu"}
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <InstallButton />
+            <button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-expanded={mobileOpen}
+              aria-label={mobileOpen ? "Chiudi menu" : "Apri menu"}
+              className="nav-tile shrink-0 sm:hidden"
+            >
+              {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              {mobileOpen ? "Chiudi" : "Menu"}
+            </button>
+          </div>
         </div>
 
         <div
@@ -111,7 +114,6 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
           </nav>
 
           <div className="nav-cluster w-full shrink-0 sm:w-auto">
-            <InstallButton variant="nav-tile" />
             <Link
               href="/"
               onClick={() => setMobileOpen(false)}
