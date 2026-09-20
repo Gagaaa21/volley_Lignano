@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { format } from "date-fns";
 import { CalendarDays, Clock, MapPin, Pencil, Plus, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
@@ -15,8 +15,16 @@ export const metadata: Metadata = {
 
 export default async function TrainingsListPage() {
   const repo = await getRepo();
-  const [trainings, plans] = await Promise.all([repo.listTrainings(), repo.listTrainingPlans()]);
-  const planById = new Map(plans.map((p) => [p.id, p]));
+  const [trainings, occurrencePlans] = await Promise.all([
+    repo.listTrainings(),
+    repo.listTrainingOccurrencePlans(),
+  ]);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const upcomingLinkedCountByRule = new Map<string, number>();
+  for (const o of occurrencePlans) {
+    if (o.occurrenceDate < todayStr) continue;
+    upcomingLinkedCountByRule.set(o.trainingRuleId, (upcomingLinkedCountByRule.get(o.trainingRuleId) ?? 0) + 1);
+  }
 
   return (
     <div>
@@ -85,14 +93,13 @@ export default async function TrainingsListPage() {
                       }`}
                 </p>
 
-                {training.planId && planById.get(training.planId) && (
-                  <Link
-                    href={`/admin/schede/${training.planId}`}
-                    className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                  >
+                {(upcomingLinkedCountByRule.get(training.id) ?? 0) > 0 && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <Puzzle className="h-3.5 w-3.5" />
-                    Scheda: {planById.get(training.planId)!.title}
-                  </Link>
+                    {upcomingLinkedCountByRule.get(training.id) === 1
+                      ? "1 prossima data con scheda collegata"
+                      : `${upcomingLinkedCountByRule.get(training.id)} prossime date con scheda collegata`}
+                  </p>
                 )}
 
                 <div className="mt-4 flex items-center gap-2 border-t border-border-subtle pt-4">

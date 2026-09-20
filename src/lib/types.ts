@@ -44,7 +44,6 @@ export interface TrainingRule {
   endDate: string | null; // ISO date o null = indefinito (ignorato se repeat = "once")
   notes: string | null;
   isActive: boolean;
-  planId: string | null; // scheda allenamento collegata (opzionale)
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

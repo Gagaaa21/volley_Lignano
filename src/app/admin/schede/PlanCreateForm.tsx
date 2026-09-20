@@ -22,29 +22,53 @@ Lavoro a coppie con:
 * Palleggio
 * Bagher frontale`;
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
       <Puzzle className="h-4 w-4" />
-      {pending ? "Creazione…" : "Crea scheda"}
+      {pending ? "Creazione…" : label}
     </Button>
   );
 }
 
-export function PlanCreateForm({ blocks = [] }: { blocks?: TrainingBlock[] }) {
+export function PlanCreateForm({
+  blocks = [],
+  occurrenceRuleId,
+  occurrenceDate,
+  defaultTitle,
+}: {
+  blocks?: TrainingBlock[];
+  occurrenceRuleId?: string;
+  occurrenceDate?: string;
+  defaultTitle?: string;
+}) {
   const [state, formAction] = useActionState(createPlanAction, initialState);
+  const isForOccurrence = Boolean(occurrenceRuleId && occurrenceDate);
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
+      {isForOccurrence && (
+        <>
+          <input type="hidden" name="occurrenceRuleId" value={occurrenceRuleId} />
+          <input type="hidden" name="occurrenceDate" value={occurrenceDate} />
+        </>
+      )}
+
       <div>
         <Label htmlFor="title">Titolo scheda</Label>
-        <Input id="title" name="title" placeholder="Es. Ricezione e sistema P3/P4" required />
+        <Input
+          id="title"
+          name="title"
+          placeholder="Es. Ricezione e sistema P3/P4"
+          defaultValue={defaultTitle}
+          required
+        />
       </div>
 
       <div>
         <Label htmlFor="planDate">Data (opzionale)</Label>
-        <Input id="planDate" name="planDate" type="date" />
+        <Input id="planDate" name="planDate" type="date" defaultValue={occurrenceDate} />
       </div>
 
       {blocks.length > 0 && (
@@ -121,7 +145,7 @@ export function PlanCreateForm({ blocks = [] }: { blocks?: TrainingBlock[] }) {
         </div>
       )}
 
-      <SubmitButton />
+      <SubmitButton label={isForOccurrence ? "Crea e collega" : "Crea scheda"} />
     </form>
   );
 }

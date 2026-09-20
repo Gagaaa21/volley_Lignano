@@ -31,7 +31,6 @@ type TrainingRow = {
   end_date: string | null;
   notes: string | null;
   is_active: boolean;
-  plan_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -75,7 +74,6 @@ function trainingFromRow(row: TrainingRow): TrainingRule {
     endDate: row.end_date,
     notes: row.notes,
     isActive: row.is_active,
-    planId: row.plan_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -94,7 +92,6 @@ function trainingToRow(input: TrainingRuleInput) {
     end_date: input.endDate,
     notes: input.notes,
     is_active: input.isActive,
-    plan_id: input.planId,
   };
 }
 

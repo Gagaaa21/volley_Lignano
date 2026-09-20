@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { getRepo } from "@/lib/db";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { TrainingForm } from "../TrainingForm";
@@ -9,10 +8,7 @@ export const metadata: Metadata = {
   title: "Nuovo allenamento",
 };
 
-export default async function NewTrainingPage() {
-  const repo = await getRepo();
-  const blocks = await repo.listTrainingBlocks();
-
+export default function NewTrainingPage() {
   return (
     <div className="mx-auto max-w-xl">
       <LinkButton href="/admin/allenamenti" variant="ghost" size="sm" className="mb-4 -ml-3.5">
@@ -30,7 +26,7 @@ export default async function NewTrainingPage() {
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <TrainingForm blocks={blocks} />
+          <TrainingForm />
         </CardBody>
       </Card>
     </div>

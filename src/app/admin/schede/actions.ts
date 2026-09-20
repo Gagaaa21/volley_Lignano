@@ -16,6 +16,8 @@ const createSchema = z.object({
   pastedText: z.string().optional(),
   blockIds: z.array(z.string()),
   useAi: z.boolean().optional(),
+  occurrenceRuleId: z.string().optional(),
+  occurrenceDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
 });
 
 export interface PlanFormState {
@@ -34,6 +36,8 @@ export async function createPlanAction(
     pastedText: formData.get("pastedText")?.toString() ?? "",
     blockIds: formData.getAll("blockIds").map((v) => v.toString()),
     useAi: formData.get("useAi") === "on",
+    occurrenceRuleId: formData.get("occurrenceRuleId")?.toString() || undefined,
+    occurrenceDate: formData.get("occurrenceDate")?.toString() ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -85,6 +89,16 @@ export async function createPlanAction(
   );
 
   revalidatePath("/admin/schede");
+
+  const { occurrenceRuleId, occurrenceDate } = parsed.data;
+  if (occurrenceRuleId && occurrenceDate) {
+    await repo.setTrainingOccurrencePlan(occurrenceRuleId, occurrenceDate, plan.id, session.sub);
+    revalidatePath(`/admin/allenamenti/${occurrenceRuleId}`);
+    revalidatePath(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
+    revalidatePath("/");
+    redirect(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
+  }
+
   redirect(`/admin/schede/${plan.id}`);
 }
 
