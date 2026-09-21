@@ -415,9 +415,11 @@
 @utility auth-stage {
   background-color: var(--color-sea-950);
   background-image:
-    radial-gradient(ellipse 90% 60% at 50% -10%, color-mix(in oklab, var(--color-sea-500) 35%, transparent), transparent 65%),
-    radial-gradient(circle at 1px 1px, color-mix(in oklab, white 7%, transparent) 1px, transparent 0);
-  background-size: auto, 22px 22px;
+    radial-gradient(ellipse 70% 55% at 12% -15%, color-mix(in oklab, var(--color-sea-400) 55%, transparent), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 10%, color-mix(in oklab, var(--color-sand-400) 22%, transparent), transparent 65%),
+    linear-gradient(160deg, var(--color-sea-800) 0%, var(--color-sea-950) 55%, var(--color-sea-950) 100%),
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, white 8%, transparent) 1px, transparent 0);
+  background-size: auto, auto, auto, 22px 22px;
 }
 @utility auth-stage-logo {
   position: absolute;

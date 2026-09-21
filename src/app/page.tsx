@@ -116,7 +116,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <CalendarDays className="h-3.5 w-3.5" />
                 Prossimi impegni
               </p>
-              <UpcomingStrip events={upcoming} />
+              <UpcomingStrip
+                events={upcoming}
+                plansByEventId={plansByEventId}
+                attendanceByEventId={attendanceByEventId}
+              />
             </div>
           )}
         </div>
