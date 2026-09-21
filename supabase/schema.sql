@@ -54,6 +54,7 @@ create index if not exists training_sessions_is_active_idx on training_sessions 
 
 alter table training_sessions enable row level security;
 
+drop policy if exists "Allenamenti attivi visibili a tutti" on training_sessions;
 create policy "Allenamenti attivi visibili a tutti"
   on training_sessions for select
   to anon, authenticated
@@ -81,6 +82,7 @@ create index if not exists matches_category_idx on matches (category);
 
 alter table matches enable row level security;
 
+drop policy if exists "Partite visibili a tutti" on matches;
 create policy "Partite visibili a tutti"
   on matches for select
   to anon, authenticated
