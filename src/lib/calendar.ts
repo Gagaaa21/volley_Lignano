@@ -105,6 +105,7 @@ export function matchesToEvents(matches: Match[]): CalendarEvent[] {
     meetingTime: m.meetingTime,
     meetingLocation: m.meetingLocation,
     notes: m.notes,
+    setScores: m.setScores,
     resultSetsWon: m.resultSetsWon,
     resultSetsLost: m.resultSetsLost,
   }));

@@ -26,7 +26,7 @@ function todayStr() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-const SET_OPTIONS = [0, 1, 2, 3];
+const MAX_SETS = 5;
 
 export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: Athlete[] }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
@@ -171,32 +171,39 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
             Risultato finale
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Set vinti e persi da Volley Lignano. Lascia entrambi su &quot;—&quot; se non ancora
-            disponibile.
+            Inserisci i punti dei singoli set. Lascia in bianco i set non giocati: set vinti e
+            persi vengono calcolati automaticamente.
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="resultSetsWon">Set vinti</Label>
-              <Select id="resultSetsWon" name="resultSetsWon" defaultValue={match?.resultSetsWon ?? ""}>
-                <option value="">—</option>
-                {SET_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="resultSetsLost">Set persi</Label>
-              <Select id="resultSetsLost" name="resultSetsLost" defaultValue={match?.resultSetsLost ?? ""}>
-                <option value="">—</option>
-                {SET_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </div>
+          <div className="mt-3 flex items-center gap-3 pl-14 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
+            <span className="w-14 text-center">Lignano</span>
+            <span className="w-3" />
+            <span className="w-14 text-center">Avv.</span>
+          </div>
+          <div className="mt-1.5 space-y-2">
+            {Array.from({ length: MAX_SETS }, (_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-14 shrink-0 text-sm font-medium text-foreground/60">Set {i + 1}</span>
+                <Input
+                  type="number"
+                  name="setUs"
+                  min={0}
+                  max={99}
+                  defaultValue={match?.setScores?.[i]?.us ?? ""}
+                  className="w-14 px-2 text-center"
+                  aria-label={`Punti Lignano, set ${i + 1}`}
+                />
+                <span className="text-foreground/40">–</span>
+                <Input
+                  type="number"
+                  name="setThem"
+                  min={0}
+                  max={99}
+                  defaultValue={match?.setScores?.[i]?.them ?? ""}
+                  className="w-14 px-2 text-center"
+                  aria-label={`Punti avversario, set ${i + 1}`}
+                />
+              </div>
+            ))}
           </div>
         </div>
       )}

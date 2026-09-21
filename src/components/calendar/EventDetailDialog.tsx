@@ -187,6 +187,18 @@ export function EventDetailDialog({
                 </p>
               </div>
             </div>
+            {event.setScores && event.setScores.length > 0 && (
+              <p className="mt-3 flex flex-wrap gap-1.5">
+                {event.setScores.map((s, i) => (
+                  <span
+                    key={i}
+                    className="rounded-lg bg-surface-muted px-2 py-1 text-xs font-semibold text-foreground/70"
+                  >
+                    {s.us}-{s.them}
+                  </span>
+                ))}
+              </p>
+            )}
           </div>
         )}
 

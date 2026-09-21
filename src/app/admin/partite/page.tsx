@@ -110,6 +110,11 @@ export default async function MatchesListPage({
                       <MapPin className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{match.location}</span>
                     </p>
+                    {match.setScores && match.setScores.length > 0 && (
+                      <p className="mt-1 text-xs text-foreground/45">
+                        {match.setScores.map((s) => `${s.us}-${s.them}`).join(", ")}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">

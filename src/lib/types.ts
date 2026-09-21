@@ -54,6 +54,12 @@ export type TrainingRuleInput = Omit<
   "id" | "createdBy" | "createdAt" | "updatedAt"
 >;
 
+/** Punteggio di un singolo set (parziale). */
+export interface SetScore {
+  us: number;
+  them: number;
+}
+
 export interface Match {
   id: string;
   category: Category;
@@ -69,7 +75,9 @@ export interface Match {
   meetingLocation: string | null;
   notes: string | null;
   calledUpAthleteIds: string[]; // convocate per questa partita
-  /** Risultato finale (set), valorizzato solo a partita giocata. */
+  /** Parziali dei singoli set, in ordine di gioco; valorizzati solo a partita giocata. */
+  setScores: SetScore[] | null;
+  /** Set vinti/persi totali, derivati automaticamente dai parziali. */
   resultSetsWon: number | null;
   resultSetsLost: number | null;
   createdBy: string | null;
@@ -248,6 +256,7 @@ export type CalendarEvent =
       meetingTime: string | null;
       meetingLocation: string | null;
       notes: string | null;
+      setScores: SetScore[] | null;
       resultSetsWon: number | null;
       resultSetsLost: number | null;
     };

@@ -76,6 +76,8 @@ create table if not exists matches (
   notes text,
   called_up_athlete_ids uuid[] not null default '{}',
   -- Risultato finale (set), valorizzato solo a partita giocata.
+  -- set_scores: parziali dei singoli set, es. [{"us":25,"them":20}, ...].
+  set_scores jsonb,
   result_sets_won smallint check (result_sets_won between 0 and 3),
   result_sets_lost smallint check (result_sets_lost between 0 and 3),
   created_by uuid references staff(id) on delete set null,
@@ -291,6 +293,7 @@ alter table training_occurrence_plans add column if not exists is_public boolean
 alter table matches add column if not exists is_friendly boolean not null default false;
 alter table matches add column if not exists meeting_time time;
 alter table matches add column if not exists meeting_location text;
+alter table matches add column if not exists set_scores jsonb;
 alter table matches add column if not exists result_sets_won smallint;
 alter table matches add column if not exists result_sets_lost smallint;
 do $$ begin

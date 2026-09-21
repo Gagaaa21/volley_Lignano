@@ -51,6 +51,7 @@ type MatchRow = {
   meeting_location: string | null;
   notes: string | null;
   called_up_athlete_ids: string[] | null;
+  set_scores: { us: number; them: number }[] | null;
   result_sets_won: number | null;
   result_sets_lost: number | null;
   created_by: string | null;
@@ -117,6 +118,7 @@ function matchFromRow(row: MatchRow): Match {
     meetingLocation: row.meeting_location,
     notes: row.notes,
     calledUpAthleteIds: row.called_up_athlete_ids ?? [],
+    setScores: row.set_scores,
     resultSetsWon: row.result_sets_won,
     resultSetsLost: row.result_sets_lost,
     createdBy: row.created_by,
@@ -137,6 +139,7 @@ function matchToRow(input: MatchInput) {
     meeting_location: input.meetingLocation,
     notes: input.notes,
     called_up_athlete_ids: input.calledUpAthleteIds,
+    set_scores: input.setScores,
     result_sets_won: input.resultSetsWon,
     result_sets_lost: input.resultSetsLost,
   };
