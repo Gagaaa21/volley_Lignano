@@ -7,6 +7,7 @@ import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS } from "@/lib/category";
+import { formatDateLong } from "@/lib/format";
 import type { MatchInput, MatchLineupInput } from "@/lib/types";
 
 const schema = z.object({
@@ -21,6 +22,12 @@ const schema = z.object({
 
 export interface MatchFormState {
   error?: string;
+}
+
+function matchScheduleLabel(matchDate: string, location: string): string {
+  const date = matchDate.slice(0, 10);
+  const time = matchDate.slice(11, 16);
+  return `${formatDateLong(date)}, ${time} · ${location}`;
 }
 
 function parseMatchForm(formData: FormData) {
@@ -58,18 +65,19 @@ export async function saveMatchAction(
 
   const repo = await getRepo();
   const matchup = `${CATEGORY_LABELS[input.category]} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
+  const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
   if (id) {
     await repo.updateMatch(id, input);
     await notifyCalendarChange({
-      title: "Partita aggiornata",
-      body: matchup,
+      title: "Partita modificata",
+      body: `${matchup} · ${scheduleLabel}`,
       url: "/",
     });
   } else {
     await repo.createMatch(input, session.sub);
     await notifyCalendarChange({
-      title: "Nuova partita in calendario",
-      body: matchup,
+      title: "Partita creata",
+      body: `${matchup} · ${scheduleLabel}`,
       url: "/",
     });
   }
@@ -87,9 +95,10 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   const match = await repo.getMatch(id);
   await repo.deleteMatch(id);
   if (match) {
+    const matchup = `${CATEGORY_LABELS[match.category]} ${match.isHome ? "vs" : "@"} ${match.opponent}`;
     await notifyCalendarChange({
-      title: "Partita rimossa",
-      body: `${CATEGORY_LABELS[match.category]} ${match.isHome ? "vs" : "@"} ${match.opponent} non è più in calendario.`,
+      title: "Partita eliminata",
+      body: `${matchup} · ${matchScheduleLabel(match.matchDate, match.location)} · non è più in calendario.`,
       url: "/",
     });
   }

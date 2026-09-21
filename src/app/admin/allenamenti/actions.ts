@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
-import { formatDateShort, formatWeekdays } from "@/lib/format";
+import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
 import type { TrainingRuleInput } from "@/lib/types";
 
 const schema = z
@@ -84,21 +84,21 @@ export async function saveTrainingAction(
   };
 
   const scheduleLabel = isOnce
-    ? `il ${input.startDate}`
+    ? `il ${formatDateLong(input.startDate)}`
     : `${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`;
 
   if (id) {
     await repo.updateTraining(id, input);
     await notifyCalendarChange({
-      title: "Allenamento aggiornato",
-      body: `${input.title} · ${scheduleLabel}`,
+      title: "Allenamento modificato",
+      body: `${input.title} · ${scheduleLabel} · ${input.location}`,
       url: "/",
     });
   } else {
     await repo.createTraining(input, session.sub);
     await notifyCalendarChange({
-      title: "Nuovo allenamento",
-      body: `${input.title} · ${scheduleLabel}`,
+      title: "Allenamento creato",
+      body: `${input.title} · ${scheduleLabel} · ${input.location}`,
       url: "/",
     });
   }
@@ -154,10 +154,12 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   await repo.deleteTraining(id);
   if (training) {
     const scheduleLabel =
-      training.repeat === "once" ? `il ${training.startDate}` : formatWeekdays(training.weekdays);
+      training.repeat === "once"
+        ? `il ${formatDateLong(training.startDate)}`
+        : `${formatWeekdays(training.weekdays)} ${training.startTime}–${training.endTime}`;
     await notifyCalendarChange({
-      title: "Allenamento rimosso",
-      body: `${training.title} · ${scheduleLabel} non è più in calendario.`,
+      title: "Allenamento eliminato",
+      body: `${training.title} · ${scheduleLabel} · non è più in calendario.`,
       url: "/",
     });
   }
