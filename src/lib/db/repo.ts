@@ -10,6 +10,7 @@ import type {
   PushSubscriptionRecord,
   StaffMember,
   StaffRole,
+  StorageOverview,
   TrainingBlock,
   TrainingBlockInput,
   TrainingOccurrencePlan,
@@ -127,4 +128,7 @@ export interface Repo {
     staffId?: string | null;
   }): Promise<void>;
   deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
+
+  // Panoramica utilizzo storage (pagina Manutenzione, solo dev)
+  getStorageOverview(): Promise<StorageOverview>;
 }

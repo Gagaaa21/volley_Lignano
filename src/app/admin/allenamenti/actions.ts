@@ -2,11 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
+import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { TrainingRuleInput } from "@/lib/types";
 
 const schema = z
@@ -106,6 +108,7 @@ export async function saveTrainingAction(
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
   revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
   redirect("/admin/allenamenti/elenco");
 }
 
@@ -122,6 +125,7 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");
   revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
 
   const [training, plan] = await Promise.all([repo.getTraining(ruleId), repo.getTrainingPlan(planId)]);
   await notifyStaffChange({
@@ -143,6 +147,7 @@ export async function removeOccurrencePlanAction(formData: FormData): Promise<vo
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");
   revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
 }
 
 export async function deleteTrainingAction(formData: FormData): Promise<void> {
@@ -166,4 +171,5 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
   revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
 }

@@ -2,12 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
+import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { MatchInput, MatchLineupInput } from "@/lib/types";
 
 const schema = z.object({
@@ -84,6 +86,7 @@ export async function saveMatchAction(
 
   revalidatePath("/admin/partite");
   revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
   redirect("/admin/partite");
 }
 
@@ -104,6 +107,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/admin/partite");
   revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
 }
 
 const positionSchema = z.union([

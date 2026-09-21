@@ -399,4 +399,27 @@ export const memoryRepo: Repo = {
     const idx = pushSubscriptions.findIndex((s) => s.endpoint === endpoint);
     if (idx !== -1) pushSubscriptions.splice(idx, 1);
   },
+
+  async getStorageOverview() {
+    const collections: Array<{ table: string; rows: unknown[] }> = [
+      { table: "training_sessions", rows: trainings },
+      { table: "matches", rows: matches },
+      { table: "match_lineups", rows: matchLineups },
+      { table: "training_blocks", rows: trainingBlocks },
+      { table: "training_plans", rows: trainingPlans },
+      { table: "training_occurrence_plans", rows: trainingOccurrencePlans },
+      { table: "athletes", rows: athletes },
+      { table: "attendance_sessions", rows: attendanceSessions },
+      { table: "push_subscriptions", rows: pushSubscriptions },
+      { table: "staff", rows: staff },
+    ];
+    return {
+      tables: collections.map(({ table, rows }) => ({
+        table,
+        rowCount: rows.length,
+        sizeBytes: Buffer.byteLength(JSON.stringify(rows)),
+      })),
+      generatedAt: new Date().toISOString(),
+    };
+  },
 };

@@ -233,3 +233,15 @@ export type CalendarEvent =
       location: string;
       notes: string | null;
     };
+
+export interface StorageTableInfo {
+  table: string;
+  rowCount: number;
+  /** Byte reali su Supabase (indici inclusi); stima JSON in modalità demo. */
+  sizeBytes: number | null;
+}
+
+export interface StorageOverview {
+  tables: StorageTableInfo[];
+  generatedAt: string;
+}

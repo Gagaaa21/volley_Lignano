@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
@@ -9,6 +10,7 @@ import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
 import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import { notifyStaffChange } from "@/lib/push";
 import { formatDateShort } from "@/lib/format";
+import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { TrainingBlock } from "@/lib/types";
 
 const createSchema = z.object({
@@ -99,6 +101,7 @@ export async function createPlanAction(
     revalidatePath(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
     revalidatePath("/admin/allenamenti");
     revalidatePath("/");
+    updateTag(PUBLIC_CALENDAR_TAG);
 
     const training = await repo.getTraining(occurrenceRuleId);
     await notifyStaffChange({

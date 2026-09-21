@@ -275,6 +275,29 @@ alter table push_subscriptions add column if not exists staff_id uuid references
 
 alter table matches add column if not exists called_up_athlete_ids uuid[] not null default '{}';
 
+-- =========================================================
+-- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare
+-- righe e spazio occupato da ogni tabella, così da capire dove intervenire
+-- se ci si avvicina ai limiti del piano Supabase. Stima veloce (statistiche
+-- del planner), nessuna scansione delle tabelle.
+-- =========================================================
+create or replace function table_sizes()
+returns table (
+  table_name text,
+  row_estimate bigint,
+  total_bytes bigint
+)
+language sql
+stable
+as $$
+  select
+    relname::text as table_name,
+    n_live_tup as row_estimate,
+    pg_total_relation_size(relid) as total_bytes
+  from pg_stat_user_tables
+  order by pg_total_relation_size(relid) desc;
+$$;
+
 create table if not exists match_lineups (
   match_id uuid primary key references matches(id) on delete cascade,
   sets jsonb not null default '[]',

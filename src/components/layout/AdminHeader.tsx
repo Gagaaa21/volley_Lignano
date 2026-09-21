@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarClock,
   ClipboardCheck,
+  Gauge,
   Globe,
   LayoutDashboard,
   LogOut,
@@ -34,6 +35,10 @@ const NAV_ITEMS = [
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false },
 ];
 
+const DEV_NAV_ITEMS = [
+  { href: "/admin/manutenzione", label: "Manutenzione", icon: Gauge, exact: false },
+];
+
 function isActive(pathname: string, href: string, exact: boolean) {
   return exact ? pathname === href : pathname.startsWith(href);
 }
@@ -41,6 +46,7 @@ function isActive(pathname: string, href: string, exact: boolean) {
 export function AdminHeader({ session }: { session: SessionPayload }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navItems = session.role === "dev" ? [...NAV_ITEMS, ...DEV_NAV_ITEMS] : NAV_ITEMS;
 
   return (
     <header className="page-header">
@@ -95,7 +101,7 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
             data-mobile={mobileOpen ? "true" : undefined}
             aria-label="Sezioni area riservata"
           >
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const active = isActive(pathname, item.href, item.exact);
               const Icon = item.icon;
               return (

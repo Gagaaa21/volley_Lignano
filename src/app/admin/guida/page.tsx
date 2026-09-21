@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarClock,
   ClipboardCheck,
+  Gauge,
   Globe,
   KeyRound,
   Puzzle,
@@ -135,6 +136,32 @@ export default async function GuidaPage() {
             </Card>
           );
         })}
+
+        {session.role === "dev" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-3">
+              <span className="icon-chip shrink-0">
+                <Gauge className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="font-display text-base font-semibold text-foreground">
+                  Manutenzione
+                </h2>
+                <p className="text-sm text-muted-foreground">Solo Developer.</p>
+              </div>
+            </CardHeader>
+            <CardBody className="pt-0">
+              <p className="text-sm text-foreground/80">
+                La pagina{" "}
+                <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
+                  Manutenzione
+                </Link>{" "}
+                mostra righe e spazio occupato per ogni tabella su Supabase, e spiega la cache
+                della homepage pubblica introdotta per restare entro i limiti mensili del piano.
+              </p>
+            </CardBody>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center gap-3">

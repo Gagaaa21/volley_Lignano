@@ -778,4 +778,19 @@ export const supabaseRepo: Repo = {
     const { error } = await db.from("push_subscriptions").delete().eq("endpoint", endpoint);
     if (error) throw new Error(error.message);
   },
+
+  async getStorageOverview() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.rpc("table_sizes");
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as { table_name: string; row_estimate: number; total_bytes: number }[];
+    return {
+      tables: rows.map((row) => ({
+        table: row.table_name,
+        rowCount: row.row_estimate,
+        sizeBytes: row.total_bytes,
+      })),
+      generatedAt: new Date().toISOString(),
+    };
+  },
 };

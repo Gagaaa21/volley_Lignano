@@ -10,7 +10,7 @@ import { AgendaList } from "@/components/calendar/AgendaList";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
-import { getRepo } from "@/lib/db";
+import { getPublicCalendarData } from "@/lib/publicCalendarData";
 import {
   expandTrainings,
   getMonthGridRange,
@@ -39,18 +39,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
-  const repo = await getRepo();
-  const [trainings, matches, occurrencePlans, plans, blocks] = await Promise.all([
-    repo.listTrainings(),
-    repo.listMatches({
-      from: startStr,
-      to: endStr,
-      category: activeCategory === "all" ? undefined : activeCategory,
-    }),
-    repo.listTrainingOccurrencePlans(),
-    repo.listTrainingPlans(),
-    repo.listTrainingBlocks(),
-  ]);
+  const { trainings, matches, occurrencePlans, plans, blocks } = await getPublicCalendarData(
+    startStr,
+    endStr,
+    activeCategory === "all" ? undefined : activeCategory,
+  );
 
   const occurrencePlanIds = new Map(
     occurrencePlans.map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o.planId] as const),
