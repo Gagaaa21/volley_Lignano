@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import {
+  Calendar,
   Check,
   Clock,
   Dumbbell,
@@ -117,17 +118,22 @@ export function EventDetailDialog({
           </button>
         </div>
 
-        <div className="mt-5 space-y-3 text-sm">
-          <p className="capitalize font-medium text-foreground">
+        <div className="mt-4 space-y-2.5 rounded-2xl border border-border-subtle bg-surface-muted/50 p-4 text-sm">
+          <p className="flex items-center gap-2.5 font-medium capitalize text-foreground">
+            <Calendar className="h-4 w-4 shrink-0 text-foreground/45" />
             {format(dateObj, "EEEE d MMMM yyyy", { locale: it })}
           </p>
-          <p className="flex items-center gap-2 text-foreground/75">
-            <Clock className="h-4 w-4 shrink-0" />
+          <p className="flex items-center gap-2.5 text-foreground/75">
+            <Clock className="h-4 w-4 shrink-0 text-foreground/45" />
             {isTraining ? `${event.startTime}–${event.endTime}` : event.time}
           </p>
           {!isTraining && (
-            <p className="flex items-center gap-2 text-foreground/75">
-              {event.isHome ? <Home className="h-4 w-4 shrink-0" /> : <Plane className="h-4 w-4 shrink-0" />}
+            <p className="flex items-center gap-2.5 text-foreground/75">
+              {event.isHome ? (
+                <Home className="h-4 w-4 shrink-0 text-foreground/45" />
+              ) : (
+                <Plane className="h-4 w-4 shrink-0 text-foreground/45" />
+              )}
               {event.isHome ? "Partita in casa" : "Partita in trasferta"}
             </p>
           )}
@@ -135,26 +141,32 @@ export function EventDetailDialog({
             href={mapsHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-primary hover:underline"
+            className="flex items-center gap-2.5 text-primary hover:underline"
           >
             <MapPin className="h-4 w-4 shrink-0" />
             <span className="flex-1 truncate">{event.location}</span>
             <ExternalLink className="h-3.5 w-3.5 shrink-0" />
           </a>
-          {event.notes && (
-            <p className="whitespace-pre-line rounded-xl bg-surface-muted px-3.5 py-3 text-foreground/70">
-              {event.notes}
-            </p>
-          )}
         </div>
 
+        {event.notes && (
+          <p className="mt-3 whitespace-pre-line rounded-2xl bg-surface-muted px-4 py-3 text-sm text-foreground/70">
+            {event.notes}
+          </p>
+        )}
+
         {isTraining && plan && (
-          <div className="mt-5 border-t border-border-subtle pt-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sea-700">
-              <Puzzle className="h-3.5 w-3.5" />
-              Cosa si fa · {plan.title}
-            </p>
-            <ol className="mt-3 space-y-3">
+          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
+            <div className="flex items-center gap-3">
+              <span className="icon-chip">
+                <Puzzle className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Cosa si fa</p>
+                <p className="truncate text-sm font-bold text-foreground">{plan.title}</p>
+              </div>
+            </div>
+            <ol className="mt-3.5 space-y-3">
               {plan.blocks.map((block, index) => (
                 <li key={block.id} className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3">
                   <div className="flex items-center justify-between gap-2">
@@ -174,14 +186,20 @@ export function EventDetailDialog({
         )}
 
         {isTraining && attendance && attendance.records.length > 0 && (
-          <div className="mt-5 border-t border-border-subtle pt-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sea-700">
-              <Users className="h-3.5 w-3.5" />
-              Presenze ·{" "}
-              {attendance.records.filter((r) => r.status === "present").length}/
-              {attendance.records.length}
-            </p>
-            <ul className="mt-3 space-y-1.5">
+          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
+            <div className="flex items-center gap-3">
+              <span className="icon-chip">
+                <Users className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Presenze</p>
+                <p className="text-sm font-bold text-foreground">
+                  {attendance.records.filter((r) => r.status === "present").length}/
+                  {attendance.records.length} presenti
+                </p>
+              </div>
+            </div>
+            <ul className="mt-3.5 space-y-1.5">
               {attendance.records.map((record) => (
                 <li
                   key={record.fullName}

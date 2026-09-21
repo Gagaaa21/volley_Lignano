@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, Puzzle } from "lucide-react";
+import { ArrowLeft, Clock, Globe, Lock, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -56,7 +56,7 @@ export default async function OccurrencePlanPage({
           : "Questa scheda vale solo per questa data: le altre occorrenze della serie ricorrente non cambiano."}
       </p>
 
-      {currentPlan && (
+      {currentPlan && occurrencePlan && (
         <Card className="mt-6">
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
@@ -83,6 +83,35 @@ export default async function OccurrencePlanPage({
                 {currentPlanBlocks.reduce((sum, b) => sum + b.durationMinutes, 0)}&apos; totali
               </span>
             </div>
+
+            <form
+              action={setOccurrencePlanAction}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3"
+            >
+              <input type="hidden" name="ruleId" value={ruleId} />
+              <input type="hidden" name="date" value={date} />
+              <input type="hidden" name="planId" value={currentPlan.id} />
+              <label className="flex cursor-pointer items-center gap-2.5 text-sm font-medium text-foreground/85">
+                <input
+                  type="checkbox"
+                  name="isPublic"
+                  defaultChecked={occurrencePlan.isPublic}
+                  className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  {occurrencePlan.isPublic ? (
+                    <Globe className="h-3.5 w-3.5 text-sea-700" />
+                  ) : (
+                    <Lock className="h-3.5 w-3.5 text-foreground/40" />
+                  )}
+                  Visibile sul calendario pubblico (genitori e atlete)
+                </span>
+              </label>
+              <Button type="submit" variant="outline" size="sm">
+                Aggiorna
+              </Button>
+            </form>
+
             <ol className="space-y-3">
               {currentPlanBlocks.map((block, index) => (
                 <li key={block.id} className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3">
@@ -110,7 +139,7 @@ export default async function OccurrencePlanPage({
               {currentPlan ? "Cambia con una scheda esistente" : "Collega una scheda esistente"}
             </h2>
           </CardHeader>
-          <CardBody>
+          <CardBody className="space-y-3">
             <form action={setOccurrencePlanAction} className="flex flex-col gap-3 sm:flex-row">
               <input type="hidden" name="ruleId" value={ruleId} />
               <input type="hidden" name="date" value={date} />
@@ -129,6 +158,14 @@ export default async function OccurrencePlanPage({
                   ))}
                 </Select>
               </div>
+              <label className="flex shrink-0 cursor-pointer items-center gap-2 self-center text-sm font-medium text-foreground/85">
+                <input
+                  type="checkbox"
+                  name="isPublic"
+                  className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+                />
+                Visibile al pubblico
+              </label>
               <Button type="submit" variant="outline">
                 Collega
               </Button>

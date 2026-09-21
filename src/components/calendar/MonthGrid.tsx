@@ -10,9 +10,11 @@ const MAX_VISIBLE_PER_DAY = 3;
 export function MonthGrid({
   monthDate,
   eventsByDate,
+  onSelectEvent,
 }: {
   monthDate: Date;
   eventsByDate: Map<string, CalendarEvent[]>;
+  onSelectEvent?: (event: CalendarEvent) => void;
 }) {
   const { start, end } = getMonthGridRange(monthDate);
   const days = eachDayOfInterval({ start, end });
@@ -63,7 +65,11 @@ export function MonthGrid({
               </div>
               <div className={cn("mt-1 flex flex-col gap-1", isPast && "opacity-50 grayscale")}>
                 {events.slice(0, MAX_VISIBLE_PER_DAY).map((event) => (
-                  <EventPill key={event.id} event={event} />
+                  <EventPill
+                    key={event.id}
+                    event={event}
+                    onSelect={onSelectEvent ? () => onSelectEvent(event) : undefined}
+                  />
                 ))}
                 {events.length > MAX_VISIBLE_PER_DAY && (
                   <span className="px-1.5 text-[10px] font-medium text-foreground/50">

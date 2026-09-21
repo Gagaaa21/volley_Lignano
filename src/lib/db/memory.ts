@@ -275,13 +275,18 @@ export const memoryRepo: Repo = {
       ) ?? null
     );
   },
-  async setTrainingOccurrencePlan(trainingRuleId, occurrenceDate, planId, createdBy) {
+  async setTrainingOccurrencePlan(trainingRuleId, occurrenceDate, planId, isPublic, createdBy) {
     const now = new Date().toISOString();
     const idx = trainingOccurrencePlans.findIndex(
       (o) => o.trainingRuleId === trainingRuleId && o.occurrenceDate === occurrenceDate,
     );
     if (idx !== -1) {
-      trainingOccurrencePlans[idx] = { ...trainingOccurrencePlans[idx], planId, updatedAt: now };
+      trainingOccurrencePlans[idx] = {
+        ...trainingOccurrencePlans[idx],
+        planId,
+        isPublic,
+        updatedAt: now,
+      };
       return trainingOccurrencePlans[idx];
     }
     const row: TrainingOccurrencePlan = {
@@ -289,6 +294,7 @@ export const memoryRepo: Repo = {
       trainingRuleId,
       occurrenceDate,
       planId,
+      isPublic,
       createdBy,
       createdAt: now,
       updatedAt: now,

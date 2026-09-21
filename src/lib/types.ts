@@ -162,6 +162,10 @@ export interface TrainingOccurrencePlan {
   trainingRuleId: string;
   occurrenceDate: string; // "YYYY-MM-DD"
   planId: string;
+  /** Se true, il contenuto della scheda compare nel dettaglio dell'allenamento
+   * sul calendario pubblico. Scelta esplicita fatta ogni volta che si collega
+   * una scheda: di default non è pubblica. */
+  isPublic: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

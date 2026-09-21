@@ -52,6 +52,14 @@ export function PlanCreateForm({
         <>
           <input type="hidden" name="occurrenceRuleId" value={occurrenceRuleId} />
           <input type="hidden" name="occurrenceDate" value={occurrenceDate} />
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm font-medium text-foreground/85">
+            <input
+              type="checkbox"
+              name="isPublic"
+              className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+            />
+            Visibile sul calendario pubblico (genitori e atlete)
+          </label>
         </>
       )}
 

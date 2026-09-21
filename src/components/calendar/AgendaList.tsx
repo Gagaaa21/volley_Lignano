@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { ChevronRight, Dumbbell, Home, MapPin, Plane, Swords } from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import { EventDetailDialog, type EventAttendance, type EventPlan } from "./EventDetailDialog";
 import type { CalendarEvent } from "@/lib/types";
 
 function dateHeading(dateStr: string) {
@@ -22,17 +20,14 @@ function isPastDate(dateStr: string) {
 
 export function AgendaList({
   eventsByDate,
-  plansByEventId = {},
-  attendanceByEventId = {},
+  onSelectEvent,
   emptyMessage = "Nessun evento in programma per questo periodo.",
 }: {
   eventsByDate: Map<string, CalendarEvent[]>;
-  plansByEventId?: Record<string, EventPlan>;
-  attendanceByEventId?: Record<string, EventAttendance>;
+  onSelectEvent: (event: CalendarEvent) => void;
   emptyMessage?: string;
 }) {
   const dates = [...eventsByDate.keys()].sort();
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   if (dates.length === 0) {
     return (
@@ -62,20 +57,13 @@ export function AgendaList({
                   key={event.id}
                   event={event}
                   isPast={isPast}
-                  onSelect={() => setSelectedEvent(event)}
+                  onSelect={() => onSelectEvent(event)}
                 />
               ))}
             </div>
           </div>
         );
       })}
-
-      <EventDetailDialog
-        event={selectedEvent}
-        plan={selectedEvent ? plansByEventId[selectedEvent.id] : undefined}
-        attendance={selectedEvent ? attendanceByEventId[selectedEvent.id] : undefined}
-        onClose={() => setSelectedEvent(null)}
-      />
     </div>
   );
 }

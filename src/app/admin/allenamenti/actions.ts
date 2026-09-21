@@ -117,10 +117,11 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
   const ruleId = formData.get("ruleId")?.toString();
   const date = formData.get("date")?.toString();
   const planId = formData.get("planId")?.toString();
+  const isPublic = formData.get("isPublic") === "on";
   if (!ruleId || !date || !planId) return;
 
   const repo = await getRepo();
-  await repo.setTrainingOccurrencePlan(ruleId, date, planId, session.sub);
+  await repo.setTrainingOccurrencePlan(ruleId, date, planId, isPublic, session.sub);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");

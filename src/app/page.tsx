@@ -1,12 +1,10 @@
 import { format } from "date-fns";
-import { it } from "date-fns/locale";
 import Image from "next/image";
 import { CalendarDays, Dumbbell, Swords, Volleyball, Waves } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { MonthGrid } from "@/components/calendar/MonthGrid";
-import { AgendaList } from "@/components/calendar/AgendaList";
+import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
@@ -46,7 +44,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   );
 
   const occurrencePlanIds = new Map(
-    occurrencePlans.map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o.planId] as const),
+    occurrencePlans
+      .filter((o) => o.isPublic)
+      .map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o.planId] as const),
   );
   const trainingEvents = expandTrainings(trainings, start, end, occurrencePlanIds);
   const matchEvents = matchesToEvents(matches);
@@ -138,21 +138,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <CategoryFilter active={activeCategory} month={monthParam} />
           </div>
 
-          <div className="mt-6">
-            <MonthGrid monthDate={monthDate} eventsByDate={eventsByDate} />
-          </div>
-
-          <div className="mt-9">
-            <p className="eyebrow">Agenda</p>
-            <h2 className="mb-4 mt-1.5 font-display text-lg font-bold capitalize text-foreground">
-              Eventi di {format(monthDate, "MMMM", { locale: it })}
-            </h2>
-            <AgendaList
-              eventsByDate={eventsByDate}
-              plansByEventId={plansByEventId}
-              attendanceByEventId={attendanceByEventId}
-            />
-          </div>
+          <CalendarSection
+            monthDate={monthDate}
+            eventsByDate={eventsByDate}
+            plansByEventId={plansByEventId}
+            attendanceByEventId={attendanceByEventId}
+          />
 
           <div className="mt-10 flex flex-wrap items-center gap-2 rounded-2xl border border-border-subtle bg-surface px-4 py-3.5">
             <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", TRAINING_BADGE)}>

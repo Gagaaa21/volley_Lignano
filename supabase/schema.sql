@@ -151,6 +151,9 @@ create table if not exists training_occurrence_plans (
   training_rule_id uuid not null references training_sessions(id) on delete cascade,
   occurrence_date date not null,
   plan_id uuid not null references training_plans(id) on delete cascade,
+  -- Scelta esplicita fatta ogni volta che si collega una scheda: se true, il
+  -- contenuto compare nel dettaglio dell'allenamento sul calendario pubblico.
+  is_public boolean not null default false,
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -276,6 +279,8 @@ end $$;
 alter table push_subscriptions add column if not exists staff_id uuid references staff(id) on delete set null;
 
 alter table matches add column if not exists called_up_athlete_ids uuid[] not null default '{}';
+
+alter table training_occurrence_plans add column if not exists is_public boolean not null default false;
 
 -- =========================================================
 -- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare

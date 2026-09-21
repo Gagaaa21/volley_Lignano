@@ -22,6 +22,7 @@ const createSchema = z.object({
   useAi: z.boolean().optional(),
   occurrenceRuleId: z.string().optional(),
   occurrenceDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
+  isPublic: z.boolean().optional(),
 });
 
 export interface PlanFormState {
@@ -42,6 +43,7 @@ export async function createPlanAction(
     useAi: formData.get("useAi") === "on",
     occurrenceRuleId: formData.get("occurrenceRuleId")?.toString() || undefined,
     occurrenceDate: formData.get("occurrenceDate")?.toString() ?? "",
+    isPublic: formData.get("isPublic") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -96,7 +98,13 @@ export async function createPlanAction(
 
   const { occurrenceRuleId, occurrenceDate } = parsed.data;
   if (occurrenceRuleId && occurrenceDate) {
-    await repo.setTrainingOccurrencePlan(occurrenceRuleId, occurrenceDate, plan.id, session.sub);
+    await repo.setTrainingOccurrencePlan(
+      occurrenceRuleId,
+      occurrenceDate,
+      plan.id,
+      parsed.data.isPublic ?? false,
+      session.sub,
+    );
     revalidatePath(`/admin/allenamenti/${occurrenceRuleId}`);
     revalidatePath(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
     revalidatePath("/admin/allenamenti");

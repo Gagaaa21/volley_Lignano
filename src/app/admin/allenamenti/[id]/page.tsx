@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addDays, format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, CalendarDays, CalendarRange, ChevronRight, Puzzle } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarRange, ChevronRight, Globe, Puzzle } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { expandTrainings, occurrenceKey } from "@/lib/calendar";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -34,10 +34,10 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
   const occurrences = allOccurrences.slice(0, MAX_OCCURRENCES_PREVIEW);
   const remainingCount = allOccurrences.length - occurrences.length;
 
-  const planIdByOccurrenceKey = new Map(
+  const occurrencePlanByKey = new Map(
     occurrencePlans
       .filter((o) => o.trainingRuleId === id)
-      .map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o.planId] as const),
+      .map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o] as const),
   );
   const planById = new Map(allPlans.map((p) => [p.id, p] as const));
 
@@ -70,8 +70,8 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
               </h2>
               <p className="mt-1 text-sm text-foreground/60">
                 {training.repeat === "once"
-                  ? "Collega una scheda a questo allenamento: le atlete la vedranno nei dettagli dell'evento nel calendario pubblico."
-                  : "Vale solo per la data scelta, non per l'intera serie ricorrente. Le atlete la vedranno nei dettagli di quell'evento nel calendario pubblico."}
+                  ? "Collega una scheda a questo allenamento. Puoi scegliere se renderla visibile alle atlete nei dettagli dell'evento nel calendario pubblico."
+                  : "Vale solo per la data scelta, non per l'intera serie ricorrente. Puoi scegliere se renderla visibile alle atlete nei dettagli di quell'evento nel calendario pubblico."}
               </p>
             </div>
             {training.repeat !== "once" && (
@@ -87,8 +87,8 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
             <p className="text-sm text-foreground/50">Nessuna data programmata nei prossimi 90 giorni.</p>
           ) : (
             occurrences.map((occ) => {
-              const currentPlanId = planIdByOccurrenceKey.get(occurrenceKey(id, occ.date));
-              const currentPlan = currentPlanId ? planById.get(currentPlanId) : null;
+              const occurrencePlan = occurrencePlanByKey.get(occurrenceKey(id, occ.date));
+              const currentPlan = occurrencePlan ? planById.get(occurrencePlan.planId) : null;
 
               return (
                 <Link
@@ -107,6 +107,9 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
                   >
                     {currentPlan && <Puzzle className="h-3.5 w-3.5 shrink-0" />}
                     <span className="truncate">{currentPlan ? currentPlan.title : "Nessuna scheda"}</span>
+                    {currentPlan && occurrencePlan?.isPublic && (
+                      <Globe className="h-3.5 w-3.5 shrink-0 text-sea-700" aria-label="Visibile al pubblico" />
+                    )}
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-foreground/30" />
                 </Link>

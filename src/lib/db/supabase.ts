@@ -225,6 +225,7 @@ type TrainingOccurrencePlanRow = {
   training_rule_id: string;
   occurrence_date: string;
   plan_id: string;
+  is_public: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -236,6 +237,7 @@ function occurrencePlanFromRow(row: TrainingOccurrencePlanRow): TrainingOccurren
     trainingRuleId: row.training_rule_id,
     occurrenceDate: row.occurrence_date,
     planId: row.plan_id,
+    isPublic: row.is_public,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -621,7 +623,7 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
     return data ? occurrencePlanFromRow(data as TrainingOccurrencePlanRow) : null;
   },
-  async setTrainingOccurrencePlan(trainingRuleId, occurrenceDate, planId, createdBy) {
+  async setTrainingOccurrencePlan(trainingRuleId, occurrenceDate, planId, isPublic, createdBy) {
     const db = getSupabaseAdmin();
     const result = await db
       .from("training_occurrence_plans")
@@ -630,6 +632,7 @@ export const supabaseRepo: Repo = {
           training_rule_id: trainingRuleId,
           occurrence_date: occurrenceDate,
           plan_id: planId,
+          is_public: isPublic,
           created_by: createdBy,
           updated_at: new Date().toISOString(),
         },

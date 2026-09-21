@@ -56,6 +56,7 @@ const SECTIONS: Section[] = [
       "In \"Blocchi\" si incolla il testo di un esercizio: viene salvato come blocco riutilizzabile con titolo e durata.",
       "Una scheda allenamento è una sequenza ordinata di blocchi esistenti: si riordinano o si riusano senza riscriverli.",
       "Modificare un blocco aggiorna automaticamente tutte le schede che lo usano.",
+      "Ogni volta che colleghi una scheda a un allenamento ti viene chiesto se renderla visibile alle atlete nel calendario pubblico: di default resta privata, allo staff. Puoi cambiare idea in qualsiasi momento dalla pagina di quell'allenamento.",
     ],
   },
   {

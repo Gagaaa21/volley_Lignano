@@ -93,6 +93,7 @@ export interface Repo {
     trainingRuleId: string,
     occurrenceDate: string,
     planId: string,
+    isPublic: boolean,
     createdBy: string | null,
   ): Promise<TrainingOccurrencePlan>;
   removeTrainingOccurrencePlan(trainingRuleId: string, occurrenceDate: string): Promise<void>;
