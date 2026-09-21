@@ -59,6 +59,39 @@ function fitSize(font: PDFFont, text: string, maxWidth: number, startSize: numbe
   return size;
 }
 
+/** Spezza il testo su più righe (max maxLines) perché entri in maxWidth;
+ * l'ultima riga viene troncata con "…" solo se resta testo non mostrato. */
+function wrapText(font: PDFFont, text: string, maxWidth: number, size: number, maxLines: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  let i = 0;
+  while (i < words.length) {
+    const word = words[i];
+    const candidate = current ? `${current} ${word}` : word;
+    if (!current || font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+      i++;
+    } else {
+      lines.push(current);
+      current = "";
+      if (lines.length === maxLines) break;
+    }
+  }
+
+  const hasLeftover = i < words.length;
+  if (lines.length < maxLines) {
+    if (current) lines.push(current);
+  } else if (hasLeftover && lines.length > 0) {
+    let last = lines[lines.length - 1];
+    while (last.length > 0 && font.widthOfTextAtSize(`${last}…`, size) > maxWidth) {
+      last = last.slice(0, -1);
+    }
+    lines[lines.length - 1] = `${last}…`;
+  }
+  return lines;
+}
+
 /** Disegna un campo compatto (griglia 3x2) con la formazione di un set,
  * dentro il riquadro [originX, blockTop] largo `width` e alto `height`. */
 function drawSetBlock(
@@ -199,9 +232,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     color: GREY,
   });
 
+  const courtWidth = PAGE_W - MARGIN * 2;
+
   y -= 52;
   page.drawText(
-    `${CATEGORY_LABELS[match.category]} · ${match.isHome ? "Casa" : "Trasferta"} · vs ${match.opponent}`,
+    `${CATEGORY_LABELS[match.category]} · ${match.isHome ? "Casa" : "Trasferta"} · vs ${match.opponent}` +
+      (match.isFriendly ? " · Amichevole" : ""),
     { x: MARGIN, y, size: 13, font: fontBold, color: INK },
   );
   y -= 16;
@@ -213,6 +249,51 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     color: GREY,
   });
 
+  if (match.meetingTime || match.meetingLocation) {
+    y -= 14;
+    const meetingParts = [
+      match.meetingTime ? `ore ${match.meetingTime}` : null,
+      match.meetingLocation,
+    ].filter(Boolean);
+    page.drawText(`Ritrovo: ${meetingParts.join(" · ")}`, {
+      x: MARGIN,
+      y,
+      size: 9,
+      font: fontRegular,
+      color: GREY,
+    });
+  }
+
+  if (match.resultSetsWon !== null && match.resultSetsLost !== null) {
+    y -= 14;
+    const outcome = match.resultSetsWon > match.resultSetsLost ? "Vittoria" : "Sconfitta";
+    const setsLabel = `${match.resultSetsWon}-${match.resultSetsLost}`;
+    const partial = match.setScores?.length
+      ? ` (${match.setScores.map((s) => `${s.us}-${s.them}`).join(", ")})`
+      : "";
+    page.drawText(`Risultato: ${outcome} ${setsLabel}${partial}`, {
+      x: MARGIN,
+      y,
+      size: 9,
+      font: fontBold,
+      color: match.resultSetsWon > match.resultSetsLost ? SEA : rgb(0.6, 0.15, 0.15),
+    });
+  }
+
+  if (match.calledUpAthleteIds.length > 0) {
+    const names = match.calledUpAthleteIds
+      .map((id) => athletesById.get(id)?.fullName)
+      .filter((name): name is string => Boolean(name));
+    if (names.length > 0) {
+      y -= 14;
+      const wrapped = wrapText(fontRegular, `Convocate: ${names.join(", ")}`, courtWidth, 8.5, 2);
+      for (const line of wrapped) {
+        page.drawText(line, { x: MARGIN, y, size: 8.5, font: fontRegular, color: GREY });
+        y -= 11;
+      }
+    }
+  }
+
   y -= 20;
   page.drawText("Fila superiore = vicino alla rete · fila inferiore = fondo campo", {
     x: MARGIN,
@@ -221,8 +302,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     font: fontRegular,
     color: GREY,
   });
-
-  const courtWidth = PAGE_W - MARGIN * 2;
   const blocksTop = y - 14;
   const blocksBottom = MARGIN + FOOTER_RESERVE;
   const availableHeight = blocksTop - blocksBottom;
