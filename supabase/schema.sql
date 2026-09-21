@@ -335,3 +335,20 @@ create table if not exists match_lineups (
   updated_at timestamptz not null default now()
 );
 alter table match_lineups enable row level security;
+
+-- =========================================================
+-- test_mode_store — archivio della "modalità prova" (solo dev): una singola
+-- riga con l'intero archivio sandbox come blob JSON. Necessaria perché su
+-- Vercel richieste diverse possono finire su istanze serverless diverse, che
+-- non condividono la memoria del processo Node: un archivio solo in memoria
+-- (come quello della modalità demo) apparirebbe quindi vuoto o incompleto a
+-- seconda dell'istanza, con dati che "spariscono" e pagine 404. Persistendo
+-- qui invece, tutte le istanze leggono e scrivono lo stesso stato.
+-- =========================================================
+create table if not exists test_mode_store (
+  id text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table test_mode_store enable row level security;
+-- Nessuna policy pubblica: raggiungibile solo tramite la service role key.

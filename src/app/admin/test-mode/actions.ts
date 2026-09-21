@@ -10,7 +10,7 @@ export async function enterTestModeAction(): Promise<void> {
   const session = await requireDev();
   if (!session.testMode) {
     const realRepo = await getRepo();
-    resetTestStore();
+    await resetTestStore();
     await seedTestStoreFromRepo(realRepo);
     await setSessionCookie({ ...session, testMode: true });
   }
@@ -19,7 +19,7 @@ export async function enterTestModeAction(): Promise<void> {
 
 export async function exitTestModeAction(): Promise<void> {
   const session = await requireDev();
-  resetTestStore();
+  await resetTestStore();
   await setSessionCookie({ ...session, testMode: false });
   redirect("/admin");
 }

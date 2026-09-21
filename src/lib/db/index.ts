@@ -31,7 +31,7 @@ export async function getActiveRepo(): Promise<Repo> {
   const [session, real] = await Promise.all([getSession(), getRepo()]);
   if (session?.role === "dev" && session.testMode) {
     const { getTestRepo } = await import("@/lib/db/testMode");
-    return getTestRepo(real);
+    return await getTestRepo(real);
   }
   return real;
 }
