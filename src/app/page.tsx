@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import Image from "next/image";
-import { CalendarDays, Dumbbell, Swords, Volleyball, Waves } from "lucide-react";
+import { CalendarDays, Dumbbell, ListFilter, Swords, Volleyball, Waves } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
@@ -145,19 +145,25 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             attendanceByEventId={attendanceByEventId}
           />
 
-          <div className="mt-10 flex flex-wrap items-center gap-2 rounded-2xl border border-border-subtle bg-surface px-4 py-3.5">
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", TRAINING_BADGE)}>
-              <Dumbbell className="h-3 w-3" />
-              Allenamento (U14 e U15 insieme)
-            </span>
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", CATEGORY_BADGE.U14)}>
-              <Swords className="h-3 w-3" />
-              Partita Under 14
-            </span>
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", CATEGORY_BADGE.U15)}>
-              <Swords className="h-3 w-3" />
-              Partita Under 15
-            </span>
+          <div className="mt-10">
+            <p className="eyebrow">
+              <ListFilter className="h-3 w-3" />
+              Legenda
+            </p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-2xl border border-border-subtle bg-surface px-4 py-3.5">
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", TRAINING_BADGE)}>
+                <Dumbbell className="h-3 w-3" />
+                Allenamento (U14 e U15 insieme)
+              </span>
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", CATEGORY_BADGE.U14)}>
+                <Swords className="h-3 w-3" />
+                Partita Under 14
+              </span>
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", CATEGORY_BADGE.U15)}>
+                <Swords className="h-3 w-3" />
+                Partita Under 15
+              </span>
+            </div>
           </div>
         </div>
       </main>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { addDays, format, subDays } from "date-fns";
 import { it } from "date-fns/locale";
 import {
@@ -23,6 +24,7 @@ import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category"
 import { cn } from "@/lib/cn";
 import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
+import crest from "@/assets/lignano-crest.png";
 import type { CalendarEvent } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -112,11 +114,19 @@ export default async function AdminDashboardPage({
         </div>
       )}
 
-      <p className="eyebrow">Dashboard</p>
-      <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Ciao, {session.fullName}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Ecco una panoramica di Volley Lignano.
-      </p>
+      <div className="relative overflow-hidden rounded-2xl border border-border-subtle bg-gradient-to-br from-sea-700 to-sea-950 px-5 py-6 text-white shadow-[0_20px_44px_-26px_rgba(9,27,38,0.55)] sm:px-7 sm:py-7">
+        <Image
+          src={crest}
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 select-none object-contain opacity-[0.12] sm:h-56 sm:w-56"
+        />
+        <div className="relative z-10">
+          <p className="eyebrow eyebrow-inverted capitalize">{format(today, "EEEE d MMMM yyyy", { locale: it })}</p>
+          <h1 className="mt-1.5 font-display text-2xl font-bold sm:text-3xl">Ciao, {session.fullName}</h1>
+          <p className="mt-1 text-sm text-sea-100/80">Ecco una panoramica di Volley Lignano.</p>
+        </div>
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="stat-card">
@@ -135,7 +145,7 @@ export default async function AdminDashboardPage({
         <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
-              <span className="icon-chip">
+              <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u15),var(--color-u15-strong))]">
                 <Swords className="h-5 w-5" />
               </span>
               <div>
@@ -148,7 +158,7 @@ export default async function AdminDashboardPage({
         <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
-              <span className="icon-chip">
+              <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]">
                 <Users className="h-5 w-5" />
               </span>
               <div>
