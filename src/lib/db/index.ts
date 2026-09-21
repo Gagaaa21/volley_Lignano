@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth/session";
 import type { Repo } from "@/lib/db/repo";
@@ -27,13 +28,21 @@ export async function getRepo(): Promise<Repo> {
  * invece che sul database reale. Staff e iscrizioni push restano comunque
  * reali. Non va mai usata dalla home pubblica.
  */
-export async function getActiveRepo(): Promise<Repo> {
+/**
+ * Avvolto in React cache() perché in modalità prova ogni chiamata rilegge
+ * l'intero archivio sandbox da Supabase (necessario per restare corretti tra
+ * istanze serverless diverse, vedi src/lib/db/testMode.ts) — senza questa
+ * memoizzazione, una pagina o un'azione che chiama getActiveRepo() più volte
+ * nella stessa richiesta ripeterebbe quel fetch inutilmente, appesantendo
+ * (o facendo percepire come "bloccata") la modalità prova.
+ */
+export const getActiveRepo = cache(async (): Promise<Repo> => {
   const [session, real] = await Promise.all([getSession(), getRepo()]);
   if (session?.role === "dev" && session.testMode) {
     const { getTestRepo } = await import("@/lib/db/testMode");
     return await getTestRepo(real);
   }
   return real;
-}
+});
 
 export type { Repo, MatchFilter, NewStaffInput } from "@/lib/db/repo";

@@ -63,19 +63,17 @@ function cloneAll<T>(items: T[]): T[] {
 }
 
 export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
-  const [trainings, matches, trainingBlocks, trainingPlans, trainingOccurrencePlans, athletes, attendanceSessions] =
+  const [trainings, matches, matchLineups, trainingBlocks, trainingPlans, trainingOccurrencePlans, athletes, attendanceSessions] =
     await Promise.all([
       realRepo.listTrainings(),
       realRepo.listMatches(),
+      realRepo.listMatchLineups(),
       realRepo.listTrainingBlocks(),
       realRepo.listTrainingPlans(),
       realRepo.listTrainingOccurrencePlans(),
       realRepo.listAthletes(),
       realRepo.listAttendanceSessions(),
     ]);
-  const matchLineups = (await Promise.all(matches.map((m) => realRepo.getMatchLineup(m.id)))).filter(
-    (l): l is NonNullable<typeof l> => Boolean(l),
-  );
 
   const store = createEmptyStore();
   store.trainings = cloneAll(trainings);

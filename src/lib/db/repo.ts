@@ -51,6 +51,7 @@ export interface Repo {
   deleteMatch(id: string): Promise<void>;
 
   // Formazioni partita per set (riservate allo staff)
+  listMatchLineups(): Promise<MatchLineup[]>;
   getMatchLineup(matchId: string): Promise<MatchLineup | null>;
   saveMatchLineup(
     matchId: string,

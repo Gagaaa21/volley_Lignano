@@ -158,6 +158,9 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (lineupIdx !== -1) matchLineups.splice(lineupIdx, 1);
     },
 
+    async listMatchLineups() {
+      return [...matchLineups];
+    },
     async getMatchLineup(matchId) {
       return matchLineups.find((l) => l.matchId === matchId) ?? null;
     },

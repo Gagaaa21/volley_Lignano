@@ -439,6 +439,12 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
   },
 
+  async listMatchLineups() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("match_lineups").select("*");
+    if (error) throw new Error(error.message);
+    return (data as MatchLineupRow[]).map(matchLineupFromRow);
+  },
   async getMatchLineup(matchId) {
     const db = getSupabaseAdmin();
     const { data, error } = await db
