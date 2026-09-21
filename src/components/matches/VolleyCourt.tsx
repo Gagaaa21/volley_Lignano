@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 import type { Athlete, CourtPosition, SetLineup } from "@/lib/types";
 
 /** Ordine di disegno: fila avanti vicino alla rete (4-3-2), poi fila arretrata (5-6-1). */
-const GRID_ORDER: CourtPosition[] = [4, 3, 2, 5, 6, 1];
+export const GRID_ORDER: CourtPosition[] = [4, 3, 2, 5, 6, 1];
 
 function shortName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
@@ -16,11 +16,13 @@ export function VolleyCourt({
   athletesById,
   onSlotClick,
   interactive = true,
+  selectedPosition = null,
 }: {
   slots: SetLineup;
   athletesById: Map<string, Athlete>;
   onSlotClick?: (position: CourtPosition) => void;
   interactive?: boolean;
+  selectedPosition?: CourtPosition | null;
 }) {
   const byPosition = new Map(slots.map((s) => [s.position, s] as const));
 
@@ -36,6 +38,7 @@ export function VolleyCourt({
           const slot = byPosition.get(position);
           const athlete = slot?.athleteId ? athletesById.get(slot.athleteId) : undefined;
           const filled = Boolean(athlete);
+          const selected = selectedPosition === position;
           return (
             <button
               key={position}
@@ -48,6 +51,7 @@ export function VolleyCourt({
                   ? "border-sea-700 bg-white shadow-sm shadow-sea-950/10"
                   : "border-dashed border-sea-700/25 bg-white/60",
                 interactive && "cursor-pointer hover:border-sea-700/60",
+                selected && "ring-2 ring-sand-400 ring-offset-1",
               )}
             >
               <span className="absolute left-1.5 top-1.5 text-[9px] font-bold text-foreground/30">
