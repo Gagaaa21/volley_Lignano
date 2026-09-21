@@ -51,7 +51,7 @@ export default async function TrainingsCalendarPage({
             cambiare la scheda: vale solo per quel giorno.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <LinkButton href="/admin/allenamenti/elenco" variant="outline">
             <List className="h-4 w-4" />
             Elenco regole

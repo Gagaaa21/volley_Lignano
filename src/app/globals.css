@@ -273,6 +273,10 @@
   flex-direction: column;
   align-items: stretch;
   overflow: visible;
+  /* La pillola a 999px va bene per la fila orizzontale desktop, ma su una
+     colonna alta di più voci crea un rigonfiamento circolare che taglia il
+     testo: qui serve un raggio moderato, da card. */
+  border-radius: 1.25rem;
 }
 
 @utility nav-tile {

@@ -143,7 +143,7 @@ export default async function AttendanceHubPage({
             Seleziona un giorno per registrare le presenze o vedere i dettagli.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <LinkButton href="/admin/presenze/atlete" variant="outline">
             <Users className="h-4 w-4" />
             Atlete
