@@ -3,18 +3,19 @@
 :root {
   color-scheme: light;
 
-  /* Sea — identità del club (stemma blu) */
-  --color-sea-50: #eef7fb;
-  --color-sea-100: #d9edf5;
-  --color-sea-200: #b3dbec;
-  --color-sea-300: #7fc2dd;
-  --color-sea-400: #46a1c7;
-  --color-sea-500: #2483ac;
-  --color-sea-600: #16688c;
-  --color-sea-700: #145470;
-  --color-sea-800: #14455c;
-  --color-sea-900: #133a4d;
-  --color-sea-950: #081821;
+  /* Sea — identità del club (azzurro acceso dello stemma, campionato da
+     lignano-crest.png: #3978bc) */
+  --color-sea-50: #f3f7fc;
+  --color-sea-100: #e2edf8;
+  --color-sea-200: #c0d8f2;
+  --color-sea-300: #94bbe6;
+  --color-sea-400: #629ad5;
+  --color-sea-500: #3a78bb;
+  --color-sea-600: #2b64a1;
+  --color-sea-700: #1f5084;
+  --color-sea-800: #193e66;
+  --color-sea-900: #152d47;
+  --color-sea-950: #0d1926;
 
   /* Sand — identità del club (stemma oro) */
   --color-sand-50: #fdf8ee;
