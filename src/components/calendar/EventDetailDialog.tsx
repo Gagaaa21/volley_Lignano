@@ -14,6 +14,7 @@ import {
   Plane,
   Puzzle,
   Swords,
+  Trophy,
   Users,
   X,
 } from "lucide-react";
@@ -98,13 +99,20 @@ export function EventDetailDialog({
               <p className="truncate font-display text-lg font-bold text-foreground">
                 {isTraining ? event.title : `vs ${event.opponent}`}
               </p>
-              <span
-                className={cn(
-                  "mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                  badgeClass,
+              <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span
+                  className={cn(
+                    "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                    badgeClass,
+                  )}
+                >
+                  {isTraining ? "U14 · U15" : CATEGORY_LABELS[event.category]}
+                </span>
+                {!isTraining && event.isFriendly && (
+                  <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
+                    Amichevole
+                  </span>
                 )}
-              >
-                {isTraining ? "U14 · U15" : CATEGORY_LABELS[event.category]}
               </span>
             </div>
           </div>
@@ -147,7 +155,40 @@ export function EventDetailDialog({
             <span className="flex-1 truncate">{event.location}</span>
             <ExternalLink className="h-3.5 w-3.5 shrink-0" />
           </a>
+          {!isTraining && (event.meetingTime || event.meetingLocation) && (
+            <p className="flex items-start gap-2.5 border-t border-border-subtle pt-2.5 text-foreground/75">
+              <Users className="mt-0.5 h-4 w-4 shrink-0 text-foreground/45" />
+              <span>
+                Ritrovo{event.meetingTime ? ` alle ${event.meetingTime}` : ""}
+                {event.meetingLocation ? ` · ${event.meetingLocation}` : ""}
+              </span>
+            </p>
+          )}
         </div>
+
+        {!isTraining && event.resultSetsWon !== null && event.resultSetsLost !== null && (
+          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "icon-chip",
+                  event.resultSetsWon > event.resultSetsLost
+                    ? "bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]"
+                    : "bg-[linear-gradient(135deg,#ef4444,#b91c1c)]",
+                )}
+              >
+                <Trophy className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Risultato finale</p>
+                <p className="text-sm font-bold text-foreground">
+                  {event.resultSetsWon > event.resultSetsLost ? "Vittoria" : "Sconfitta"}{" "}
+                  {event.resultSetsWon}-{event.resultSetsLost}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {event.notes && (
           <p className="mt-3 whitespace-pre-line rounded-2xl bg-surface-muted px-4 py-3 text-sm text-foreground/70">

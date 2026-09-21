@@ -101,7 +101,12 @@ export function matchesToEvents(matches: Match[]): CalendarEvent[] {
     opponent: m.opponent,
     isHome: m.isHome,
     location: m.location,
+    isFriendly: m.isFriendly,
+    meetingTime: m.meetingTime,
+    meetingLocation: m.meetingLocation,
     notes: m.notes,
+    resultSetsWon: m.resultSetsWon,
+    resultSetsLost: m.resultSetsLost,
   }));
 }
 

@@ -61,8 +61,17 @@ export interface Match {
   isHome: boolean;
   location: string;
   matchDate: string; // ISO datetime
+  /** Amichevole invece che di campionato. */
+  isFriendly: boolean;
+  /** Orario di ritrovo, se diverso dall'orario della partita. */
+  meetingTime: string | null; // "HH:MM"
+  /** Luogo di ritrovo, se diverso dal luogo della partita. */
+  meetingLocation: string | null;
   notes: string | null;
   calledUpAthleteIds: string[]; // convocate per questa partita
+  /** Risultato finale (set), valorizzato solo a partita giocata. */
+  resultSetsWon: number | null;
+  resultSetsLost: number | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -235,7 +244,12 @@ export type CalendarEvent =
       opponent: string;
       isHome: boolean;
       location: string;
+      isFriendly: boolean;
+      meetingTime: string | null;
+      meetingLocation: string | null;
       notes: string | null;
+      resultSetsWon: number | null;
+      resultSetsLost: number | null;
     };
 
 export interface StorageTableInfo {

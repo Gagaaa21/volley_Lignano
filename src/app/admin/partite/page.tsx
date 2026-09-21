@@ -78,11 +78,27 @@ export default async function MatchesListPage({
                       <Badge className={CATEGORY_BADGE[match.category]}>
                         {CATEGORY_LABELS[match.category]}
                       </Badge>
+                      {match.isFriendly && (
+                        <Badge className="bg-foreground/8 text-foreground/60">Amichevole</Badge>
+                      )}
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/50">
                         {match.isHome ? <Home className="h-3.5 w-3.5" /> : <Plane className="h-3.5 w-3.5" />}
                         {match.isHome ? "Casa" : "Trasferta"}
                       </span>
-                      {isPast && <Badge className="bg-foreground/10 text-foreground/50">Disputata</Badge>}
+                      {match.resultSetsWon !== null && match.resultSetsLost !== null ? (
+                        <Badge
+                          className={
+                            match.resultSetsWon > match.resultSetsLost
+                              ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
+                              : "bg-red-50 text-red-700"
+                          }
+                        >
+                          {match.resultSetsWon > match.resultSetsLost ? "Vinta" : "Persa"}{" "}
+                          {match.resultSetsWon}-{match.resultSetsLost}
+                        </Badge>
+                      ) : (
+                        isPast && <Badge className="bg-foreground/10 text-foreground/50">Disputata</Badge>
+                      )}
                     </div>
                     <p className="mt-1.5 font-display text-base font-bold text-foreground">
                       vs {match.opponent}

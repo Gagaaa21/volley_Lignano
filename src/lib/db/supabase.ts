@@ -46,8 +46,13 @@ type MatchRow = {
   is_home: boolean;
   location: string;
   match_date: string;
+  is_friendly: boolean;
+  meeting_time: string | null;
+  meeting_location: string | null;
   notes: string | null;
   called_up_athlete_ids: string[] | null;
+  result_sets_won: number | null;
+  result_sets_lost: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -107,8 +112,13 @@ function matchFromRow(row: MatchRow): Match {
     isHome: row.is_home,
     location: row.location,
     matchDate: row.match_date,
+    isFriendly: row.is_friendly,
+    meetingTime: row.meeting_time ? row.meeting_time.slice(0, 5) : null,
+    meetingLocation: row.meeting_location,
     notes: row.notes,
     calledUpAthleteIds: row.called_up_athlete_ids ?? [],
+    resultSetsWon: row.result_sets_won,
+    resultSetsLost: row.result_sets_lost,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -122,8 +132,13 @@ function matchToRow(input: MatchInput) {
     is_home: input.isHome,
     location: input.location,
     match_date: input.matchDate,
+    is_friendly: input.isFriendly,
+    meeting_time: input.meetingTime,
+    meeting_location: input.meetingLocation,
     notes: input.notes,
     called_up_athlete_ids: input.calledUpAthleteIds,
+    result_sets_won: input.resultSetsWon,
+    result_sets_lost: input.resultSetsLost,
   };
 }
 

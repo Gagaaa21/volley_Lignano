@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Save } from "lucide-react";
+import { Save, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -21,8 +21,16 @@ function SubmitButton() {
   );
 }
 
+function todayStr() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+const SET_OPTIONS = [0, 1, 2, 3];
+
 export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: Athlete[] }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
+  const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
@@ -73,8 +81,18 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
         </div>
       </div>
 
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm font-medium text-foreground/85">
+        <input
+          type="checkbox"
+          name="isFriendly"
+          defaultChecked={match?.isFriendly ?? false}
+          className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+        />
+        Amichevole (non di campionato)
+      </label>
+
       <div>
-        <Label htmlFor="location">Luogo</Label>
+        <Label htmlFor="location">Luogo della partita</Label>
         <Input
           id="location"
           name="location"
@@ -85,7 +103,7 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
       </div>
 
       <div>
-        <Label htmlFor="matchDate">Data e ora</Label>
+        <Label htmlFor="matchDate">Data e ora della partita</Label>
         <Input
           id="matchDate"
           name="matchDate"
@@ -95,13 +113,30 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
         />
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="meetingTime">Ora di ritrovo (opzionale)</Label>
+          <Input id="meetingTime" name="meetingTime" type="time" defaultValue={match?.meetingTime ?? ""} />
+        </div>
+        <div>
+          <Label htmlFor="meetingLocation">Luogo di ritrovo (opzionale)</Label>
+          <Input
+            id="meetingLocation"
+            name="meetingLocation"
+            defaultValue={match?.meetingLocation ?? ""}
+            placeholder="Se diverso dal luogo della partita"
+          />
+        </div>
+      </div>
+      <FieldHint>Lascia vuoti se il ritrovo coincide con orario e luogo della partita.</FieldHint>
+
       <div>
         <Label htmlFor="notes">Note (opzionale)</Label>
         <Textarea
           id="notes"
           name="notes"
           defaultValue={match?.notes ?? ""}
-          placeholder="Es. Ritrovo un'ora prima, portare la seconda maglia…"
+          placeholder="Es. Portare la seconda maglia…"
         />
       </div>
 
@@ -126,6 +161,43 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
             ))}
           </div>
           <FieldHint>Chi convochi qui diventa selezionabile nelle formazioni per set.</FieldHint>
+        </div>
+      )}
+
+      {isPastMatch && (
+        <div className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3.5">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
+            <Trophy className="h-4 w-4 text-sand-600" />
+            Risultato finale
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Set vinti e persi da Volley Lignano. Lascia entrambi su &quot;—&quot; se non ancora
+            disponibile.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="resultSetsWon">Set vinti</Label>
+              <Select id="resultSetsWon" name="resultSetsWon" defaultValue={match?.resultSetsWon ?? ""}>
+                <option value="">—</option>
+                {SET_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="resultSetsLost">Set persi</Label>
+              <Select id="resultSetsLost" name="resultSetsLost" defaultValue={match?.resultSetsLost ?? ""}>
+                <option value="">—</option>
+                {SET_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
         </div>
       )}
 

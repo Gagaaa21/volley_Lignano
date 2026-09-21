@@ -70,8 +70,14 @@ create table if not exists matches (
   is_home boolean not null default true,
   location text not null,
   match_date timestamp not null,
+  is_friendly boolean not null default false,
+  meeting_time time,
+  meeting_location text,
   notes text,
   called_up_athlete_ids uuid[] not null default '{}',
+  -- Risultato finale (set), valorizzato solo a partita giocata.
+  result_sets_won smallint check (result_sets_won between 0 and 3),
+  result_sets_lost smallint check (result_sets_lost between 0 and 3),
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -281,6 +287,20 @@ alter table push_subscriptions add column if not exists staff_id uuid references
 alter table matches add column if not exists called_up_athlete_ids uuid[] not null default '{}';
 
 alter table training_occurrence_plans add column if not exists is_public boolean not null default false;
+
+alter table matches add column if not exists is_friendly boolean not null default false;
+alter table matches add column if not exists meeting_time time;
+alter table matches add column if not exists meeting_location text;
+alter table matches add column if not exists result_sets_won smallint;
+alter table matches add column if not exists result_sets_lost smallint;
+do $$ begin
+  alter table matches add constraint matches_result_sets_won_check check (result_sets_won between 0 and 3);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  alter table matches add constraint matches_result_sets_lost_check check (result_sets_lost between 0 and 3);
+exception when duplicate_object then null;
+end $$;
 
 -- =========================================================
 -- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare

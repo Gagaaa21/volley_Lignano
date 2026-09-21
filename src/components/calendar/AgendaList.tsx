@@ -143,6 +143,24 @@ function EventRow({
             {event.isHome ? <Home className="h-3.5 w-3.5" /> : <Plane className="h-3.5 w-3.5" />}
             {event.isHome ? "Casa" : "Trasferta"}
           </span>
+          {event.isFriendly && (
+            <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/50">
+              Amichevole
+            </span>
+          )}
+          {event.resultSetsWon !== null && event.resultSetsLost !== null && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                event.resultSetsWon > event.resultSetsLost
+                  ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
+                  : "bg-red-50 text-red-700",
+              )}
+            >
+              {event.resultSetsWon > event.resultSetsLost ? "Vinta" : "Persa"} {event.resultSetsWon}-
+              {event.resultSetsLost}
+            </span>
+          )}
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60">
           <span className="font-medium text-foreground/80">{event.time}</span>
