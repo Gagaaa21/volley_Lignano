@@ -62,8 +62,8 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
             <h1 className="truncate font-display text-lg leading-tight tracking-tight sm:text-xl">
               Volley Lignano
             </h1>
-            <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="truncate font-medium text-foreground/80">{session.fullName}</span>
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+              <span className="max-w-full truncate font-medium text-foreground/80">{session.fullName}</span>
               <span
                 className={cn(
                   "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1",
@@ -86,7 +86,7 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
                   </button>
                 </form>
               )}
-            </p>
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <InstallButton />

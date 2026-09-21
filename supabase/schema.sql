@@ -328,14 +328,6 @@ as $$
   order by pg_total_relation_size(relid) desc;
 $$;
 
-create table if not exists match_lineups (
-  match_id uuid primary key references matches(id) on delete cascade,
-  sets jsonb not null default '[]',
-  updated_by uuid references staff(id) on delete set null,
-  updated_at timestamptz not null default now()
-);
-alter table match_lineups enable row level security;
-
 -- =========================================================
 -- test_mode_store — archivio della "modalità prova" (solo dev): una singola
 -- riga con l'intero archivio sandbox come blob JSON. Necessaria perché su
