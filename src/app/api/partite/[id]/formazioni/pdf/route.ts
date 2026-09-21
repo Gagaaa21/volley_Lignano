@@ -79,7 +79,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // I font standard (Helvetica) usano l'encoding WinAnsi e vanno in errore su
   // caratteri accentati o virgolette tipografiche nei nomi/luoghi inseriti
   // dallo staff: qui incorporiamo Liberation Sans (copertura Unicode/Latin
-  // Extended completa) invece dei 14 font base di PDF.
+  // Extended completa) invece dei 14 font base di PDF. I file in
+  // src/assets/fonts sono già ridotti ai soli caratteri Latin-1 (lettere
+  // accentate italiane comprese) e senza hinting: il font "intero" pesa
+  // ~400KB, questa versione ~15KB, e insieme a subset:true (che incorpora
+  // solo i glifi davvero usati in ogni singolo PDF) tiene il file leggero.
   const [regularBytes, boldBytes] = await Promise.all([
     readFile(path.join(FONTS_DIR, "LiberationSans-Regular.ttf")),
     readFile(path.join(FONTS_DIR, "LiberationSans-Bold.ttf")),
@@ -91,7 +95,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const timeLabel = match.matchDate.slice(11, 16);
   const generatedAt = new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-  for (let setIndex = 0; setIndex < 5; setIndex++) {
+  // Salta i set senza nessuna giocatrice assegnata (spesso una partita finisce
+  // prima del quinto set): meno pagine inutili da generare, scaricare e
+  // stampare. Se non è stata inserita nessuna formazione, genera comunque la
+  // prima pagina (campo vuoto) invece di un PDF senza pagine.
+  const setIndexesWithLineup = sets
+    .map((set, index) => ({ set, index }))
+    .filter(({ set }) => set.some((slot) => slot.athleteId))
+    .map(({ index }) => index);
+  const setIndexesToRender = setIndexesWithLineup.length > 0 ? setIndexesWithLineup : [0];
+
+  for (const setIndex of setIndexesToRender) {
     const page = doc.addPage([PAGE_W, PAGE_H]);
     const setLineup = sets[setIndex] ?? [];
 
