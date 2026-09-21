@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarClock,
   ClipboardCheck,
+  FlaskConical,
   Gauge,
   Globe,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { logoutAction } from "@/lib/auth/actions";
+import { enterTestModeAction } from "@/app/admin/test-mode/actions";
 import type { SessionPayload } from "@/lib/auth/session";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import crest from "@/assets/lignano-crest.png";
@@ -73,6 +75,17 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
                 <ShieldCheck className="h-2.5 w-2.5" />
                 {session.role === "dev" ? "Developer" : "Admin"}
               </span>
+              {session.role === "dev" && !session.testMode && (
+                <form action={enterTestModeAction}>
+                  <button
+                    type="submit"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-u15-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-u15-strong)] transition-opacity hover:opacity-80"
+                  >
+                    <FlaskConical className="h-2.5 w-2.5" />
+                    Modalità prova
+                  </button>
+                </form>
+              )}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">

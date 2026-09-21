@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarDays, Clock, MapPin, Pencil, Plus, Puzzle } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TrainingsListPage() {
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [trainings, occurrencePlans] = await Promise.all([
     repo.listTrainings(),
     repo.listTrainingOccurrencePlans(),

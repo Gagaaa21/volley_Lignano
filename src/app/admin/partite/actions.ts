@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -65,7 +65,7 @@ export async function saveMatchAction(
     calledUpAthleteIds: parsed.data.calledUpAthleteIds,
   };
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const matchup = `${CATEGORY_LABELS[input.category]} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
   const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
   if (id) {
@@ -94,7 +94,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   await requireStaff();
   const id = formData.get("id")?.toString();
   if (!id) return;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const match = await repo.getMatch(id);
   await repo.deleteMatch(id);
   if (match) {
@@ -168,7 +168,7 @@ export async function saveMatchLineupAction(
     return { error: "Dati non validi." };
   }
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.saveMatchLineup(matchId, { sets: normalizeSets(parsed.data.sets) }, session.sub);
   revalidatePath(`/admin/partite/${matchId}`);
   return { success: true };

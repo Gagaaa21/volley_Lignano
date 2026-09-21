@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AthleteForm } from "../AthleteForm";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function EditAthletePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const athlete = await repo.getAthlete(id);
   if (!athlete) notFound();
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, MapPin } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -19,7 +19,7 @@ export default async function RecordAttendancePage({
   const { ruleId, date } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) notFound();
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [training, existingSession, athletes] = await Promise.all([
     repo.getTraining(ruleId),
     repo.getAttendanceSessionByOccurrence(ruleId, date),

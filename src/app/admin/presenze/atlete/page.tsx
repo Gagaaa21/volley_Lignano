@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ListPlus, Pencil, Plus, Users } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { categoryLabel } from "@/lib/category";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -69,7 +69,7 @@ function AthleteGroup({ category, athletes }: { category: Category | null; athle
 }
 
 export default async function AthletesPage() {
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const athletes = await repo.listAthletes();
 
   return (

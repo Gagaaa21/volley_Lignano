@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import type { TrainingBlockInput } from "@/lib/types";
 
@@ -43,7 +43,7 @@ export async function saveBlockAction(
     content: parsed.data.content?.trim() ?? "",
   };
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   if (id) {
     await repo.updateTrainingBlock(id, input);
     revalidatePath("/admin/schede");
@@ -73,7 +73,7 @@ export async function deleteBlockAction(formData: FormData): Promise<void> {
   await requireStaff();
   const id = formData.get("id")?.toString();
   if (!id) return;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.deleteTrainingBlock(id);
   revalidatePath("/admin/schede");
   revalidatePath("/admin/schede/blocchi");

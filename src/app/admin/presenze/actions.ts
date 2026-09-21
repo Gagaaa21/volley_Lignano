@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath, updateTag } from "next/cache";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { AttendanceSessionInput, AttendanceStatus } from "@/lib/types";
@@ -38,7 +38,7 @@ export async function saveAttendanceAction(
   }
 
   const input: AttendanceSessionInput = { trainingRuleId, sessionDate, title, location, records };
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
 
   if (sessionId) {
     await repo.updateAttendanceSession(sessionId, input);
@@ -64,7 +64,7 @@ export async function deleteAttendanceSessionAction(formData: FormData): Promise
   await requireStaff();
   const id = formData.get("id")?.toString();
   if (!id) return;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.deleteAttendanceSession(id);
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/storico");

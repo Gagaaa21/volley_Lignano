@@ -16,7 +16,7 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { expandTrainings, matchesToEvents, sortEvents } from "@/lib/calendar";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
@@ -79,7 +79,7 @@ export default async function AdminDashboardPage({
 }) {
   const session = await requireStaff();
   const { password_changed } = await searchParams;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
 
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
     repo.listTrainings(),

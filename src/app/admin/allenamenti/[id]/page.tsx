@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { addDays, format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ArrowLeft, CalendarDays, CalendarRange, ChevronRight, Globe, Puzzle } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, occurrenceKey } from "@/lib/calendar";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -19,7 +19,7 @@ const MAX_OCCURRENCES_PREVIEW = 5;
 
 export default async function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [training, allPlans, occurrencePlans] = await Promise.all([
     repo.getTraining(id),
     repo.listTrainingPlans(),

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { MatchForm } from "../MatchForm";
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewMatchPage() {
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const athletes = (await repo.listAthletes()).filter((a) => a.isActive);
 
   return (

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Clock, Pencil, Plus, Puzzle } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BlocksLibraryPage() {
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [blocks, plans] = await Promise.all([repo.listTrainingBlocks(), repo.listTrainingPlans()]);
 
   const usageCount = new Map<string, number>();

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowLeft, Check, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AttendanceHistoryPage() {
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const sessions = await repo.listAttendanceSessions();
 
   return (

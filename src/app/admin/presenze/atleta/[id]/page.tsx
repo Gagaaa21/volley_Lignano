@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ArrowLeft, Check, Clock, MapPin, ShieldAlert, ShieldQuestion } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import { categoryBadgeClass, categoryLabel } from "@/lib/category";
@@ -54,7 +54,7 @@ export default async function AthleteAttendancePage({
   const monthDate = parseMonthParam(month);
   const monthParam = formatMonthParam(monthDate);
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [athlete, sessions, trainings] = await Promise.all([
     repo.getAthlete(id),
     repo.listAttendanceSessions(),

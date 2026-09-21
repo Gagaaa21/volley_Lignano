@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Home, MapPin, Pencil, Plane, Plus } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { CATEGORY_BADGE, CATEGORY_LABELS } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -24,7 +24,7 @@ export default async function MatchesListPage({
   const { cat } = await searchParams;
   const activeCategory: "all" | Category = cat === "U14" || cat === "U15" ? cat : "all";
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const matches = await repo.listMatches(
     activeCategory === "all" ? undefined : { category: activeCategory },
   );

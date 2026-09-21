@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ShieldHalf } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { MatchForm } from "../MatchForm";
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function EditMatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [match, allAthletes, lineup] = await Promise.all([
     repo.getMatch(id),
     repo.listAthletes(),

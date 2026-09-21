@@ -9,7 +9,7 @@ import {
   Puzzle,
   X,
 } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Label, Select } from "@/components/ui/Field";
@@ -42,7 +42,7 @@ export default async function TrainingPlanDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const plan = await repo.getTrainingPlan(id);
   if (!plan) notFound();
 

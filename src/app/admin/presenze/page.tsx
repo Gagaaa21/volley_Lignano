@@ -4,7 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarCheck, CheckCircle2, Clock, History, MapPin, Users } from "lucide-react";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -25,7 +25,7 @@ export default async function AttendanceHubPage({
   const monthDate = parseMonthParam(month);
   const monthParam = formatMonthParam(monthDate);
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [trainings, sessions, athletes] = await Promise.all([
     repo.listTrainings(),
     repo.listAttendanceSessions(),

@@ -12,6 +12,9 @@ export interface SessionPayload {
   fullName: string;
   role: StaffRole;
   mustChangePassword: boolean;
+  /** Modalità prova (solo dev): le modifiche vanno su un archivio separato
+   * e scompaiono all'uscita. Assente/false per ogni sessione normale. */
+  testMode?: boolean;
 }
 
 function getSecretKey() {

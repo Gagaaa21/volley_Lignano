@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
 import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
@@ -49,7 +49,7 @@ export async function createPlanAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const pastedText = parsed.data.pastedText ?? "";
   let { preamble, blocks: parsedBlocks } = parseTrainingPlanText(pastedText);
 
@@ -153,7 +153,7 @@ export async function updatePlanDetailsAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const plan = await repo.getTrainingPlan(id);
   if (!plan) return { error: "Scheda non trovata." };
 
@@ -173,7 +173,7 @@ export async function deletePlanAction(formData: FormData): Promise<void> {
   await requireStaff();
   const id = formData.get("id")?.toString();
   if (!id) return;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.deleteTrainingPlan(id);
   revalidatePath("/admin/schede");
   redirect("/admin/schede");
@@ -185,7 +185,7 @@ export async function addBlockToPlanAction(formData: FormData): Promise<void> {
   const blockId = formData.get("blockId")?.toString();
   if (!planId || !blockId) return;
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const plan = await repo.getTrainingPlan(planId);
   if (!plan || plan.blockIds.includes(blockId)) return;
 
@@ -204,7 +204,7 @@ export async function removeBlockFromPlanAction(formData: FormData): Promise<voi
   const blockId = formData.get("blockId")?.toString();
   if (!planId || !blockId) return;
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const plan = await repo.getTrainingPlan(planId);
   if (!plan) return;
 
@@ -224,7 +224,7 @@ export async function reorderPlanBlockAction(formData: FormData): Promise<void> 
   const direction = formData.get("direction")?.toString();
   if (!planId || !blockId || (direction !== "up" && direction !== "down")) return;
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const plan = await repo.getTrainingPlan(planId);
   if (!plan) return;
 

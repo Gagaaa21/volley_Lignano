@@ -1,6 +1,7 @@
 import "server-only";
 import webpush from "web-push";
 import { getRepo } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
 import type { PushSubscriptionRecord } from "@/lib/types";
 
 let configured = false;
@@ -62,6 +63,7 @@ async function sendToSubscriptions(
 export async function notifyCalendarChange(payload: CalendarNotification): Promise<void> {
   try {
     if (!ensureConfigured()) return;
+    if ((await getSession())?.testMode) return;
 
     const repo = await getRepo();
     const subscriptions = await repo.listPushSubscriptions();
@@ -82,6 +84,7 @@ export async function notifyCalendarChange(payload: CalendarNotification): Promi
 export async function notifyStaffChange(payload: CalendarNotification): Promise<void> {
   try {
     if (!ensureConfigured()) return;
+    if ((await getSession())?.testMode) return;
 
     const repo = await getRepo();
     const subscriptions = (await repo.listPushSubscriptions()).filter((sub) => sub.staffId !== null);

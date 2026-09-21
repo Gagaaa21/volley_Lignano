@@ -3,7 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
@@ -59,7 +59,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const { id } = await params;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const [match, lineup, allAthletes] = await Promise.all([
     repo.getMatch(id),
     repo.getMatchLineup(id),

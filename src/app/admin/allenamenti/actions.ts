@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
@@ -70,7 +70,7 @@ export async function saveTrainingAction(
 
   const id = formData.get("id")?.toString();
   const isOnce = parsed.data.repeat === "once";
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
 
   const input: TrainingRuleInput = {
     title: parsed.data.title,
@@ -120,7 +120,7 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
   const isPublic = formData.get("isPublic") === "on";
   if (!ruleId || !date || !planId) return;
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.setTrainingOccurrencePlan(ruleId, date, planId, isPublic, session.sub);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
@@ -142,7 +142,7 @@ export async function removeOccurrencePlanAction(formData: FormData): Promise<vo
   const date = formData.get("date")?.toString();
   if (!ruleId || !date) return;
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.removeTrainingOccurrencePlan(ruleId, date);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
@@ -155,7 +155,7 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   await requireStaff();
   const id = formData.get("id")?.toString();
   if (!id) return;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   const training = await repo.getTraining(id);
   await repo.deleteTraining(id);
   if (training) {

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getRepo } from "@/lib/db";
+import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import type { AthleteInput } from "@/lib/types";
 
@@ -42,7 +42,7 @@ export async function saveAthleteAction(
     isActive: parsed.data.isActive,
   };
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   if (id) {
     await repo.updateAthlete(id, input);
   } else {
@@ -98,7 +98,7 @@ export async function bulkCreateAthletesAction(
     isActive: true,
   }));
 
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.createAthletesBulk(inputs, session.sub);
 
   revalidatePath("/admin/presenze");
@@ -110,7 +110,7 @@ export async function deleteAthleteAction(formData: FormData): Promise<void> {
   await requireStaff();
   const id = formData.get("id")?.toString();
   if (!id) return;
-  const repo = await getRepo();
+  const repo = await getActiveRepo();
   await repo.deleteAthlete(id);
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/atlete");

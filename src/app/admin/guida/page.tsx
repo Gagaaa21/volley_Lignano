@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarClock,
   ClipboardCheck,
+  FlaskConical,
   Gauge,
   Globe,
   KeyRound,
@@ -161,6 +162,40 @@ export default async function GuidaPage() {
                 mostra righe e spazio occupato per ogni tabella su Supabase, e spiega la cache
                 della homepage pubblica introdotta per restare entro i limiti mensili del piano.
               </p>
+            </CardBody>
+          </Card>
+        )}
+
+        {session.role === "dev" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-3">
+              <span className="icon-chip shrink-0">
+                <FlaskConical className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="font-display text-base font-semibold text-foreground">
+                  Modalità prova
+                </h2>
+                <p className="text-sm text-muted-foreground">Solo Developer.</p>
+              </div>
+            </CardHeader>
+            <CardBody className="pt-0">
+              <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
+                <li>
+                  Il pulsante &quot;Modalità prova&quot; accanto al tuo nome apre una copia separata
+                  dei dati (allenamenti, partite, formazioni, schede, presenze, atlete): puoi creare,
+                  modificare o eliminare qualsiasi cosa per provare lo strumento senza rischi.
+                </li>
+                <li>
+                  Mentre sei in modalità prova non viene inviata nessuna notifica push, e nessuno di
+                  quei cambiamenti compare mai sul calendario pubblico.
+                </li>
+                <li>
+                  Uscendo (dal banner in alto) tutte le modifiche fatte in prova spariscono e torni
+                  ai dati reali esattamente come li avevi lasciati. Account staff e iscrizioni alle
+                  notifiche non sono mai coinvolti dalla modalità prova.
+                </li>
+              </ul>
             </CardBody>
           </Card>
         )}
