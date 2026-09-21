@@ -62,12 +62,67 @@ export interface Match {
   location: string;
   matchDate: string; // ISO datetime
   notes: string | null;
+  calledUpAthleteIds: string[]; // convocate per questa partita
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export type MatchInput = Omit<Match, "id" | "createdBy" | "createdAt" | "updatedAt">;
+
+// Formazioni partita (riservate allo staff, mai esposte sul sito pubblico) —
+// ruoli standard della pallavolo assegnabili a ciascuna delle 6 posizioni in
+// campo, per ognuno dei 5 set possibili.
+export type VolleyRole = "S" | "OH" | "MB" | "OP" | "L";
+
+export const VOLLEY_ROLES: VolleyRole[] = ["S", "OH", "MB", "OP", "L"];
+
+export const VOLLEY_ROLE_LABELS: Record<VolleyRole, string> = {
+  S: "Palleggiatrice",
+  OH: "Schiacciatrice",
+  MB: "Centrale",
+  OP: "Opposto",
+  L: "Libero",
+};
+
+export type CourtPosition = 1 | 2 | 3 | 4 | 5 | 6;
+
+export const COURT_POSITIONS: CourtPosition[] = [1, 2, 3, 4, 5, 6];
+
+export interface LineupSlot {
+  position: CourtPosition;
+  athleteId: string | null;
+  role: VolleyRole | null;
+  isCaptain: boolean;
+}
+
+/** Sempre 6 elementi, uno per posizione in campo (1-6). */
+export type SetLineup = LineupSlot[];
+
+export interface MatchLineup {
+  matchId: string;
+  /** Sempre 5 elementi: indice 0 = set 1 ... indice 4 = set 5. */
+  sets: SetLineup[];
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export type MatchLineupInput = {
+  sets: SetLineup[];
+};
+
+export function emptySetLineup(): SetLineup {
+  return COURT_POSITIONS.map((position) => ({
+    position,
+    athleteId: null,
+    role: null,
+    isCaptain: false,
+  }));
+}
+
+export function emptyMatchLineupSets(): SetLineup[] {
+  return Array.from({ length: 5 }, () => emptySetLineup());
+}
 
 export interface TrainingBlock {
   id: string;

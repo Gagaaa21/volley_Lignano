@@ -7,7 +7,7 @@ import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS } from "@/lib/category";
-import type { MatchInput } from "@/lib/types";
+import type { MatchInput, MatchLineupInput } from "@/lib/types";
 
 const schema = z.object({
   category: z.enum(["U14", "U15"], { message: "Seleziona una categoria." }),
@@ -16,6 +16,7 @@ const schema = z.object({
   location: z.string().min(1, "Inserisci il luogo della partita."),
   matchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Inserisci data e ora della partita."),
   notes: z.string().optional(),
+  calledUpAthleteIds: z.array(z.string()),
 });
 
 export interface MatchFormState {
@@ -30,6 +31,7 @@ function parseMatchForm(formData: FormData) {
     location: formData.get("location")?.toString().trim() ?? "",
     matchDate: formData.get("matchDate")?.toString() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
+    calledUpAthleteIds: formData.getAll("calledUpAthleteIds").map((v) => v.toString()),
   });
 }
 
@@ -51,6 +53,7 @@ export async function saveMatchAction(
     location: parsed.data.location,
     matchDate: parsed.data.matchDate,
     notes: parsed.data.notes ?? null,
+    calledUpAthleteIds: parsed.data.calledUpAthleteIds,
   };
 
   const repo = await getRepo();
@@ -92,4 +95,68 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/admin/partite");
   revalidatePath("/");
+}
+
+const positionSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+]);
+
+const lineupSlotSchema = z.object({
+  position: positionSchema,
+  athleteId: z.string().nullable(),
+  role: z.enum(["S", "OH", "MB", "OP", "L"]).nullable(),
+  isCaptain: z.boolean(),
+});
+
+const lineupSchema = z.object({
+  sets: z.array(z.array(lineupSlotSchema).length(6)).length(5),
+});
+
+/** Al massimo una capitana per set: tiene solo la prima trovata. */
+function normalizeSets(sets: MatchLineupInput["sets"]): MatchLineupInput["sets"] {
+  return sets.map((set) => {
+    let captainFound = false;
+    return set.map((slot) => {
+      if (!slot.isCaptain) return slot;
+      if (captainFound) return { ...slot, isCaptain: false };
+      captainFound = true;
+      return slot;
+    });
+  });
+}
+
+export interface LineupFormState {
+  error?: string;
+  success?: boolean;
+}
+
+export async function saveMatchLineupAction(
+  _prevState: LineupFormState,
+  formData: FormData,
+): Promise<LineupFormState> {
+  const session = await requireStaff();
+  const matchId = formData.get("matchId")?.toString();
+  if (!matchId) return { error: "Partita non valida." };
+
+  let rawSets: unknown;
+  try {
+    rawSets = JSON.parse(formData.get("sets")?.toString() ?? "[]");
+  } catch {
+    return { error: "Dati non validi." };
+  }
+
+  const parsed = lineupSchema.safeParse({ sets: rawSets });
+  if (!parsed.success) {
+    return { error: "Dati non validi." };
+  }
+
+  const repo = await getRepo();
+  await repo.saveMatchLineup(matchId, { sets: normalizeSets(parsed.data.sets) }, session.sub);
+  revalidatePath(`/admin/partite/${matchId}`);
+  return { success: true };
 }

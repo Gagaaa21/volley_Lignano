@@ -4,10 +4,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Select, Textarea, FieldError } from "@/components/ui/Field";
+import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { saveMatchAction, type MatchFormState } from "./actions";
-import type { Match } from "@/lib/types";
+import type { Athlete, Match } from "@/lib/types";
 
 const initialState: MatchFormState = {};
 
@@ -21,7 +21,7 @@ function SubmitButton() {
   );
 }
 
-export function MatchForm({ match }: { match?: Match }) {
+export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: Athlete[] }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
 
   return (
@@ -104,6 +104,30 @@ export function MatchForm({ match }: { match?: Match }) {
           placeholder="Es. Ritrovo un'ora prima, portare la seconda maglia…"
         />
       </div>
+
+      {athletes.length > 0 && (
+        <div>
+          <Label>Convocate (opzionale)</Label>
+          <div className="flex flex-wrap gap-2">
+            {athletes.map((athlete) => (
+              <label
+                key={athlete.id}
+                className="cursor-pointer rounded-full border border-border-subtle bg-surface px-3.5 py-1.5 text-sm font-medium text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
+              >
+                <input
+                  type="checkbox"
+                  name="calledUpAthleteIds"
+                  value={athlete.id}
+                  defaultChecked={match?.calledUpAthleteIds.includes(athlete.id) ?? false}
+                  className="sr-only"
+                />
+                {athlete.fullName}
+              </label>
+            ))}
+          </div>
+          <FieldHint>Chi convochi qui diventa selezionabile nelle formazioni per set.</FieldHint>
+        </div>
+      )}
 
       {state.error && (
         <div className="rounded-xl bg-red-50 px-3.5 py-2.5">

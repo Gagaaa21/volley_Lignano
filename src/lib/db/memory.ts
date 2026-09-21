@@ -6,6 +6,8 @@ import type {
   AttendanceSessionInput,
   Match,
   MatchInput,
+  MatchLineup,
+  MatchLineupInput,
   PushSubscriptionRecord,
   StaffMember,
   TrainingBlock,
@@ -22,34 +24,65 @@ import type { MatchFilter, NewStaffInput, Repo } from "@/lib/db/repo";
  * In-memory demo backend, used automatically when Supabase env vars are not
  * configured. Lets the site be previewed locally without a database — starts
  * empty except for the seeded DEV account. Data resets on server restart.
+ *
+ * Next.js compiles Route Handlers (app/api/.../route.ts) as bundles separate
+ * from pages and Server Actions, each getting its own module instantiation —
+ * plain top-level `const` arrays here would then desync (a match created via
+ * a page action would be invisible to an API route reading the "same"
+ * module). Anchoring the store on `globalThis` keeps it a true singleton for
+ * the whole Node.js process, regardless of which bundle touches it.
  */
+
+interface MemoryStore {
+  trainings: TrainingRule[];
+  matches: Match[];
+  matchLineups: MatchLineup[];
+  trainingBlocks: TrainingBlock[];
+  trainingPlans: TrainingPlan[];
+  trainingOccurrencePlans: TrainingOccurrencePlan[];
+  athletes: Athlete[];
+  attendanceSessions: AttendanceSession[];
+  pushSubscriptions: PushSubscriptionRecord[];
+  staff: StaffMember[];
+  staffSeeded: boolean;
+}
+
+const globalForMemoryDb = globalThis as unknown as { __volleyMemoryStore?: MemoryStore };
+
+const store: MemoryStore =
+  globalForMemoryDb.__volleyMemoryStore ??
+  (globalForMemoryDb.__volleyMemoryStore = {
+    trainings: [],
+    matches: [],
+    matchLineups: [],
+    trainingBlocks: [],
+    trainingPlans: [],
+    trainingOccurrencePlans: [],
+    athletes: [],
+    attendanceSessions: [],
+    pushSubscriptions: [],
+    staff: [],
+    staffSeeded: false,
+  });
 
 function uid() {
   return crypto.randomUUID();
 }
 
-const trainings: TrainingRule[] = [];
-
-const matches: Match[] = [];
-
-const trainingBlocks: TrainingBlock[] = [];
-
-const trainingPlans: TrainingPlan[] = [];
-
-const trainingOccurrencePlans: TrainingOccurrencePlan[] = [];
-
-const athletes: Athlete[] = [];
-
-const attendanceSessions: AttendanceSession[] = [];
-
-const pushSubscriptions: PushSubscriptionRecord[] = [];
-
-const staff: StaffMember[] = [];
-let staffSeeded = false;
+const trainings = store.trainings;
+const matches = store.matches;
+const matchLineups = store.matchLineups;
+const trainingBlocks = store.trainingBlocks;
+const trainingPlans = store.trainingPlans;
+const trainingOccurrencePlans = store.trainingOccurrencePlans;
+const athletes = store.athletes;
+const attendanceSessions = store.attendanceSessions;
+const pushSubscriptions = store.pushSubscriptions;
+const staff = store.staff;
 
 async function ensureStaffSeeded() {
-  if (staffSeeded) return;
-  staffSeeded = true;
+  if (store.staffSeeded) return;
+  store.staffSeeded = true;
   const passwordHash = await bcrypt.hash("Gaga211", 10);
   staff.push({
     id: uid(),
@@ -113,6 +146,23 @@ export const memoryRepo: Repo = {
   async deleteMatch(id) {
     const idx = matches.findIndex((m) => m.id === id);
     if (idx !== -1) matches.splice(idx, 1);
+    const lineupIdx = matchLineups.findIndex((l) => l.matchId === id);
+    if (lineupIdx !== -1) matchLineups.splice(lineupIdx, 1);
+  },
+
+  async getMatchLineup(matchId) {
+    return matchLineups.find((l) => l.matchId === matchId) ?? null;
+  },
+  async saveMatchLineup(matchId, input: MatchLineupInput, updatedBy) {
+    const now = new Date().toISOString();
+    const idx = matchLineups.findIndex((l) => l.matchId === matchId);
+    const row: MatchLineup = { matchId, sets: input.sets, updatedBy, updatedAt: now };
+    if (idx === -1) {
+      matchLineups.push(row);
+    } else {
+      matchLineups[idx] = row;
+    }
+    return row;
   },
 
   async listStaff() {

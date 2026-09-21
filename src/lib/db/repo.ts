@@ -5,6 +5,8 @@ import type {
   AttendanceSessionInput,
   Match,
   MatchInput,
+  MatchLineup,
+  MatchLineupInput,
   PushSubscriptionRecord,
   StaffMember,
   StaffRole,
@@ -46,6 +48,14 @@ export interface Repo {
   createMatch(input: MatchInput, createdBy: string | null): Promise<Match>;
   updateMatch(id: string, input: MatchInput): Promise<Match>;
   deleteMatch(id: string): Promise<void>;
+
+  // Formazioni partita per set (riservate allo staff)
+  getMatchLineup(matchId: string): Promise<MatchLineup | null>;
+  saveMatchLineup(
+    matchId: string,
+    input: MatchLineupInput,
+    updatedBy: string | null,
+  ): Promise<MatchLineup>;
 
   // Staff
   listStaff(): Promise<StaffMember[]>;

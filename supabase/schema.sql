@@ -70,6 +70,7 @@ create table if not exists matches (
   location text not null,
   match_date timestamp not null,
   notes text,
+  called_up_athlete_ids uuid[] not null default '{}',
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -84,6 +85,23 @@ create policy "Partite visibili a tutti"
   on matches for select
   to anon, authenticated
   using (true);
+
+-- =========================================================
+-- match_lineups — formazioni per set di ogni partita
+-- (una riga per partita; "sets" è un array di 5 elementi, uno per set,
+-- ciascuno con le 6 posizioni in campo: atleta, ruolo, capitano.
+-- Riservate allo staff: nessuna policy pubblica, stessa logica di
+-- athletes/attendance_sessions — mai esposte sul sito pubblico)
+-- =========================================================
+create table if not exists match_lineups (
+  match_id uuid primary key references matches(id) on delete cascade,
+  sets jsonb not null default '[]',
+  updated_by uuid references staff(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+alter table match_lineups enable row level security;
+-- Nessuna policy pubblica: le formazioni sono riservate allo staff.
 
 -- =========================================================
 -- training_blocks — blocchi di allenamento riutilizzabili
@@ -254,3 +272,13 @@ do $$ begin
 end $$;
 
 alter table push_subscriptions add column if not exists staff_id uuid references staff(id) on delete set null;
+
+alter table matches add column if not exists called_up_athlete_ids uuid[] not null default '{}';
+
+create table if not exists match_lineups (
+  match_id uuid primary key references matches(id) on delete cascade,
+  sets jsonb not null default '[]',
+  updated_by uuid references staff(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+alter table match_lineups enable row level security;

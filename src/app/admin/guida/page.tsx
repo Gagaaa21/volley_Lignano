@@ -44,6 +44,7 @@ const SECTIONS: Section[] = [
       "Ogni partita ha categoria, avversario, casa/trasferta, data/ora e luogo.",
       "Compaiono nel calendario pubblico insieme agli allenamenti, filtrabili per categoria.",
       "Creare, modificare o eliminare una partita invia una notifica push agli iscritti.",
+      "Nella scheda di una partita si scelgono le convocate, poi si costruiscono le formazioni per ciascuno dei 5 set su un campo interattivo (ruoli S/OH/MB/OP/L e capitana): sono riservate allo staff, mai visibili sul sito pubblico, ed esportabili in PDF.",
     ],
   },
   {

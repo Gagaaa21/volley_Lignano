@@ -7,7 +7,10 @@ import type {
   AttendanceSessionInput,
   Match,
   MatchInput,
+  MatchLineup,
+  MatchLineupInput,
   PushSubscriptionRecord,
+  SetLineup,
   StaffMember,
   TrainingBlock,
   TrainingBlockInput,
@@ -44,6 +47,7 @@ type MatchRow = {
   location: string;
   match_date: string;
   notes: string | null;
+  called_up_athlete_ids: string[] | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -104,6 +108,7 @@ function matchFromRow(row: MatchRow): Match {
     location: row.location,
     matchDate: row.match_date,
     notes: row.notes,
+    calledUpAthleteIds: row.called_up_athlete_ids ?? [],
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -118,6 +123,23 @@ function matchToRow(input: MatchInput) {
     location: input.location,
     match_date: input.matchDate,
     notes: input.notes,
+    called_up_athlete_ids: input.calledUpAthleteIds,
+  };
+}
+
+type MatchLineupRow = {
+  match_id: string;
+  sets: SetLineup[] | null;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+function matchLineupFromRow(row: MatchLineupRow): MatchLineup {
+  return {
+    matchId: row.match_id,
+    sets: row.sets ?? [],
+    updatedBy: row.updated_by,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -395,6 +417,29 @@ export const supabaseRepo: Repo = {
     const db = getSupabaseAdmin();
     const { error } = await db.from("matches").delete().eq("id", id);
     if (error) throw new Error(error.message);
+  },
+
+  async getMatchLineup(matchId) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("match_lineups")
+      .select("*")
+      .eq("match_id", matchId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? matchLineupFromRow(data as MatchLineupRow) : null;
+  },
+  async saveMatchLineup(matchId, input: MatchLineupInput, updatedBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("match_lineups")
+      .upsert(
+        { match_id: matchId, sets: input.sets, updated_by: updatedBy, updated_at: new Date().toISOString() },
+        { onConflict: "match_id" },
+      )
+      .select("*")
+      .single();
+    return matchLineupFromRow(unwrap(result) as MatchLineupRow);
   },
 
   async listStaff() {
