@@ -16,6 +16,10 @@ function dateHeading(dateStr: string) {
   return format(date, "EEEE d MMMM", { locale: it });
 }
 
+function isPastDate(dateStr: string) {
+  return dateStr < format(new Date(), "yyyy-MM-dd");
+}
+
 export function AgendaList({
   eventsByDate,
   plansByEventId = {},
@@ -38,18 +42,31 @@ export function AgendaList({
 
   return (
     <div className="space-y-6">
-      {dates.map((dateStr) => (
-        <div key={dateStr}>
-          <h3 className="mb-2.5 text-sm font-bold uppercase tracking-wide text-sea-700 capitalize">
-            {dateHeading(dateStr)}
-          </h3>
-          <div className="space-y-2.5">
-            {eventsByDate.get(dateStr)!.map((event) => (
-              <EventRow key={event.id} event={event} onSelect={() => setSelectedEvent(event)} />
-            ))}
+      {dates.map((dateStr) => {
+        const isPast = isPastDate(dateStr);
+        return (
+          <div key={dateStr}>
+            <h3
+              className={cn(
+                "mb-2.5 text-sm font-bold uppercase tracking-wide capitalize",
+                isPast ? "text-foreground/35" : "text-sea-700",
+              )}
+            >
+              {dateHeading(dateStr)}
+            </h3>
+            <div className="space-y-2.5">
+              {eventsByDate.get(dateStr)!.map((event) => (
+                <EventRow
+                  key={event.id}
+                  event={event}
+                  isPast={isPast}
+                  onSelect={() => setSelectedEvent(event)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <EventDetailDialog
         event={selectedEvent}
@@ -60,14 +77,25 @@ export function AgendaList({
   );
 }
 
-function EventRow({ event, onSelect }: { event: CalendarEvent; onSelect: () => void }) {
+function EventRow({
+  event,
+  isPast = false,
+  onSelect,
+}: {
+  event: CalendarEvent;
+  isPast?: boolean;
+  onSelect: () => void;
+}) {
+  const rowClass = cn(
+    "flex w-full items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left transition-colors",
+    isPast
+      ? "opacity-60 grayscale hover:border-primary/15"
+      : "shadow-sm shadow-sea-950/5 hover:border-primary/25 hover:bg-primary/[0.03]",
+  );
+
   if (event.kind === "training") {
     return (
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex w-full items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left shadow-sm shadow-sea-950/5 transition-colors hover:border-primary/25 hover:bg-primary/[0.03]"
-      >
+      <button type="button" onClick={onSelect} className={rowClass}>
         <span
           className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", TRAINING_BADGE)}
         >
@@ -100,11 +128,7 @@ function EventRow({ event, onSelect }: { event: CalendarEvent; onSelect: () => v
   }
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="flex w-full items-center gap-3.5 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left shadow-sm shadow-sea-950/5 transition-colors hover:border-primary/25 hover:bg-primary/[0.03]"
-    >
+    <button type="button" onClick={onSelect} className={rowClass}>
       <span
         className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",

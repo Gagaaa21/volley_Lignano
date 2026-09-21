@@ -33,13 +33,16 @@ export function MonthGrid({
           const inMonth = isSameMonth(day, monthDate);
           const events = eventsByDate.get(dateStr) ?? [];
           const isCurrentDay = dateStr === todayStr;
+          const isPast = dateStr < todayStr;
+          const dayOfWeek = day.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
           return (
             <div
               key={dateStr}
               className={cn(
                 "min-h-28 border-b border-r border-border-subtle p-1.5 [&:nth-of-type(7n)]:border-r-0",
-                !inMonth && "bg-surface-muted/50",
+                !inMonth ? "bg-surface-muted/50" : isWeekend && "bg-sand-50/50",
               )}
             >
               <div className="flex justify-end">
@@ -47,16 +50,18 @@ export function MonthGrid({
                   className={cn(
                     "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
                     isCurrentDay
-                      ? "bg-sea-700 text-white"
+                      ? "bg-sea-700 text-white shadow-sm shadow-sea-700/40 ring-2 ring-sea-700/20 ring-offset-1 ring-offset-surface"
                       : inMonth
-                        ? "text-foreground"
+                        ? isPast
+                          ? "text-foreground/35"
+                          : "text-foreground"
                         : "text-foreground/30",
                   )}
                 >
                   {format(day, "d")}
                 </span>
               </div>
-              <div className="mt-1 flex flex-col gap-1">
+              <div className={cn("mt-1 flex flex-col gap-1", isPast && "opacity-50 grayscale")}>
                 {events.slice(0, MAX_VISIBLE_PER_DAY).map((event) => (
                   <EventPill key={event.id} event={event} />
                 ))}

@@ -1,6 +1,8 @@
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { CalendarDays, Volleyball, Waves } from "lucide-react";
+import Image from "next/image";
+import { CalendarDays, Dumbbell, Swords, Volleyball, Waves } from "lucide-react";
+import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { MonthGrid } from "@/components/calendar/MonthGrid";
@@ -17,6 +19,8 @@ import {
   occurrenceKey,
   sortEvents,
 } from "@/lib/calendar";
+import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
+import { cn } from "@/lib/cn";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { Category } from "@/lib/types";
 import type { EventPlan } from "@/components/calendar/EventDetailDialog";
@@ -81,7 +85,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       <PublicHeader />
 
       <section className="auth-stage relative overflow-hidden text-white">
-        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <Image
+          src={crest}
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -top-24 z-0 h-[26rem] w-[26rem] select-none object-contain opacity-[0.07] sm:-right-16 sm:-top-20 sm:h-[34rem] sm:w-[34rem]"
+        />
+
+        <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
           <div className="max-w-xl">
             <p className="eyebrow eyebrow-inverted">
               <Volleyball className="h-3 w-3" />
@@ -106,10 +117,19 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             </div>
           )}
         </div>
+
+        <svg
+          aria-hidden
+          viewBox="0 0 1440 74"
+          preserveAspectRatio="none"
+          className="absolute inset-x-0 -bottom-px z-0 h-10 w-full text-background sm:h-14"
+        >
+          <path fill="currentColor" d="M0,74 L0,42 C240,10 480,10 720,30 C960,50 1200,50 1440,20 L1440,74 Z" />
+        </svg>
       </section>
 
       <main className="app-surface w-full flex-1">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <MonthNav monthDate={monthDate} cat={activeCategory === "all" ? undefined : activeCategory} />
             <CategoryFilter active={activeCategory} month={monthParam} />
@@ -127,17 +147,17 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <AgendaList eventsByDate={eventsByDate} plansByEventId={plansByEventId} />
           </div>
 
-          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-border-subtle bg-surface px-5 py-4 text-xs font-medium text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-training)]" />
+          <div className="mt-10 flex flex-wrap items-center gap-2 rounded-2xl border border-border-subtle bg-surface px-4 py-3.5">
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", TRAINING_BADGE)}>
+              <Dumbbell className="h-3 w-3" />
               Allenamento (U14 e U15 insieme)
             </span>
-            <span className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-u14)]" />
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", CATEGORY_BADGE.U14)}>
+              <Swords className="h-3 w-3" />
               Partita Under 14
             </span>
-            <span className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-u15)]" />
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", CATEGORY_BADGE.U15)}>
+              <Swords className="h-3 w-3" />
               Partita Under 15
             </span>
           </div>
