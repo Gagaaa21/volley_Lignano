@@ -25,11 +25,12 @@ export default async function ManutenzionePage() {
   await requireDev();
   const repo = await getRepo();
   const demo = isDemoMode();
-  const overview = await repo.getStorageOverview();
-  const totalRows = overview.tables.reduce((sum, t) => sum + t.rowCount, 0);
-  const totalBytes = overview.tables.every((t) => t.sizeBytes !== null)
-    ? overview.tables.reduce((sum, t) => sum + (t.sizeBytes ?? 0), 0)
-    : null;
+  const overview = await repo.getStorageOverview().catch(() => null);
+  const totalRows = overview?.tables.reduce((sum, t) => sum + t.rowCount, 0) ?? 0;
+  const totalBytes =
+    overview && overview.tables.every((t) => t.sizeBytes !== null)
+      ? overview.tables.reduce((sum, t) => sum + (t.sizeBytes ?? 0), 0)
+      : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -93,33 +94,40 @@ export default async function ManutenzionePage() {
           </div>
         </CardHeader>
         <CardBody className="pt-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <th className="py-2 pr-4">Tabella</th>
-                  <th className="py-2 pr-4">Righe</th>
-                  <th className="py-2">Spazio</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.tables.map((t) => (
-                  <tr key={t.table} className="border-b border-border-subtle/60 last:border-0">
-                    <td className="py-2 pr-4 font-mono text-xs text-foreground/80">{t.table}</td>
-                    <td className="py-2 pr-4 tabular-nums text-foreground/80">{t.rowCount}</td>
-                    <td className="py-2 tabular-nums text-foreground/80">{formatBytes(t.sizeBytes)}</td>
+          {overview ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <th className="py-2 pr-4">Tabella</th>
+                    <th className="py-2 pr-4">Righe</th>
+                    <th className="py-2">Spazio</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-border-subtle font-semibold text-foreground">
-                  <td className="py-2 pr-4">Totale</td>
-                  <td className="py-2 pr-4 tabular-nums">{totalRows}</td>
-                  <td className="py-2 tabular-nums">{formatBytes(totalBytes)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {overview.tables.map((t) => (
+                    <tr key={t.table} className="border-b border-border-subtle/60 last:border-0">
+                      <td className="py-2 pr-4 font-mono text-xs text-foreground/80">{t.table}</td>
+                      <td className="py-2 pr-4 tabular-nums text-foreground/80">{t.rowCount}</td>
+                      <td className="py-2 tabular-nums text-foreground/80">{formatBytes(t.sizeBytes)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-border-subtle font-semibold text-foreground">
+                    <td className="py-2 pr-4">Totale</td>
+                    <td className="py-2 pr-4 tabular-nums">{totalRows}</td>
+                    <td className="py-2 tabular-nums">{formatBytes(totalBytes)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-foreground/60">
+              Dati non disponibili: manca ancora la funzione <code>table_sizes()</code> su Supabase.
+              Non è necessaria per il resto del sito — vedi la Guida se un giorno vuoi attivarla.
+            </p>
+          )}
         </CardBody>
       </Card>
 

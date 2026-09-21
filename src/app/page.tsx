@@ -23,7 +23,7 @@ import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { Category } from "@/lib/types";
-import type { EventPlan } from "@/components/calendar/EventDetailDialog";
+import type { EventAttendance, EventPlan } from "@/components/calendar/EventDetailDialog";
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
@@ -39,7 +39,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
-  const { trainings, matches, occurrencePlans, plans, blocks } = await getPublicCalendarData(
+  const { trainings, matches, occurrencePlans, plans, blocks, attendance } = await getPublicCalendarData(
     startStr,
     endStr,
     activeCategory === "all" ? undefined : activeCategory,
@@ -65,6 +65,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       .filter((b): b is NonNullable<typeof b> => Boolean(b))
       .map((b) => ({ id: b.id, title: b.title, durationMinutes: b.durationMinutes, content: b.content }));
     plansByEventId[event.id] = { title: plan.title, blocks: planBlocks };
+  }
+
+  const attendanceByOccurrence = new Map(
+    attendance.map((a) => [occurrenceKey(a.trainingRuleId, a.sessionDate), a.records] as const),
+  );
+  const attendanceByEventId: Record<string, EventAttendance> = {};
+  for (const event of monthEvents) {
+    if (event.kind !== "training") continue;
+    const records = attendanceByOccurrence.get(occurrenceKey(event.ruleId, event.date));
+    if (records) attendanceByEventId[event.id] = { records };
   }
 
   const isCurrentMonthView = monthParam === formatMonthParam(new Date());
@@ -137,7 +147,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <h2 className="mb-4 mt-1.5 font-display text-lg font-bold capitalize text-foreground">
               Eventi di {format(monthDate, "MMMM", { locale: it })}
             </h2>
-            <AgendaList eventsByDate={eventsByDate} plansByEventId={plansByEventId} />
+            <AgendaList
+              eventsByDate={eventsByDate}
+              plansByEventId={plansByEventId}
+              attendanceByEventId={attendanceByEventId}
+            />
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-2 rounded-2xl border border-border-subtle bg-surface px-4 py-3.5">

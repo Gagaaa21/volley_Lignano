@@ -3,24 +3,55 @@
 import { useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Clock, Dumbbell, ExternalLink, Home, MapPin, Plane, Puzzle, Swords, X } from "lucide-react";
+import {
+  Check,
+  Clock,
+  Dumbbell,
+  ExternalLink,
+  Home,
+  MapPin,
+  Plane,
+  Puzzle,
+  Swords,
+  Users,
+  X,
+} from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { BlockContent } from "@/components/schede/BlockContent";
 import type { CalendarEvent } from "@/lib/types";
+import type { PublicAttendanceRecord } from "@/lib/publicCalendarData";
 
 export interface EventPlan {
   title: string;
   blocks: { id: string; title: string; durationMinutes: number; content: string }[];
 }
 
+export interface EventAttendance {
+  records: PublicAttendanceRecord[];
+}
+
+const ATTENDANCE_LABEL: Record<PublicAttendanceRecord["status"], string> = {
+  present: "Presente",
+  excused: "Assente (giustificata)",
+  unexcused: "Assente",
+};
+
+const ATTENDANCE_CLASS: Record<PublicAttendanceRecord["status"], string> = {
+  present: "bg-[var(--color-training-soft)] text-[var(--color-training-strong)]",
+  excused: "bg-sand-100 text-sand-800",
+  unexcused: "bg-red-50 text-red-700",
+};
+
 export function EventDetailDialog({
   event,
   plan,
+  attendance,
   onClose,
 }: {
   event: CalendarEvent | null;
   plan?: EventPlan;
+  attendance?: EventAttendance;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -139,6 +170,38 @@ export function EventDetailDialog({
                 </li>
               ))}
             </ol>
+          </div>
+        )}
+
+        {isTraining && attendance && attendance.records.length > 0 && (
+          <div className="mt-5 border-t border-border-subtle pt-4">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sea-700">
+              <Users className="h-3.5 w-3.5" />
+              Presenze ·{" "}
+              {attendance.records.filter((r) => r.status === "present").length}/
+              {attendance.records.length}
+            </p>
+            <ul className="mt-3 space-y-1.5">
+              {attendance.records.map((record) => (
+                <li
+                  key={record.fullName}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-2.5"
+                >
+                  <span className="min-w-0 truncate text-sm font-medium text-foreground">
+                    {record.fullName}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      ATTENDANCE_CLASS[record.status],
+                    )}
+                  >
+                    {record.status === "present" && <Check className="h-2.5 w-2.5" />}
+                    {ATTENDANCE_LABEL[record.status]}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

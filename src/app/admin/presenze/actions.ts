@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
+import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { AttendanceSessionInput, AttendanceStatus } from "@/lib/types";
 
 export interface AttendanceFormState {
@@ -54,6 +55,8 @@ export async function saveAttendanceAction(
 
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/storico");
+  revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
   redirect("/admin/presenze/storico");
 }
 
@@ -65,4 +68,6 @@ export async function deleteAttendanceSessionAction(formData: FormData): Promise
   await repo.deleteAttendanceSession(id);
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/storico");
+  revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
 }

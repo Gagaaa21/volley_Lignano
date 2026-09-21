@@ -66,6 +66,7 @@ const SECTIONS: Section[] = [
       "In \"Atlete\" si gestisce l'anagrafica: si possono aggiungere una alla volta o incollando un elenco di nominativi insieme (categoria U14/U15 facoltativa, assegnabile anche dopo).",
       "Dalla schermata principale si sceglie l'allenamento da registrare: ogni atleta è di default \"Presente\", con un tasto per segnarla \"Assente\" e, in quel caso, specificare se l'assenza è giustificata o no.",
       "Lo \"Storico\" mostra tutti i registri salvati (modificabili in ogni momento) e, per ogni atleta, la propria percentuale di presenza e la cronologia.",
+      "Appena salvi un registro, l'elenco nominativo con lo stato di ciascuna atleta compare anche nel dettaglio di quell'allenamento sul calendario pubblico, visibile a chiunque senza bisogno di accedere.",
     ],
   },
   {

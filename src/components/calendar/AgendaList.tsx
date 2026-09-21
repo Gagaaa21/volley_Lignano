@@ -6,7 +6,7 @@ import { it } from "date-fns/locale";
 import { ChevronRight, Dumbbell, Home, MapPin, Plane, Swords } from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import { EventDetailDialog, type EventPlan } from "./EventDetailDialog";
+import { EventDetailDialog, type EventAttendance, type EventPlan } from "./EventDetailDialog";
 import type { CalendarEvent } from "@/lib/types";
 
 function dateHeading(dateStr: string) {
@@ -23,10 +23,12 @@ function isPastDate(dateStr: string) {
 export function AgendaList({
   eventsByDate,
   plansByEventId = {},
+  attendanceByEventId = {},
   emptyMessage = "Nessun evento in programma per questo periodo.",
 }: {
   eventsByDate: Map<string, CalendarEvent[]>;
   plansByEventId?: Record<string, EventPlan>;
+  attendanceByEventId?: Record<string, EventAttendance>;
   emptyMessage?: string;
 }) {
   const dates = [...eventsByDate.keys()].sort();
@@ -71,6 +73,7 @@ export function AgendaList({
       <EventDetailDialog
         event={selectedEvent}
         plan={selectedEvent ? plansByEventId[selectedEvent.id] : undefined}
+        attendance={selectedEvent ? attendanceByEventId[selectedEvent.id] : undefined}
         onClose={() => setSelectedEvent(null)}
       />
     </div>
