@@ -43,9 +43,9 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
 
   return (
     <div className="mx-auto max-w-xl">
-      <LinkButton href="/admin/allenamenti" variant="ghost" size="sm" className="mb-4 -ml-3.5">
+      <LinkButton href="/admin/allenamenti/elenco" variant="ghost" size="sm" className="mb-4 -ml-3.5">
         <ArrowLeft className="h-4 w-4" />
-        Torna agli allenamenti
+        Torna all&apos;elenco
       </LinkButton>
 
       <h1 className="font-display text-2xl font-bold text-foreground">Modifica allenamento</h1>
@@ -75,7 +75,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
               </p>
             </div>
             {training.repeat !== "once" && (
-              <LinkButton href="/admin/allenamenti/calendario" variant="ghost" size="sm" className="shrink-0">
+              <LinkButton href="/admin/allenamenti" variant="ghost" size="sm" className="shrink-0">
                 <CalendarRange className="h-3.5 w-3.5" />
                 Calendario completo
               </LinkButton>
@@ -115,7 +115,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           )}
           {remainingCount > 0 && (
             <Link
-              href="/admin/allenamenti/calendario"
+              href="/admin/allenamenti"
               className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium text-primary hover:underline"
             >
               +{remainingCount} altre date nei prossimi 90 giorni · vedi calendario completo

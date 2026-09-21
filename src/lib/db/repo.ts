@@ -110,6 +110,11 @@ export interface Repo {
 
   // Iscrizioni notifiche push (PWA)
   listPushSubscriptions(): Promise<PushSubscriptionRecord[]>;
-  upsertPushSubscription(input: { endpoint: string; p256dh: string; auth: string }): Promise<void>;
+  upsertPushSubscription(input: {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    staffId?: string | null;
+  }): Promise<void>;
   deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
 }

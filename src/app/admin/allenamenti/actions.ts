@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
-import { notifyCalendarChange } from "@/lib/push";
-import { formatWeekdays } from "@/lib/format";
+import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
+import { formatDateShort, formatWeekdays } from "@/lib/format";
 import type { TrainingRuleInput } from "@/lib/types";
 
 const schema = z
@@ -104,8 +104,9 @@ export async function saveTrainingAction(
   }
 
   revalidatePath("/admin/allenamenti");
+  revalidatePath("/admin/allenamenti/elenco");
   revalidatePath("/");
-  redirect("/admin/allenamenti");
+  redirect("/admin/allenamenti/elenco");
 }
 
 export async function setOccurrencePlanAction(formData: FormData): Promise<void> {
@@ -119,7 +120,15 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
   await repo.setTrainingOccurrencePlan(ruleId, date, planId, session.sub);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
+  revalidatePath("/admin/allenamenti");
   revalidatePath("/");
+
+  const [training, plan] = await Promise.all([repo.getTraining(ruleId), repo.getTrainingPlan(planId)]);
+  await notifyStaffChange({
+    title: "Scheda assegnata a un allenamento",
+    body: `${plan?.title ?? "Scheda"} · ${training?.title ?? "Allenamento"} del ${formatDateShort(date)}`,
+    url: `/admin/allenamenti/scheda/${ruleId}/${date}`,
+  });
 }
 
 export async function removeOccurrencePlanAction(formData: FormData): Promise<void> {
@@ -132,6 +141,7 @@ export async function removeOccurrencePlanAction(formData: FormData): Promise<vo
   await repo.removeTrainingOccurrencePlan(ruleId, date);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
+  revalidatePath("/admin/allenamenti");
   revalidatePath("/");
 }
 
@@ -152,5 +162,6 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
     });
   }
   revalidatePath("/admin/allenamenti");
+  revalidatePath("/admin/allenamenti/elenco");
   revalidatePath("/");
 }

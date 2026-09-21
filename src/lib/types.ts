@@ -149,6 +149,8 @@ export interface PushSubscriptionRecord {
   endpoint: string;
   p256dh: string;
   auth: string;
+  /** Staff collegato all'iscrizione, se attivata da un utente autenticato (area riservata). */
+  staffId: string | null;
   createdAt: string;
 }
 

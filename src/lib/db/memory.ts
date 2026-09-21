@@ -328,7 +328,12 @@ export const memoryRepo: Repo = {
   async upsertPushSubscription(input) {
     const idx = pushSubscriptions.findIndex((s) => s.endpoint === input.endpoint);
     if (idx !== -1) {
-      pushSubscriptions[idx] = { ...pushSubscriptions[idx], p256dh: input.p256dh, auth: input.auth };
+      pushSubscriptions[idx] = {
+        ...pushSubscriptions[idx],
+        p256dh: input.p256dh,
+        auth: input.auth,
+        staffId: input.staffId ?? null,
+      };
       return;
     }
     pushSubscriptions.push({
@@ -336,6 +341,7 @@ export const memoryRepo: Repo = {
       endpoint: input.endpoint,
       p256dh: input.p256dh,
       auth: input.auth,
+      staffId: input.staffId ?? null,
       createdAt: new Date().toISOString(),
     });
   },

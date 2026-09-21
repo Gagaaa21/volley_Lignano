@@ -7,6 +7,8 @@ import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
 import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
+import { notifyStaffChange } from "@/lib/push";
+import { formatDateShort } from "@/lib/format";
 import type { TrainingBlock } from "@/lib/types";
 
 const createSchema = z.object({
@@ -95,9 +97,24 @@ export async function createPlanAction(
     await repo.setTrainingOccurrencePlan(occurrenceRuleId, occurrenceDate, plan.id, session.sub);
     revalidatePath(`/admin/allenamenti/${occurrenceRuleId}`);
     revalidatePath(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
+    revalidatePath("/admin/allenamenti");
     revalidatePath("/");
+
+    const training = await repo.getTraining(occurrenceRuleId);
+    await notifyStaffChange({
+      title: "Nuova scheda creata e assegnata",
+      body: `${plan.title} · ${training?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
+      url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
+    });
+
     redirect(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
   }
+
+  await notifyStaffChange({
+    title: "Nuova scheda creata",
+    body: plan.title,
+    url: `/admin/schede/${plan.id}`,
+  });
 
   redirect(`/admin/schede/${plan.id}`);
 }

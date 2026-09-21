@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRepo } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
 
 interface SubscribeBody {
   endpoint?: unknown;
@@ -16,8 +17,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dati di iscrizione non validi." }, { status: 400 });
   }
 
+  const session = await getSession();
   const repo = await getRepo();
-  await repo.upsertPushSubscription({ endpoint, p256dh, auth });
+  await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: session?.sub ?? null });
   return NextResponse.json({ ok: true });
 }
 

@@ -193,14 +193,17 @@ alter table attendance_sessions enable row level security;
 
 -- =========================================================
 -- push_subscriptions — iscrizioni alle notifiche push della PWA
--- (un dispositivo/browser per riga, nessun account collegato:
--- il calendario è pubblico e chiunque installi l'app può iscriversi)
+-- (un dispositivo/browser per riga; il calendario è pubblico e
+-- chiunque installi l'app può iscriversi. staff_id è valorizzato solo
+-- se l'iscrizione è avvenuta da autenticati, e serve per le notifiche
+-- riservate come "nuova scheda creata/assegnata")
 -- =========================================================
 create table if not exists push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   endpoint text not null,
   p256dh text not null,
   auth text not null,
+  staff_id uuid references staff(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -249,3 +252,5 @@ do $$ begin
     alter table training_sessions drop column plan_id;
   end if;
 end $$;
+
+alter table push_subscriptions add column if not exists staff_id uuid references staff(id) on delete set null;

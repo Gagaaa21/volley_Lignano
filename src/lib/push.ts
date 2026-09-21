@@ -1,6 +1,7 @@
 import "server-only";
 import webpush from "web-push";
 import { getRepo } from "@/lib/db";
+import type { PushSubscriptionRecord } from "@/lib/types";
 
 let configured = false;
 
@@ -22,6 +23,36 @@ export interface CalendarNotification {
   url?: string;
 }
 
+async function sendToSubscriptions(
+  subscriptions: PushSubscriptionRecord[],
+  payload: CalendarNotification,
+): Promise<void> {
+  const repo = await getRepo();
+  const message = JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url ?? "/",
+  });
+
+  await Promise.all(
+    subscriptions.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          message,
+        );
+      } catch (err) {
+        const statusCode = (err as { statusCode?: number }).statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          await repo.deletePushSubscriptionByEndpoint(sub.endpoint).catch(() => {});
+        } else {
+          console.error("[push] invio notifica fallito:", err);
+        }
+      }
+    }),
+  );
+}
+
 /**
  * Invia una notifica push a tutti i dispositivi iscritti quando il
  * calendario cambia. Non lancia mai eccezioni: se le chiavi VAPID non sono
@@ -36,30 +67,28 @@ export async function notifyCalendarChange(payload: CalendarNotification): Promi
     const subscriptions = await repo.listPushSubscriptions();
     if (subscriptions.length === 0) return;
 
-    const message = JSON.stringify({
-      title: payload.title,
-      body: payload.body,
-      url: payload.url ?? "/",
-    });
-
-    await Promise.all(
-      subscriptions.map(async (sub) => {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            message,
-          );
-        } catch (err) {
-          const statusCode = (err as { statusCode?: number }).statusCode;
-          if (statusCode === 404 || statusCode === 410) {
-            await repo.deletePushSubscriptionByEndpoint(sub.endpoint).catch(() => {});
-          } else {
-            console.error("[push] invio notifica fallito:", err);
-          }
-        }
-      }),
-    );
+    await sendToSubscriptions(subscriptions, payload);
   } catch (err) {
     console.error("[push] notifyCalendarChange fallito:", err);
+  }
+}
+
+/**
+ * Come notifyCalendarChange, ma riservata ai soli dispositivi iscritti da
+ * uno staff autenticato (admin/dev) — usata per eventi interni allo staff
+ * come la creazione o l'assegnazione di una scheda, che non riguardano il
+ * pubblico iscritto al calendario.
+ */
+export async function notifyStaffChange(payload: CalendarNotification): Promise<void> {
+  try {
+    if (!ensureConfigured()) return;
+
+    const repo = await getRepo();
+    const subscriptions = (await repo.listPushSubscriptions()).filter((sub) => sub.staffId !== null);
+    if (subscriptions.length === 0) return;
+
+    await sendToSubscriptions(subscriptions, payload);
+  } catch (err) {
+    console.error("[push] notifyStaffChange fallito:", err);
   }
 }

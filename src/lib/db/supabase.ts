@@ -294,6 +294,7 @@ type PushSubscriptionRow = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  staff_id: string | null;
   created_at: string;
 };
 
@@ -303,6 +304,7 @@ function pushSubscriptionFromRow(row: PushSubscriptionRow): PushSubscriptionReco
     endpoint: row.endpoint,
     p256dh: row.p256dh,
     auth: row.auth,
+    staffId: row.staff_id,
     createdAt: row.created_at,
   };
 }
@@ -715,12 +717,15 @@ export const supabaseRepo: Repo = {
   },
   async upsertPushSubscription(input) {
     const db = getSupabaseAdmin();
-    const { error } = await db
-      .from("push_subscriptions")
-      .upsert(
-        { endpoint: input.endpoint, p256dh: input.p256dh, auth: input.auth },
-        { onConflict: "endpoint" },
-      );
+    const { error } = await db.from("push_subscriptions").upsert(
+      {
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+        ...(input.staffId !== undefined ? { staff_id: input.staffId } : {}),
+      },
+      { onConflict: "endpoint" },
+    );
     if (error) throw new Error(error.message);
   },
   async deletePushSubscriptionByEndpoint(endpoint) {
