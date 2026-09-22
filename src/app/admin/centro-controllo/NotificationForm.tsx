@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Textarea, FieldError } from "@/components/ui/Field";
+import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { sendManualNotificationAction, type ManualNotificationState } from "./actions";
 
 const initialState: ManualNotificationState = {};
@@ -57,6 +57,10 @@ export function NotificationForm({
             Solo Admin ({adminSubscribers})
           </label>
         </div>
+        <FieldHint>
+          Tutti: genitori, atlete e staff che hanno installato l&apos;app e attivato le notifiche.
+          Solo Admin: tutti gli account Admin registrati.
+        </FieldHint>
       </div>
 
       {state.error && (

@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import { format } from "date-fns";
-import { it } from "date-fns/locale";
-import { Bell, Clock, Eye, FlaskConical, KeyRound, ListChecks, Shield, ShieldCheck, Users } from "lucide-react";
+import { Bell, Clock, Eye, ListChecks, Shield } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { cn } from "@/lib/cn";
 import { OccurrenceVisibilityToggle } from "./OccurrenceVisibilityToggle";
 import { NotificationForm } from "./NotificationForm";
 
@@ -22,12 +19,8 @@ interface ActivityEntry {
   kind: "creata" | "aggiornata";
 }
 
-function formatUnixSeconds(seconds: number): string {
-  return format(new Date(seconds * 1000), "d MMM yyyy, HH:mm", { locale: it });
-}
-
 export default async function CentroControlloPage() {
-  const session = await requireDev();
+  await requireDev();
   const repo = await getRepo();
 
   const [staff, athletes, matches, trainings, blocks, plans, occurrencePlans, attendanceSessions, lineups, pushSubscriptions] =
@@ -51,10 +44,6 @@ export default async function CentroControlloPage() {
   const adminSubscriberCount = pushSubscriptions.filter(
     (sub) => sub.staffId && adminIds.has(sub.staffId),
   ).length;
-
-  // ---- Sessione corrente: iat/exp sono claim standard del JWT, presenti a
-  // runtime ma non nel tipo SessionPayload (non servono altrove nel sito). ----
-  const rawSession = session as typeof session & { iat?: number; exp?: number };
 
   // ---- Registro attività recenti: dai campi creazione/aggiornamento già
   // presenti su ogni tabella, raccolti qui in un'unica vista. Non è uno
@@ -107,7 +96,7 @@ export default async function CentroControlloPage() {
     });
   }
   activity.sort((a, b) => (a.at < b.at ? 1 : -1));
-  const recentActivity = activity.slice(0, 30);
+  const recentActivity = activity.slice(0, 20);
 
   // ---- Schede: visibilità pubblica centralizzata ----
   const trainingById = new Map(trainings.map((t) => [t.id, t] as const));
@@ -115,125 +104,33 @@ export default async function CentroControlloPage() {
   const occurrenceRows = [...occurrencePlans].sort((a, b) => (a.occurrenceDate < b.occurrenceDate ? 1 : -1));
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-3xl">
       <p className="eyebrow">
         <Shield className="h-3 w-3" />
         Solo Developer
       </p>
       <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Centro di controllo</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Account staff, sessione corrente, attività recenti, visibilità pubblica delle schede e
-        notifiche manuali: tutto in un unico posto, riservato al Developer.
+        Notifiche manuali, visibilità pubblica delle schede e attività recenti, riservato al
+        Developer. Per gli account staff vai alla sezione &quot;Staff&quot;.
       </p>
 
-      {/* Account staff */}
+      {/* Notifica manuale */}
       <Card className="mt-6">
         <CardHeader className="flex flex-row items-center gap-3">
           <span className="icon-chip shrink-0">
-            <Users className="h-4 w-4" />
+            <Bell className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Account staff</h2>
-            <p className="text-sm text-muted-foreground">{staff.length} account attivi.</p>
+            <h2 className="font-display text-base font-semibold text-foreground">Invia notifica manuale</h2>
+            <p className="text-sm text-muted-foreground">
+              Per avvisi occasionali che non corrispondono a una modifica del calendario, es.
+              &quot;le convocazioni sono disponibili&quot;.
+            </p>
           </div>
         </CardHeader>
         <CardBody className="pt-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-subtle text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <th className="py-2 pr-4">Nome</th>
-                  <th className="py-2 pr-4">Ruolo</th>
-                  <th className="py-2 pr-4">Creato da</th>
-                  <th className="py-2 pr-4">Creato il</th>
-                  <th className="py-2">Stato</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staff.map((s) => (
-                  <tr key={s.id} className="border-b border-border-subtle/60 last:border-0">
-                    <td className="py-2 pr-4">
-                      <p className="font-medium text-foreground">{s.fullName}</p>
-                      <p className="text-xs text-foreground/50">@{s.username}</p>
-                    </td>
-                    <td className="py-2 pr-4">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                          s.role === "dev" ? "bg-sand-100 text-sand-800" : "bg-primary/10 text-primary",
-                        )}
-                      >
-                        <ShieldCheck className="h-2.5 w-2.5" />
-                        {s.role === "dev" ? "Developer" : "Admin"}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4 text-foreground/70">{byName(s.createdBy) ?? "—"}</td>
-                    <td className="py-2 pr-4 tabular-nums text-foreground/70">{formatDateTime(s.createdAt)}</td>
-                    <td className="py-2">
-                      <div className="flex flex-wrap gap-1">
-                        {s.mustChangePassword && (
-                          <span className="rounded-full bg-sand-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sand-800">
-                            Password da cambiare
-                          </span>
-                        )}
-                        {!s.hasSeenGuide && (
-                          <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/50">
-                            Guida non vista
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* Sessione corrente */}
-      <Card className="mt-4">
-        <CardHeader className="flex flex-row items-center gap-3">
-          <span className="icon-chip shrink-0">
-            <KeyRound className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Sessione corrente</h2>
-            <p className="text-sm text-muted-foreground">La sessione con cui hai eseguito l&apos;accesso ora.</p>
-          </div>
-        </CardHeader>
-        <CardBody className="pt-0">
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
-            <div className="flex items-center justify-between gap-3 sm:justify-start">
-              <dt className="text-foreground/50">Account</dt>
-              <dd className="font-medium text-foreground">
-                {session.fullName} (@{session.username})
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-start">
-              <dt className="text-foreground/50">Ruolo</dt>
-              <dd className="font-medium text-foreground">Developer</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-start">
-              <dt className="text-foreground/50">Modalità prova</dt>
-              <dd className="flex items-center gap-1 font-medium text-foreground">
-                {session.testMode && <FlaskConical className="h-3.5 w-3.5 text-[var(--color-u15-strong)]" />}
-                {session.testMode ? "Attiva" : "Non attiva"}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-start">
-              <dt className="text-foreground/50">Accesso effettuato il</dt>
-              <dd className="font-medium text-foreground">
-                {rawSession.iat ? formatUnixSeconds(rawSession.iat) : "—"}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-start sm:col-span-2">
-              <dt className="text-foreground/50">Sessione valida fino al</dt>
-              <dd className="font-medium text-foreground">
-                {rawSession.exp ? formatUnixSeconds(rawSession.exp) : "—"}
-              </dd>
-            </div>
-          </dl>
+          <NotificationForm totalSubscribers={pushSubscriptions.length} adminSubscribers={adminSubscriberCount} />
         </CardBody>
       </Card>
 
@@ -327,26 +224,6 @@ export default async function CentroControlloPage() {
               ))}
             </ul>
           )}
-        </CardBody>
-      </Card>
-
-      {/* Notifica manuale */}
-      <Card className="mt-4">
-        <CardHeader className="flex flex-row items-center gap-3">
-          <span className="icon-chip shrink-0">
-            <Bell className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Invia notifica manuale</h2>
-            <p className="text-sm text-muted-foreground">
-              {pushSubscriptions.length > 0
-                ? `${pushSubscriptions.length} dispositivi iscritti in totale, ${adminSubscriberCount} tra gli Admin.`
-                : "Nessun dispositivo è iscritto alle notifiche al momento."}
-            </p>
-          </div>
-        </CardHeader>
-        <CardBody className="pt-0">
-          <NotificationForm totalSubscribers={pushSubscriptions.length} adminSubscribers={adminSubscriberCount} />
         </CardBody>
       </Card>
 
