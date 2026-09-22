@@ -41,9 +41,10 @@ export function VolleyCourt({
         </span>
       </div>
 
-      {/* Campo: fondo pieno, linee bianche piene tra le colonne e tratteggiata tra le righe. */}
-      <div className="mt-1.5 overflow-hidden rounded-lg border-2 border-white/90 bg-sand-400 shadow-inner">
-        <div className="grid grid-cols-3 gap-px bg-white/70">
+      {/* Campo: fondo pieno, linee bianche piene tra le colonne e tratteggiata tra le righe.
+          Ritratto (più lungo che largo): la lunghezza rete-fondo campo è il lato lungo. */}
+      <div className="mt-1.5 aspect-[4/5] overflow-hidden rounded-lg border-2 border-white/90 bg-sand-400 shadow-inner">
+        <div className="grid h-full grid-cols-3 grid-rows-2 gap-px bg-white/70">
           {GRID_ORDER.map((position, idx) => {
             const slot = byPosition.get(position);
             const athlete = slot?.athleteId ? athletesById.get(slot.athleteId) : undefined;
@@ -60,7 +61,7 @@ export function VolleyCourt({
                 onClick={() => onSlotClick?.(position)}
                 onPointerDown={(event) => onSlotPointerDown?.(event, position)}
                 className={cn(
-                  "relative flex aspect-square touch-none flex-col items-center justify-center gap-1 bg-sand-400 px-1 py-2 text-center transition-colors",
+                  "relative flex touch-none flex-col items-center justify-center gap-1 bg-sand-400 px-1 py-2 text-center transition-colors",
                   interactive && "cursor-pointer hover:bg-sand-300",
                   isFrontRow && "border-b-2 border-dashed border-white/80",
                   selected && "ring-2 ring-inset ring-sea-950",

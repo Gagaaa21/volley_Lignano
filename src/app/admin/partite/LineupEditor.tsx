@@ -1,11 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, GripVertical } from "lucide-react";
+import { Crown, GripVertical, Users } from "lucide-react";
 import { VolleyCourt, GRID_ORDER, shortName } from "@/components/matches/VolleyCourt";
+import { AthletePickerDialog } from "./AthletePickerDialog";
 import { cn } from "@/lib/cn";
 import { VOLLEY_ROLES, VOLLEY_ROLE_LABELS } from "@/lib/types";
 import type { Athlete, CourtPosition, LineupSlot, SetLineup } from "@/lib/types";
+
+/** Sotto i 640px si usa tocco-poi-elenco invece del trascinamento: più
+ * affidabile col dito su schermi piccoli. */
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 639px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const handler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isMobile;
+}
 
 /** Una posizione in campo (1-6) o uno dei due slot libero, "fuori dalla
  * rotazione": stesso meccanismo di trascinamento per entrambi. */
@@ -111,7 +127,9 @@ export function LineupEditor({
   activeSet: number;
   onActiveSetChange: (index: number) => void;
 }) {
+  const isMobile = useIsMobile();
   const [selected, setSelected] = useState<Target | null>(() => firstEmptyTarget(sets[activeSet]));
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [pending, setPending] = useState<{ origin: DragOrigin; startX: number; startY: number } | null>(null);
   const [drag, setDrag] = useState<{ origin: DragOrigin; x: number; y: number; hoverKey: string | null } | null>(
     null,
@@ -127,6 +145,28 @@ export function LineupEditor({
   function beginPointer(event: React.PointerEvent, origin: DragOrigin) {
     event.preventDefault();
     setPending({ origin, startX: event.clientX, startY: event.clientY });
+  }
+
+  /** Tocca una posizione o il libero: su mobile apre l'elenco convocate,
+   * su desktop/tablet seleziona lo slot (l'assegnazione avviene trascinando). */
+  function activateTarget(target: Target) {
+    setSelected(target);
+    if (isMobile) setPickerOpen(true);
+  }
+
+  function assignFromPicker(athleteId: string) {
+    if (!selected) return;
+    onSetsChange((prev) =>
+      prev.map((set, idx) => {
+        if (idx !== activeSet) return set;
+        let updated = set;
+        const existing = findAthleteTarget(set, athleteId);
+        if (existing && !targetsEqual(existing, selected)) updated = clearTarget(updated, existing);
+        updated = assignAt(updated, selected, athleteId);
+        return updated;
+      }),
+    );
+    setPickerOpen(false);
   }
 
   useEffect(() => {
@@ -195,6 +235,7 @@ export function LineupEditor({
   function selectSet(idx: number) {
     onActiveSetChange(idx);
     setSelected(firstEmptyTarget(sets[idx]));
+    setPickerOpen(false);
     setPending(null);
     setDrag(null);
   }
@@ -222,6 +263,7 @@ export function LineupEditor({
   function clearSelected() {
     if (!selected) return;
     onSetsChange((prev) => prev.map((set, idx) => (idx === activeSet ? clearTarget(set, selected) : set)));
+    setPickerOpen(false);
   }
 
   function copyFromPreviousSet() {
@@ -274,7 +316,9 @@ export function LineupEditor({
       </div>
 
       <p className="mt-2.5 text-xs text-foreground/50">
-        Trascina una convocata dall&apos;elenco sopra una posizione (o sul libero) per assegnarla.
+        {isMobile
+          ? "Tocca una posizione (o il libero) per aprire l'elenco delle convocate e assegnarla."
+          : "Trascina una convocata dall'elenco sopra una posizione (o sul libero) per assegnarla."}
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,16rem)_1fr]">
@@ -282,8 +326,9 @@ export function LineupEditor({
           <VolleyCourt
             slots={currentSet.slots}
             athletesById={athletesById}
-            onSlotClick={(position) => setSelected({ kind: "position", position })}
+            onSlotClick={(position) => activateTarget({ kind: "position", position })}
             onSlotPointerDown={(event, position) => {
+              if (isMobile) return;
               const athleteId = currentSet.slots.find((s) => s.position === position)?.athleteId;
               if (athleteId) beginPointer(event, { kind: "slot", target: { kind: "position", position }, athleteId });
             }}
@@ -306,8 +351,9 @@ export function LineupEditor({
                     key={i}
                     type="button"
                     data-drop-target={`libero-${i}`}
-                    onClick={() => setSelected({ kind: "libero", index: i })}
+                    onClick={() => activateTarget({ kind: "libero", index: i })}
                     onPointerDown={(event) => {
+                      if (isMobile) return;
                       if (athleteId) beginPointer(event, { kind: "slot", target: { kind: "libero", index: i }, athleteId });
                     }}
                     className={cn(
@@ -351,9 +397,21 @@ export function LineupEditor({
               <p className="text-sm text-foreground/60">Formazione completa per questo set.</p>
             ) : (
               <>
-                <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
-                  {targetLabel(selected)}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
+                    {targetLabel(selected)}
+                  </p>
+                  {isMobile && (
+                    <button
+                      type="button"
+                      onClick={() => setPickerOpen(true)}
+                      className="flex shrink-0 items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      {selectedAthlete ? "Cambia" : "Scegli convocata"}
+                    </button>
+                  )}
+                </div>
                 {selectedAthlete ? (
                   <>
                     <div className="mt-0.5 flex items-center justify-between gap-2">
@@ -412,47 +470,51 @@ export function LineupEditor({
                   </>
                 ) : (
                   <p className="mt-0.5 text-sm text-foreground/60">
-                    Nessuna convocata assegnata qui: trascinala dall&apos;elenco.
+                    {isMobile
+                      ? "Nessuna convocata assegnata qui: toccala per scegliere."
+                      : "Nessuna convocata assegnata qui: trascinala dall'elenco."}
                   </p>
                 )}
               </>
             )}
           </div>
 
-          <div>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-foreground/45">
-              Convocate — trascina in campo
-            </p>
-            {athletes.length === 0 ? (
-              <p className="text-sm text-foreground/50">Nessuna convocata: selezionale qui sopra.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {athletes.map((athlete) => {
-                  const label = occupiedLabels.get(athlete.id);
-                  return (
-                    <div
-                      key={athlete.id}
-                      onPointerDown={(event) => beginPointer(event, { kind: "roster", athleteId: athlete.id })}
-                      className={cn(
-                        "flex touch-none cursor-grab items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-colors active:cursor-grabbing",
-                        label ? "border-sea-700/30 bg-sea-700/[0.04]" : "border-border-subtle bg-surface",
-                      )}
-                    >
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <GripVertical className="h-4 w-4 shrink-0 text-foreground/25" />
-                        <span className="truncate text-sm font-medium text-foreground">{athlete.fullName}</span>
-                      </span>
-                      {label && (
-                        <span className="shrink-0 rounded-full bg-sea-700/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sea-700">
-                          {label}
+          {!isMobile && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-foreground/45">
+                Convocate — trascina in campo
+              </p>
+              {athletes.length === 0 ? (
+                <p className="text-sm text-foreground/50">Nessuna convocata: selezionale qui sopra.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {athletes.map((athlete) => {
+                    const label = occupiedLabels.get(athlete.id);
+                    return (
+                      <div
+                        key={athlete.id}
+                        onPointerDown={(event) => beginPointer(event, { kind: "roster", athleteId: athlete.id })}
+                        className={cn(
+                          "flex touch-none cursor-grab items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-colors active:cursor-grabbing",
+                          label ? "border-sea-700/30 bg-sea-700/[0.04]" : "border-border-subtle bg-surface",
+                        )}
+                      >
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <GripVertical className="h-4 w-4 shrink-0 text-foreground/25" />
+                          <span className="truncate text-sm font-medium text-foreground">{athlete.fullName}</span>
                         </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                        {label && (
+                          <span className="shrink-0 rounded-full bg-sea-700/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sea-700">
+                            {label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -463,6 +525,18 @@ export function LineupEditor({
         >
           {shortName(dragAthlete.fullName)}
         </div>
+      )}
+
+      {isMobile && pickerOpen && selected && (
+        <AthletePickerDialog
+          title={targetLabel(selected)}
+          athletes={athletes}
+          currentAthleteId={selectedAthleteId}
+          occupiedLabels={occupiedLabels}
+          onSelect={assignFromPicker}
+          onClear={clearSelected}
+          onClose={() => setPickerOpen(false)}
+        />
       )}
     </div>
   );
