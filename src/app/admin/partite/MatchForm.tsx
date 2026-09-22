@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -31,6 +31,16 @@ const MAX_SETS = 5;
 export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: Athlete[] }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
   const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
+  const [calledUp, setCalledUp] = useState<Set<string>>(() => new Set(match?.calledUpAthleteIds ?? []));
+
+  function toggleAthlete(id: string) {
+    setCalledUp((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
@@ -142,7 +152,20 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
 
       {athletes.length > 0 && (
         <div>
-          <Label>Convocate (opzionale)</Label>
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <p className="text-sm font-medium text-foreground/80">
+              Convocate ({calledUp.size}/{athletes.length})
+            </p>
+            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+              <button type="button" onClick={() => setCalledUp(new Set(athletes.map((a) => a.id)))} className="hover:underline">
+                Seleziona tutte
+              </button>
+              <span className="text-foreground/25">·</span>
+              <button type="button" onClick={() => setCalledUp(new Set())} className="hover:underline">
+                Nessuna
+              </button>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             {athletes.map((athlete) => (
               <label
@@ -153,7 +176,8 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
                   type="checkbox"
                   name="calledUpAthleteIds"
                   value={athlete.id}
-                  defaultChecked={match?.calledUpAthleteIds.includes(athlete.id) ?? false}
+                  checked={calledUp.has(athlete.id)}
+                  onChange={() => toggleAthlete(athlete.id)}
                   className="sr-only"
                 />
                 {athlete.fullName}

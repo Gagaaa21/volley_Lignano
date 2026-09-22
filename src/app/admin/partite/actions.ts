@@ -226,20 +226,42 @@ const lineupSlotSchema = z.object({
   isCaptain: z.boolean(),
 });
 
-const lineupSchema = z.object({
-  sets: z.array(z.array(lineupSlotSchema).length(6)).length(5),
+const setLineupSchema = z.object({
+  slots: z.array(lineupSlotSchema).length(6),
+  liberoIds: z.array(z.string().nullable()).length(2),
 });
 
-/** Al massimo una capitana per set: tiene solo la prima trovata. */
+const lineupSchema = z.object({
+  sets: z.array(setLineupSchema).length(5),
+});
+
+/** Al massimo una capitana per set (tiene solo la prima trovata) e nessuna
+ * convocata assegnata due volte nello stesso set (posizione + libero). */
 function normalizeSets(sets: MatchLineupInput["sets"]): MatchLineupInput["sets"] {
   return sets.map((set) => {
     let captainFound = false;
-    return set.map((slot) => {
-      if (!slot.isCaptain) return slot;
-      if (captainFound) return { ...slot, isCaptain: false };
-      captainFound = true;
-      return slot;
+    const assigned = new Set<string>();
+
+    const slots = set.slots.map((slot) => {
+      let next = slot;
+      if (next.athleteId) {
+        if (assigned.has(next.athleteId)) next = { ...next, athleteId: null, role: null, isCaptain: false };
+        else assigned.add(next.athleteId);
+      }
+      if (next.isCaptain) {
+        if (captainFound) next = { ...next, isCaptain: false };
+        else captainFound = true;
+      }
+      return next;
     });
+
+    const liberoIds = set.liberoIds.map((athleteId) => {
+      if (!athleteId || assigned.has(athleteId)) return null;
+      assigned.add(athleteId);
+      return athleteId;
+    });
+
+    return { slots, liberoIds };
   });
 }
 

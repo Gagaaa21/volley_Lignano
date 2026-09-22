@@ -1,11 +1,11 @@
 import { Crown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Athlete, CourtPosition, SetLineup } from "@/lib/types";
+import type { Athlete, CourtPosition, LineupSlot } from "@/lib/types";
 
 /** Ordine di disegno: fila avanti vicino alla rete (4-3-2), poi fila arretrata (5-6-1). */
 export const GRID_ORDER: CourtPosition[] = [4, 3, 2, 5, 6, 1];
 
-function shortName(fullName: string): string {
+export function shortName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length <= 1) return fullName;
   return `${parts[0]} ${parts[parts.length - 1][0]}.`;
@@ -18,7 +18,7 @@ export function VolleyCourt({
   interactive = true,
   selectedPosition = null,
 }: {
-  slots: SetLineup;
+  slots: LineupSlot[];
   athletesById: Map<string, Athlete>;
   onSlotClick?: (position: CourtPosition) => void;
   interactive?: boolean;

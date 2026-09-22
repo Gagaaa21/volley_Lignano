@@ -113,8 +113,15 @@ export interface LineupSlot {
   isCaptain: boolean;
 }
 
-/** Sempre 6 elementi, uno per posizione in campo (1-6). */
-export type SetLineup = LineupSlot[];
+export interface SetLineup {
+  /** Sempre 6 elementi, uno per posizione in campo (1-6). */
+  slots: LineupSlot[];
+  /** Liberi "fuori dalla rotazione": sempre 2 elementi (il secondo libero è
+   * opzionale). Non fanno parte delle 6 posizioni — nella pallavolo il
+   * libero non ruota, sostituisce chi è in seconda linea senza contare come
+   * cambio. */
+  liberoIds: (string | null)[];
+}
 
 export interface MatchLineup {
   matchId: string;
@@ -129,12 +136,15 @@ export type MatchLineupInput = {
 };
 
 export function emptySetLineup(): SetLineup {
-  return COURT_POSITIONS.map((position) => ({
-    position,
-    athleteId: null,
-    role: null,
-    isCaptain: false,
-  }));
+  return {
+    slots: COURT_POSITIONS.map((position) => ({
+      position,
+      athleteId: null,
+      role: null,
+      isCaptain: false,
+    })),
+    liberoIds: [null, null],
+  };
 }
 
 export function emptyMatchLineupSets(): SetLineup[] {

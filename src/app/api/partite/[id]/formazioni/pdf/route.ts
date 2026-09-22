@@ -7,7 +7,7 @@ import { getActiveRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
-import { emptyMatchLineupSets } from "@/lib/types";
+import { emptyMatchLineupSets, emptySetLineup } from "@/lib/types";
 import type { Athlete, CourtPosition, SetLineup } from "@/lib/types";
 
 const FONTS_DIR = path.join(process.cwd(), "src/assets/fonts");
@@ -109,6 +109,23 @@ function drawSetBlock(
 
   page.drawText(`SET ${setNumber}`, { x: originX, y: blockTop - 11, size: 11, font: fontBold, color: SAND });
 
+  const liberoNames = setLineup.liberoIds
+    .map((id) => (id ? athletesById.get(id)?.fullName : null))
+    .filter((name): name is string => Boolean(name));
+  if (liberoNames.length > 0) {
+    const label = `Libero: ${liberoNames.join(", ")}`;
+    const rightX = originX + width;
+    const labelSize = fitSize(fontRegular, label, width * 0.55, 8.5);
+    const labelWidth = fontRegular.widthOfTextAtSize(label, labelSize);
+    page.drawText(label, {
+      x: rightX - labelWidth,
+      y: blockTop - 10,
+      size: labelSize,
+      font: fontRegular,
+      color: GREY,
+    });
+  }
+
   const gridHeight = height - 18;
   const gridTop = blockTop - 18;
   const gridBottom = gridTop - gridHeight;
@@ -148,7 +165,7 @@ function drawSetBlock(
 
     page.drawText(String(position), { x: cellX + 4, y: cellY + rowHeight - 9, size: 6.5, font: fontRegular, color: GREY });
 
-    const slot = setLineup.find((s) => s.position === position);
+    const slot = setLineup.slots.find((s) => s.position === position);
     const athlete = slot?.athleteId ? athletesById.get(slot.athleteId) : undefined;
 
     if (athlete) {
@@ -216,7 +233,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // comunque il primo campo vuoto invece di un PDF senza contenuto.
   const setIndexesWithLineup = sets
     .map((set, index) => ({ set, index }))
-    .filter(({ set }) => set.some((slot) => slot.athleteId))
+    .filter(({ set }) => set.slots.some((slot) => slot.athleteId) || set.liberoIds.some(Boolean))
     .map(({ index }) => index);
   const setIndexesToRender = setIndexesWithLineup.length > 0 ? setIndexesWithLineup : [0];
 
@@ -317,7 +334,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       courtWidth,
       blockHeight,
       setIndex + 1,
-      sets[setIndex] ?? [],
+      sets[setIndex] ?? emptySetLineup(),
       athletesById,
     );
   });

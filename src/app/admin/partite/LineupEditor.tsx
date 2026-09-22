@@ -6,13 +6,78 @@ import { Crown, Download, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { FieldError } from "@/components/ui/Field";
-import { VolleyCourt, GRID_ORDER } from "@/components/matches/VolleyCourt";
+import { VolleyCourt, GRID_ORDER, shortName } from "@/components/matches/VolleyCourt";
 import { cn } from "@/lib/cn";
 import { VOLLEY_ROLES, VOLLEY_ROLE_LABELS, emptyMatchLineupSets } from "@/lib/types";
 import type { Athlete, CourtPosition, LineupSlot, MatchLineup, SetLineup } from "@/lib/types";
 import { saveMatchLineupAction, type LineupFormState } from "./actions";
 
 const initialState: LineupFormState = {};
+
+/** Una posizione in campo (1-6) o uno dei due slot libero, "fuori dalla
+ * rotazione": stesso meccanismo di selezione-poi-assegnazione per entrambi. */
+type Target = { kind: "position"; position: CourtPosition } | { kind: "libero"; index: 0 | 1 };
+
+function targetsEqual(a: Target | null, b: Target | null): boolean {
+  if (!a || !b || a.kind !== b.kind) return false;
+  if (a.kind === "position" && b.kind === "position") return a.position === b.position;
+  if (a.kind === "libero" && b.kind === "libero") return a.index === b.index;
+  return false;
+}
+
+function athleteIdAt(set: SetLineup, target: Target): string | null {
+  if (target.kind === "position") {
+    return set.slots.find((s) => s.position === target.position)?.athleteId ?? null;
+  }
+  return set.liberoIds[target.index] ?? null;
+}
+
+/** Dove si trova già questa convocata in questo set (posizione o libero), se c'è. */
+function findAthleteTarget(set: SetLineup, athleteId: string): Target | null {
+  const slot = set.slots.find((s) => s.athleteId === athleteId);
+  if (slot) return { kind: "position", position: slot.position };
+  const liberoIdx = set.liberoIds.findIndex((id) => id === athleteId);
+  if (liberoIdx !== -1) return { kind: "libero", index: liberoIdx as 0 | 1 };
+  return null;
+}
+
+/** Prima posizione vuota in campo (ordine visivo), poi il primo slot libero vuoto. */
+function firstEmptyTarget(set: SetLineup): Target | null {
+  for (const position of GRID_ORDER) {
+    if (!set.slots.find((s) => s.position === position)?.athleteId) return { kind: "position", position };
+  }
+  for (let i = 0; i < set.liberoIds.length; i++) {
+    if (!set.liberoIds[i]) return { kind: "libero", index: i as 0 | 1 };
+  }
+  return null;
+}
+
+/** Rimuove l'atleta dal target dov'è già assegnata (se diverso dal target di destinazione). */
+function clearTarget(set: SetLineup, target: Target): SetLineup {
+  if (target.kind === "position") {
+    return {
+      ...set,
+      slots: set.slots.map((slot) =>
+        slot.position === target.position ? { ...slot, athleteId: null, role: null, isCaptain: false } : slot,
+      ),
+    };
+  }
+  const liberoIds = [...set.liberoIds];
+  liberoIds[target.index] = null;
+  return { ...set, liberoIds };
+}
+
+function assignAt(set: SetLineup, target: Target, athleteId: string): SetLineup {
+  if (target.kind === "position") {
+    return {
+      ...set,
+      slots: set.slots.map((slot) => (slot.position === target.position ? { ...slot, athleteId } : slot)),
+    };
+  }
+  const liberoIds = [...set.liberoIds];
+  liberoIds[target.index] = athleteId;
+  return { ...set, liberoIds };
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -22,14 +87,6 @@ function SubmitButton() {
       {pending ? "Salvataggio…" : "Salva formazioni"}
     </Button>
   );
-}
-
-/** Prima posizione vuota, nell'ordine visivo del campo (rete, poi fondo). */
-function firstEmptyPosition(set: SetLineup): CourtPosition | null {
-  for (const position of GRID_ORDER) {
-    if (!set.find((s) => s.position === position)?.athleteId) return position;
-  }
-  return null;
 }
 
 export function LineupEditor({
@@ -43,87 +100,79 @@ export function LineupEditor({
 }) {
   const [sets, setSets] = useState<SetLineup[]>(() => initialLineup?.sets ?? emptyMatchLineupSets());
   const [activeSet, setActiveSet] = useState(0);
-  const [selectedPosition, setSelectedPosition] = useState<CourtPosition | null>(() => firstEmptyPosition(sets[0]));
+  const [selected, setSelected] = useState<Target | null>(() => firstEmptyTarget(sets[0]));
   const [state, formAction] = useActionState(saveMatchLineupAction, initialState);
 
   const athletesById = new Map(athletes.map((a) => [a.id, a] as const));
   const currentSet = sets[activeSet];
   const selectedSlot: LineupSlot | null =
-    selectedPosition != null ? (currentSet.find((s) => s.position === selectedPosition) ?? null) : null;
-  const selectedAthlete = selectedSlot?.athleteId ? (athletesById.get(selectedSlot.athleteId) ?? null) : null;
-  const filledCount = currentSet.filter((s) => s.athleteId).length;
+    selected?.kind === "position" ? (currentSet.slots.find((s) => s.position === selected.position) ?? null) : null;
+  const selectedAthleteId = selected ? athleteIdAt(currentSet, selected) : null;
+  const selectedAthlete = selectedAthleteId ? (athletesById.get(selectedAthleteId) ?? null) : null;
+  const filledCount = currentSet.slots.filter((s) => s.athleteId).length;
 
   function selectSet(idx: number) {
     setActiveSet(idx);
-    setSelectedPosition(firstEmptyPosition(sets[idx]));
+    setSelected(firstEmptyTarget(sets[idx]));
   }
 
   function updateSlot(position: CourtPosition, patch: Partial<LineupSlot>) {
     setSets((prev) =>
       prev.map((set, idx) =>
-        idx === activeSet ? set.map((slot) => (slot.position === position ? { ...slot, ...patch } : slot)) : set,
+        idx === activeSet
+          ? { ...set, slots: set.slots.map((slot) => (slot.position === position ? { ...slot, ...patch } : slot)) }
+          : set,
       ),
     );
   }
 
-  /** Assegna la giocatrice alla posizione selezionata. Se era già in un'altra
-   * posizione di questo set, la sposta (liberando quella vecchia) invece di
-   * duplicarla. Se la posizione selezionata era vuota, passa da sola alla
-   * prossima posizione libera — per compilare l'intera formazione toccando
-   * in sequenza le convocate, senza riaprire nulla ad ogni giocatrice. */
+  /** Assegna la convocata al target selezionato (posizione o libero). Se era
+   * già altrove in questo set, la sposta invece di duplicarla. Se il target
+   * era vuoto, passa da sola al prossimo target libero — per compilare tutta
+   * la formazione toccando in sequenza le convocate. */
   function assignAthlete(athleteId: string) {
-    if (selectedPosition == null) return;
-    const existing = currentSet.find((s) => s.athleteId === athleteId);
-    const isFreshFill = !selectedSlot?.athleteId && !existing;
+    if (!selected) return;
+    const existing = findAthleteTarget(currentSet, athleteId);
+    const isFreshFill = !selectedAthleteId && !existing;
 
-    setSets((prev) =>
-      prev.map((set, idx) => {
-        if (idx !== activeSet) return set;
-        return set.map((slot) => {
-          if (existing && slot.position === existing.position && slot.position !== selectedPosition) {
-            return { ...slot, athleteId: null, role: null, isCaptain: false };
-          }
-          if (slot.position === selectedPosition) {
-            return { ...slot, athleteId };
-          }
-          return slot;
-        });
-      }),
-    );
+    let updated = currentSet;
+    if (existing && !targetsEqual(existing, selected)) updated = clearTarget(updated, existing);
+    updated = assignAt(updated, selected, athleteId);
 
-    if (isFreshFill) {
-      const updatedSet = currentSet.map((slot) =>
-        slot.position === selectedPosition ? { ...slot, athleteId } : slot,
-      );
-      setSelectedPosition(firstEmptyPosition(updatedSet));
-    }
+    setSets((prev) => prev.map((set, idx) => (idx === activeSet ? updated : set)));
+    if (isFreshFill) setSelected(firstEmptyTarget(updated));
   }
 
   function setCaptain(position: CourtPosition) {
     setSets((prev) =>
       prev.map((set, idx) =>
-        idx === activeSet ? set.map((slot) => ({ ...slot, isCaptain: slot.position === position })) : set,
+        idx === activeSet
+          ? { ...set, slots: set.slots.map((slot) => ({ ...slot, isCaptain: slot.position === position })) }
+          : set,
       ),
     );
   }
 
-  function clearSlot(position: CourtPosition) {
-    updateSlot(position, { athleteId: null, role: null, isCaptain: false });
-    setSelectedPosition(position);
+  function clearSelected() {
+    if (!selected) return;
+    setSets((prev) => prev.map((set, idx) => (idx === activeSet ? clearTarget(set, selected) : set)));
   }
 
   function copyFromPreviousSet() {
     if (activeSet === 0) return;
-    const copied = sets[activeSet - 1].map((s) => ({ ...s }));
+    const copied: SetLineup = {
+      slots: sets[activeSet - 1].slots.map((s) => ({ ...s })),
+      liberoIds: [...sets[activeSet - 1].liberoIds],
+    };
     setSets((prev) => prev.map((set, idx) => (idx === activeSet ? copied : set)));
-    setSelectedPosition(firstEmptyPosition(copied));
+    setSelected(firstEmptyTarget(copied));
   }
 
   return (
     <div>
       <div className="flex flex-wrap gap-1.5">
         {sets.map((set, idx) => {
-          const count = set.filter((s) => s.athleteId).length;
+          const count = set.slots.filter((s) => s.athleteId).length;
           return (
             <button
               key={idx}
@@ -144,19 +193,57 @@ export function LineupEditor({
       </div>
 
       <p className="mt-2.5 text-xs text-foreground/50">
-        Tocca una posizione sul campo, poi una convocata per assegnarla: la selezione passa da sola alla
-        posizione libera successiva.
+        Tocca una posizione (o il libero), poi una convocata per assegnarla: la selezione passa da sola al
+        prossimo posto libero.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,16rem)_1fr]">
         <div>
           <VolleyCourt
-            slots={currentSet}
+            slots={currentSet.slots}
             athletesById={athletesById}
-            onSlotClick={setSelectedPosition}
-            selectedPosition={selectedPosition}
+            onSlotClick={(position) => setSelected({ kind: "position", position })}
+            selectedPosition={selected?.kind === "position" ? selected.position : null}
           />
-          {activeSet > 0 && filledCount === 0 && (
+
+          <div className="mt-2.5 rounded-2xl border border-dashed border-sea-700/25 bg-sea-50/60 p-2.5">
+            <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-sea-700">
+              Libero — fuori dalla rotazione
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {([0, 1] as const).map((i) => {
+                const athleteId = currentSet.liberoIds[i];
+                const athlete = athleteId ? athletesById.get(athleteId) : undefined;
+                const isSelected = selected?.kind === "libero" && selected.index === i;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelected({ kind: "libero", index: i })}
+                    className={cn(
+                      "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-1 py-2 text-center transition-colors",
+                      athlete
+                        ? "border-sea-700 bg-white shadow-sm shadow-sea-950/10"
+                        : "border-dashed border-sea-700/25 bg-white/60",
+                      "cursor-pointer hover:border-sea-700/60",
+                      isSelected && "ring-2 ring-sand-400 ring-offset-1",
+                    )}
+                  >
+                    <span className="text-[9px] font-bold uppercase text-foreground/35">Libero {i + 1}</span>
+                    {athlete ? (
+                      <span className="line-clamp-2 px-0.5 text-[11px] font-bold leading-tight text-foreground">
+                        {shortName(athlete.fullName)}
+                      </span>
+                    ) : (
+                      <span className="text-base font-bold text-foreground/20">+</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {activeSet > 0 && filledCount === 0 && currentSet.liberoIds.every((id) => !id) && (
             <button
               type="button"
               onClick={copyFromPreviousSet}
@@ -169,12 +256,38 @@ export function LineupEditor({
 
         <div className="space-y-3.5">
           <div className="rounded-xl border border-border-subtle bg-surface-muted/60 p-3.5">
-            {selectedPosition == null ? (
+            {selected == null ? (
               <p className="text-sm text-foreground/60">Formazione completa per questo set.</p>
+            ) : selected.kind === "libero" ? (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
+                  Libero {selected.index + 1}
+                </p>
+                {selectedAthlete ? (
+                  <div className="mt-0.5 flex items-center justify-between gap-2">
+                    <p className="font-display text-base font-bold text-foreground">{selectedAthlete.fullName}</p>
+                    <button
+                      type="button"
+                      onClick={clearSelected}
+                      className="shrink-0 text-xs font-semibold text-red-600 hover:underline"
+                    >
+                      Svuota
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-0.5 text-sm text-foreground/60">
+                    Tocca una convocata qui sotto per assegnarla come libero.
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-foreground/45">
+                  Il libero non occupa una delle 6 posizioni: sostituisce chi è in seconda linea senza contare
+                  come cambio.
+                </p>
+              </>
             ) : (
               <>
                 <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
-                  Posizione {selectedPosition}
+                  Posizione {selected.position}
                 </p>
                 {selectedAthlete ? (
                   <>
@@ -182,7 +295,7 @@ export function LineupEditor({
                       <p className="font-display text-base font-bold text-foreground">{selectedAthlete.fullName}</p>
                       <button
                         type="button"
-                        onClick={() => clearSlot(selectedPosition)}
+                        onClick={clearSelected}
                         className="shrink-0 text-xs font-semibold text-red-600 hover:underline"
                       >
                         Svuota
@@ -194,7 +307,7 @@ export function LineupEditor({
                           key={role}
                           type="button"
                           onClick={() =>
-                            updateSlot(selectedPosition, { role: selectedSlot?.role === role ? null : role })
+                            updateSlot(selected.position, { role: selectedSlot?.role === role ? null : role })
                           }
                           title={VOLLEY_ROLE_LABELS[role]}
                           className={cn(
@@ -214,8 +327,8 @@ export function LineupEditor({
                         checked={selectedSlot?.isCaptain ?? false}
                         onChange={(event) =>
                           event.target.checked
-                            ? setCaptain(selectedPosition)
-                            : updateSlot(selectedPosition, { isCaptain: false })
+                            ? setCaptain(selected.position)
+                            : updateSlot(selected.position, { isCaptain: false })
                         }
                         className="h-4 w-4 accent-sea-700"
                       />
@@ -241,25 +354,31 @@ export function LineupEditor({
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {athletes.map((athlete) => {
-                  const slotFor = currentSet.find((s) => s.athleteId === athlete.id);
-                  const isAtSelected = slotFor?.position === selectedPosition;
+                  const target = findAthleteTarget(currentSet, athlete.id);
+                  const isAtSelected = targetsEqual(target, selected);
+                  const label =
+                    target?.kind === "position"
+                      ? `pos. ${target.position}`
+                      : target?.kind === "libero"
+                        ? `L${target.index + 1}`
+                        : null;
                   return (
                     <button
                       key={athlete.id}
                       type="button"
                       onClick={() => assignAthlete(athlete.id)}
-                      disabled={selectedPosition == null}
+                      disabled={selected == null}
                       className={cn(
                         "truncate rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                         isAtSelected
                           ? "bg-sea-700 text-white"
-                          : slotFor
+                          : target
                             ? "bg-primary/10 text-primary hover:bg-primary/15"
                             : "bg-muted text-muted-foreground hover:bg-muted/70",
-                        selectedPosition == null && "cursor-not-allowed opacity-60",
+                        selected == null && "cursor-not-allowed opacity-60",
                       )}
                     >
-                      {slotFor && !isAtSelected ? `${athlete.fullName} · pos. ${slotFor.position}` : athlete.fullName}
+                      {label && !isAtSelected ? `${athlete.fullName} · ${label}` : athlete.fullName}
                     </button>
                   );
                 })}
