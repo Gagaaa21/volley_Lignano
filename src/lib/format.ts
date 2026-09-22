@@ -17,3 +17,8 @@ export function formatDateLong(dateStr: string): string {
 export function formatDateShort(dateStr: string): string {
   return format(parseISO(dateStr), "d MMM yyyy", { locale: it });
 }
+
+/** Data e ora da un timestamp ISO completo (es. i campi createdAt/updatedAt). */
+export function formatDateTime(isoDateTime: string): string {
+  return format(parseISO(isoDateTime), "d MMM yyyy, HH:mm", { locale: it });
+}
