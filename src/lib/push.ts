@@ -95,3 +95,26 @@ export async function notifyStaffChange(payload: CalendarNotification): Promise<
     console.error("[push] notifyStaffChange fallito:", err);
   }
 }
+
+/**
+ * Come notifyStaffChange, ma ristretta ai soli account con ruolo Admin
+ * (esclude Developer e pubblico) — usata dallo strumento di invio manuale
+ * nel Centro di controllo quando il Developer sceglie di avvisare solo lo
+ * staff Admin invece di tutti.
+ */
+export async function notifyAdmins(payload: CalendarNotification): Promise<void> {
+  try {
+    if (!ensureConfigured()) return;
+    if ((await getSession())?.testMode) return;
+
+    const repo = await getRepo();
+    const [subscriptions, staff] = await Promise.all([repo.listPushSubscriptions(), repo.listStaff()]);
+    const adminIds = new Set(staff.filter((s) => s.role === "admin").map((s) => s.id));
+    const targeted = subscriptions.filter((sub) => sub.staffId && adminIds.has(sub.staffId));
+    if (targeted.length === 0) return;
+
+    await sendToSubscriptions(targeted, payload);
+  } catch (err) {
+    console.error("[push] notifyAdmins fallito:", err);
+  }
+}

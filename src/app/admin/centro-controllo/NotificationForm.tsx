@@ -19,7 +19,13 @@ function SubmitButton() {
   );
 }
 
-export function NotificationForm() {
+export function NotificationForm({
+  totalSubscribers,
+  adminSubscribers,
+}: {
+  totalSubscribers: number;
+  adminSubscribers: number;
+}) {
   const [state, formAction] = useActionState(sendManualNotificationAction, initialState);
 
   return (
@@ -37,6 +43,20 @@ export function NotificationForm() {
           defaultValue="Le convocazioni per la partita del 27 sono disponibili."
           required
         />
+      </div>
+
+      <div>
+        <Label>Destinatari</Label>
+        <div className="flex gap-2">
+          <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
+            <input type="radio" name="audience" value="all" defaultChecked className="sr-only" />
+            Tutti ({totalSubscribers})
+          </label>
+          <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
+            <input type="radio" name="audience" value="admins" className="sr-only" />
+            Solo Admin ({adminSubscribers})
+          </label>
+        </div>
       </div>
 
       {state.error && (

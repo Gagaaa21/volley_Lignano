@@ -47,6 +47,11 @@ export default async function CentroControlloPage() {
   const staffNameById = new Map(staff.map((s) => [s.id, s.fullName] as const));
   const byName = (id: string | null) => (id ? (staffNameById.get(id) ?? "Account rimosso") : null);
 
+  const adminIds = new Set(staff.filter((s) => s.role === "admin").map((s) => s.id));
+  const adminSubscriberCount = pushSubscriptions.filter(
+    (sub) => sub.staffId && adminIds.has(sub.staffId),
+  ).length;
+
   // ---- Sessione corrente: iat/exp sono claim standard del JWT, presenti a
   // runtime ma non nel tipo SessionPayload (non servono altrove nel sito). ----
   const rawSession = session as typeof session & { iat?: number; exp?: number };
@@ -335,13 +340,13 @@ export default async function CentroControlloPage() {
             <h2 className="font-display text-base font-semibold text-foreground">Invia notifica manuale</h2>
             <p className="text-sm text-muted-foreground">
               {pushSubscriptions.length > 0
-                ? `${pushSubscriptions.length} dispositivi iscritti al momento.`
+                ? `${pushSubscriptions.length} dispositivi iscritti in totale, ${adminSubscriberCount} tra gli Admin.`
                 : "Nessun dispositivo è iscritto alle notifiche al momento."}
             </p>
           </div>
         </CardHeader>
         <CardBody className="pt-0">
-          <NotificationForm />
+          <NotificationForm totalSubscribers={pushSubscriptions.length} adminSubscribers={adminSubscriberCount} />
         </CardBody>
       </Card>
 
