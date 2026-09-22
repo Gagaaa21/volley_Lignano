@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  Bell,
   BookOpen,
   CalendarClock,
   ClipboardCheck,
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
 ];
 
 const DEV_NAV_ITEMS = [
+  { href: "/admin/notifiche", label: "Notifiche", icon: Bell, exact: false },
   { href: "/admin/manutenzione", label: "Manutenzione", icon: Gauge, exact: false },
 ];
 
