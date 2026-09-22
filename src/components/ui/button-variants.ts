@@ -8,7 +8,7 @@ const base =
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-[linear-gradient(135deg,var(--color-sea-500),var(--color-sea-900))] text-primary-foreground shadow-[0_10px_24px_-12px_color-mix(in_oklab,var(--primary)_65%,transparent)] hover:shadow-[0_14px_30px_-12px_color-mix(in_oklab,var(--primary)_70%,transparent)] hover:-translate-y-px",
+    "bg-[linear-gradient(135deg,var(--color-sea-400),var(--color-sea-700))] text-primary-foreground shadow-[0_10px_24px_-12px_color-mix(in_oklab,var(--primary)_65%,transparent)] hover:shadow-[0_14px_30px_-12px_color-mix(in_oklab,var(--primary)_70%,transparent)] hover:-translate-y-px",
   secondary: "bg-sand-400 text-sea-950 hover:bg-sand-300 shadow-sm shadow-sand-900/10",
   outline:
     "border border-border-subtle bg-surface text-foreground hover:border-primary/30 hover:bg-surface-muted",

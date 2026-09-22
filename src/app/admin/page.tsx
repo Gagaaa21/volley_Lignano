@@ -114,7 +114,7 @@ export default async function AdminDashboardPage({
         </div>
       )}
 
-      <div className="relative overflow-hidden rounded-2xl border border-border-subtle bg-gradient-to-br from-sea-700 to-sea-950 px-5 py-6 text-white shadow-[0_20px_44px_-26px_rgba(9,27,38,0.55)] sm:px-7 sm:py-7">
+      <div className="relative overflow-hidden rounded-2xl border border-border-subtle bg-gradient-to-br from-sea-600 to-sea-800 px-5 py-6 text-white shadow-[0_20px_44px_-26px_rgba(9,27,38,0.55)] sm:px-7 sm:py-7">
         <Image
           src={crest}
           alt=""
