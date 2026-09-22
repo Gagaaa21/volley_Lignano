@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { MonthGrid } from "./MonthGrid";
 import { AgendaList } from "./AgendaList";
-import { EventDetailDialog, type EventAttendance, type EventPlan } from "./EventDetailDialog";
+import { EventDetailDialog, type EventAttendance, type EventCallUps, type EventPlan } from "./EventDetailDialog";
 import type { CalendarEvent } from "@/lib/types";
 
 /**
@@ -18,11 +18,13 @@ export function CalendarSection({
   eventsByDate,
   plansByEventId,
   attendanceByEventId,
+  callUpsByEventId,
 }: {
   monthDate: Date;
   eventsByDate: Map<string, CalendarEvent[]>;
   plansByEventId: Record<string, EventPlan>;
   attendanceByEventId: Record<string, EventAttendance>;
+  callUpsByEventId: Record<string, EventCallUps>;
 }) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
@@ -44,6 +46,7 @@ export function CalendarSection({
         event={selectedEvent}
         plan={selectedEvent ? plansByEventId[selectedEvent.id] : undefined}
         attendance={selectedEvent ? attendanceByEventId[selectedEvent.id] : undefined}
+        callUps={selectedEvent ? callUpsByEventId[selectedEvent.id] : undefined}
         onClose={() => setSelectedEvent(null)}
       />
     </>

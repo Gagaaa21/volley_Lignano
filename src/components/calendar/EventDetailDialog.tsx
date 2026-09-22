@@ -33,6 +33,10 @@ export interface EventAttendance {
   records: PublicAttendanceRecord[];
 }
 
+export interface EventCallUps {
+  names: string[];
+}
+
 const ATTENDANCE_LABEL: Record<PublicAttendanceRecord["status"], string> = {
   present: "Presente",
   excused: "Assente (giustificata)",
@@ -49,11 +53,13 @@ export function EventDetailDialog({
   event,
   plan,
   attendance,
+  callUps,
   onClose,
 }: {
   event: CalendarEvent | null;
   plan?: EventPlan;
   attendance?: EventAttendance;
+  callUps?: EventCallUps;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -199,6 +205,30 @@ export function EventDetailDialog({
                 ))}
               </p>
             )}
+          </div>
+        )}
+
+        {!isTraining && callUps && callUps.names.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
+            <div className="flex items-center gap-3">
+              <span className="icon-chip">
+                <Users className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Convocate</p>
+                <p className="text-sm font-bold text-foreground">{callUps.names.length} convocate</p>
+              </div>
+            </div>
+            <div className="mt-3.5 flex flex-wrap gap-1.5">
+              {callUps.names.map((name) => (
+                <span
+                  key={name}
+                  className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-foreground/75"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

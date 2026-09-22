@@ -21,7 +21,7 @@ import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { Category } from "@/lib/types";
-import type { EventAttendance, EventPlan } from "@/components/calendar/EventDetailDialog";
+import type { EventAttendance, EventCallUps, EventPlan } from "@/components/calendar/EventDetailDialog";
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
@@ -37,11 +37,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
-  const { trainings, matches, occurrencePlans, plans, blocks, attendance } = await getPublicCalendarData(
-    startStr,
-    endStr,
-    activeCategory === "all" ? undefined : activeCategory,
-  );
+  const { trainings, matches, occurrencePlans, plans, blocks, attendance, callUpsByMatchId } =
+    await getPublicCalendarData(startStr, endStr, activeCategory === "all" ? undefined : activeCategory);
 
   const occurrencePlanIds = new Map(
     occurrencePlans
@@ -75,6 +72,13 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     if (event.kind !== "training") continue;
     const records = attendanceByOccurrence.get(occurrenceKey(event.ruleId, event.date));
     if (records) attendanceByEventId[event.id] = { records };
+  }
+
+  const callUpsByEventId: Record<string, EventCallUps> = {};
+  for (const event of monthEvents) {
+    if (event.kind !== "match") continue;
+    const names = callUpsByMatchId[event.id];
+    if (names && names.length > 0) callUpsByEventId[event.id] = { names };
   }
 
   const isCurrentMonthView = monthParam === formatMonthParam(new Date());
@@ -120,6 +124,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 events={upcoming}
                 plansByEventId={plansByEventId}
                 attendanceByEventId={attendanceByEventId}
+                callUpsByEventId={callUpsByEventId}
               />
             </div>
           )}
@@ -147,6 +152,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             eventsByDate={eventsByDate}
             plansByEventId={plansByEventId}
             attendanceByEventId={attendanceByEventId}
+            callUpsByEventId={callUpsByEventId}
           />
 
           <div className="mt-10">

@@ -329,5 +329,10 @@ export async function saveCallUpsAndLineupAction(
     session.sub,
   );
   revalidatePath(`/admin/partite/${matchId}`);
+  // Le convocazioni sono visibili anche sul sito pubblico: invalida la
+  // cache del calendario, altrimenti resterebbero non aggiornate fino a
+  // 5 minuti (il tempo di validità di getPublicCalendarData).
+  revalidatePath("/");
+  updateTag(PUBLIC_CALENDAR_TAG);
   return { success: true };
 }

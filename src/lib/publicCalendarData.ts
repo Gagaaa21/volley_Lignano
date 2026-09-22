@@ -19,6 +19,9 @@ export interface PublicAttendanceSession {
   records: PublicAttendanceRecord[];
 }
 
+/** matchId -> nomi delle convocate, in ordine alfabetico. */
+export type PublicCallUpsByMatchId = Record<string, string[]>;
+
 /**
  * La home pubblica è l'unica pagina non autenticata del sito e riceve la
  * gran parte del traffico: senza cache, ogni visita rilegge tutto da
@@ -58,7 +61,18 @@ export const getPublicCalendarData = unstable_cache(
           .sort((a, b) => a.fullName.localeCompare(b.fullName)),
       }));
 
-    return { trainings, matches, occurrencePlans, plans, blocks, attendance };
+    // Le convocazioni sono pubbliche per lo stesso motivo delle presenze:
+    // atlete e famiglie devono poter vedere chi è convocata per una partita
+    // senza login. Espone solo il nome, mai l'id o altri campi dell'atleta.
+    const callUpsByMatchId: PublicCallUpsByMatchId = {};
+    for (const match of matches) {
+      callUpsByMatchId[match.id] = match.calledUpAthleteIds
+        .map((id) => athleteNameById.get(id))
+        .filter((name): name is string => Boolean(name))
+        .sort((a, b) => a.localeCompare(b));
+    }
+
+    return { trainings, matches, occurrencePlans, plans, blocks, attendance, callUpsByMatchId };
   },
   ["public-calendar-data"],
   { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },

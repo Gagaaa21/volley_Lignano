@@ -6,7 +6,7 @@ import { it } from "date-fns/locale";
 import { Dumbbell, Swords } from "lucide-react";
 import { eventTime } from "@/lib/calendar";
 import type { CalendarEvent } from "@/lib/types";
-import { EventDetailDialog, type EventAttendance, type EventPlan } from "./EventDetailDialog";
+import { EventDetailDialog, type EventAttendance, type EventCallUps, type EventPlan } from "./EventDetailDialog";
 
 function accentColor(event: CalendarEvent) {
   if (event.kind === "match") {
@@ -19,10 +19,12 @@ export function UpcomingStrip({
   events,
   plansByEventId,
   attendanceByEventId,
+  callUpsByEventId,
 }: {
   events: CalendarEvent[];
   plansByEventId: Record<string, EventPlan>;
   attendanceByEventId: Record<string, EventAttendance>;
+  callUpsByEventId: Record<string, EventCallUps>;
 }) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
@@ -73,6 +75,7 @@ export function UpcomingStrip({
         event={selectedEvent}
         plan={selectedEvent ? plansByEventId[selectedEvent.id] : undefined}
         attendance={selectedEvent ? attendanceByEventId[selectedEvent.id] : undefined}
+        callUps={selectedEvent ? callUpsByEventId[selectedEvent.id] : undefined}
         onClose={() => setSelectedEvent(null)}
       />
     </>
