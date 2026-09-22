@@ -25,7 +25,6 @@ const schema = z.object({
     .transform((v) => v || null),
   meetingLocation: z.string().optional(),
   notes: z.string().optional(),
-  calledUpAthleteIds: z.array(z.string()),
 });
 
 interface ParsedResult {
@@ -116,7 +115,6 @@ function parseMatchForm(formData: FormData) {
     meetingTime: formData.get("meetingTime")?.toString() ?? "",
     meetingLocation: formData.get("meetingLocation")?.toString().trim() || undefined,
     notes: formData.get("notes")?.toString().trim() || undefined,
-    calledUpAthleteIds: formData.getAll("calledUpAthleteIds").map((v) => v.toString()),
   });
 }
 
@@ -145,6 +143,10 @@ export async function saveMatchAction(
   }
 
   const id = formData.get("id")?.toString();
+  const repo = await getActiveRepo();
+  // Le convocazioni si gestiscono solo dalla finestra "Convocazioni e
+  // formazioni": qui si preserva il valore esistente invece di azzerarlo.
+  const existing = id ? await repo.getMatch(id) : null;
   const input: MatchInput = {
     category: parsed.data.category,
     opponent: parsed.data.opponent,
@@ -155,13 +157,12 @@ export async function saveMatchAction(
     meetingTime: parsed.data.meetingTime,
     meetingLocation: parsed.data.meetingLocation ?? null,
     notes: parsed.data.notes ?? null,
-    calledUpAthleteIds: parsed.data.calledUpAthleteIds,
+    calledUpAthleteIds: existing?.calledUpAthleteIds ?? [],
     setScores: result.setScores,
     resultSetsWon: result.resultSetsWon,
     resultSetsLost: result.resultSetsLost,
   };
 
-  const repo = await getActiveRepo();
   const matchup = `${input.isFriendly ? "Amichevole " : ""}${CATEGORY_LABELS[input.category]} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
   const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
   if (id) {
@@ -235,15 +236,23 @@ const lineupSchema = z.object({
   sets: z.array(setLineupSchema).length(5),
 });
 
-/** Al massimo una capitana per set (tiene solo la prima trovata) e nessuna
- * convocata assegnata due volte nello stesso set (posizione + libero). */
-function normalizeSets(sets: MatchLineupInput["sets"]): MatchLineupInput["sets"] {
+/** Al massimo una capitana per set (tiene solo la prima trovata), nessuna
+ * convocata assegnata due volte nello stesso set (posizione + libero) e solo
+ * atlete effettivamente convocate. */
+function normalizeSets(
+  sets: MatchLineupInput["sets"],
+  calledUpAthleteIds: string[],
+): MatchLineupInput["sets"] {
+  const calledUp = new Set(calledUpAthleteIds);
   return sets.map((set) => {
     let captainFound = false;
     const assigned = new Set<string>();
 
     const slots = set.slots.map((slot) => {
       let next = slot;
+      if (next.athleteId && !calledUp.has(next.athleteId)) {
+        next = { ...next, athleteId: null, role: null, isCaptain: false };
+      }
       if (next.athleteId) {
         if (assigned.has(next.athleteId)) next = { ...next, athleteId: null, role: null, isCaptain: false };
         else assigned.add(next.athleteId);
@@ -256,7 +265,7 @@ function normalizeSets(sets: MatchLineupInput["sets"]): MatchLineupInput["sets"]
     });
 
     const liberoIds = set.liberoIds.map((athleteId) => {
-      if (!athleteId || assigned.has(athleteId)) return null;
+      if (!athleteId || !calledUp.has(athleteId) || assigned.has(athleteId)) return null;
       assigned.add(athleteId);
       return athleteId;
     });
@@ -265,18 +274,26 @@ function normalizeSets(sets: MatchLineupInput["sets"]): MatchLineupInput["sets"]
   });
 }
 
-export interface LineupFormState {
+export interface CallUpsAndLineupFormState {
   error?: string;
   success?: boolean;
 }
 
-export async function saveMatchLineupAction(
-  _prevState: LineupFormState,
+/** Salva insieme le convocazioni della partita e le formazioni per set,
+ * gestite entrambe dalla finestra "Convocazioni e formazioni". */
+export async function saveCallUpsAndLineupAction(
+  _prevState: CallUpsAndLineupFormState,
   formData: FormData,
-): Promise<LineupFormState> {
+): Promise<CallUpsAndLineupFormState> {
   const session = await requireStaff();
   const matchId = formData.get("matchId")?.toString();
   if (!matchId) return { error: "Partita non valida." };
+
+  const repo = await getActiveRepo();
+  const match = await repo.getMatch(matchId);
+  if (!match) return { error: "Partita non trovata." };
+
+  const calledUpAthleteIds = formData.getAll("calledUpAthleteIds").map((v) => v.toString());
 
   let rawSets: unknown;
   try {
@@ -290,8 +307,27 @@ export async function saveMatchLineupAction(
     return { error: "Dati non validi." };
   }
 
-  const repo = await getActiveRepo();
-  await repo.saveMatchLineup(matchId, { sets: normalizeSets(parsed.data.sets) }, session.sub);
+  const input: MatchInput = {
+    category: match.category,
+    opponent: match.opponent,
+    isHome: match.isHome,
+    isFriendly: match.isFriendly,
+    location: match.location,
+    matchDate: match.matchDate,
+    meetingTime: match.meetingTime,
+    meetingLocation: match.meetingLocation,
+    notes: match.notes,
+    calledUpAthleteIds,
+    setScores: match.setScores,
+    resultSetsWon: match.resultSetsWon,
+    resultSetsLost: match.resultSetsLost,
+  };
+  await repo.updateMatch(matchId, input);
+  await repo.saveMatchLineup(
+    matchId,
+    { sets: normalizeSets(parsed.data.sets, calledUpAthleteIds) },
+    session.sub,
+  );
   revalidatePath(`/admin/partite/${matchId}`);
   return { success: true };
 }

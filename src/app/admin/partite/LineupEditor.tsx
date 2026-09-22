@@ -1,23 +1,21 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
-import { Crown, Download, Save, Users } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { FieldError } from "@/components/ui/Field";
-import { VolleyCourt, GRID_ORDER } from "@/components/matches/VolleyCourt";
-import { AthletePickerDialog } from "./AthletePickerDialog";
+import { useEffect, useState } from "react";
+import { Crown, GripVertical } from "lucide-react";
+import { VolleyCourt, GRID_ORDER, shortName } from "@/components/matches/VolleyCourt";
 import { cn } from "@/lib/cn";
-import { VOLLEY_ROLES, VOLLEY_ROLE_LABELS, emptyMatchLineupSets } from "@/lib/types";
-import type { Athlete, CourtPosition, LineupSlot, MatchLineup, SetLineup } from "@/lib/types";
-import { saveMatchLineupAction, type LineupFormState } from "./actions";
-
-const initialState: LineupFormState = {};
+import { VOLLEY_ROLES, VOLLEY_ROLE_LABELS } from "@/lib/types";
+import type { Athlete, CourtPosition, LineupSlot, SetLineup } from "@/lib/types";
 
 /** Una posizione in campo (1-6) o uno dei due slot libero, "fuori dalla
- * rotazione": stesso meccanismo di selezione-poi-assegnazione per entrambi. */
+ * rotazione": stesso meccanismo di trascinamento per entrambi. */
 type Target = { kind: "position"; position: CourtPosition } | { kind: "libero"; index: 0 | 1 };
+
+type DragOrigin =
+  | { kind: "roster"; athleteId: string }
+  | { kind: "slot"; target: Target; athleteId: string };
+
+const DRAG_THRESHOLD = 6;
 
 function targetsEqual(a: Target | null, b: Target | null): boolean {
   if (!a || !b || a.kind !== b.kind) return false;
@@ -28,6 +26,22 @@ function targetsEqual(a: Target | null, b: Target | null): boolean {
 
 function targetLabel(target: Target): string {
   return target.kind === "position" ? `Posizione ${target.position}` : `Libero ${target.index + 1}`;
+}
+
+function dropKeyOf(target: Target): string {
+  return target.kind === "position" ? `position-${target.position}` : `libero-${target.index}`;
+}
+
+function parseDropKey(key: string): Target | null {
+  if (key.startsWith("position-")) {
+    const position = Number(key.slice("position-".length));
+    if (position >= 1 && position <= 6) return { kind: "position", position: position as CourtPosition };
+  }
+  if (key.startsWith("libero-")) {
+    const index = Number(key.slice("libero-".length));
+    if (index === 0 || index === 1) return { kind: "libero", index };
+  }
+  return null;
 }
 
 function athleteIdAt(set: SetLineup, target: Target): string | null {
@@ -43,17 +57,6 @@ function findAthleteTarget(set: SetLineup, athleteId: string): Target | null {
   if (slot) return { kind: "position", position: slot.position };
   const liberoIdx = set.liberoIds.findIndex((id) => id === athleteId);
   if (liberoIdx !== -1) return { kind: "libero", index: liberoIdx as 0 | 1 };
-  return null;
-}
-
-/** Prima posizione vuota in campo (ordine visivo), poi il primo slot libero vuoto. */
-function firstEmptyTarget(set: SetLineup): Target | null {
-  for (const position of GRID_ORDER) {
-    if (!set.slots.find((s) => s.position === position)?.athleteId) return { kind: "position", position };
-  }
-  for (let i = 0; i < set.liberoIds.length; i++) {
-    if (!set.liberoIds[i]) return { kind: "libero", index: i as 0 | 1 };
-  }
   return null;
 }
 
@@ -84,30 +87,35 @@ function assignAt(set: SetLineup, target: Target, athleteId: string): SetLineup 
   return { ...set, liberoIds };
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      <Save className="h-4 w-4" />
-      {pending ? "Salvataggio…" : "Salva formazioni"}
-    </Button>
-  );
+/** Prima posizione vuota in campo (ordine visivo), poi il primo slot libero vuoto. */
+function firstEmptyTarget(set: SetLineup): Target | null {
+  for (const position of GRID_ORDER) {
+    if (!set.slots.find((s) => s.position === position)?.athleteId) return { kind: "position", position };
+  }
+  for (let i = 0; i < set.liberoIds.length; i++) {
+    if (!set.liberoIds[i]) return { kind: "libero", index: i as 0 | 1 };
+  }
+  return null;
 }
 
 export function LineupEditor({
-  matchId,
   athletes,
-  initialLineup,
+  sets,
+  onSetsChange,
+  activeSet,
+  onActiveSetChange,
 }: {
-  matchId: string;
   athletes: Athlete[];
-  initialLineup: MatchLineup | null;
+  sets: SetLineup[];
+  onSetsChange: (updater: (prev: SetLineup[]) => SetLineup[]) => void;
+  activeSet: number;
+  onActiveSetChange: (index: number) => void;
 }) {
-  const [sets, setSets] = useState<SetLineup[]>(() => initialLineup?.sets ?? emptyMatchLineupSets());
-  const [activeSet, setActiveSet] = useState(0);
-  const [selected, setSelected] = useState<Target | null>(() => firstEmptyTarget(sets[0]));
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [state, formAction] = useActionState(saveMatchLineupAction, initialState);
+  const [selected, setSelected] = useState<Target | null>(() => firstEmptyTarget(sets[activeSet]));
+  const [pending, setPending] = useState<{ origin: DragOrigin; startX: number; startY: number } | null>(null);
+  const [drag, setDrag] = useState<{ origin: DragOrigin; x: number; y: number; hoverKey: string | null } | null>(
+    null,
+  );
 
   const athletesById = new Map(athletes.map((a) => [a.id, a] as const));
   const currentSet = sets[activeSet];
@@ -115,21 +123,84 @@ export function LineupEditor({
     selected?.kind === "position" ? (currentSet.slots.find((s) => s.position === selected.position) ?? null) : null;
   const selectedAthleteId = selected ? athleteIdAt(currentSet, selected) : null;
   const selectedAthlete = selectedAthleteId ? (athletesById.get(selectedAthleteId) ?? null) : null;
-  const filledCount = currentSet.slots.filter((s) => s.athleteId).length;
 
-  function openPicker(target: Target) {
-    setSelected(target);
-    setPickerOpen(true);
+  function beginPointer(event: React.PointerEvent, origin: DragOrigin) {
+    event.preventDefault();
+    setPending({ origin, startX: event.clientX, startY: event.clientY });
   }
 
+  useEffect(() => {
+    if (!pending && !drag) return;
+
+    function resolveDropTarget(x: number, y: number): Target | null {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null;
+      const dropEl = el?.closest<HTMLElement>("[data-drop-target]");
+      const key = dropEl?.dataset.dropTarget;
+      return key ? parseDropKey(key) : null;
+    }
+
+    function onMove(event: PointerEvent) {
+      if (drag) {
+        const target = resolveDropTarget(event.clientX, event.clientY);
+        setDrag((d) => (d ? { ...d, x: event.clientX, y: event.clientY, hoverKey: target ? dropKeyOf(target) : null } : d));
+        return;
+      }
+      if (pending) {
+        const dx = event.clientX - pending.startX;
+        const dy = event.clientY - pending.startY;
+        if (Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+          setDrag({ origin: pending.origin, x: event.clientX, y: event.clientY, hoverKey: null });
+          setPending(null);
+        }
+      }
+    }
+
+    function onUp(event: PointerEvent) {
+      if (drag) {
+        const target = resolveDropTarget(event.clientX, event.clientY);
+        if (target) {
+          const from = drag.origin.kind === "slot" ? drag.origin.target : undefined;
+          const athleteId = drag.origin.athleteId;
+          onSetsChange((prev) =>
+            prev.map((set, idx) => {
+              if (idx !== activeSet) return set;
+              let updated = set;
+              const existing = from ?? findAthleteTarget(set, athleteId);
+              if (existing && !targetsEqual(existing, target)) updated = clearTarget(updated, existing);
+              updated = assignAt(updated, target, athleteId);
+              return updated;
+            }),
+          );
+          setSelected(target);
+        }
+        setDrag(null);
+        return;
+      }
+      if (pending) {
+        if (pending.origin.kind === "slot") setSelected(pending.origin.target);
+        setPending(null);
+      }
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [pending, drag, activeSet, onSetsChange]);
+
   function selectSet(idx: number) {
-    setActiveSet(idx);
+    onActiveSetChange(idx);
     setSelected(firstEmptyTarget(sets[idx]));
-    setPickerOpen(false);
+    setPending(null);
+    setDrag(null);
   }
 
   function updateSlot(position: CourtPosition, patch: Partial<LineupSlot>) {
-    setSets((prev) =>
+    onSetsChange((prev) =>
       prev.map((set, idx) =>
         idx === activeSet
           ? { ...set, slots: set.slots.map((slot) => (slot.position === position ? { ...slot, ...patch } : slot)) }
@@ -138,26 +209,8 @@ export function LineupEditor({
     );
   }
 
-  /** Assegna la convocata al target selezionato (posizione o libero). Se era
-   * già altrove in questo set, la sposta invece di duplicarla. Chiude la
-   * finestra e, se il target era vuoto, seleziona (senza aprire) il prossimo
-   * posto libero. */
-  function assignAthlete(athleteId: string) {
-    if (!selected) return;
-    const existing = findAthleteTarget(currentSet, athleteId);
-    const isFreshFill = !selectedAthleteId && !existing;
-
-    let updated = currentSet;
-    if (existing && !targetsEqual(existing, selected)) updated = clearTarget(updated, existing);
-    updated = assignAt(updated, selected, athleteId);
-
-    setSets((prev) => prev.map((set, idx) => (idx === activeSet ? updated : set)));
-    setPickerOpen(false);
-    if (isFreshFill) setSelected(firstEmptyTarget(updated));
-  }
-
   function setCaptain(position: CourtPosition) {
-    setSets((prev) =>
+    onSetsChange((prev) =>
       prev.map((set, idx) =>
         idx === activeSet
           ? { ...set, slots: set.slots.map((slot) => ({ ...slot, isCaptain: slot.position === position })) }
@@ -168,20 +221,22 @@ export function LineupEditor({
 
   function clearSelected() {
     if (!selected) return;
-    setSets((prev) => prev.map((set, idx) => (idx === activeSet ? clearTarget(set, selected) : set)));
-    setPickerOpen(false);
+    onSetsChange((prev) => prev.map((set, idx) => (idx === activeSet ? clearTarget(set, selected) : set)));
   }
 
   function copyFromPreviousSet() {
     if (activeSet === 0) return;
-    const copied: SetLineup = {
-      slots: sets[activeSet - 1].slots.map((s) => ({ ...s })),
-      liberoIds: [...sets[activeSet - 1].liberoIds],
-    };
-    setSets((prev) => prev.map((set, idx) => (idx === activeSet ? copied : set)));
-    setSelected(firstEmptyTarget(copied));
+    onSetsChange((prev) => {
+      const copied: SetLineup = {
+        slots: prev[activeSet - 1].slots.map((s) => ({ ...s })),
+        liberoIds: [...prev[activeSet - 1].liberoIds],
+      };
+      return prev.map((set, idx) => (idx === activeSet ? copied : set));
+    });
+    setSelected(null);
   }
 
+  const filledCount = currentSet.slots.filter((s) => s.athleteId).length;
   const occupiedLabels = new Map<string, string>();
   for (const slot of currentSet.slots) {
     if (slot.athleteId) occupiedLabels.set(slot.athleteId, `pos. ${slot.position}`);
@@ -189,6 +244,10 @@ export function LineupEditor({
   currentSet.liberoIds.forEach((id, i) => {
     if (id) occupiedLabels.set(id, `Libero ${i + 1}`);
   });
+
+  const dragHoverTarget = drag?.hoverKey ? parseDropKey(drag.hoverKey) : null;
+  const dragHoverPosition = dragHoverTarget?.kind === "position" ? dragHoverTarget.position : null;
+  const dragAthlete = drag ? athletesById.get(drag.origin.athleteId) : null;
 
   return (
     <div>
@@ -215,7 +274,7 @@ export function LineupEditor({
       </div>
 
       <p className="mt-2.5 text-xs text-foreground/50">
-        Tocca una posizione (o il libero) per aprire l&apos;elenco delle convocate e assegnarla.
+        Trascina una convocata dall&apos;elenco sopra una posizione (o sul libero) per assegnarla.
       </p>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,16rem)_1fr]">
@@ -223,8 +282,13 @@ export function LineupEditor({
           <VolleyCourt
             slots={currentSet.slots}
             athletesById={athletesById}
-            onSlotClick={(position) => openPicker({ kind: "position", position })}
+            onSlotClick={(position) => setSelected({ kind: "position", position })}
+            onSlotPointerDown={(event, position) => {
+              const athleteId = currentSet.slots.find((s) => s.position === position)?.athleteId;
+              if (athleteId) beginPointer(event, { kind: "slot", target: { kind: "position", position }, athleteId });
+            }}
             selectedPosition={selected?.kind === "position" ? selected.position : null}
+            dragHoverPosition={dragHoverPosition}
           />
 
           <div className="mt-2.5 rounded-2xl border border-dashed border-sea-700/25 bg-sea-50/60 p-2.5">
@@ -236,18 +300,24 @@ export function LineupEditor({
                 const athleteId = currentSet.liberoIds[i];
                 const athlete = athleteId ? athletesById.get(athleteId) : undefined;
                 const isSelected = selected?.kind === "libero" && selected.index === i;
+                const isHovered = drag?.hoverKey === `libero-${i}`;
                 return (
                   <button
                     key={i}
                     type="button"
-                    onClick={() => openPicker({ kind: "libero", index: i })}
+                    data-drop-target={`libero-${i}`}
+                    onClick={() => setSelected({ kind: "libero", index: i })}
+                    onPointerDown={(event) => {
+                      if (athleteId) beginPointer(event, { kind: "slot", target: { kind: "libero", index: i }, athleteId });
+                    }}
                     className={cn(
-                      "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-1 py-2 text-center transition-colors",
+                      "flex min-h-[3.25rem] touch-none flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-1 py-2 text-center transition-colors",
                       athlete
                         ? "border-sea-700 bg-white shadow-sm shadow-sea-950/10"
                         : "border-dashed border-sea-700/25 bg-white/60",
                       "cursor-pointer hover:border-sea-700/60",
                       isSelected && "ring-2 ring-sand-400 ring-offset-1",
+                      isHovered && "border-sea-700 bg-sea-50 ring-2 ring-sea-700 ring-offset-1",
                     )}
                   >
                     <span className="text-[9px] font-bold uppercase text-foreground/35">Libero {i + 1}</span>
@@ -281,19 +351,9 @@ export function LineupEditor({
               <p className="text-sm text-foreground/60">Formazione completa per questo set.</p>
             ) : (
               <>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
-                    {targetLabel(selected)}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setPickerOpen(true)}
-                    className="flex shrink-0 items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                  >
-                    <Users className="h-3.5 w-3.5" />
-                    {selectedAthlete ? "Cambia" : "Scegli convocata"}
-                  </button>
-                </div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
+                  {targetLabel(selected)}
+                </p>
                 {selectedAthlete ? (
                   <>
                     <div className="mt-0.5 flex items-center justify-between gap-2">
@@ -351,39 +411,59 @@ export function LineupEditor({
                     )}
                   </>
                 ) : (
-                  <p className="mt-0.5 text-sm text-foreground/60">Nessuna convocata assegnata qui.</p>
+                  <p className="mt-0.5 text-sm text-foreground/60">
+                    Nessuna convocata assegnata qui: trascinala dall&apos;elenco.
+                  </p>
                 )}
               </>
             )}
           </div>
 
-          <p className="text-xs text-foreground/45">{athletes.length} convocate per questa partita.</p>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-foreground/45">
+              Convocate — trascina in campo
+            </p>
+            {athletes.length === 0 ? (
+              <p className="text-sm text-foreground/50">Nessuna convocata: selezionale qui sopra.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {athletes.map((athlete) => {
+                  const label = occupiedLabels.get(athlete.id);
+                  return (
+                    <div
+                      key={athlete.id}
+                      onPointerDown={(event) => beginPointer(event, { kind: "roster", athleteId: athlete.id })}
+                      className={cn(
+                        "flex touch-none cursor-grab items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-colors active:cursor-grabbing",
+                        label ? "border-sea-700/30 bg-sea-700/[0.04]" : "border-border-subtle bg-surface",
+                      )}
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <GripVertical className="h-4 w-4 shrink-0 text-foreground/25" />
+                        <span className="truncate text-sm font-medium text-foreground">{athlete.fullName}</span>
+                      </span>
+                      {label && (
+                        <span className="shrink-0 rounded-full bg-sea-700/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sea-700">
+                          {label}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {pickerOpen && selected && (
-        <AthletePickerDialog
-          title={targetLabel(selected)}
-          athletes={athletes}
-          currentAthleteId={selectedAthleteId}
-          occupiedLabels={occupiedLabels}
-          onSelect={assignAthlete}
-          onClear={clearSelected}
-          onClose={() => setPickerOpen(false)}
-        />
+      {drag && dragAthlete && (
+        <div
+          className="pointer-events-none fixed z-[70] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-sea-950 px-3 py-1.5 text-xs font-bold text-white shadow-lg"
+          style={{ left: drag.x, top: drag.y }}
+        >
+          {shortName(dragAthlete.fullName)}
+        </div>
       )}
-
-      <form action={formAction} className="mt-5 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-5">
-        <input type="hidden" name="matchId" value={matchId} />
-        <input type="hidden" name="sets" value={JSON.stringify(sets)} />
-        <SubmitButton />
-        <LinkButton href={`/api/partite/${matchId}/formazioni/pdf`} variant="outline" target="_blank">
-          <Download className="h-4 w-4" />
-          Esporta PDF
-        </LinkButton>
-        {state.error && <FieldError>{state.error}</FieldError>}
-        {state.success && <span className="text-sm font-medium text-primary">Formazioni salvate.</span>}
-      </form>
     </div>
   );
 }

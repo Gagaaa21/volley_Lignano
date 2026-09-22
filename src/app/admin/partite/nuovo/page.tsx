@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { getActiveRepo } from "@/lib/db";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { MatchForm } from "../MatchForm";
@@ -10,9 +9,6 @@ export const metadata: Metadata = {
 };
 
 export default async function NewMatchPage() {
-  const repo = await getActiveRepo();
-  const athletes = (await repo.listAthletes()).filter((a) => a.isActive);
-
   return (
     <div className="mx-auto max-w-xl">
       <LinkButton href="/admin/partite" variant="ghost" size="sm" className="mb-4 -ml-3.5">
@@ -28,7 +24,7 @@ export default async function NewMatchPage() {
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <MatchForm athletes={athletes} />
+          <MatchForm />
         </CardBody>
       </Card>
     </div>

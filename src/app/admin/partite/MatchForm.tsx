@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { saveMatchAction, type MatchFormState } from "./actions";
-import type { Athlete, Match } from "@/lib/types";
+import type { Match } from "@/lib/types";
 
 const initialState: MatchFormState = {};
 
@@ -28,19 +28,9 @@ function todayStr() {
 
 const MAX_SETS = 5;
 
-export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: Athlete[] }) {
+export function MatchForm({ match }: { match?: Match }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
   const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
-  const [calledUp, setCalledUp] = useState<Set<string>>(() => new Set(match?.calledUpAthleteIds ?? []));
-
-  function toggleAthlete(id: string) {
-    setCalledUp((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
@@ -149,44 +139,6 @@ export function MatchForm({ match, athletes = [] }: { match?: Match; athletes?: 
           placeholder="Es. Portare la seconda maglia…"
         />
       </div>
-
-      {athletes.length > 0 && (
-        <div>
-          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-            <p className="text-sm font-medium text-foreground/80">
-              Convocate ({calledUp.size}/{athletes.length})
-            </p>
-            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-              <button type="button" onClick={() => setCalledUp(new Set(athletes.map((a) => a.id)))} className="hover:underline">
-                Seleziona tutte
-              </button>
-              <span className="text-foreground/25">·</span>
-              <button type="button" onClick={() => setCalledUp(new Set())} className="hover:underline">
-                Nessuna
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {athletes.map((athlete) => (
-              <label
-                key={athlete.id}
-                className="cursor-pointer rounded-full border border-border-subtle bg-surface px-3.5 py-1.5 text-sm font-medium text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
-              >
-                <input
-                  type="checkbox"
-                  name="calledUpAthleteIds"
-                  value={athlete.id}
-                  checked={calledUp.has(athlete.id)}
-                  onChange={() => toggleAthlete(athlete.id)}
-                  className="sr-only"
-                />
-                {athlete.fullName}
-              </label>
-            ))}
-          </div>
-          <FieldHint>Chi convochi qui diventa selezionabile nelle formazioni per set.</FieldHint>
-        </div>
-      )}
 
       {isPastMatch && (
         <div className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3.5">

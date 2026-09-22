@@ -15,14 +15,18 @@ export function VolleyCourt({
   slots,
   athletesById,
   onSlotClick,
+  onSlotPointerDown,
   interactive = true,
   selectedPosition = null,
+  dragHoverPosition = null,
 }: {
   slots: LineupSlot[];
   athletesById: Map<string, Athlete>;
   onSlotClick?: (position: CourtPosition) => void;
+  onSlotPointerDown?: (event: React.PointerEvent<HTMLButtonElement>, position: CourtPosition) => void;
   interactive?: boolean;
   selectedPosition?: CourtPosition | null;
+  dragHoverPosition?: CourtPosition | null;
 }) {
   const byPosition = new Map(slots.map((s) => [s.position, s] as const));
 
@@ -45,18 +49,22 @@ export function VolleyCourt({
             const athlete = slot?.athleteId ? athletesById.get(slot.athleteId) : undefined;
             const filled = Boolean(athlete);
             const selected = selectedPosition === position;
+            const hovered = dragHoverPosition === position;
             const isFrontRow = idx < 3;
             return (
               <button
                 key={position}
                 type="button"
                 disabled={!interactive}
+                data-drop-target={`position-${position}`}
                 onClick={() => onSlotClick?.(position)}
+                onPointerDown={(event) => onSlotPointerDown?.(event, position)}
                 className={cn(
-                  "relative flex aspect-square flex-col items-center justify-center gap-1 bg-sand-400 px-1 py-2 text-center transition-colors",
+                  "relative flex aspect-square touch-none flex-col items-center justify-center gap-1 bg-sand-400 px-1 py-2 text-center transition-colors",
                   interactive && "cursor-pointer hover:bg-sand-300",
                   isFrontRow && "border-b-2 border-dashed border-white/80",
                   selected && "ring-2 ring-inset ring-sea-950",
+                  hovered && "bg-sand-200 ring-2 ring-inset ring-sea-700",
                 )}
               >
                 <span className="absolute left-1.5 top-1.5 text-[9px] font-bold text-sea-950/40">
