@@ -67,7 +67,7 @@ export default async function OccurrencePlanPage({
               <form action={removeOccurrencePlanAction}>
                 <input type="hidden" name="ruleId" value={ruleId} />
                 <input type="hidden" name="date" value={date} />
-                <Button type="submit" variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
+                <Button type="submit" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/8">
                   Rimuovi
                 </Button>
               </form>

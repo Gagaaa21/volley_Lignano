@@ -3,10 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   CalendarClock,
+  ChevronDown,
   ClipboardCheck,
   FlaskConical,
   Gauge,
@@ -47,10 +48,93 @@ function isActive(pathname: string, href: string, exact: boolean) {
   return exact ? pathname === href : pathname.startsWith(href);
 }
 
+function NavLink({
+  item,
+  active,
+  onClick,
+}: {
+  item: { href: string; label: string; icon: typeof LayoutDashboard };
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link href={item.href} data-active={active ? "true" : undefined} onClick={onClick} className="nav-tile">
+      <Icon className="h-4 w-4" />
+      {item.label}
+    </Link>
+  );
+}
+
+function DevMenu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const devActive = DEV_NAV_ITEMS.some((item) => isActive(pathname, item.href, item.exact));
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative hidden shrink-0 sm:block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        data-active={devActive ? "true" : undefined}
+        className="nav-tile"
+      >
+        <Shield className="h-4 w-4" />
+        Developer
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Strumenti Developer"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-60 rounded-xl border border-border-subtle bg-card p-1.5 shadow-[0_20px_40px_-20px_rgba(9,27,38,0.4)]"
+        >
+          {DEV_NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, item.href, item.exact);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/75 transition-colors hover:bg-muted hover:text-foreground",
+                  active && "bg-muted font-semibold text-primary",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminHeader({ session }: { session: SessionPayload }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navItems = session.role === "dev" ? [...NAV_ITEMS, ...DEV_NAV_ITEMS] : NAV_ITEMS;
 
   return (
     <header className="page-header">
@@ -116,23 +200,35 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
             data-mobile={mobileOpen ? "true" : undefined}
             aria-label="Sezioni area riservata"
           >
-            {navItems.map((item) => {
-              const active = isActive(pathname, item.href, item.exact);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  data-active={active ? "true" : undefined}
-                  onClick={() => setMobileOpen(false)}
-                  className="nav-tile"
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.href}
+                item={item}
+                active={isActive(pathname, item.href, item.exact)}
+                onClick={() => setMobileOpen(false)}
+              />
+            ))}
           </nav>
+
+          {session.role === "dev" && (
+            <>
+              <nav
+                className="nav-rail w-full shrink-0 sm:hidden"
+                data-mobile={mobileOpen ? "true" : undefined}
+                aria-label="Strumenti Developer"
+              >
+                {DEV_NAV_ITEMS.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    item={item}
+                    active={isActive(pathname, item.href, item.exact)}
+                    onClick={() => setMobileOpen(false)}
+                  />
+                ))}
+              </nav>
+              <DevMenu pathname={pathname} />
+            </>
+          )}
 
           <div className="nav-cluster w-full shrink-0 sm:w-auto">
             <Link

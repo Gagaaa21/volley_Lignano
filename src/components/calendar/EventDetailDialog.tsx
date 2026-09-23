@@ -46,7 +46,7 @@ const ATTENDANCE_LABEL: Record<PublicAttendanceRecord["status"], string> = {
 const ATTENDANCE_CLASS: Record<PublicAttendanceRecord["status"], string> = {
   present: "bg-[var(--color-training-soft)] text-[var(--color-training-strong)]",
   excused: "bg-sand-100 text-sand-800",
-  unexcused: "bg-red-50 text-red-700",
+  unexcused: "bg-destructive/10 text-destructive",
 };
 
 export function EventDetailDialog({
@@ -180,7 +180,7 @@ export function EventDetailDialog({
                   "icon-chip",
                   event.resultSetsWon > event.resultSetsLost
                     ? "bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]"
-                    : "bg-[linear-gradient(135deg,#ef4444,#b91c1c)]",
+                    : "bg-[linear-gradient(135deg,var(--destructive),var(--destructive-strong))]",
                 )}
               >
                 <Trophy className="h-4 w-4" />

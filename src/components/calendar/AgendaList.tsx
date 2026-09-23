@@ -154,7 +154,7 @@ function EventRow({
                 "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                 event.resultSetsWon > event.resultSetsLost
                   ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
-                  : "bg-red-50 text-red-700",
+                  : "bg-destructive/10 text-destructive",
               )}
             >
               {event.resultSetsWon > event.resultSetsLost ? "Vinta" : "Persa"} {event.resultSetsWon}-

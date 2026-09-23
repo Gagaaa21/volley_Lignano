@@ -54,7 +54,7 @@ export function AthletePickerDialog({
           <button
             type="button"
             onClick={onClear}
-            className="mt-3 w-full rounded-xl border border-dashed border-red-300 bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+            className="mt-3 w-full rounded-xl border border-dashed border-destructive/30 bg-destructive/8 px-3.5 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15"
           >
             Svuota questa posizione
           </button>

@@ -90,7 +90,7 @@ export default async function MatchesListPage({
                           className={
                             match.resultSetsWon > match.resultSetsLost
                               ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
-                              : "bg-red-50 text-red-700"
+                              : "bg-destructive/10 text-destructive"
                           }
                         >
                           {match.resultSetsWon > match.resultSetsLost ? "Vinta" : "Persa"}{" "}
@@ -128,7 +128,7 @@ export default async function MatchesListPage({
                         confirmMessage={`Eliminare la partita vs ${match.opponent}?`}
                         variant="ghost"
                         size="sm"
-                        className="text-red-600 hover:bg-red-50"
+                        className="text-destructive hover:bg-destructive/8"
                       >
                         Elimina
                       </ConfirmSubmitButton>

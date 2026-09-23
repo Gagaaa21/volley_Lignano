@@ -58,7 +58,7 @@ export function ChangePasswordForm() {
         />
       </div>
       {state.error && (
-        <div className="rounded-xl bg-red-50 px-3.5 py-2.5">
+        <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5">
           <FieldError>{state.error}</FieldError>
         </div>
       )}

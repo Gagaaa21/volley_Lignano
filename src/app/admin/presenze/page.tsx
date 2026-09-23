@@ -137,8 +137,7 @@ export default async function AttendanceHubPage({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">Area riservata</p>
-          <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Presenze</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">Presenze</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Seleziona un giorno per registrare le presenze o vedere i dettagli.
           </p>

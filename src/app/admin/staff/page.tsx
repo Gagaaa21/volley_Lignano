@@ -84,7 +84,7 @@ export default async function StaffPage() {
                           confirmMessage={`Rimuovere l'accesso di ${member.fullName} (@${member.username})?`}
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:bg-red-50"
+                          className="text-destructive hover:bg-destructive/8"
                         >
                           Rimuovi
                         </ConfirmSubmitButton>

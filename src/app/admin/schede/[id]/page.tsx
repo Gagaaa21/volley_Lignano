@@ -87,7 +87,7 @@ export default async function TrainingPlanDetailPage({
             confirmMessage={`Eliminare la scheda "${plan.title}"? I blocchi restano nella libreria.`}
             variant="ghost"
             size="sm"
-            className="text-red-600 hover:bg-red-50"
+            className="text-destructive hover:bg-destructive/8"
           >
             Elimina scheda
           </ConfirmSubmitButton>
@@ -145,7 +145,7 @@ export default async function TrainingPlanDetailPage({
                       <button
                         type="submit"
                         aria-label="Rimuovi dalla scheda"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-destructive/8 hover:text-destructive"
                       >
                         <X className="h-4 w-4" />
                       </button>

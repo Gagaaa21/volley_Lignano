@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  BookOpen,
   CalendarClock,
   ClipboardCheck,
   FlaskConical,
@@ -103,11 +102,7 @@ export default async function GuidaPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <p className="eyebrow">
-        <BookOpen className="h-3 w-3" />
-        Area riservata
-      </p>
-      <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Guida al sito</h1>
+      <h1 className="font-display text-2xl font-bold text-foreground">Guida al sito</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Come funzionano le sezioni dell&apos;area riservata di Volley Lignano. Questa pagina resta
         sempre consultabile dal menu.

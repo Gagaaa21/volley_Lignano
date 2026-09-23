@@ -419,7 +419,7 @@ export function LineupEditor({
                       <button
                         type="button"
                         onClick={clearSelected}
-                        className="shrink-0 text-xs font-semibold text-red-600 hover:underline"
+                        className="shrink-0 text-xs font-semibold text-destructive hover:underline"
                       >
                         Svuota
                       </button>
