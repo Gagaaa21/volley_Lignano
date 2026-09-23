@@ -188,7 +188,6 @@ type TrainingBlockRow = {
 type TrainingPlanRow = {
   id: string;
   title: string;
-  plan_date: string | null;
   notes: string | null;
   block_ids: string[];
   created_by: string | null;
@@ -220,7 +219,6 @@ function trainingPlanFromRow(row: TrainingPlanRow): TrainingPlan {
   return {
     id: row.id,
     title: row.title,
-    planDate: row.plan_date,
     notes: row.notes,
     blockIds: row.block_ids ?? [],
     createdBy: row.created_by,
@@ -232,7 +230,6 @@ function trainingPlanFromRow(row: TrainingPlanRow): TrainingPlan {
 function trainingPlanToRow(input: TrainingPlanInput) {
   return {
     title: input.title,
-    plan_date: input.planDate,
     notes: input.notes,
     block_ids: input.blockIds,
   };

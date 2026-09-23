@@ -27,15 +27,9 @@ export function PlanDetailsForm({ plan }: { plan: TrainingPlan }) {
     <form action={formAction} className="space-y-4" noValidate>
       <input type="hidden" name="id" value={plan.id} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="title">Titolo</Label>
-          <Input id="title" name="title" defaultValue={plan.title} required />
-        </div>
-        <div>
-          <Label htmlFor="planDate">Data (opzionale)</Label>
-          <Input id="planDate" name="planDate" type="date" defaultValue={plan.planDate ?? ""} />
-        </div>
+      <div>
+        <Label htmlFor="title">Titolo</Label>
+        <Input id="title" name="title" defaultValue={plan.title} required />
       </div>
 
       <div>

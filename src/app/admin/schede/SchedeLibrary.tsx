@@ -8,7 +8,6 @@ import { Card, CardBody } from "@/components/ui/Card";
 export interface SchedeCardData {
   id: string;
   title: string;
-  planDate: string | null;
   notes: string | null;
   blockCount: number;
   totalMinutes: number;
@@ -29,9 +28,6 @@ function PlanCard({ plan }: { plan: SchedeCardData }) {
               </span>
             )}
           </div>
-          {plan.planDate && plan.upcomingCount === 0 && (
-            <p className="mt-1 text-sm text-foreground/60">{plan.planDate}</p>
-          )}
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-medium text-foreground/55">
             <span className="flex items-center gap-1.5">
               <Puzzle className="h-3.5 w-3.5" />

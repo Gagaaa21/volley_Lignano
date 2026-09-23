@@ -138,7 +138,6 @@ alter table training_blocks enable row level security;
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),
   title text not null,
-  plan_date date,
   notes text,
   block_ids uuid[] not null default '{}',
   created_by uuid references staff(id) on delete set null,

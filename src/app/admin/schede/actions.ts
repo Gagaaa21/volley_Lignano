@@ -15,7 +15,6 @@ import type { TrainingBlock } from "@/lib/types";
 
 const createSchema = z.object({
   title: z.string().min(1, "Inserisci un titolo per la scheda."),
-  planDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
   notes: z.string().optional(),
   pastedText: z.string().optional(),
   blockIds: z.array(z.string()),
@@ -36,7 +35,6 @@ export async function createPlanAction(
   const session = await requireStaff();
   const parsed = createSchema.safeParse({
     title: formData.get("title")?.toString().trim() ?? "",
-    planDate: formData.get("planDate")?.toString() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
     pastedText: formData.get("pastedText")?.toString() ?? "",
     blockIds: formData.getAll("blockIds").map((v) => v.toString()),
@@ -87,7 +85,6 @@ export async function createPlanAction(
   const plan = await repo.createTrainingPlan(
     {
       title: parsed.data.title,
-      planDate: parsed.data.planDate || null,
       notes: parsed.data.notes || preamble || null,
       blockIds,
     },
@@ -132,7 +129,6 @@ export async function createPlanAction(
 
 const detailsSchema = z.object({
   title: z.string().min(1, "Inserisci un titolo per la scheda."),
-  planDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
   notes: z.string().optional(),
 });
 
@@ -146,7 +142,6 @@ export async function updatePlanDetailsAction(
 
   const parsed = detailsSchema.safeParse({
     title: formData.get("title")?.toString().trim() ?? "",
-    planDate: formData.get("planDate")?.toString() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
   });
   if (!parsed.success) {
@@ -159,7 +154,6 @@ export async function updatePlanDetailsAction(
 
   await repo.updateTrainingPlan(id, {
     title: parsed.data.title,
-    planDate: parsed.data.planDate || null,
     notes: parsed.data.notes ?? null,
     blockIds: plan.blockIds,
   });
@@ -191,7 +185,6 @@ export async function addBlockToPlanAction(formData: FormData): Promise<void> {
 
   await repo.updateTrainingPlan(planId, {
     title: plan.title,
-    planDate: plan.planDate,
     notes: plan.notes,
     blockIds: [...plan.blockIds, blockId],
   });
@@ -210,7 +203,6 @@ export async function removeBlockFromPlanAction(formData: FormData): Promise<voi
 
   await repo.updateTrainingPlan(planId, {
     title: plan.title,
-    planDate: plan.planDate,
     notes: plan.notes,
     blockIds: plan.blockIds.filter((id) => id !== blockId),
   });
@@ -237,7 +229,6 @@ export async function reorderPlanBlockAction(formData: FormData): Promise<void> 
 
   await repo.updateTrainingPlan(planId, {
     title: plan.title,
-    planDate: plan.planDate,
     notes: plan.notes,
     blockIds: nextBlockIds,
   });

@@ -34,7 +34,6 @@ export default async function TrainingPlansPage() {
     return {
       id: plan.id,
       title: plan.title,
-      planDate: plan.planDate ? formatDateLong(plan.planDate) : null,
       notes: plan.notes,
       blockCount: plan.blockIds.length,
       totalMinutes,

@@ -74,11 +74,6 @@ export function PlanCreateForm({
         />
       </div>
 
-      <div>
-        <Label htmlFor="planDate">Data (opzionale)</Label>
-        <Input id="planDate" name="planDate" type="date" defaultValue={occurrenceDate} />
-      </div>
-
       {blocks.length > 0 && (
         <div>
           <Label>Blocchi dalla libreria (opzionale)</Label>

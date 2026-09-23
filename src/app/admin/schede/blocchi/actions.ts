@@ -58,7 +58,6 @@ export async function saveBlockAction(
     if (plan) {
       await repo.updateTrainingPlan(planId, {
         title: plan.title,
-        planDate: plan.planDate,
         notes: plan.notes,
         blockIds: [...plan.blockIds, created.id],
       });

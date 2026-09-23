@@ -169,7 +169,6 @@ export type TrainingBlockInput = Omit<
 export interface TrainingPlan {
   id: string;
   title: string;
-  planDate: string | null; // ISO date
   notes: string | null;
   blockIds: string[]; // ordine dei blocchi nella scheda
   createdBy: string | null;

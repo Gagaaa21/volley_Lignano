@@ -1,21 +1,28 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  CalendarDays,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Clock,
+  Globe,
+  Lock,
   Plus,
   Puzzle,
   X,
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { formatDateLong } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Label, Select } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { BlockContent } from "@/components/schede/BlockContent";
+import { cn } from "@/lib/cn";
 import {
   addBlockToPlanAction,
   deletePlanAction,
@@ -46,13 +53,23 @@ export default async function TrainingPlanDetailPage({
   const plan = await repo.getTrainingPlan(id);
   if (!plan) notFound();
 
-  const allBlocks = await repo.listTrainingBlocks();
+  const [allBlocks, occurrencePlans, trainings] = await Promise.all([
+    repo.listTrainingBlocks(),
+    repo.listTrainingOccurrencePlans(),
+    repo.listTrainings(),
+  ]);
   const blockMap = new Map(allBlocks.map((b) => [b.id, b] as const));
   const planBlocks = plan.blockIds.map((blockId) => blockMap.get(blockId)).filter(Boolean) as NonNullable<
     ReturnType<typeof blockMap.get>
   >[];
   const availableBlocks = allBlocks.filter((b) => !plan.blockIds.includes(b.id));
   const totalMinutes = planBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
+
+  const trainingTitleById = new Map(trainings.map((t) => [t.id, t.title] as const));
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const occurrences = occurrencePlans
+    .filter((o) => o.planId === plan.id)
+    .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -67,6 +84,52 @@ export default async function TrainingPlanDetailPage({
         </CardHeader>
         <CardBody>
           <PlanDetailsForm plan={plan} />
+        </CardBody>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
+            <CalendarDays className="h-4 w-4 text-sea-700" />
+            Programmata per
+          </h2>
+        </CardHeader>
+        <CardBody>
+          {occurrences.length === 0 ? (
+            <p className="text-sm text-foreground/50">
+              Non ancora collegata a nessuna data. Collegala da un allenamento nel calendario.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {occurrences.map((o) => {
+                const isPast = o.occurrenceDate < todayStr;
+                return (
+                  <li key={o.id}>
+                    <Link
+                      href={`/admin/allenamenti/scheda/${o.trainingRuleId}/${o.occurrenceDate}`}
+                      className={cn(
+                        "flex items-center justify-between gap-3 rounded-xl border border-border-subtle px-3.5 py-2.5 text-sm transition-colors hover:border-primary/25 hover:bg-primary/5",
+                        isPast && "opacity-55",
+                      )}
+                    >
+                      <span className="min-w-0 truncate font-medium text-foreground">
+                        {trainingTitleById.get(o.trainingRuleId) ?? "Allenamento"} ·{" "}
+                        {formatDateLong(o.occurrenceDate)}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5 text-foreground/45">
+                        {o.isPublic ? (
+                          <Globe className="h-3.5 w-3.5 text-sea-700" aria-label="Visibile al pubblico" />
+                        ) : (
+                          <Lock className="h-3.5 w-3.5" aria-label="Non pubblica" />
+                        )}
+                        <ChevronRight className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardBody>
       </Card>
 
