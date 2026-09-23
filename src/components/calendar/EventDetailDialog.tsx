@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import {
   Calendar,
+  CalendarPlus,
   Check,
   Clock,
   Dumbbell,
@@ -13,6 +14,7 @@ import {
   MapPin,
   Plane,
   Puzzle,
+  Share2,
   Swords,
   Trophy,
   Users,
@@ -21,6 +23,7 @@ import {
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { BlockContent } from "@/components/schede/BlockContent";
+import { buildICSSingleEvent, eventTitle } from "@/lib/ics";
 import type { CalendarEvent } from "@/lib/types";
 import type { PublicAttendanceRecord } from "@/lib/publicCalendarData";
 
@@ -48,6 +51,64 @@ const ATTENDANCE_CLASS: Record<PublicAttendanceRecord["status"], string> = {
   excused: "bg-sand-100 text-sand-800",
   unexcused: "bg-destructive/10 text-destructive",
 };
+
+function eventShareText(event: CalendarEvent): string {
+  const dateLabel = format(parseISO(event.date), "EEEE d MMMM", { locale: it });
+  const time = event.kind === "training" ? `${event.startTime}–${event.endTime}` : event.time;
+  return `${eventTitle(event)} — ${dateLabel} alle ${time} · ${event.location}`;
+}
+
+function downloadICS(event: CalendarEvent) {
+  const blob = new Blob([buildICSSingleEvent(event)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${eventTitle(event).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function EventActions({ event }: { event: CalendarEvent }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleShare() {
+    const text = eventShareText(event);
+    const url = window.location.origin;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: eventTitle(event), text, url });
+      } catch {
+        // Annullata dall'utente: nessuna azione.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} · ${url}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard non disponibile: nessuna azione bloccante.
+    }
+  }
+
+  const actionClass =
+    "flex flex-1 items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface px-3.5 py-2.5 text-sm font-semibold text-foreground/75 transition-colors hover:border-primary/25 hover:bg-primary/[0.03] hover:text-foreground";
+
+  return (
+    <div className="mt-4 flex gap-2 border-t border-border-subtle pt-4">
+      <button type="button" onClick={() => downloadICS(event)} className={actionClass}>
+        <CalendarPlus className="h-4 w-4" />
+        Calendario
+      </button>
+      <button type="button" onClick={handleShare} className={actionClass}>
+        {copied ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
+        {copied ? "Copiato" : "Condividi"}
+      </button>
+    </div>
+  );
+}
 
 export function EventDetailDialog({
   event,
@@ -305,6 +366,8 @@ export function EventDetailDialog({
             </ul>
           </div>
         )}
+
+        <EventActions event={event} />
       </div>
     </div>
   );

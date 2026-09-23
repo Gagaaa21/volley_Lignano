@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { ChevronRight, Dumbbell, Home, MapPin, Plane, Swords } from "lucide-react";
+import { ChevronRight, ChevronUp, Dumbbell, History, Home, MapPin, Plane, Swords } from "lucide-react";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
@@ -27,9 +28,19 @@ export function AgendaList({
   onSelectEvent: (event: CalendarEvent) => void;
   emptyMessage?: string;
 }) {
-  const dates = [...eventsByDate.keys()].sort();
+  const [showPast, setShowPast] = useState(false);
+  const allDates = [...eventsByDate.keys()].sort();
+  const pastDates = allDates.filter(isPastDate);
+  const upcomingDates = allDates.filter((d) => !isPastDate(d));
+  // Solo quando il periodo mostrato contiene sia eventi passati sia futuri
+  // (il mese corrente) ha senso nascondere di default i passati: su un mese
+  // tutto passato o tutto futuro, navigato di proposito, si mostra sempre
+  // tutto, senza alcun interruttore.
+  const hasSplit = pastDates.length > 0 && upcomingDates.length > 0;
+  const dates = hasSplit && !showPast ? upcomingDates : allDates;
+  const pastEventCount = pastDates.reduce((sum, d) => sum + eventsByDate.get(d)!.length, 0);
 
-  if (dates.length === 0) {
+  if (allDates.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border-subtle bg-surface-muted px-6 py-10 text-center text-sm text-foreground/50">
         {emptyMessage}
@@ -39,6 +50,26 @@ export function AgendaList({
 
   return (
     <div className="space-y-6">
+      {hasSplit && (
+        <button
+          type="button"
+          onClick={() => setShowPast((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-foreground/50 transition-colors hover:text-primary"
+        >
+          {showPast ? (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" />
+              Nascondi gli eventi passati
+            </>
+          ) : (
+            <>
+              <History className="h-3.5 w-3.5" />
+              Mostra anche {pastEventCount === 1 ? "l'evento passato" : `i ${pastEventCount} eventi passati`} di
+              questo mese
+            </>
+          )}
+        </button>
+      )}
       {dates.map((dateStr) => {
         const isPast = isPastDate(dateStr);
         return (

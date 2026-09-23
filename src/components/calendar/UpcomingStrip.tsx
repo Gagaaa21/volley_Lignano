@@ -32,7 +32,7 @@ export function UpcomingStrip({
 
   return (
     <>
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="scroll-fade-x flex gap-3 overflow-x-auto pb-1">
         {events.map((event) => {
           const date = parseISO(event.date);
           const isMatch = event.kind === "match";

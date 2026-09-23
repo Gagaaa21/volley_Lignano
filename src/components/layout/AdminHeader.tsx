@@ -196,7 +196,7 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
           )}
         >
           <nav
-            className="nav-rail w-full min-w-0 flex-1"
+            className="nav-rail scroll-fade-x w-full min-w-0 flex-1"
             data-mobile={mobileOpen ? "true" : undefined}
             aria-label="Sezioni area riservata"
           >

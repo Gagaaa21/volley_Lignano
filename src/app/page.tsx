@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import Image from "next/image";
-import { CalendarDays, Dumbbell, ListFilter, Swords, Volleyball, Waves } from "lucide-react";
+import { CalendarDays, CalendarPlus, Dumbbell, ListFilter, Swords, Volleyball, Waves } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
@@ -112,6 +112,13 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               <Waves className="h-4 w-4 shrink-0" />
               Under 14 e Under 15 · Lignano Sabbiadoro
             </p>
+            <a
+              href="/calendario.ics"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/15"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              Aggiungi al calendario
+            </a>
           </div>
 
           {upcoming.length > 0 && (
