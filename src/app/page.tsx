@@ -91,30 +91,30 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     <div className="flex min-h-screen flex-col">
       <PublicHeader />
 
-      <section className="auth-stage relative overflow-hidden text-white">
+      <section className="auth-stage relative overflow-hidden">
         <Image
           src={crest}
           alt=""
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 z-0 h-[26rem] w-[26rem] select-none object-contain opacity-[0.07] sm:-right-16 sm:-top-20 sm:h-[34rem] sm:w-[34rem]"
+          className="pointer-events-none absolute -right-24 -top-24 z-0 h-[26rem] w-[26rem] select-none object-contain opacity-[0.1] sm:-right-16 sm:-top-20 sm:h-[34rem] sm:w-[34rem]"
         />
 
         <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
           <div className="max-w-xl">
-            <p className="eyebrow eyebrow-inverted">
+            <p className="eyebrow">
               <Volleyball className="h-3 w-3" />
               Settore giovanile femminile
             </p>
-            <h1 className="mt-4 font-display text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
+            <h1 className="mt-4 font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl">
               Calendario allenamenti &amp; partite
             </h1>
-            <p className="mt-4 flex items-center gap-2 text-sm text-sea-100/80 sm:text-base">
+            <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground sm:text-base">
               <Waves className="h-4 w-4 shrink-0" />
               Under 14 e Under 15 · Lignano Sabbiadoro
             </p>
             <a
               href="/calendario.ics"
-              className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/15"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-muted"
             >
               <CalendarPlus className="h-4 w-4" />
               Aggiungi al calendario
@@ -123,7 +123,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
           {upcoming.length > 0 && (
             <div className="mt-9">
-              <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-sea-200/80">
+              <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">
                 <CalendarDays className="h-3.5 w-3.5" />
                 Prossimi impegni
               </p>

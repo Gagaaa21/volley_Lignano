@@ -38,20 +38,20 @@ export default function LoginPage() {
             <LoginForm />
           </div>
 
-          <div className="mt-7 space-y-2 text-center text-sea-200/80">
+          <div className="mt-7 space-y-2 text-center text-foreground/50">
             <p className="rule-center">Assistenza</p>
-            <p className="text-xs leading-relaxed text-sea-100/60">
+            <p className="text-xs leading-relaxed text-foreground/45">
               Credenziali dimenticate? Contatta un amministratore del club.
             </p>
-            <p className="pt-2 text-sm text-sea-100/70">
+            <p className="pt-2 text-sm text-foreground/60">
               Sei un genitore o un&apos;atleta?{" "}
-              <Link href="/" className="font-semibold text-white hover:underline">
+              <Link href="/" className="font-semibold text-primary hover:underline">
                 Vai al calendario pubblico
               </Link>
             </p>
           </div>
 
-          <p className="mt-8 flex items-center justify-center gap-2 text-xs text-sea-200/50">
+          <p className="mt-8 flex items-center justify-center gap-2 text-xs text-foreground/35">
             <Waves className="h-3.5 w-3.5" />
             Lignano Sabbiadoro
           </p>

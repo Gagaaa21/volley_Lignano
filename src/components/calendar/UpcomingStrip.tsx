@@ -5,14 +5,17 @@ import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Dumbbell, Swords } from "lucide-react";
 import { eventTime } from "@/lib/calendar";
+import { CATEGORY_BADGE, CATEGORY_DOT, TRAINING_BADGE, TRAINING_DOT } from "@/lib/category";
+import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
 import { EventDetailDialog, type EventAttendance, type EventCallUps, type EventPlan } from "./EventDetailDialog";
 
-function accentColor(event: CalendarEvent) {
-  if (event.kind === "match") {
-    return event.category === "U14" ? "var(--color-u14)" : "var(--color-u15)";
-  }
-  return "var(--color-sand-400)";
+function badgeClass(event: CalendarEvent) {
+  return event.kind === "match" ? CATEGORY_BADGE[event.category] : TRAINING_BADGE;
+}
+
+function dotClass(event: CalendarEvent) {
+  return event.kind === "match" ? CATEGORY_DOT[event.category] : TRAINING_DOT;
 }
 
 export function UpcomingStrip({
@@ -36,34 +39,26 @@ export function UpcomingStrip({
         {events.map((event) => {
           const date = parseISO(event.date);
           const isMatch = event.kind === "match";
-          const accent = accentColor(event);
           return (
             <button
               key={event.id}
               type="button"
               onClick={() => setSelectedEvent(event)}
-              className="relative flex w-[184px] shrink-0 flex-col gap-2.5 overflow-hidden rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-left backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/15"
+              className="relative flex w-[184px] shrink-0 flex-col gap-2.5 overflow-hidden rounded-2xl border border-border-subtle bg-surface px-4 py-3.5 text-left shadow-sm shadow-sea-950/5 transition-colors hover:border-primary/25 hover:bg-primary/[0.03]"
             >
-              <span
-                className="absolute inset-y-0 left-0 w-1"
-                style={{ backgroundColor: accent }}
-                aria-hidden
-              />
+              <span className={cn("absolute inset-y-0 left-0 w-1", dotClass(event))} aria-hidden />
               <div className="flex items-center gap-2">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white"
-                  style={{ backgroundColor: `color-mix(in oklab, ${accent} 45%, transparent)` }}
-                >
+                <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", badgeClass(event))}>
                   {isMatch ? <Swords className="h-3.5 w-3.5" /> : <Dumbbell className="h-3.5 w-3.5" />}
                 </span>
-                <span className="text-xs font-semibold uppercase tracking-wide text-sand-200">
+                <span className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
                   {format(date, "EEE d MMM", { locale: it })}
                 </span>
               </div>
-              <p className="truncate text-sm font-bold text-white">
+              <p className="truncate text-sm font-bold text-foreground">
                 {isMatch ? `vs ${event.opponent}` : "Allenamento"}
               </p>
-              <p className="truncate text-xs text-sea-100/80">
+              <p className="truncate text-xs text-foreground/55">
                 {eventTime(event)} · {event.location}
               </p>
             </button>
