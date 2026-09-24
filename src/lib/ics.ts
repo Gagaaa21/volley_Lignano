@@ -1,3 +1,4 @@
+import { matchTitle } from "@/lib/calendar";
 import type { CalendarEvent } from "@/lib/types";
 
 /** Un evento del calendario dura sempre esattamente quanto sa l'app tranne
@@ -49,7 +50,7 @@ function foldICSLine(line: string): string {
 }
 
 export function eventTitle(event: CalendarEvent): string {
-  return event.kind === "training" ? event.title : `vs ${event.opponent}`;
+  return event.kind === "training" ? event.title : matchTitle(event);
 }
 
 function eventDescription(event: CalendarEvent): string | null {

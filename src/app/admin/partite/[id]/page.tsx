@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { matchTitle } from "@/lib/calendar";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { MatchForm } from "../MatchForm";
@@ -31,7 +32,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
       </LinkButton>
 
       <h1 className="font-display text-2xl font-bold text-foreground">Modifica partita</h1>
-      <p className="mt-1 text-sm text-foreground/60">vs {match.opponent}</p>
+      <p className="mt-1 text-sm text-foreground/60">{matchTitle(match)}</p>
 
       <Card className="mt-6">
         <CardHeader>
@@ -44,7 +45,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
 
       <MatchWorkspace
         matchId={id}
-        opponent={match.opponent}
+        title={matchTitle(match)}
         allAthletes={activeAthletes}
         initialCalledUpIds={match.calledUpAthleteIds}
         initialLineup={lineup}

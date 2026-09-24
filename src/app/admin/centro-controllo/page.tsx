@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bell, Clock, Eye, ListChecks, Shield } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
+import { matchTitle } from "@/lib/calendar";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { OccurrenceVisibilityToggle } from "./OccurrenceVisibilityToggle";
@@ -56,7 +57,7 @@ export default async function CentroControlloPage() {
       activity.push({ type: "Atleta", label: a.fullName, by: null, at: a.updatedAt, kind: "aggiornata" });
   }
   for (const m of matches) {
-    const label = `vs ${m.opponent}`;
+    const label = matchTitle(m);
     activity.push({ type: "Partita", label, by: byName(m.createdBy), at: m.createdAt, kind: "creata" });
     if (m.updatedAt !== m.createdAt)
       activity.push({ type: "Partita", label, by: null, at: m.updatedAt, kind: "aggiornata" });
@@ -85,7 +86,7 @@ export default async function CentroControlloPage() {
   for (const s of staff) {
     activity.push({ type: "Staff", label: s.fullName, by: byName(s.createdBy), at: s.createdAt, kind: "creata" });
   }
-  const matchLabelById = new Map(matches.map((m) => [m.id, `vs ${m.opponent}`] as const));
+  const matchLabelById = new Map(matches.map((m) => [m.id, matchTitle(m)] as const));
   for (const l of lineups) {
     activity.push({
       type: "Formazioni",

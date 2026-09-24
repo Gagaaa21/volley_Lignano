@@ -71,6 +71,10 @@ create table if not exists matches (
   location text not null,
   match_date timestamp not null,
   is_friendly boolean not null default false,
+  -- Torneo/triangolare con più squadre: "opponent" descrive l'evento
+  -- invece di una singola avversaria (niente "vs" anteposto in visualizzazione,
+  -- esclusa dal bilancio stagione).
+  is_tournament boolean not null default false,
   meeting_time time,
   meeting_location text,
   notes text,

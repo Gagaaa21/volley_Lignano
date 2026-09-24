@@ -164,7 +164,7 @@ export function EventDetailDialog({
             </span>
             <div className="min-w-0">
               <p className="truncate font-display text-lg font-bold text-foreground">
-                {isTraining ? event.title : `vs ${event.opponent}`}
+                {eventTitle(event)}
               </p>
               <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <span
@@ -178,6 +178,11 @@ export function EventDetailDialog({
                 {!isTraining && event.isFriendly && (
                   <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
                     Amichevole
+                  </span>
+                )}
+                {!isTraining && event.isTournament && (
+                  <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
+                    Torneo
                   </span>
                 )}
               </span>

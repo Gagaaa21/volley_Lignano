@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
-import { expandTrainings, matchesToEvents, sortEvents } from "@/lib/calendar";
+import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { CardBody } from "@/components/ui/Card";
@@ -228,7 +228,7 @@ export default async function AdminDashboardPage({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate font-semibold text-foreground">
-                          {isTraining ? event.title : `vs ${event.opponent}`}
+                          {isTraining ? event.title : matchTitle(event)}
                         </p>
                         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", badgeClass)}>
                           {isTraining ? "U14 · U15" : CATEGORY_LABELS[event.category]}

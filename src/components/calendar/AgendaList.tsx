@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { ChevronRight, ChevronUp, Dumbbell, History, Home, MapPin, Plane, Swords } from "lucide-react";
+import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
@@ -161,7 +162,7 @@ function EventRow({
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold text-foreground">vs {event.opponent}</p>
+          <p className="font-semibold text-foreground">{matchTitle(event)}</p>
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
@@ -177,6 +178,11 @@ function EventRow({
           {event.isFriendly && (
             <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/50">
               Amichevole
+            </span>
+          )}
+          {event.isTournament && (
+            <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/50">
+              Torneo
             </span>
           )}
           {event.resultSetsWon !== null && event.resultSetsLost !== null && (

@@ -5,6 +5,7 @@ import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { getActiveRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { emptyMatchLineupSets, emptySetLineup } from "@/lib/types";
@@ -207,7 +208,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
-  doc.setTitle(`Formazioni vs ${match.opponent}`);
+  doc.setTitle(`Formazioni ${matchTitle(match)}`);
   doc.setSubject("Riservato allo staff Volley Lignano");
   // I font standard (Helvetica) usano l'encoding WinAnsi e vanno in errore su
   // caratteri accentati o virgolette tipografiche nei nomi/luoghi inseriti
@@ -253,8 +254,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   y -= 52;
   page.drawText(
-    `${CATEGORY_LABELS[match.category]} · ${match.isHome ? "Casa" : "Trasferta"} · vs ${match.opponent}` +
-      (match.isFriendly ? " · Amichevole" : ""),
+    `${CATEGORY_LABELS[match.category]} · ${match.isHome ? "Casa" : "Trasferta"} · ${matchTitle(match)}` +
+      (match.isFriendly ? " · Amichevole" : "") +
+      (match.isTournament ? " · Torneo" : ""),
     { x: MARGIN, y, size: 13, font: fontBold, color: INK },
   );
   y -= 16;

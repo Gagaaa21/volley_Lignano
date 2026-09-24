@@ -12,13 +12,13 @@ import type { Athlete, MatchLineup } from "@/lib/types";
  * rende più spaziosa e pulita da usare. */
 export function MatchWorkspace({
   matchId,
-  opponent,
+  title,
   allAthletes,
   initialCalledUpIds,
   initialLineup,
 }: {
   matchId: string;
-  opponent: string;
+  title: string;
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
@@ -50,7 +50,7 @@ export function MatchWorkspace({
       {open && (
         <CallUpsAndLineupsDialog
           matchId={matchId}
-          opponent={opponent}
+          title={title}
           allAthletes={allAthletes}
           initialCalledUpIds={initialCalledUpIds}
           initialLineup={initialLineup}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Dumbbell, Swords } from "lucide-react";
-import { eventTime } from "@/lib/calendar";
+import { eventTime, matchTitle } from "@/lib/calendar";
 import { CATEGORY_BADGE, CATEGORY_DOT, TRAINING_BADGE, TRAINING_DOT } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
@@ -56,7 +56,7 @@ export function UpcomingStrip({
                 </span>
               </div>
               <p className="truncate text-sm font-bold text-foreground">
-                {isMatch ? `vs ${event.opponent}` : "Allenamento"}
+                {isMatch ? matchTitle(event) : "Allenamento"}
               </p>
               <p className="truncate text-xs text-foreground/55">
                 {eventTime(event)} · {event.location}

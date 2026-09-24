@@ -7,8 +7,9 @@ import { PublicFooter } from "@/components/layout/PublicFooter";
 import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
 import { MonthNav } from "@/components/calendar/MonthNav";
+import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
 import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
-import { getPublicCalendarData } from "@/lib/publicCalendarData";
+import { getPublicCalendarData, getPublicSeasonRecord } from "@/lib/publicCalendarData";
 import {
   expandTrainings,
   getMonthGridRange,
@@ -37,8 +38,13 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
-  const { trainings, matches, occurrencePlans, plans, blocks, attendance, callUpsByMatchId } =
-    await getPublicCalendarData(startStr, endStr, activeCategory === "all" ? undefined : activeCategory);
+  const [
+    { trainings, matches, occurrencePlans, plans, blocks, attendance, callUpsByMatchId },
+    seasonRecord,
+  ] = await Promise.all([
+    getPublicCalendarData(startStr, endStr, activeCategory === "all" ? undefined : activeCategory),
+    getPublicSeasonRecord(),
+  ]);
 
   const occurrencePlanIds = new Map(
     occurrencePlans
@@ -161,6 +167,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             attendanceByEventId={attendanceByEventId}
             callUpsByEventId={callUpsByEventId}
           />
+
+          <SeasonRecordSection records={seasonRecord} />
 
           <div className="mt-10">
             <p className="eyebrow">

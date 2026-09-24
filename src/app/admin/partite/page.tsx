@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Home, MapPin, Pencil, Plane, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { matchTitle } from "@/lib/calendar";
 import { formatDateLong } from "@/lib/format";
 import { CATEGORY_BADGE, CATEGORY_LABELS } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -81,6 +82,9 @@ export default async function MatchesListPage({
                       {match.isFriendly && (
                         <Badge className="bg-foreground/8 text-foreground/60">Amichevole</Badge>
                       )}
+                      {match.isTournament && (
+                        <Badge className="bg-foreground/8 text-foreground/60">Torneo</Badge>
+                      )}
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/50">
                         {match.isHome ? <Home className="h-3.5 w-3.5" /> : <Plane className="h-3.5 w-3.5" />}
                         {match.isHome ? "Casa" : "Trasferta"}
@@ -101,7 +105,7 @@ export default async function MatchesListPage({
                       )}
                     </div>
                     <p className="mt-1.5 font-display text-base font-bold text-foreground">
-                      vs {match.opponent}
+                      {matchTitle(match)}
                     </p>
                     <p className="mt-1 text-sm text-foreground/60">
                       {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
@@ -125,7 +129,7 @@ export default async function MatchesListPage({
                     <form action={deleteMatchAction}>
                       <input type="hidden" name="id" value={match.id} />
                       <ConfirmSubmitButton
-                        confirmMessage={`Eliminare la partita vs ${match.opponent}?`}
+                        confirmMessage={`Eliminare la partita ${matchTitle(match)}?`}
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:bg-destructive/8"

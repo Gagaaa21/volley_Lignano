@@ -77,3 +77,49 @@ export const getPublicCalendarData = unstable_cache(
   ["public-calendar-data"],
   { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
 );
+
+export interface SeasonRecord {
+  category: Category;
+  played: number;
+  wins: number;
+  losses: number;
+  setsWon: number;
+  setsLost: number;
+}
+
+/**
+ * Bilancio stagione (vittorie/sconfitte) per categoria, su tutte le
+ * partite di campionato giocate finora — amichevoli e tornei esclusi:
+ * per un torneo con più squadre un singolo "vinta/persa" non avrebbe
+ * senso, ed è comunque un dato informale, non ufficiale. Guarda a tutta
+ * la stagione (nessun intervallo di date), quindi resta una cache a
+ * parte da getPublicCalendarData, che invece è sempre legata al mese
+ * visibile nel calendario.
+ */
+export const getPublicSeasonRecord = unstable_cache(
+  async (): Promise<SeasonRecord[]> => {
+    const repo = await getRepo();
+    const matches = await repo.listMatches();
+
+    const byCategory: Record<Category, SeasonRecord> = {
+      U14: { category: "U14", played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0 },
+      U15: { category: "U15", played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0 },
+    };
+
+    for (const match of matches) {
+      if (match.isFriendly || match.isTournament) continue;
+      if (match.resultSetsWon === null || match.resultSetsLost === null) continue;
+
+      const record = byCategory[match.category];
+      record.played += 1;
+      record.setsWon += match.resultSetsWon;
+      record.setsLost += match.resultSetsLost;
+      if (match.resultSetsWon > match.resultSetsLost) record.wins += 1;
+      else record.losses += 1;
+    }
+
+    return Object.values(byCategory);
+  },
+  ["public-season-record"],
+  { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
+);

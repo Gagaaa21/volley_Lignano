@@ -69,6 +69,12 @@ export interface Match {
   matchDate: string; // ISO datetime
   /** Amichevole invece che di campionato. */
   isFriendly: boolean;
+  /** Torneo/triangolare con più squadre coinvolte: "opponent" descrive
+   * l'evento invece di una singola avversaria, quindi in visualizzazione
+   * non va anteposto "vs" (vedi matchTitle in lib/calendar.ts). Esclusa
+   * dal bilancio stagione allo stesso modo delle amichevoli: un
+   * risultato vinta/persa contro una singola squadra non ha senso qui. */
+  isTournament: boolean;
   /** Orario di ritrovo, se diverso dall'orario della partita. */
   meetingTime: string | null; // "HH:MM"
   /** Luogo di ritrovo, se diverso dal luogo della partita. */
@@ -262,6 +268,7 @@ export type CalendarEvent =
       isHome: boolean;
       location: string;
       isFriendly: boolean;
+      isTournament: boolean;
       meetingTime: string | null;
       meetingLocation: string | null;
       notes: string | null;

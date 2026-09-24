@@ -29,14 +29,14 @@ function SubmitButton() {
  * alla pagina partita. */
 export function CallUpsAndLineupsDialog({
   matchId,
-  opponent,
+  title,
   allAthletes,
   initialCalledUpIds,
   initialLineup,
   onClose,
 }: {
   matchId: string;
-  opponent: string;
+  title: string;
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
@@ -85,7 +85,7 @@ export function CallUpsAndLineupsDialog({
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div className="min-w-0">
             <p className="font-display text-lg font-bold text-foreground">Convocazioni e formazioni</p>
-            <p className="truncate text-sm text-foreground/55">vs {opponent}</p>
+            <p className="truncate text-sm text-foreground/55">{title}</p>
           </div>
           <button
             type="button"

@@ -1,4 +1,5 @@
 import { Dumbbell, Home, Plane } from "lucide-react";
+import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
@@ -28,7 +29,7 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
       type="button"
       onClick={onSelect}
       className={cn(pillClass, CATEGORY_BADGE[event.category])}
-      title={`${event.time} · ${event.category} ${event.isHome ? "in casa" : "in trasferta"} vs ${event.opponent} · ${event.location}`}
+      title={`${event.time} · ${event.category} ${event.isHome ? "in casa" : "in trasferta"} · ${matchTitle(event)} · ${event.location}`}
     >
       {event.isHome ? (
         <Home className="h-2.5 w-2.5 shrink-0" />

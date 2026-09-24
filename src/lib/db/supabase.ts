@@ -47,6 +47,7 @@ type MatchRow = {
   location: string;
   match_date: string;
   is_friendly: boolean;
+  is_tournament: boolean;
   meeting_time: string | null;
   meeting_location: string | null;
   notes: string | null;
@@ -114,6 +115,7 @@ function matchFromRow(row: MatchRow): Match {
     location: row.location,
     matchDate: row.match_date,
     isFriendly: row.is_friendly,
+    isTournament: row.is_tournament,
     meetingTime: row.meeting_time ? row.meeting_time.slice(0, 5) : null,
     meetingLocation: row.meeting_location,
     notes: row.notes,
@@ -135,6 +137,7 @@ function matchToRow(input: MatchInput) {
     location: input.location,
     match_date: input.matchDate,
     is_friendly: input.isFriendly,
+    is_tournament: input.isTournament,
     meeting_time: input.meetingTime,
     meeting_location: input.meetingLocation,
     notes: input.notes,

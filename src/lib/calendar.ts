@@ -102,6 +102,7 @@ export function matchesToEvents(matches: Match[]): CalendarEvent[] {
     isHome: m.isHome,
     location: m.location,
     isFriendly: m.isFriendly,
+    isTournament: m.isTournament,
     meetingTime: m.meetingTime,
     meetingLocation: m.meetingLocation,
     notes: m.notes,
@@ -113,6 +114,18 @@ export function matchesToEvents(matches: Match[]): CalendarEvent[] {
 
 export function eventTime(event: CalendarEvent): string {
   return event.kind === "training" ? event.startTime : event.time;
+}
+
+/**
+ * Titolo di una partita: "vs {avversaria}" nel caso comune, ma senza
+ * anteporre "vs" quando è un torneo/triangolare — lì "opponent" descrive
+ * l'evento ("Triangolare con Latisana e Concordia"), non una singola
+ * squadra, quindi "vs" davanti non avrebbe senso grammaticale. Un'unica
+ * funzione condivisa da tutti i punti del sito che mostrano il nome di una
+ * partita, invece di ripetere la stessa concatenazione ovunque.
+ */
+export function matchTitle(match: { opponent: string; isTournament: boolean }): string {
+  return match.isTournament ? match.opponent : `vs ${match.opponent}`;
 }
 
 export function sortEvents(events: CalendarEvent[]): CalendarEvent[] {

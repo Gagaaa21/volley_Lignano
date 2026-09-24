@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +30,7 @@ const MAX_SETS = 5;
 
 export function MatchForm({ match }: { match?: Match }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
+  const [isTournament, setIsTournament] = useState(match?.isTournament ?? false);
   const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
 
   return (
@@ -45,14 +46,20 @@ export function MatchForm({ match }: { match?: Match }) {
       </div>
 
       <div>
-        <Label htmlFor="opponent">Squadra avversaria</Label>
+        <Label htmlFor="opponent">{isTournament ? "Torneo / squadre coinvolte" : "Squadra avversaria"}</Label>
         <Input
           id="opponent"
           name="opponent"
           defaultValue={match?.opponent}
-          placeholder="Es. Pallavolo Udine"
+          placeholder={isTournament ? "Es. Triangolare con Latisana e Concordia" : "Es. Pallavolo Udine"}
           required
         />
+        {isTournament && (
+          <FieldHint>
+            Scrivi il nome del torneo o le squadre coinvolte: verrà mostrato così com&apos;è, senza
+            anteporre &quot;vs&quot;.
+          </FieldHint>
+        )}
       </div>
 
       <div>
@@ -89,6 +96,17 @@ export function MatchForm({ match }: { match?: Match }) {
           className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
         />
         Amichevole (non di campionato)
+      </label>
+
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm font-medium text-foreground/85">
+        <input
+          type="checkbox"
+          name="isTournament"
+          checked={isTournament}
+          onChange={(e) => setIsTournament(e.target.checked)}
+          className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+        />
+        Torneo (più squadre coinvolte, es. triangolare)
       </label>
 
       <div>

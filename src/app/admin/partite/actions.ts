@@ -17,6 +17,7 @@ const schema = z.object({
   opponent: z.string().min(1, "Inserisci il nome della squadra avversaria."),
   isHome: z.boolean(),
   isFriendly: z.boolean(),
+  isTournament: z.boolean(),
   location: z.string().min(1, "Inserisci il luogo della partita."),
   matchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Inserisci data e ora della partita."),
   meetingTime: z
@@ -104,12 +105,29 @@ function matchScheduleLabel(matchDate: string, location: string): string {
   return `${formatDateLong(date)}, ${time} · ${location}`;
 }
 
+/** Riga sintetica per le notifiche push: "vs"/"@" indica casa/trasferta,
+ * ma per un torneo (dove "opponent" descrive l'evento, non un'unica
+ * avversaria) quella sigla non avrebbe senso — si mostra solo il testo. */
+function matchupLabel(input: {
+  category: "U14" | "U15";
+  opponent: string;
+  isHome: boolean;
+  isFriendly: boolean;
+  isTournament: boolean;
+}): string {
+  const prefix = input.isFriendly ? "Amichevole " : "";
+  const categoryLabel = CATEGORY_LABELS[input.category];
+  if (input.isTournament) return `${prefix}${categoryLabel} · ${input.opponent}`;
+  return `${prefix}${categoryLabel} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
+}
+
 function parseMatchForm(formData: FormData) {
   return schema.safeParse({
     category: formData.get("category")?.toString(),
     opponent: formData.get("opponent")?.toString().trim() ?? "",
     isHome: formData.get("isHome") === "home",
     isFriendly: formData.get("isFriendly") === "on",
+    isTournament: formData.get("isTournament") === "on",
     location: formData.get("location")?.toString().trim() ?? "",
     matchDate: formData.get("matchDate")?.toString() ?? "",
     meetingTime: formData.get("meetingTime")?.toString() ?? "",
@@ -152,6 +170,7 @@ export async function saveMatchAction(
     opponent: parsed.data.opponent,
     isHome: parsed.data.isHome,
     isFriendly: parsed.data.isFriendly,
+    isTournament: parsed.data.isTournament,
     location: parsed.data.location,
     matchDate: parsed.data.matchDate,
     meetingTime: parsed.data.meetingTime,
@@ -163,7 +182,7 @@ export async function saveMatchAction(
     resultSetsLost: result.resultSetsLost,
   };
 
-  const matchup = `${input.isFriendly ? "Amichevole " : ""}${CATEGORY_LABELS[input.category]} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
+  const matchup = matchupLabel(input);
   const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
   if (id) {
     await repo.updateMatch(id, input);
@@ -199,7 +218,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   const match = await repo.getMatch(id);
   await repo.deleteMatch(id);
   if (match) {
-    const matchup = `${CATEGORY_LABELS[match.category]} ${match.isHome ? "vs" : "@"} ${match.opponent}`;
+    const matchup = matchupLabel(match);
     await notifyCalendarChange({
       title: "Partita eliminata",
       body: `${matchup} · ${matchScheduleLabel(match.matchDate, match.location)} · non è più in calendario.`,
@@ -312,6 +331,7 @@ export async function saveCallUpsAndLineupAction(
     opponent: match.opponent,
     isHome: match.isHome,
     isFriendly: match.isFriendly,
+    isTournament: match.isTournament,
     location: match.location,
     matchDate: match.matchDate,
     meetingTime: match.meetingTime,
