@@ -16,18 +16,39 @@ const display = Libre_Baskerville({
   weight: ["400", "700"],
 });
 
+const SITE_URL = "https://volley-lignano.vercel.app";
+const SITE_TITLE = "Volley Lignano";
+const SITE_DESCRIPTION =
+  "Calendario ufficiale di allenamenti e partite delle squadre femminili Under 14 e Under 15 di Volley Lignano.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Volley Lignano",
+    default: SITE_TITLE,
     template: "%s · Volley Lignano",
   },
-  description:
-    "Calendario ufficiale di allenamenti e partite delle squadre femminili Under 14 e Under 15 di Volley Lignano.",
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Volley Lignano",
+  },
+  // Anteprima quando un link al sito viene condiviso (es. il tasto
+  // "Condividi" di un evento, che condivide sempre l'indirizzo principale):
+  // senza questi tag l'anteprima su WhatsApp/social sarebbe vuota.
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_TITLE,
+    locale: "it_IT",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
 };
 
