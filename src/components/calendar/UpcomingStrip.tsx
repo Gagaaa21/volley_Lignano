@@ -42,7 +42,7 @@ export function UpcomingStrip({
               key={event.id}
               type="button"
               onClick={() => setSelectedEvent(event)}
-              className="relative flex min-w-[184px] shrink-0 flex-col gap-2.5 overflow-hidden rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-left backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/15"
+              className="relative flex w-[184px] shrink-0 flex-col gap-2.5 overflow-hidden rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-left backdrop-blur-sm transition-colors hover:border-white/30 hover:bg-white/15"
             >
               <span
                 className="absolute inset-y-0 left-0 w-1"
