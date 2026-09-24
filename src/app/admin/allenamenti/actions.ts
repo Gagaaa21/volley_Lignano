@@ -69,6 +69,7 @@ export async function saveTrainingAction(
   }
 
   const id = formData.get("id")?.toString();
+  const notify = formData.get("notify") === "on";
   const isOnce = parsed.data.repeat === "once";
   const repo = await getActiveRepo();
 
@@ -91,18 +92,22 @@ export async function saveTrainingAction(
 
   if (id) {
     await repo.updateTraining(id, input);
-    await notifyCalendarChange({
-      title: "Allenamento modificato",
-      body: `${input.title} · ${scheduleLabel} · ${input.location}`,
-      url: "/",
-    });
+    if (notify) {
+      await notifyCalendarChange({
+        title: "Allenamento modificato",
+        body: `${input.title} · ${scheduleLabel} · ${input.location}`,
+        url: "/",
+      });
+    }
   } else {
     await repo.createTraining(input, session.sub);
-    await notifyCalendarChange({
-      title: "Allenamento creato",
-      body: `${input.title} · ${scheduleLabel} · ${input.location}`,
-      url: "/",
-    });
+    if (notify) {
+      await notifyCalendarChange({
+        title: "Allenamento creato",
+        body: `${input.title} · ${scheduleLabel} · ${input.location}`,
+        url: "/",
+      });
+    }
   }
 
   revalidatePath("/admin/allenamenti");

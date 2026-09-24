@@ -161,6 +161,7 @@ export async function saveMatchAction(
   }
 
   const id = formData.get("id")?.toString();
+  const notify = formData.get("notify") === "on";
   const repo = await getActiveRepo();
   // Le convocazioni si gestiscono solo dalla finestra "Convocazioni e
   // formazioni": qui si preserva il valore esistente invece di azzerarlo.
@@ -186,22 +187,26 @@ export async function saveMatchAction(
   const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
   if (id) {
     await repo.updateMatch(id, input);
-    const resultLabel =
-      input.resultSetsWon !== null && input.resultSetsLost !== null
-        ? ` · Risultato ${input.resultSetsWon}-${input.resultSetsLost}`
-        : "";
-    await notifyCalendarChange({
-      title: "Partita modificata",
-      body: `${matchup} · ${scheduleLabel}${resultLabel}`,
-      url: "/",
-    });
+    if (notify) {
+      const resultLabel =
+        input.resultSetsWon !== null && input.resultSetsLost !== null
+          ? ` · Risultato ${input.resultSetsWon}-${input.resultSetsLost}`
+          : "";
+      await notifyCalendarChange({
+        title: "Partita modificata",
+        body: `${matchup} · ${scheduleLabel}${resultLabel}`,
+        url: "/",
+      });
+    }
   } else {
     await repo.createMatch(input, session.sub);
-    await notifyCalendarChange({
-      title: "Partita creata",
-      body: `${matchup} · ${scheduleLabel}`,
-      url: "/",
-    });
+    if (notify) {
+      await notifyCalendarChange({
+        title: "Partita creata",
+        body: `${matchup} · ${scheduleLabel}`,
+        url: "/",
+      });
+    }
   }
 
   revalidatePath("/admin/partite");
