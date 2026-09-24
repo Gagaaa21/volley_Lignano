@@ -294,6 +294,7 @@ alter table matches add column if not exists called_up_athlete_ids uuid[] not nu
 alter table training_occurrence_plans add column if not exists is_public boolean not null default false;
 
 alter table matches add column if not exists is_friendly boolean not null default false;
+alter table matches add column if not exists is_tournament boolean not null default false;
 alter table matches add column if not exists meeting_time time;
 alter table matches add column if not exists meeting_location text;
 alter table matches add column if not exists set_scores jsonb;
