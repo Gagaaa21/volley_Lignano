@@ -47,6 +47,10 @@ export async function saveBlockAction(
   if (id) {
     await repo.updateTrainingBlock(id, input);
     revalidatePath("/admin/schede");
+    if (planId) {
+      revalidatePath(`/admin/schede/${planId}`);
+      redirect(`/admin/schede/${planId}`);
+    }
     redirect("/admin/schede/blocchi");
   }
 

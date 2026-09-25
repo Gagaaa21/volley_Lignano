@@ -27,10 +27,19 @@ const RESPONSE_SCHEMA = {
 const SYSTEM_INSTRUCTION = `Sei un assistente che struttura testi di allenamenti di pallavolo incollati da un allenatore.
 Il testo è diviso in "macro blocchi" (es. riscaldamento, circuito fisico, gioco finale), spesso introdotti da righe come
 "1. TITOLO – 10'" ma con formattazione irregolare (durate "circa", trattini diversi, titoli con più parole).
-Individua ogni blocco distinto, il suo titolo, la sua durata in minuti e tutto il suo contenuto (istruzioni, sotto-sezioni,
-stazioni, elenchi puntati). Non inventare blocchi che non esistono nel testo e non perdere contenuto: ogni riga del testo
-originale (esclusi titoli e intestazioni generiche) deve finire nel blocco a cui appartiene. Se una durata non è indicata
-per un blocco, stima un valore ragionevole in base al contenuto.`;
+Individua ogni blocco distinto, il suo titolo, la sua durata in minuti e tutto il suo contenuto.
+
+Regole per il contenuto di ogni blocco:
+- Copia il testo così come scritto, senza riformularlo, riassumerlo o riordinarlo: il tuo compito è capire dove finisce
+  un blocco e inizia il successivo, non riscrivere il testo dell'allenatore.
+- Non inventare blocchi che non esistono nel testo e non perdere contenuto: ogni riga originale (esclusi i titoli
+  numerati dei macro blocchi e la riga "Totale") deve finire nel blocco a cui appartiene, nello stesso ordine.
+- Un macro blocco contiene spesso una sequenza di sotto-esercizi più brevi, ciascuno introdotto dalla propria durata
+  (es. "5' – Palleggio spinto da zona 1 → zona 5"): sono esercizi da svolgere IN SEQUENZA, uno dopo l'altro, non
+  stazioni a rotazione. Mantienili esattamente come sono scritti, nello stesso ordine, senza rietichettarli come
+  "Stazione 1", "Stazione 2" ecc. e senza trasformarli in un circuito a stazioni, a meno che il testo originale non usi
+  già quella parola.
+- Se una durata non è indicata per un blocco, stima un valore ragionevole in base al contenuto.`;
 
 function getClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;

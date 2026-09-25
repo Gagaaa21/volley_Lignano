@@ -10,6 +10,7 @@ import {
   Clock,
   Globe,
   Lock,
+  Pencil,
   Plus,
   Puzzle,
   X,
@@ -176,6 +177,13 @@ export default async function TrainingPlanDetailPage({
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    <Link
+                      href={`/admin/schede/blocchi/${block.id}?planId=${plan.id}`}
+                      aria-label="Modifica blocco"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-surface-muted"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Link>
                     <form action={reorderPlanBlockAction}>
                       <input type="hidden" name="planId" value={plan.id} />
                       <input type="hidden" name="blockId" value={block.id} />
