@@ -2,13 +2,15 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import type { CourtPosition } from "@/lib/types";
 
-/** Fila vicino alla rete: 4-3-2. Fila sul fondo campo: 5-6-1 — stesso
- * ordine di Partite → Formazioni (VolleyCourt.tsx), qui però in
- * orizzontale: un unico campo continuo con la rete sottile al centro e il
- * fondo campo di ciascuna squadra sul bordo esterno (sinistro o destro),
- * come un vero campo visto dall'alto durante un allenamento a due squadre. */
-const NET_ROW: CourtPosition[] = [4, 3, 2];
-const BASELINE_ROW: CourtPosition[] = [5, 6, 1];
+/** Fila vicino alla rete: 2-3-4 dall'alto in basso. Fila sul fondo campo:
+ * 1-6-5 dall'alto in basso — verificato sullo schema di rotazione reale
+ * (posizione 1 e 2 sulla stessa fiancata di destra, 4 e 5 su quella di
+ * sinistra, 3 e 6 al centro): un unico campo continuo in orizzontale con
+ * la rete sottile al centro e il fondo campo di ciascuna squadra sul
+ * bordo esterno (sinistro o destro), come un vero campo visto dall'alto
+ * durante un allenamento a due squadre. */
+const NET_ROW: CourtPosition[] = [2, 3, 4];
+const BASELINE_ROW: CourtPosition[] = [1, 6, 5];
 
 /** Le sei posizioni di una metà campo, in ordine di lettura riga per riga
  * di una griglia 2 colonne × 3 righe: colonna vicina al centro (rete) e
@@ -35,13 +37,13 @@ function HalfCourt({
 }) {
   const order = halfCourtOrder(side);
   return (
-    <div className="grid flex-1 grid-cols-2 grid-rows-3 gap-px bg-white/70">
+    <div className={cn("grid flex-1 grid-cols-2 grid-rows-3 gap-px bg-white/70", large && "h-full")}>
       {order.map((position, idx) => (
         <div
           key={position}
           className={cn(
-            "relative flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-sand-300 to-sand-400 px-2 py-4 text-center transition-[min-height] duration-200",
-            large ? "min-h-28 py-6 sm:min-h-40 sm:py-9" : "min-h-20 sm:min-h-24 sm:py-5",
+            "relative flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-sand-300 to-sand-400 px-2 text-center transition-[min-height] duration-200",
+            large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
             idx % 2 === 0 && "border-r-2 border-dashed border-white/70",
           )}
         >
@@ -65,7 +67,7 @@ function HalfCourt({
  * — come un'etichetta di quota su una pianta. */
 function EndLabel({ text, large }: { text: string; large: boolean }) {
   return (
-    <div className={cn("flex shrink-0 items-center justify-center", large ? "w-8 sm:w-10" : "w-6 sm:w-7")}>
+    <div className={cn("flex shrink-0 items-center justify-center", large ? "h-full w-8 sm:w-10" : "w-6 sm:w-7")}>
       <span
         className={cn(
           "origin-center -rotate-90 whitespace-nowrap font-bold uppercase tracking-[0.18em] text-sea-100/55",
@@ -100,13 +102,18 @@ export function DualLiveScoreCourt({
     <div
       className={cn(
         "rounded-2xl border border-border-subtle bg-gradient-to-b from-sea-800 to-sea-950 shadow-xl shadow-sea-950/25",
-        large ? "p-4 sm:p-6" : "p-3 sm:p-4",
+        large ? "flex min-h-0 flex-1 flex-col p-4 sm:p-6" : "p-3 sm:p-4",
       )}
     >
-      <div className="flex items-stretch">
+      <div className={cn("flex items-stretch", large && "min-h-0 flex-1")}>
         <EndLabel text="Fondo campo" large={large} />
 
-        <div className="relative flex flex-1 overflow-hidden rounded-lg border-2 border-white/90 shadow-inner">
+        <div
+          className={cn(
+            "relative flex flex-1 overflow-hidden rounded-lg border-2 border-white/90 shadow-inner",
+            large && "min-h-0",
+          )}
+        >
           <HalfCourt side="left" renderCell={renderCellA} large={large} />
           <HalfCourt side="right" renderCell={renderCellB} large={large} />
 

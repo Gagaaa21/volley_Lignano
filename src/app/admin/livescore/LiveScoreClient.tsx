@@ -371,7 +371,7 @@ function ScoreCard({
     <div
       className={cn(
         "rounded-2xl border bg-gradient-to-b from-surface to-muted/30 text-center shadow-md transition-shadow",
-        large ? "p-6 sm:p-8" : "p-4",
+        large ? "p-3 sm:p-4" : "p-4",
         isServing ? "border-primary/40 shadow-primary/10" : "border-border-subtle",
       )}
     >
@@ -381,33 +381,33 @@ function ScoreCard({
           onChange={(e) => onLabelChange(e.target.value)}
           className={cn(
             "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-foreground/55 outline-none focus:text-foreground",
-            large ? "text-base sm:text-lg" : "text-xs",
+            large ? "text-sm sm:text-base" : "text-xs",
           )}
         />
         {isServing && (
           <span
             className={cn(
               "inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 font-bold uppercase tracking-wide text-primary",
-              large ? "px-2.5 py-1 text-xs" : "px-1.5 py-0.5 text-[9px]",
+              large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
             )}
           >
-            <Volleyball className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
+            <Volleyball className={large ? "h-3 w-3" : "h-2.5 w-2.5"} />
             Al servizio
           </span>
         )}
       </div>
       <p
         className={cn(
-          "font-display font-bold tabular-nums text-foreground",
-          large ? "mt-2 text-8xl sm:text-9xl" : "mt-1.5 text-5xl sm:text-6xl",
+          "font-display font-bold leading-none tabular-nums text-foreground",
+          large ? "mt-1 text-6xl sm:text-7xl" : "mt-1.5 text-5xl sm:text-6xl",
         )}
       >
         {team.score}
       </p>
-      <p className={cn("font-medium text-muted-foreground", large ? "mt-2 text-base" : "mt-1 text-xs")}>
+      <p className={cn("font-medium text-muted-foreground", large ? "mt-1 text-xs sm:text-sm" : "mt-1 text-xs")}>
         Set vinti: {team.setsWon}
       </p>
-      <Button onClick={onPoint} size="lg" className={cn("mt-3 w-full", large && "sm:text-lg")}>
+      <Button onClick={onPoint} size={large ? "md" : "lg"} className={cn("w-full", large ? "mt-1.5" : "mt-3")}>
         Punto {team.label}
       </Button>
     </div>
@@ -606,11 +606,16 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
         ref={stageRef}
         className={cn(
           "hidden sm:block",
-          isFullscreen && "min-h-screen overflow-y-auto bg-background px-6 py-8 sm:px-10 sm:py-10",
+          isFullscreen &&
+            "h-screen w-screen overflow-y-auto bg-background p-4 sm:p-6",
         )}
       >
-        <div className={cn(isFullscreen && "mx-auto max-w-[1700px]")}>
-          <div className="mb-3 flex justify-end">
+        <div
+          className={cn(
+            isFullscreen && "mx-auto flex h-full max-w-[1700px] flex-col gap-2.5",
+          )}
+        >
+          <div className="flex shrink-0 justify-end">
             <Button variant="outline" size="sm" onClick={toggleFullscreen}>
               {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
               {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
@@ -669,14 +674,23 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </Button>
           </div>
         ) : (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-2.5" : "space-y-5")}>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="eyebrow">
-                  <Volleyball className="h-3 w-3" />
-                  Live score
-                </p>
-                <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">In campo</h1>
+                {!isFullscreen && (
+                  <p className="eyebrow">
+                    <Volleyball className="h-3 w-3" />
+                    Live score
+                  </p>
+                )}
+                <h1
+                  className={cn(
+                    "font-display font-bold text-foreground",
+                    isFullscreen ? "text-xl" : "mt-1.5 text-2xl",
+                  )}
+                >
+                  In campo
+                </h1>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => dispatch({ type: "toggleSides" })}>
@@ -695,13 +709,13 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </div>
 
             {matchWinner && (
-              <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-center text-sm font-bold text-primary">
+              <div className="shrink-0 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-center text-sm font-bold text-primary">
                 🏆 {match[teamKeyProp(matchWinner)].label} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
                 {match[teamKeyProp(otherKey(matchWinner))].setsWon})
               </div>
             )}
 
-            <div className="grid gap-3.5 sm:grid-cols-2">
+            <div className="grid shrink-0 gap-3.5 sm:grid-cols-2">
               <ScoreCard
                 team={leftTeam}
                 isServing={match.servingTeam === leftKey}
@@ -718,7 +732,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               />
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
               <Button variant="outline" onClick={() => dispatch({ type: "closeSet" })} disabled={tied}>
                 Chiudi set
               </Button>
@@ -728,7 +742,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </Button>
             </div>
             {tied && (
-              <p className="-mt-2 text-center text-xs text-muted-foreground">
+              <p className="-mt-2 shrink-0 text-center text-xs text-muted-foreground">
                 Il punteggio è pari: continua a giocare prima di chiudere il set.
               </p>
             )}
@@ -740,12 +754,12 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             />
 
             {editingNames ? (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid shrink-0 gap-4 sm:grid-cols-2">
                 <LiberoFields team={leftTeam} teamKey={leftKey} idPrefix={`${leftKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
                 <LiberoFields team={rightTeam} teamKey={rightKey} idPrefix={`${rightKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
               </div>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid shrink-0 gap-2 sm:grid-cols-2">
                 <LiberoStatus team={leftTeam} />
                 <LiberoStatus team={rightTeam} />
               </div>
