@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { FlaskConical, LogOut } from "lucide-react";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, activeTeam, getOwnStaff } from "@/lib/auth/guard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
-import { isDemoMode, getActiveRepo } from "@/lib/db";
+import { isDemoMode } from "@/lib/db";
 import { exitTestModeAction } from "@/app/admin/test-mode/actions";
 import { ADMIN_PAGES, TEAMS } from "@/lib/types";
 
@@ -13,8 +13,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let allowedPages = ADMIN_PAGES;
   let allowedTeams = TEAMS;
   if (session.role !== "dev") {
-    const repo = await getActiveRepo();
-    const staff = await repo.getStaffById(session.sub);
+    const staff = await getOwnStaff(session.sub);
     allowedPages = staff?.allowedPages ?? [];
     allowedTeams = staff?.allowedTeams ?? TEAMS;
   }

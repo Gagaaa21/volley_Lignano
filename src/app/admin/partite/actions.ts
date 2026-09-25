@@ -170,66 +170,79 @@ export async function saveMatchAction(
 
   const id = formData.get("id")?.toString();
   const notify = formData.get("notify") === "on";
-  const repo = await getActiveRepo();
-  // Le convocazioni si gestiscono solo dalla finestra "Convocazioni e
-  // formazioni": qui si preserva il valore esistente invece di azzerarlo.
-  // La squadra di una partita esistente non cambia mai in modifica (il campo
-  // "team" nel form è nascosto e riflette quella già salvata).
-  const existing = id ? await repo.getMatch(id) : null;
-  const team = existing?.team ?? parsed.data.team;
-  const input: MatchInput = {
-    team,
-    category: team === "u14u15" ? (parsed.data.category as "U14" | "U15") : null,
-    opponent: parsed.data.opponent,
-    isHome: parsed.data.isHome,
-    isFriendly: parsed.data.isFriendly,
-    isTournament: parsed.data.isTournament,
-    location: parsed.data.location,
-    matchDate: parsed.data.matchDate,
-    meetingTime: parsed.data.meetingTime,
-    meetingLocation: parsed.data.meetingLocation ?? null,
-    notes: parsed.data.notes ?? null,
-    calledUpAthleteIds: existing?.calledUpAthleteIds ?? [],
-    setScores: result.setScores,
-    resultSetsWon: result.resultSetsWon,
-    resultSetsLost: result.resultSetsLost,
-  };
 
-  const matchup = matchupLabel(input);
-  const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
-  if (id) {
-    await repo.updateMatch(id, input);
-    if (notify) {
-      const resultLabel =
-        input.resultSetsWon !== null && input.resultSetsLost !== null
-          ? ` · Risultato ${input.resultSetsWon}-${input.resultSetsLost}`
-          : "";
-      await notifyCalendarChange(
-        {
-          title: "Partita modificata",
-          body: `${matchup} · ${scheduleLabel}${resultLabel}`,
-          url: team === "minivolley" ? "/minivolley" : "/",
-        },
-        team,
-      );
+  // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
+  // quanto digitato: si torna al form con un messaggio invece di lasciar
+  // risalire l'eccezione (che smonterebbe il form senza un error.tsx
+  // dedicato).
+  try {
+    const repo = await getActiveRepo();
+    // Le convocazioni si gestiscono solo dalla finestra "Convocazioni e
+    // formazioni": qui si preserva il valore esistente invece di azzerarlo.
+    // La squadra di una partita esistente non cambia mai in modifica (il
+    // campo "team" nel form è nascosto e riflette quella già salvata).
+    const existing = id ? await repo.getMatch(id) : null;
+    const team = existing?.team ?? parsed.data.team;
+    const input: MatchInput = {
+      team,
+      category: team === "u14u15" ? (parsed.data.category as "U14" | "U15") : null,
+      opponent: parsed.data.opponent,
+      isHome: parsed.data.isHome,
+      isFriendly: parsed.data.isFriendly,
+      isTournament: parsed.data.isTournament,
+      location: parsed.data.location,
+      matchDate: parsed.data.matchDate,
+      meetingTime: parsed.data.meetingTime,
+      meetingLocation: parsed.data.meetingLocation ?? null,
+      notes: parsed.data.notes ?? null,
+      calledUpAthleteIds: existing?.calledUpAthleteIds ?? [],
+      setScores: result.setScores,
+      resultSetsWon: result.resultSetsWon,
+      resultSetsLost: result.resultSetsLost,
+    };
+
+    const matchup = matchupLabel(input);
+    const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
+    if (id) {
+      await repo.updateMatch(id, input);
+      if (notify) {
+        const resultLabel =
+          input.resultSetsWon !== null && input.resultSetsLost !== null
+            ? ` · Risultato ${input.resultSetsWon}-${input.resultSetsLost}`
+            : "";
+        await notifyCalendarChange(
+          {
+            title: "Partita modificata",
+            body: `${matchup} · ${scheduleLabel}${resultLabel}`,
+            url: team === "minivolley" ? "/minivolley" : "/",
+          },
+          team,
+        );
+      }
+    } else {
+      await repo.createMatch(input, session.sub);
+      if (notify) {
+        await notifyCalendarChange(
+          {
+            title: "Partita creata",
+            body: `${matchup} · ${scheduleLabel}`,
+            url: team === "minivolley" ? "/minivolley" : "/",
+          },
+          team,
+        );
+      }
     }
-  } else {
-    await repo.createMatch(input, session.sub);
-    if (notify) {
-      await notifyCalendarChange(
-        {
-          title: "Partita creata",
-          body: `${matchup} · ${scheduleLabel}`,
-          url: team === "minivolley" ? "/minivolley" : "/",
-        },
-        team,
-      );
-    }
+
+    revalidatePath("/admin/partite");
+    // Solo il sito pubblico della squadra toccata: i due siti sono
+    // indipendenti.
+    revalidatePath(team === "minivolley" ? "/minivolley" : "/");
+    updateTag(PUBLIC_CALENDAR_TAG);
+  } catch (err) {
+    console.error("[saveMatchAction]", err);
+    return { error: "Non è stato possibile salvare la partita. Riprova." };
   }
 
-  revalidatePath("/admin/partite");
-  revalidatePath("/");
-  updateTag(PUBLIC_CALENDAR_TAG);
   redirect("/admin/partite");
 }
 
@@ -252,7 +265,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
     );
   }
   revalidatePath("/admin/partite");
-  revalidatePath("/");
+  revalidatePath(match?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
 }
 
@@ -369,17 +382,23 @@ export async function saveCallUpsAndLineupAction(
     resultSetsWon: match.resultSetsWon,
     resultSetsLost: match.resultSetsLost,
   };
-  await repo.updateMatch(matchId, input);
-  await repo.saveMatchLineup(
-    matchId,
-    { sets: normalizeSets(parsed.data.sets, calledUpAthleteIds) },
-    session.sub,
-  );
-  revalidatePath(`/admin/partite/${matchId}`);
-  // Le convocazioni sono visibili anche sul sito pubblico: invalida la
-  // cache del calendario, altrimenti resterebbero non aggiornate fino a
-  // 5 minuti (il tempo di validità di getPublicCalendarData).
-  revalidatePath("/");
-  updateTag(PUBLIC_CALENDAR_TAG);
+  try {
+    await repo.updateMatch(matchId, input);
+    await repo.saveMatchLineup(
+      matchId,
+      { sets: normalizeSets(parsed.data.sets, calledUpAthleteIds) },
+      session.sub,
+    );
+    revalidatePath(`/admin/partite/${matchId}`);
+    // Le convocazioni sono visibili anche sul sito pubblico: invalida la
+    // cache del calendario, altrimenti resterebbero non aggiornate fino a
+    // 5 minuti (il tempo di validità di getPublicCalendarData). Solo il
+    // sito della squadra toccata: i due siti sono indipendenti.
+    revalidatePath(match.team === "minivolley" ? "/minivolley" : "/");
+    updateTag(PUBLIC_CALENDAR_TAG);
+  } catch (err) {
+    console.error("[saveCallUpsAndLineupAction]", err);
+    return { error: "Non è stato possibile salvare convocazioni e formazioni. Riprova." };
+  }
   return { success: true };
 }

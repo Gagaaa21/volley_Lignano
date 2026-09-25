@@ -37,35 +37,47 @@ export async function saveAttendanceAction(
     records[athleteId] = normalizeStatus(formData.get(`status_${athleteId}`)?.toString());
   }
 
-  const repo = await getActiveRepo();
-  // La squadra di un registro esistente non cambia mai in modifica; per un
-  // nuovo registro collegato a un allenamento eredita la squadra di
-  // quell'allenamento, altrimenti la squadra attiva nello switcher.
-  const existingById = sessionId ? await repo.getAttendanceSession(sessionId) : null;
-  const existingByOccurrence =
-    !sessionId && trainingRuleId
-      ? await repo.getAttendanceSessionByOccurrence(trainingRuleId, sessionDate)
-      : null;
-  const existing = existingById ?? existingByOccurrence;
-  const team =
-    existing?.team ??
-    (trainingRuleId ? (await repo.getTraining(trainingRuleId))?.team : undefined) ??
-    (await resolveActiveTeam(session));
+  // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
+  // le presenze appena spuntate: si torna al form con un messaggio invece
+  // di lasciar risalire l'eccezione (che smonterebbe il form senza un
+  // error.tsx dedicato).
+  try {
+    const repo = await getActiveRepo();
+    // La squadra di un registro esistente non cambia mai in modifica; per un
+    // nuovo registro collegato a un allenamento eredita la squadra di
+    // quell'allenamento, altrimenti la squadra attiva nello switcher.
+    const existingById = sessionId ? await repo.getAttendanceSession(sessionId) : null;
+    const existingByOccurrence =
+      !sessionId && trainingRuleId
+        ? await repo.getAttendanceSessionByOccurrence(trainingRuleId, sessionDate)
+        : null;
+    const existing = existingById ?? existingByOccurrence;
+    const team =
+      existing?.team ??
+      (trainingRuleId ? (await repo.getTraining(trainingRuleId))?.team : undefined) ??
+      (await resolveActiveTeam(session));
 
-  const input: AttendanceSessionInput = { trainingRuleId, team, sessionDate, title, location, records };
+    const input: AttendanceSessionInput = { trainingRuleId, team, sessionDate, title, location, records };
 
-  if (sessionId) {
-    await repo.updateAttendanceSession(sessionId, input);
-  } else if (existingByOccurrence) {
-    await repo.updateAttendanceSession(existingByOccurrence.id, input);
-  } else {
-    await repo.createAttendanceSession(input, session.sub);
+    if (sessionId) {
+      await repo.updateAttendanceSession(sessionId, input);
+    } else if (existingByOccurrence) {
+      await repo.updateAttendanceSession(existingByOccurrence.id, input);
+    } else {
+      await repo.createAttendanceSession(input, session.sub);
+    }
+
+    revalidatePath("/admin/presenze");
+    revalidatePath("/admin/presenze/storico");
+    // Solo il sito pubblico della squadra toccata: i due siti sono
+    // indipendenti.
+    revalidatePath(team === "minivolley" ? "/minivolley" : "/");
+    updateTag(PUBLIC_CALENDAR_TAG);
+  } catch (err) {
+    console.error("[saveAttendanceAction]", err);
+    return { error: "Non è stato possibile salvare le presenze. Riprova." };
   }
 
-  revalidatePath("/admin/presenze");
-  revalidatePath("/admin/presenze/storico");
-  revalidatePath("/");
-  updateTag(PUBLIC_CALENDAR_TAG);
   redirect("/admin/presenze/storico");
 }
 
@@ -74,9 +86,10 @@ export async function deleteAttendanceSessionAction(formData: FormData): Promise
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
+  const attendanceSession = await repo.getAttendanceSession(id);
   await repo.deleteAttendanceSession(id);
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/storico");
-  revalidatePath("/");
+  revalidatePath(attendanceSession?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
 }

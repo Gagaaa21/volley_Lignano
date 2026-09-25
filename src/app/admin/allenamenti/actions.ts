@@ -41,8 +41,43 @@ const schema = z
     path: ["weekdays"],
   });
 
+/** Valori grezzi così come inseriti, riportati indietro insieme a un errore
+ * (di validazione o di salvataggio) perché il form non li svuoti mai: senza
+ * questo, un problema di rete/Supabase intermittente (più probabile quando
+ * il sito è sotto carico) farebbe perdere tutto quello che si era digitato. */
+export interface TrainingFormValues {
+  title: string;
+  location: string;
+  repeat: string;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+  startDate: string;
+  endDate: string;
+  notes: string;
+  isActive: boolean;
+  isTournament: boolean;
+}
+
 export interface TrainingFormState {
   error?: string;
+  values?: TrainingFormValues;
+}
+
+function readRawValues(formData: FormData): TrainingFormValues {
+  return {
+    title: formData.get("title")?.toString() ?? "",
+    location: formData.get("location")?.toString() ?? "",
+    repeat: formData.get("repeat")?.toString() === "once" ? "once" : "weekly",
+    weekdays: formData.getAll("weekdays").map((v) => Number(v)),
+    startTime: formData.get("startTime")?.toString() ?? "",
+    endTime: formData.get("endTime")?.toString() ?? "",
+    startDate: formData.get("startDate")?.toString() ?? "",
+    endDate: formData.get("endDate")?.toString() ?? "",
+    notes: formData.get("notes")?.toString() ?? "",
+    isActive: formData.get("isActive") === "on",
+    isTournament: formData.get("isTournament") === "on",
+  };
 }
 
 function parseTrainingForm(formData: FormData) {
@@ -67,9 +102,10 @@ export async function saveTrainingAction(
   formData: FormData,
 ): Promise<TrainingFormState> {
   const session = await requireStaffPage("allenamenti");
+  const values = readRawValues(formData);
   const parsed = parseTrainingForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi.", values };
   }
 
   const id = formData.get("id")?.toString();
@@ -78,7 +114,6 @@ export async function saveTrainingAction(
   // checkbox è stato spuntato senza passare dai radio Settimanale/Singolo
   // giorno (es. submit rapido), qualunque cosa sia arrivata dal client.
   const isOnce = parsed.data.repeat === "once" || parsed.data.isTournament;
-  const repo = await getActiveRepo();
 
   const input: TrainingRuleInput = {
     title: parsed.data.title,
@@ -99,37 +134,51 @@ export async function saveTrainingAction(
     ? `il ${formatDateLong(input.startDate)}`
     : `${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`;
 
-  if (id) {
-    await repo.updateTraining(id, input);
-    if (notify) {
-      await notifyCalendarChange(
-        {
-          title: "Allenamento modificato",
-          body: `${input.title} · ${scheduleLabel} · ${input.location}`,
-          url: input.team === "minivolley" ? "/minivolley" : "/",
-        },
-        input.team,
-      );
+  // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
+  // quanto digitato: si torna al form con i valori originali invece di
+  // lasciar risalire l'eccezione (che smonterebbe il form senza un
+  // error.tsx dedicato).
+  try {
+    const repo = await getActiveRepo();
+    if (id) {
+      await repo.updateTraining(id, input);
+      if (notify) {
+        await notifyCalendarChange(
+          {
+            title: "Allenamento modificato",
+            body: `${input.title} · ${scheduleLabel} · ${input.location}`,
+            url: input.team === "minivolley" ? "/minivolley" : "/",
+          },
+          input.team,
+        );
+      }
+    } else {
+      await repo.createTraining(input, session.sub);
+      if (notify) {
+        await notifyCalendarChange(
+          {
+            title: "Allenamento creato",
+            body: `${input.title} · ${scheduleLabel} · ${input.location}`,
+            url: input.team === "minivolley" ? "/minivolley" : "/",
+          },
+          input.team,
+        );
+      }
     }
-  } else {
-    await repo.createTraining(input, session.sub);
-    if (notify) {
-      await notifyCalendarChange(
-        {
-          title: "Allenamento creato",
-          body: `${input.title} · ${scheduleLabel} · ${input.location}`,
-          url: input.team === "minivolley" ? "/minivolley" : "/",
-        },
-        input.team,
-      );
-    }
+
+    revalidatePath("/admin/allenamenti");
+    revalidatePath("/admin/allenamenti/elenco");
+    // Solo il sito pubblico della squadra toccata: i due siti sono
+    // indipendenti, modificare un allenamento U14/U15 non deve invalidare
+    // (né tantomeno mostrare cambiamenti su) la pagina pubblica Minivolley
+    // e viceversa.
+    revalidatePath(input.team === "minivolley" ? "/minivolley" : "/");
+    updateTag(PUBLIC_CALENDAR_TAG);
+  } catch (err) {
+    console.error("[saveTrainingAction]", err);
+    return { error: "Non è stato possibile salvare l'allenamento. Riprova.", values };
   }
 
-  revalidatePath("/admin/allenamenti");
-  revalidatePath("/admin/allenamenti/elenco");
-  revalidatePath("/");
-  revalidatePath("/minivolley");
-  updateTag(PUBLIC_CALENDAR_TAG);
   redirect("/admin/allenamenti/elenco");
 }
 
@@ -143,13 +192,12 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
 
   const repo = await getActiveRepo();
   await repo.setTrainingOccurrencePlan(ruleId, date, planId, isPublic, session.sub);
+  const [training, plan] = await Promise.all([repo.getTraining(ruleId), repo.getTrainingPlan(planId)]);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");
-  revalidatePath("/");
+  revalidatePath(training?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
-
-  const [training, plan] = await Promise.all([repo.getTraining(ruleId), repo.getTrainingPlan(planId)]);
   await notifyStaffChange(
     {
       title: "Scheda assegnata a un allenamento",
@@ -168,10 +216,11 @@ export async function removeOccurrencePlanAction(formData: FormData): Promise<vo
 
   const repo = await getActiveRepo();
   await repo.removeTrainingOccurrencePlan(ruleId, date);
+  const training = await repo.getTraining(ruleId);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");
-  revalidatePath("/");
+  revalidatePath(training?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
 }
 
@@ -196,7 +245,6 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   );
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
-  revalidatePath("/");
-  revalidatePath("/minivolley");
+  revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
 }

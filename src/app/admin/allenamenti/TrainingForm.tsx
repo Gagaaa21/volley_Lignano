@@ -33,8 +33,11 @@ export function TrainingForm({
   defaultIsTournament?: boolean;
 }) {
   const [state, formAction] = useActionState(saveTrainingAction, initialState);
+  const values = state.values;
   const [repeat, setRepeat] = useState<TrainingRepeat>(
-    training?.repeat ?? (defaultIsTournament ? "once" : "weekly"),
+    (values?.repeat as TrainingRepeat | undefined) ??
+      training?.repeat ??
+      (defaultIsTournament ? "once" : "weekly"),
   );
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -45,7 +48,7 @@ export function TrainingForm({
 
       <div>
         <Label htmlFor="title">Titolo</Label>
-        <Input id="title" name="title" defaultValue={training?.title ?? "Allenamento"} required />
+        <Input id="title" name="title" defaultValue={values?.title ?? training?.title ?? "Allenamento"} required />
       </div>
 
       <div>
@@ -53,7 +56,7 @@ export function TrainingForm({
         <Input
           id="location"
           name="location"
-          defaultValue={training?.location}
+          defaultValue={values?.location ?? training?.location}
           placeholder="Es. Palestra Comunale, Lignano Sabbiadoro"
           required
         />
@@ -94,7 +97,7 @@ export function TrainingForm({
       {repeat === "weekly" ? (
         <div>
           <Label>Giorni della settimana</Label>
-          <WeekdayPicker selected={training?.weekdays} />
+          <WeekdayPicker selected={values?.weekdays ?? training?.weekdays} />
           <FieldHint>L&apos;allenamento si ripete ogni settimana nei giorni selezionati.</FieldHint>
         </div>
       ) : null}
@@ -104,7 +107,7 @@ export function TrainingForm({
           <input
             type="checkbox"
             name="isTournament"
-            defaultChecked={training?.isTournament ?? defaultIsTournament}
+            defaultChecked={values?.isTournament ?? training?.isTournament ?? defaultIsTournament}
             onChange={(e) => {
               if (e.target.checked) setRepeat("once");
             }}
@@ -121,7 +124,7 @@ export function TrainingForm({
             id="startTime"
             name="startTime"
             type="time"
-            defaultValue={training?.startTime ?? "18:30"}
+            defaultValue={values?.startTime || training?.startTime || "18:30"}
             required
           />
         </div>
@@ -131,7 +134,7 @@ export function TrainingForm({
             id="endTime"
             name="endTime"
             type="time"
-            defaultValue={training?.endTime ?? "20:30"}
+            defaultValue={values?.endTime || training?.endTime || "20:30"}
             required
           />
         </div>
@@ -144,7 +147,7 @@ export function TrainingForm({
             id="startDate"
             name="startDate"
             type="date"
-            defaultValue={training?.startDate ?? todayStr}
+            defaultValue={values?.startDate || training?.startDate || todayStr}
             required
           />
         </div>
@@ -156,13 +159,18 @@ export function TrainingForm({
               id="startDate"
               name="startDate"
               type="date"
-              defaultValue={training?.startDate ?? todayStr}
+              defaultValue={values?.startDate || training?.startDate || todayStr}
               required
             />
           </div>
           <div>
             <Label htmlFor="endDate">Valido fino al (opzionale)</Label>
-            <Input id="endDate" name="endDate" type="date" defaultValue={training?.endDate ?? ""} />
+            <Input
+              id="endDate"
+              name="endDate"
+              type="date"
+              defaultValue={values?.endDate ?? training?.endDate ?? ""}
+            />
             <FieldHint>Lascia vuoto per un allenamento senza scadenza.</FieldHint>
           </div>
         </div>
@@ -173,7 +181,7 @@ export function TrainingForm({
         <Textarea
           id="notes"
           name="notes"
-          defaultValue={training?.notes ?? ""}
+          defaultValue={values?.notes ?? training?.notes ?? ""}
           placeholder="Es. Portare ginocchiere, lavoro su battuta e ricezione…"
         />
       </div>
@@ -182,7 +190,7 @@ export function TrainingForm({
         <input
           type="checkbox"
           name="isActive"
-          defaultChecked={training?.isActive ?? true}
+          defaultChecked={values?.isActive ?? training?.isActive ?? true}
           className="h-4 w-4 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
         />
         Allenamento attivo (visibile nel calendario pubblico)

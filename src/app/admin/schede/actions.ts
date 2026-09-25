@@ -73,57 +73,70 @@ export async function createPlanAction(
   // ad es. si è passati a un'altra sezione nel frattempo); altrimenti la
   // squadra attualmente selezionata nello switcher.
   const { occurrenceRuleId, occurrenceDate } = parsed.data;
-  const occurrenceTraining = occurrenceRuleId ? await repo.getTraining(occurrenceRuleId) : null;
-  const team = occurrenceTraining?.team ?? (await resolveActiveTeam(session));
 
-  const plan = await repo.createTrainingPlan(
-    {
-      title: parsed.data.title,
-      notes: parsed.data.notes || preamble || null,
-      blocks,
-      team,
-    },
-    session.sub,
-  );
+  // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
+  // quanto incollato: si torna al form con un messaggio invece di lasciar
+  // risalire l'eccezione (che smonterebbe il form senza un error.tsx
+  // dedicato).
+  let redirectTo: string;
+  try {
+    const occurrenceTraining = occurrenceRuleId ? await repo.getTraining(occurrenceRuleId) : null;
+    const team = occurrenceTraining?.team ?? (await resolveActiveTeam(session));
 
-  revalidatePath("/admin/schede");
-
-  if (occurrenceRuleId && occurrenceDate) {
-    await repo.setTrainingOccurrencePlan(
-      occurrenceRuleId,
-      occurrenceDate,
-      plan.id,
-      parsed.data.isPublic ?? false,
+    const plan = await repo.createTrainingPlan(
+      {
+        title: parsed.data.title,
+        notes: parsed.data.notes || preamble || null,
+        blocks,
+        team,
+      },
       session.sub,
     );
-    revalidatePath(`/admin/allenamenti/${occurrenceRuleId}`);
-    revalidatePath(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
-    revalidatePath("/admin/allenamenti");
-    revalidatePath("/");
-    updateTag(PUBLIC_CALENDAR_TAG);
 
-    await notifyStaffChange(
-      {
-        title: "Nuova scheda creata e assegnata",
-        body: `${plan.title} · ${occurrenceTraining?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
-        url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
-      },
-      team,
-    );
+    revalidatePath("/admin/schede");
 
-    redirect(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
+    if (occurrenceRuleId && occurrenceDate) {
+      await repo.setTrainingOccurrencePlan(
+        occurrenceRuleId,
+        occurrenceDate,
+        plan.id,
+        parsed.data.isPublic ?? false,
+        session.sub,
+      );
+      revalidatePath(`/admin/allenamenti/${occurrenceRuleId}`);
+      revalidatePath(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
+      revalidatePath("/admin/allenamenti");
+      revalidatePath(team === "minivolley" ? "/minivolley" : "/");
+      updateTag(PUBLIC_CALENDAR_TAG);
+
+      await notifyStaffChange(
+        {
+          title: "Nuova scheda creata e assegnata",
+          body: `${plan.title} · ${occurrenceTraining?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
+          url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
+        },
+        team,
+      );
+
+      redirectTo = `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`;
+    } else {
+      await notifyStaffChange(
+        {
+          title: "Nuova scheda creata",
+          body: plan.title,
+          url: `/admin/schede/${plan.id}`,
+        },
+        team,
+      );
+
+      redirectTo = `/admin/schede/${plan.id}`;
+    }
+  } catch (err) {
+    console.error("[createPlanAction]", err);
+    return { error: "Non è stato possibile creare la scheda. Riprova." };
   }
 
-  await notifyStaffChange(
-    {
-      title: "Nuova scheda creata",
-      body: plan.title,
-      url: `/admin/schede/${plan.id}`,
-    },
-    team,
-  );
-
-  redirect(`/admin/schede/${plan.id}`);
+  redirect(redirectTo);
 }
 
 const detailsSchema = z.object({
@@ -147,20 +160,25 @@ export async function updatePlanDetailsAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const repo = await getActiveRepo();
-  const plan = await repo.getTrainingPlan(id);
-  if (!plan) return { error: "Scheda non trovata." };
+  try {
+    const repo = await getActiveRepo();
+    const plan = await repo.getTrainingPlan(id);
+    if (!plan) return { error: "Scheda non trovata." };
 
-  await repo.updateTrainingPlan(id, {
-    title: parsed.data.title,
-    notes: parsed.data.notes ?? null,
-    blocks: plan.blocks,
-    team: plan.team,
-  });
+    await repo.updateTrainingPlan(id, {
+      title: parsed.data.title,
+      notes: parsed.data.notes ?? null,
+      blocks: plan.blocks,
+      team: plan.team,
+    });
 
-  revalidatePath(`/admin/schede/${id}`);
-  revalidatePath("/admin/schede");
-  return {};
+    revalidatePath(`/admin/schede/${id}`);
+    revalidatePath("/admin/schede");
+    return {};
+  } catch (err) {
+    console.error("[updatePlanDetailsAction]", err);
+    return { error: "Non è stato possibile salvare le modifiche. Riprova." };
+  }
 }
 
 export async function deletePlanAction(formData: FormData): Promise<void> {

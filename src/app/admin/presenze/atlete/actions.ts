@@ -35,25 +35,36 @@ export async function saveAthleteAction(
   }
 
   const id = formData.get("id")?.toString();
-  const repo = await getActiveRepo();
-  // La squadra di un'atleta esistente non cambia mai in modifica.
-  const existing = id ? await repo.getAthlete(id) : null;
-  const input: AthleteInput = {
-    fullName: parsed.data.fullName,
-    team: existing?.team ?? (await resolveActiveTeam(session)),
-    category: parsed.data.category,
-    notes: parsed.data.notes ?? null,
-    isActive: parsed.data.isActive,
-  };
 
-  if (id) {
-    await repo.updateAthlete(id, input);
-  } else {
-    await repo.createAthlete(input, session.sub);
+  // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
+  // quanto digitato: si torna al form con un messaggio invece di lasciar
+  // risalire l'eccezione (che smonterebbe il form senza un error.tsx
+  // dedicato).
+  try {
+    const repo = await getActiveRepo();
+    // La squadra di un'atleta esistente non cambia mai in modifica.
+    const existing = id ? await repo.getAthlete(id) : null;
+    const input: AthleteInput = {
+      fullName: parsed.data.fullName,
+      team: existing?.team ?? (await resolveActiveTeam(session)),
+      category: parsed.data.category,
+      notes: parsed.data.notes ?? null,
+      isActive: parsed.data.isActive,
+    };
+
+    if (id) {
+      await repo.updateAthlete(id, input);
+    } else {
+      await repo.createAthlete(input, session.sub);
+    }
+
+    revalidatePath("/admin/presenze");
+    revalidatePath("/admin/presenze/atlete");
+  } catch (err) {
+    console.error("[saveAthleteAction]", err);
+    return { error: "Non è stato possibile salvare l'atleta. Riprova." };
   }
 
-  revalidatePath("/admin/presenze");
-  revalidatePath("/admin/presenze/atlete");
   redirect("/admin/presenze/atlete");
 }
 
@@ -103,11 +114,17 @@ export async function bulkCreateAthletesAction(
     isActive: true,
   }));
 
-  const repo = await getActiveRepo();
-  await repo.createAthletesBulk(inputs, session.sub);
+  try {
+    const repo = await getActiveRepo();
+    await repo.createAthletesBulk(inputs, session.sub);
 
-  revalidatePath("/admin/presenze");
-  revalidatePath("/admin/presenze/atlete");
+    revalidatePath("/admin/presenze");
+    revalidatePath("/admin/presenze/atlete");
+  } catch (err) {
+    console.error("[bulkCreateAthletesAction]", err);
+    return { error: "Non è stato possibile salvare l'elenco. Riprova." };
+  }
+
   return { created: names.length };
 }
 

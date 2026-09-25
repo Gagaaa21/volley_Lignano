@@ -36,26 +36,31 @@ export async function createStaffAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const repo = await getRepo();
-  const existing = await repo.getStaffByUsername(parsed.data.username);
-  if (existing) {
-    return { error: "Questo nome utente è già in uso." };
+  try {
+    const repo = await getRepo();
+    const existing = await repo.getStaffByUsername(parsed.data.username);
+    if (existing) {
+      return { error: "Questo nome utente è già in uso." };
+    }
+
+    const passwordHash = await hashPassword(parsed.data.temporaryPassword);
+    await repo.createStaff({
+      username: parsed.data.username,
+      fullName: parsed.data.fullName,
+      passwordHash,
+      role: "admin",
+      mustChangePassword: true,
+      allowedPages: ADMIN_PAGES,
+      allowedTeams: TEAMS,
+      createdBy: session.sub,
+    });
+
+    revalidatePath("/admin/staff");
+    return { created: { username: parsed.data.username, password: parsed.data.temporaryPassword } };
+  } catch (err) {
+    console.error("[createStaffAction]", err);
+    return { error: "Non è stato possibile creare l'account. Riprova." };
   }
-
-  const passwordHash = await hashPassword(parsed.data.temporaryPassword);
-  await repo.createStaff({
-    username: parsed.data.username,
-    fullName: parsed.data.fullName,
-    passwordHash,
-    role: "admin",
-    mustChangePassword: true,
-    allowedPages: ADMIN_PAGES,
-    allowedTeams: TEAMS,
-    createdBy: session.sub,
-  });
-
-  revalidatePath("/admin/staff");
-  return { created: { username: parsed.data.username, password: parsed.data.temporaryPassword } };
 }
 
 export async function deleteStaffAction(formData: FormData): Promise<void> {
@@ -104,25 +109,30 @@ export async function updateStaffAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const repo = await getRepo();
-  const target = await repo.getStaffById(id);
-  if (!target || target.role === "dev") return { error: "Account non trovato." };
+  try {
+    const repo = await getRepo();
+    const target = await repo.getStaffById(id);
+    if (!target || target.role === "dev") return { error: "Account non trovato." };
 
-  const existing = await repo.getStaffByUsername(parsed.data.username);
-  if (existing && existing.id !== id) {
-    return { error: "Questo nome utente è già in uso." };
+    const existing = await repo.getStaffByUsername(parsed.data.username);
+    if (existing && existing.id !== id) {
+      return { error: "Questo nome utente è già in uso." };
+    }
+
+    await repo.updateStaffProfile(id, { username: parsed.data.username, fullName: parsed.data.fullName });
+
+    let resetPassword: UpdateStaffFormState["resetPassword"];
+    if (parsed.data.newPassword) {
+      const passwordHash = await hashPassword(parsed.data.newPassword);
+      await repo.setStaffPassword(id, passwordHash, true);
+      resetPassword = { username: parsed.data.username, password: parsed.data.newPassword };
+    }
+
+    revalidatePath("/admin/staff");
+    revalidatePath(`/admin/staff/${id}`);
+    return { saved: true, resetPassword };
+  } catch (err) {
+    console.error("[updateStaffAction]", err);
+    return { error: "Non è stato possibile salvare le modifiche. Riprova." };
   }
-
-  await repo.updateStaffProfile(id, { username: parsed.data.username, fullName: parsed.data.fullName });
-
-  let resetPassword: UpdateStaffFormState["resetPassword"];
-  if (parsed.data.newPassword) {
-    const passwordHash = await hashPassword(parsed.data.newPassword);
-    await repo.setStaffPassword(id, passwordHash, true);
-    resetPassword = { username: parsed.data.username, password: parsed.data.newPassword };
-  }
-
-  revalidatePath("/admin/staff");
-  revalidatePath(`/admin/staff/${id}`);
-  return { saved: true, resetPassword };
 }

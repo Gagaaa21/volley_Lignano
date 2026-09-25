@@ -18,7 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
 import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
 import { categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -91,7 +91,7 @@ export default async function AdminDashboardPage({
 
   let visibleSections = SECTIONS;
   if (session.role !== "dev") {
-    const staff = await repo.getStaffById(session.sub);
+    const staff = await getOwnStaff(session.sub);
     const allowedPages = staff?.allowedPages ?? [];
     visibleSections = SECTIONS.filter((section) => allowedPages.includes(section.page));
   }
