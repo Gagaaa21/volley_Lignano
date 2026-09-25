@@ -25,20 +25,28 @@ const RESPONSE_SCHEMA = {
 };
 
 const SYSTEM_INSTRUCTION = `Sei un assistente che struttura testi di allenamenti di pallavolo incollati da un allenatore.
-Il testo è diviso in "macro blocchi" (es. riscaldamento, circuito fisico, gioco finale), spesso introdotti da righe come
-"1. TITOLO – 10'" ma con formattazione irregolare (durate "circa", trattini diversi, titoli con più parole).
-Individua ogni blocco distinto, il suo titolo, la sua durata in minuti e tutto il suo contenuto.
+Il testo contiene blocchi introdotti da righe come "1. TITOLO – 10'" (numero, titolo, durata), con formattazione
+irregolare (durate "circa", trattini diversi, titoli con più parole).
+
+Alcuni di questi blocchi numerati (es. "3. RICEZIONE – 30'") sono in realtà solo un'etichetta di sezione che
+introduce una sequenza di esercizi più brevi, ciascuno con la propria riga "durata – titolo" (durata PRIMA del
+titolo, es. "5' – Palleggio spinto da zona 1 → zona 5", "10' – Incrocio delle ricezioni"): sono esercizi DIVERSI
+tra loro, da svolgere in sequenza uno dopo l'altro — non stazioni a rotazione, non varianti dello stesso
+esercizio. In questo caso:
+- NON creare un blocco per l'etichetta di sezione (es. "RICEZIONE"): i suoi minuti sono già la somma dei
+  sotto-esercizi che la seguono, quindi da sola non ha contenuto proprio.
+- Crea invece UN BLOCCO SEPARATO PER OGNI sotto-esercizio, usando il suo titolo e la sua durata così come sono
+  scritti (es. titolo "Palleggio spinto da zona 1 → zona 5", durata 5), con tutto il testo che lo descrive come
+  contenuto di quel blocco.
+
+Un blocco numerato che invece ha già il proprio contenuto (senza sotto-esercizi con durata propria) resta un
+blocco unico, come sempre.
 
 Regole per il contenuto di ogni blocco:
-- Copia il testo così come scritto, senza riformularlo, riassumerlo o riordinarlo: il tuo compito è capire dove finisce
-  un blocco e inizia il successivo, non riscrivere il testo dell'allenatore.
+- Copia il testo così come scritto, senza riformularlo, riassumerlo o riordinarlo: il tuo compito è capire dove
+  finisce un blocco (o sotto-esercizio) e inizia il successivo, non riscrivere il testo dell'allenatore.
 - Non inventare blocchi che non esistono nel testo e non perdere contenuto: ogni riga originale (esclusi i titoli
-  numerati dei macro blocchi e la riga "Totale") deve finire nel blocco a cui appartiene, nello stesso ordine.
-- Un macro blocco contiene spesso una sequenza di sotto-esercizi più brevi, ciascuno introdotto dalla propria durata
-  (es. "5' – Palleggio spinto da zona 1 → zona 5"): sono esercizi da svolgere IN SEQUENZA, uno dopo l'altro, non
-  stazioni a rotazione. Mantienili esattamente come sono scritti, nello stesso ordine, senza rietichettarli come
-  "Stazione 1", "Stazione 2" ecc. e senza trasformarli in un circuito a stazioni, a meno che il testo originale non usi
-  già quella parola.
+  numerati senza contenuto proprio e la riga "Totale") deve finire nel blocco a cui appartiene, nello stesso ordine.
 - Se una durata non è indicata per un blocco, stima un valore ragionevole in base al contenuto.`;
 
 function getClient(): GoogleGenAI | null {
