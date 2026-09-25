@@ -60,12 +60,19 @@ export async function createPlanAction(
   }
 
   const existingBlocks = await repo.listTrainingBlocks();
-  const byTitle = new Map(existingBlocks.map((b) => [b.title.trim().toLowerCase(), b] as const));
+  // Riusa un blocco esistente SOLO se titolo e contenuto coincidono
+  // entrambi (vero duplicato, nessuna informazione persa): un titolo
+  // generico come "Ricezione" può comparire in schede diverse con
+  // esercizi diversi, e abbinare solo sul titolo farebbe scartare in
+  // silenzio il testo appena incollato a favore di un blocco vecchio con
+  // lo stesso nome ma un contenuto ormai diverso.
+  const dedupKey = (title: string, content: string): string => `${title.trim().toLowerCase()}\u0000${content.trim()}`;
+  const byTitleAndContent = new Map(existingBlocks.map((b) => [dedupKey(b.title, b.content), b] as const));
 
   const blockIds: string[] = [...new Set(parsed.data.blockIds)];
   for (const parsedBlock of parsedBlocks) {
-    const key = parsedBlock.title.trim().toLowerCase();
-    const existing: TrainingBlock | undefined = byTitle.get(key);
+    const key = dedupKey(parsedBlock.title, parsedBlock.content);
+    const existing: TrainingBlock | undefined = byTitleAndContent.get(key);
     if (existing) {
       if (!blockIds.includes(existing.id)) blockIds.push(existing.id);
       continue;
@@ -78,7 +85,7 @@ export async function createPlanAction(
       },
       session.sub,
     );
-    byTitle.set(key, created);
+    byTitleAndContent.set(key, created);
     blockIds.push(created.id);
   }
 
