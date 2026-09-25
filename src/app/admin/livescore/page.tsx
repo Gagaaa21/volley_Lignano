@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function LiveScorePage() {
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-6xl">
       <LiveScoreClient />
     </div>
   );
