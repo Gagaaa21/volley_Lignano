@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { usePwaInstall } from "./PwaInstallContext";
+import { buildOpenInChromeUrl, usePwaInstall } from "./PwaInstallContext";
 import type { TrainingTeam } from "@/lib/types";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
@@ -78,7 +78,7 @@ function isNotifyEligible(): boolean {
 export function PwaClient() {
   const mounted = useMounted();
   const [step, setStep] = useState<"install" | "notify" | "done">(computeInitialStep);
-  const { canInstall, isStandalone, promptInstall } = usePwaInstall();
+  const { canInstall, isAndroidNonChrome, isStandalone, promptInstall } = usePwaInstall();
   const pathname = usePathname();
   // Sul sito pubblico la squadra si legge dall'URL; nell'area riservata,
   // dove l'URL non la indica più (un solo pannello per entrambe le
@@ -108,7 +108,16 @@ export function PwaClient() {
 
   async function handleInstall(accept: boolean) {
     localStorage.setItem(INSTALL_PROMPTED_KEY, "1");
-    if (accept) await promptInstall();
+    if (accept) {
+      // Samsung Internet e simili generano un pacchetto che Android blocca per
+      // sicurezza (vedi PwaInstallContext): meglio mandarli su Chrome, dove
+      // l'installazione funziona correttamente, invece di far fallire quella nativa.
+      if (isAndroidNonChrome) {
+        window.location.href = buildOpenInChromeUrl();
+        return;
+      }
+      await promptInstall();
+    }
     setStep("notify");
   }
 
@@ -138,11 +147,13 @@ export function PwaClient() {
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold text-foreground">Installa l&apos;app</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Aggiungi Volley Lignano alla schermata Home per un accesso più rapido.
+                {isAndroidNonChrome
+                  ? "Il tuo browser blocca l'installazione per un problema noto di Android: apri il sito in Chrome per installarlo senza avvisi."
+                  : "Aggiungi Volley Lignano alla schermata Home per un accesso più rapido."}
               </p>
               <div className="mt-3 flex items-center gap-2">
                 <Button size="sm" onClick={() => handleInstall(true)}>
-                  Installa
+                  {isAndroidNonChrome ? "Apri in Chrome" : "Installa"}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => handleInstall(false)}>
                   No grazie
