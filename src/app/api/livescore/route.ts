@@ -41,7 +41,19 @@ export async function GET() {
 
   const repo = await getActiveRepo();
   const state = await repo.getLiveScoreState();
-  return NextResponse.json({ state });
+  if (!state) return NextResponse.json({ state: null });
+
+  // Un salvataggio fatto con una versione precedente dello strumento (prima
+  // che cambiasse la forma dei dati, es. l'aggiunta di hostNames/liberoActiveFor)
+  // può restare valido per il TTL ma non corrispondere più a questo schema: va
+  // scartato invece di essere inviato al client così com'è, altrimenti la
+  // pagina va in errore leggendo campi che non esistono più.
+  const parsed = liveScoreStateSchema.safeParse(state);
+  if (!parsed.success) {
+    await repo.clearLiveScoreState();
+    return NextResponse.json({ state: null });
+  }
+  return NextResponse.json({ state: parsed.data });
 }
 
 export async function POST(request: Request) {
