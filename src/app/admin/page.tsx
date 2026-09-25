@@ -16,6 +16,7 @@ import {
   Puzzle,
   Swords,
   Users,
+  Volleyball,
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
@@ -59,6 +60,13 @@ const SECTIONS: { href: string; label: string; description: string; icon: typeof
     description: "Registro e anagrafica atlete",
     icon: ClipboardCheck,
     page: "presenze",
+  },
+  {
+    href: "/admin/livescore",
+    label: "Live score",
+    description: "Tabellone punteggio dal vivo in allenamento",
+    icon: Volleyball,
+    page: "livescore",
   },
   {
     href: "/admin/staff",

@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Swords,
   Users,
+  Volleyball,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -37,6 +38,7 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; ex
   { href: "/admin/partite", label: "Partite", icon: Swords, exact: false, page: "partite" },
   { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false, page: "schede" },
   { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze" },
+  { href: "/admin/livescore", label: "Live score", icon: Volleyball, exact: false, page: "livescore" },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff" },
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida" },
 ];

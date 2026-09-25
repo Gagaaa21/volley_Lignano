@@ -9,6 +9,7 @@ export type AdminPage =
   | "partite"
   | "schede"
   | "presenze"
+  | "livescore"
   | "staff"
   | "guida";
 
@@ -17,6 +18,7 @@ export const ADMIN_PAGES: AdminPage[] = [
   "partite",
   "schede",
   "presenze",
+  "livescore",
   "staff",
   "guida",
 ];
@@ -26,6 +28,7 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   partite: "Partite",
   schede: "Schede",
   presenze: "Presenze",
+  livescore: "Live score",
   staff: "Staff",
   guida: "Guida",
 };
