@@ -1,11 +1,12 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { TEAMS } from "@/lib/types";
+import { LIVE_SCORE_TTL_MS, TEAMS } from "@/lib/types";
 import type {
   Athlete,
   AthleteInput,
   AttendanceSession,
   AttendanceSessionInput,
+  LiveScoreState,
   Match,
   MatchInput,
   MatchLineup,
@@ -356,6 +357,9 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
   if (result.data == null) throw new Error("Nessun dato restituito da Supabase");
   return result.data;
 }
+
+// Tabellone live (allenamento): un'unica riga fissa, come test_mode_store.
+const LIVE_SCORE_ROW_ID = "current";
 
 export const supabaseRepo: Repo = {
   async listTrainings(filter?: TrainingFilter) {
@@ -756,6 +760,32 @@ export const supabaseRepo: Repo = {
   async deletePushSubscriptionByEndpoint(endpoint) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("push_subscriptions").delete().eq("endpoint", endpoint);
+    if (error) throw new Error(error.message);
+  },
+
+  async getLiveScoreState() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("live_score_state")
+      .select("data, updated_at")
+      .eq("id", LIVE_SCORE_ROW_ID)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    const age = Date.now() - new Date(data.updated_at as string).getTime();
+    if (age > LIVE_SCORE_TTL_MS) return null;
+    return data.data as LiveScoreState;
+  },
+  async saveLiveScoreState(state: LiveScoreState) {
+    const db = getSupabaseAdmin();
+    const { error } = await db
+      .from("live_score_state")
+      .upsert({ id: LIVE_SCORE_ROW_ID, data: state, updated_at: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+  },
+  async clearLiveScoreState() {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("live_score_state").delete().eq("id", LIVE_SCORE_ROW_ID);
     if (error) throw new Error(error.message);
   },
 

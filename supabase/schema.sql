@@ -475,3 +475,18 @@ create table if not exists test_mode_store (
 );
 alter table test_mode_store enable row level security;
 -- Nessuna policy pubblica: raggiungibile solo tramite la service role key.
+
+-- =========================================================
+-- live_score_state — tabellone live (allenamento, src/app/admin/livescore):
+-- salvataggio automatico per non perdere tutto se la pagina si ricarica,
+-- ma solo per qualche ora — oltre updated_at + 3h l'applicazione ignora la
+-- riga come se non ci fosse (vedi LIVE_SCORE_TTL_MS). Stessa struttura a
+-- riga singola di test_mode_store.
+-- =========================================================
+create table if not exists live_score_state (
+  id text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table live_score_state enable row level security;
+-- Nessuna policy pubblica: raggiungibile solo tramite la service role key.

@@ -4,6 +4,7 @@ import type {
   AthleteInput,
   AttendanceSession,
   AttendanceSessionInput,
+  LiveScoreState,
   Match,
   MatchInput,
   MatchLineup,
@@ -144,4 +145,12 @@ export interface Repo {
 
   // Panoramica utilizzo storage (pagina Manutenzione, solo dev)
   getStorageOverview(): Promise<StorageOverview>;
+
+  // Tabellone live (allenamento): stato salvato in automatico solo per
+  // qualche ora, per non perdere tutto se la pagina si ricarica. null se
+  // non c'è nulla di salvato o se il salvataggio è più vecchio di
+  // LIVE_SCORE_TTL_MS.
+  getLiveScoreState(): Promise<LiveScoreState | null>;
+  saveLiveScoreState(state: LiveScoreState): Promise<void>;
+  clearLiveScoreState(): Promise<void>;
 }

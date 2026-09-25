@@ -404,3 +404,28 @@ export interface StorageOverview {
   tables: StorageTableInfo[];
   generatedAt: string;
 }
+
+/** Formazione + punteggio di una delle due squadre nel tabellone live
+ * (src/app/admin/livescore): stesso significato dei campi lato client, così
+ * il salvataggio automatico può scrivere e rileggere lo stato senza
+ * trasformazioni. Niente storico rotazioni: l'annulla è una comodità solo
+ * per la sessione in corso, non serve sopravvivere a un ricaricamento. */
+export interface LiveScoreTeamState {
+  label: string;
+  positions: [string, string, string, string, string, string];
+  liberoName: string;
+  hostName: string;
+  score: number;
+}
+
+export interface LiveScoreState {
+  started: boolean;
+  teamA: LiveScoreTeamState;
+  teamB: LiveScoreTeamState;
+}
+
+/** Il tabellone live si salva in automatico (per non perdere tutto se la
+ * pagina si ricarica) ma solo per poche ore: oltre questa soglia lo stato
+ * salvato viene ignorato come se non ci fosse, evitando che un allenamento
+ * di settimane fa resti a galleggiare nel database. */
+export const LIVE_SCORE_TTL_MS = 3 * 60 * 60 * 1000;

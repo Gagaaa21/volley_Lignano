@@ -114,6 +114,8 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "createAttendanceSession",
   "updateAttendanceSession",
   "deleteAttendanceSession",
+  "saveLiveScoreState",
+  "clearLiveScoreState",
 ]);
 
 // Staff e iscrizioni push non sono mai sandboxati.

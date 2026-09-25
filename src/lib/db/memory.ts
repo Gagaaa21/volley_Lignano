@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
-import { ADMIN_PAGES, TEAMS } from "@/lib/types";
+import { ADMIN_PAGES, LIVE_SCORE_TTL_MS, TEAMS } from "@/lib/types";
 import type {
   Athlete,
   AthleteInput,
   AttendanceSession,
   AttendanceSessionInput,
+  LiveScoreState,
   Match,
   MatchInput,
   MatchLineup,
@@ -47,6 +48,7 @@ export interface MemoryStore {
   pushSubscriptions: PushSubscriptionRecord[];
   staff: StaffMember[];
   staffSeeded: boolean;
+  liveScoreState: { state: LiveScoreState; updatedAt: string } | null;
 }
 
 export function createEmptyStore(): MemoryStore {
@@ -61,6 +63,7 @@ export function createEmptyStore(): MemoryStore {
     pushSubscriptions: [],
     staff: [],
     staffSeeded: false,
+    liveScoreState: null,
   };
 }
 
@@ -401,6 +404,20 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx !== -1) pushSubscriptions.splice(idx, 1);
     },
 
+    async getLiveScoreState() {
+      const saved = store.liveScoreState;
+      if (!saved) return null;
+      const age = Date.now() - new Date(saved.updatedAt).getTime();
+      if (age > LIVE_SCORE_TTL_MS) return null;
+      return saved.state;
+    },
+    async saveLiveScoreState(state: LiveScoreState) {
+      store.liveScoreState = { state, updatedAt: new Date().toISOString() };
+    },
+    async clearLiveScoreState() {
+      store.liveScoreState = null;
+    },
+
     async getStorageOverview() {
       const collections: Array<{ table: string; rows: unknown[] }> = [
         { table: "training_sessions", rows: trainings },
@@ -412,6 +429,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "attendance_sessions", rows: attendanceSessions },
         { table: "push_subscriptions", rows: pushSubscriptions },
         { table: "staff", rows: staff },
+        { table: "live_score_state", rows: store.liveScoreState ? [store.liveScoreState] : [] },
       ];
       return {
         tables: collections.map(({ table, rows }) => ({
