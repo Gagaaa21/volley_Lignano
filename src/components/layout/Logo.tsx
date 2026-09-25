@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/cn";
-import crest from "@/assets/lignano-crest.png";
+import crestU14U15 from "@/assets/lignano-crest.png";
+import crestMinivolley from "@/assets/minivolley-crest.png";
+import type { TrainingTeam } from "@/lib/types";
 
 interface LogoProps {
   className?: string;
@@ -9,6 +11,8 @@ interface LogoProps {
   size?: "sm" | "md" | "lg";
   showWordmark?: boolean;
   subtitle?: string;
+  team?: TrainingTeam;
+  href?: string;
 }
 
 const CHIP_SIZES = {
@@ -17,18 +21,35 @@ const CHIP_SIZES = {
   lg: "h-16 w-16 p-3",
 };
 
+const CREST_BY_TEAM: Record<TrainingTeam, typeof crestU14U15> = {
+  u14u15: crestU14U15,
+  minivolley: crestMinivolley,
+};
+
+const CREST_ALT_BY_TEAM: Record<TrainingTeam, string> = {
+  u14u15: "Stemma Volley Lignano",
+  minivolley: "Logo Volley Lignano S3 Minivolley",
+};
+
 export function Logo({
   className,
   variant = "default",
   size = "md",
   showWordmark = true,
   subtitle = "U14 · U15",
+  team = "u14u15",
+  href = "/",
 }: LogoProps) {
   const inverted = variant === "inverted";
   return (
-    <Link href="/" className={cn("group flex items-center gap-3", className)}>
+    <Link href={href} className={cn("group flex items-center gap-3", className)}>
       <span className={cn("brand-chip shrink-0 transition-transform group-hover:scale-105", CHIP_SIZES[size])}>
-        <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
+        <Image
+          src={CREST_BY_TEAM[team]}
+          alt={CREST_ALT_BY_TEAM[team]}
+          className="h-full w-full object-contain"
+          priority
+        />
       </span>
       {showWordmark && (
         <span className="flex flex-col leading-tight">

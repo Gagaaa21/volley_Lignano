@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import Image from "next/image";
 import { CalendarDays, CalendarPlus, Dumbbell, Swords, Trophy, Volleyball, Waves } from "lucide-react";
-import crest from "@/assets/lignano-crest.png";
+import crest from "@/assets/minivolley-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
@@ -90,7 +90,7 @@ export default async function MinivolleyPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PublicHeader subtitle="Minivolley" />
+      <PublicHeader subtitle="Minivolley" team="minivolley" />
 
       <section className="auth-stage relative overflow-hidden">
         <Image
