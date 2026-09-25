@@ -116,20 +116,26 @@ export async function createPlanAction(
     revalidatePath("/");
     updateTag(PUBLIC_CALENDAR_TAG);
 
-    await notifyStaffChange({
-      title: "Nuova scheda creata e assegnata",
-      body: `${plan.title} · ${occurrenceTraining?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
-      url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
-    });
+    await notifyStaffChange(
+      {
+        title: "Nuova scheda creata e assegnata",
+        body: `${plan.title} · ${occurrenceTraining?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
+        url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
+      },
+      team,
+    );
 
     redirect(`/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`);
   }
 
-  await notifyStaffChange({
-    title: "Nuova scheda creata",
-    body: plan.title,
-    url: `/admin/schede/${plan.id}`,
-  });
+  await notifyStaffChange(
+    {
+      title: "Nuova scheda creata",
+      body: plan.title,
+      url: `/admin/schede/${plan.id}`,
+    },
+    team,
+  );
 
   redirect(`/admin/schede/${plan.id}`);
 }

@@ -150,11 +150,14 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
   updateTag(PUBLIC_CALENDAR_TAG);
 
   const [training, plan] = await Promise.all([repo.getTraining(ruleId), repo.getTrainingPlan(planId)]);
-  await notifyStaffChange({
-    title: "Scheda assegnata a un allenamento",
-    body: `${plan?.title ?? "Scheda"} · ${training?.title ?? "Allenamento"} del ${formatDateShort(date)}`,
-    url: `/admin/allenamenti/scheda/${ruleId}/${date}`,
-  });
+  await notifyStaffChange(
+    {
+      title: "Scheda assegnata a un allenamento",
+      body: `${plan?.title ?? "Scheda"} · ${training?.title ?? "Allenamento"} del ${formatDateShort(date)}`,
+      url: `/admin/allenamenti/scheda/${ruleId}/${date}`,
+    },
+    training?.team ?? "u14u15",
+  );
 }
 
 export async function removeOccurrencePlanAction(formData: FormData): Promise<void> {

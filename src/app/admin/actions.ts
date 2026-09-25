@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
-import { setSessionCookie } from "@/lib/auth/session";
+import { setActiveTeamCookie, setSessionCookie } from "@/lib/auth/session";
 import { TEAMS } from "@/lib/types";
 
 /** Cambia la squadra attiva per tutta la sessione (switcher nell'header):
@@ -26,5 +26,6 @@ export async function setActiveTeamAction(formData: FormData): Promise<void> {
   }
 
   await setSessionCookie({ ...session, activeTeam: team });
+  await setActiveTeamCookie(team);
   redirect(redirectTo);
 }

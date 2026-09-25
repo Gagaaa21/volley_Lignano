@@ -94,18 +94,23 @@ export async function notifyCalendarChange(
  * Come notifyCalendarChange, ma riservata ai soli dispositivi iscritti da
  * uno staff autenticato (admin/dev) — usata per eventi interni allo staff
  * come la creazione o l'assegnazione di una scheda, che non riguardano il
- * pubblico iscritto al calendario.
+ * pubblico iscritto al calendario. Filtrata per squadra come
+ * notifyCalendarChange: una scheda U14/U15 non deve notificare un
+ * dispositivo iscritto mentre si lavorava sul Minivolley (e viceversa).
  */
-export async function notifyStaffChange(payload: CalendarNotification): Promise<void> {
+export async function notifyStaffChange(payload: CalendarNotification, team: TrainingTeam): Promise<void> {
   try {
     if (!ensureConfigured()) return;
     if ((await getSession())?.testMode) return;
 
     const repo = await getRepo();
-    const subscriptions = (await repo.listPushSubscriptions()).filter((sub) => sub.staffId !== null);
+    const subscriptions = (await repo.listPushSubscriptions()).filter(
+      (sub) => sub.staffId !== null && sub.team === team,
+    );
     if (subscriptions.length === 0) return;
 
-    await sendToSubscriptions(subscriptions, payload);
+    const icon = payload.icon ?? (team === "minivolley" ? "/icons-s3/icon-192.png" : undefined);
+    await sendToSubscriptions(subscriptions, { ...payload, icon });
   } catch (err) {
     console.error("[push] notifyStaffChange fallito:", err);
   }

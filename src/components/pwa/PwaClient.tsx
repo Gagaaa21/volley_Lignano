@@ -57,6 +57,17 @@ function useMounted(): boolean {
   return useSyncExternalStore(subscribeNever, getClientSnapshot, getServerSnapshot);
 }
 
+/** Legge il cookie non httpOnly che rispecchia lo switcher squadra
+ * dell'area riservata (vedi setActiveTeamCookie in lib/auth/session.ts):
+ * unico modo per questo componente client di sapere quale squadra sia
+ * attiva, dato che il cookie di sessione vero è httpOnly. Assente = mai
+ * cambiata dal default "u14u15". */
+function readActiveTeamCookie(): TrainingTeam {
+  if (typeof document === "undefined") return "u14u15";
+  const match = document.cookie.match(/(?:^|;\s*)volley_active_team=([^;]+)/);
+  return match?.[1] === "minivolley" ? "minivolley" : "u14u15";
+}
+
 function isNotifyEligible(): boolean {
   if (typeof window === "undefined") return false;
   if (localStorage.getItem(NOTIFY_PROMPTED_KEY) === "1") return false;
@@ -69,7 +80,14 @@ export function PwaClient() {
   const [step, setStep] = useState<"install" | "notify" | "done">(computeInitialStep);
   const { canInstall, isStandalone, promptInstall } = usePwaInstall();
   const pathname = usePathname();
-  const team: TrainingTeam = pathname?.startsWith("/minivolley") ? "minivolley" : "u14u15";
+  // Sul sito pubblico la squadra si legge dall'URL; nell'area riservata,
+  // dove l'URL non la indica più (un solo pannello per entrambe le
+  // squadre), dallo switcher nell'header tramite il suo cookie.
+  const team: TrainingTeam = pathname?.startsWith("/minivolley")
+    ? "minivolley"
+    : pathname?.startsWith("/admin")
+      ? readActiveTeamCookie()
+      : "u14u15";
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {

@@ -68,6 +68,31 @@ export async function clearSessionCookie(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
+/** Cookie non httpOnly che rispecchia session.activeTeam, leggibile da
+ * PwaClient (componente client) per sapere a quale squadra associare
+ * un'iscrizione alle notifiche push aperta dall'area riservata — senza,
+ * PwaClient non ha modo di conoscere lo switcher squadra (che vive nel
+ * cookie di sessione httpOnly) e taggerebbe sempre "u14u15", anche mentre si
+ * lavora sul Minivolley. Non è un dato sensibile: indica solo una
+ * preferenza di interfaccia, mai usato per autorizzare nulla. */
+export const ACTIVE_TEAM_COOKIE = "volley_active_team";
+
+export async function setActiveTeamCookie(team: TrainingTeam): Promise<void> {
+  const store = await cookies();
+  store.set(ACTIVE_TEAM_COOKIE, team, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_DURATION_SECONDS,
+  });
+}
+
+export async function clearActiveTeamCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(ACTIVE_TEAM_COOKIE);
+}
+
 export async function getSession(): Promise<SessionPayload | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
