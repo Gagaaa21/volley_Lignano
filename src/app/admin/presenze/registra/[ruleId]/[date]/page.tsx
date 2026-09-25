@@ -20,12 +20,13 @@ export default async function RecordAttendancePage({
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) notFound();
 
   const repo = await getActiveRepo();
-  const [training, existingSession, athletes] = await Promise.all([
+  const [training, existingSession] = await Promise.all([
     repo.getTraining(ruleId),
     repo.getAttendanceSessionByOccurrence(ruleId, date),
-    repo.listAthletes(),
   ]);
-  if (!training || training.team !== "u14u15") notFound();
+  if (!training) notFound();
+  // Solo atlete della stessa squadra dell'allenamento.
+  const athletes = await repo.listAthletes({ team: training.team });
 
   const activeAthletes = athletes.filter((a) => a.isActive);
 

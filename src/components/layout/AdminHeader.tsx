@@ -5,7 +5,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  Baby,
   BookOpen,
   CalendarClock,
   ChevronDown,
@@ -26,21 +25,59 @@ import {
 import { cn } from "@/lib/cn";
 import { logoutAction } from "@/lib/auth/actions";
 import { enterTestModeAction } from "@/app/admin/test-mode/actions";
+import { setActiveTeamAction } from "@/app/admin/actions";
 import type { SessionPayload } from "@/lib/auth/session";
-import type { AdminPage } from "@/lib/types";
+import type { AdminPage, TrainingTeam } from "@/lib/types";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import crest from "@/assets/lignano-crest.png";
 
 const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; exact: boolean; page: AdminPage | null }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, page: null },
   { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false, page: "allenamenti" },
-  { href: "/admin/minivolley", label: "Minivolley", icon: Baby, exact: false, page: "minivolley" },
   { href: "/admin/partite", label: "Partite", icon: Swords, exact: false, page: "partite" },
   { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false, page: "schede" },
   { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze" },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff" },
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida" },
 ];
+
+const TEAM_OPTIONS: { value: TrainingTeam; label: string }[] = [
+  { value: "u14u15", label: "U14/U15" },
+  { value: "minivolley", label: "Minivolley" },
+];
+
+/** Sceglie la squadra attiva per tutta la sessione: Allenamenti, Partite,
+ * Schede e Presenze mostrano da qui in poi i dati della squadra scelta.
+ * Riporta sulla stessa pagina da cui è stato aperto, per non perdere il
+ * punto in cui si era. */
+function TeamSwitcher({ activeTeam, pathname }: { activeTeam: TrainingTeam; pathname: string }) {
+  return (
+    <div
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface p-0.5 shadow-sm shadow-sea-950/5"
+      role="group"
+      aria-label="Squadra attiva"
+    >
+      {TEAM_OPTIONS.map((option) => (
+        <form key={option.value} action={setActiveTeamAction}>
+          <input type="hidden" name="team" value={option.value} />
+          <input type="hidden" name="redirectTo" value={pathname} />
+          <button
+            type="submit"
+            disabled={activeTeam === option.value}
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors",
+              activeTeam === option.value
+                ? "bg-sea-700 text-white"
+                : "text-foreground/55 hover:bg-surface-muted",
+            )}
+          >
+            {option.label}
+          </button>
+        </form>
+      ))}
+    </div>
+  );
+}
 
 const DEV_NAV_ITEMS = [
   { href: "/admin/centro-controllo", label: "Centro di controllo", icon: Shield, exact: false },
@@ -138,9 +175,11 @@ function DevMenu({ pathname }: { pathname: string }) {
 export function AdminHeader({
   session,
   allowedPages,
+  activeTeam,
 }: {
   session: SessionPayload;
   allowedPages: AdminPage[];
+  activeTeam: TrainingTeam;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -185,7 +224,10 @@ export function AdminHeader({
               )}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <div className="hidden sm:block">
+              <TeamSwitcher activeTeam={activeTeam} pathname={pathname} />
+            </div>
             <InstallButton />
             <button
               type="button"
@@ -198,6 +240,10 @@ export function AdminHeader({
               {mobileOpen ? "Chiudi" : "Menu"}
             </button>
           </div>
+        </div>
+
+        <div className="sm:hidden">
+          <TeamSwitcher activeTeam={activeTeam} pathname={pathname} />
         </div>
 
         <div

@@ -20,7 +20,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
+import { CATEGORY_LABELS, categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { buildICSSingleEvent, eventTitle } from "@/lib/ics";
@@ -141,7 +141,7 @@ export function EventDetailDialog({
 
   const isTraining = event.kind === "training";
   const dateObj = parseISO(event.date);
-  const badgeClass = isTraining ? TRAINING_BADGE : CATEGORY_BADGE[event.category];
+  const badgeClass = isTraining ? TRAINING_BADGE : categoryBadgeClass(event.category);
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
 
   return (
@@ -188,7 +188,7 @@ export function EventDetailDialog({
                       badgeClass,
                     )}
                   >
-                    {CATEGORY_LABELS[event.category]}
+                    {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}
                   </span>
                 )}
                 {!isTraining && event.isFriendly && (

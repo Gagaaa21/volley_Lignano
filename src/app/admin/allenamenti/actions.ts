@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, requireStaffPage } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
@@ -66,11 +66,7 @@ export async function saveTrainingAction(
   _prevState: TrainingFormState,
   formData: FormData,
 ): Promise<TrainingFormState> {
-  // Il permesso dipende dalla squadra del form: si legge dal formData grezzo
-  // (stessa logica di parseTrainingForm) prima ancora di validare il resto,
-  // così l'accesso viene negato senza toccare il repo.
-  const rawTeam = formData.get("team")?.toString() === "minivolley" ? "minivolley" : "u14u15";
-  const session = await requireStaffPage(rawTeam === "minivolley" ? "minivolley" : "allenamenti");
+  const session = await requireStaffPage("allenamenti");
   const parsed = parseTrainingForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -131,11 +127,10 @@ export async function saveTrainingAction(
 
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
-  revalidatePath("/admin/minivolley");
   revalidatePath("/");
   revalidatePath("/minivolley");
   updateTag(PUBLIC_CALENDAR_TAG);
-  redirect(input.team === "minivolley" ? "/admin/minivolley" : "/admin/allenamenti/elenco");
+  redirect("/admin/allenamenti/elenco");
 }
 
 export async function setOccurrencePlanAction(formData: FormData): Promise<void> {
@@ -178,13 +173,12 @@ export async function removeOccurrencePlanAction(formData: FormData): Promise<vo
 }
 
 export async function deleteTrainingAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("allenamenti");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
   const training = await repo.getTraining(id);
   if (!training) return;
-  await requireStaffPage(training.team === "minivolley" ? "minivolley" : "allenamenti");
   const scheduleLabel =
     training.repeat === "once"
       ? `il ${formatDateLong(training.startDate)}`
@@ -199,7 +193,6 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   );
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
-  revalidatePath("/admin/minivolley");
   revalidatePath("/");
   revalidatePath("/minivolley");
   updateTag(PUBLIC_CALENDAR_TAG);

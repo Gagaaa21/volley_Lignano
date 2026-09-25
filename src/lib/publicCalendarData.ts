@@ -34,17 +34,15 @@ export type PublicCallUpsByMatchId = Record<string, string[]>;
 export const getPublicCalendarData = unstable_cache(
   async (from: string, to: string, category?: Category, team: TrainingTeam = "u14u15") => {
     const repo = await getRepo();
-    // Minivolley non ha partite: evita una query inutile per dati che non
-    // verrebbero comunque mostrati sulla sua pagina pubblica.
     const [trainings, matches, occurrencePlans, plans, blocks, athletes, attendanceSessions] =
       await Promise.all([
         repo.listTrainings({ team }),
-        team === "minivolley" ? Promise.resolve([]) : repo.listMatches({ from, to, category }),
+        repo.listMatches({ team, from, to, category }),
         repo.listTrainingOccurrencePlans(),
-        repo.listTrainingPlans(),
+        repo.listTrainingPlans({ team }),
         repo.listTrainingBlocks(),
-        repo.listAthletes(),
-        repo.listAttendanceSessions(),
+        repo.listAthletes({ team }),
+        repo.listAttendanceSessions({ team }),
       ]);
 
     // Il registro presenze è pubblico su richiesta esplicita del club (atlete
@@ -101,7 +99,9 @@ export interface SeasonRecord {
 export const getPublicSeasonRecord = unstable_cache(
   async (): Promise<SeasonRecord[]> => {
     const repo = await getRepo();
-    const matches = await repo.listMatches();
+    // Il bilancio stagione riguarda solo la squadra U14/U15: il Minivolley
+    // non ha una classifica di campionato con vittorie/sconfitte.
+    const matches = await repo.listMatches({ team: "u14u15" });
 
     const byCategory: Record<Category, SeasonRecord> = {
       U14: { category: "U14", played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0 },
@@ -111,6 +111,7 @@ export const getPublicSeasonRecord = unstable_cache(
     for (const match of matches) {
       if (match.isFriendly || match.isTournament) continue;
       if (match.resultSetsWon === null || match.resultSetsLost === null) continue;
+      if (!match.category) continue;
 
       const record = byCategory[match.category];
       record.played += 1;

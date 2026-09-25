@@ -101,6 +101,7 @@ export function matchesToEvents(matches: Match[]): CalendarEvent[] {
     id: m.id,
     date: m.matchDate.slice(0, 10),
     time: m.matchDate.slice(11, 16),
+    team: m.team,
     category: m.category,
     opponent: m.opponent,
     isHome: m.isHome,

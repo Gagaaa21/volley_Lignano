@@ -5,17 +5,17 @@ import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Dumbbell, Swords, Trophy } from "lucide-react";
 import { eventTime, matchTitle } from "@/lib/calendar";
-import { CATEGORY_BADGE, CATEGORY_DOT, TRAINING_BADGE, TRAINING_DOT } from "@/lib/category";
+import { categoryBadgeClass, categoryDotClass, TRAINING_BADGE, TRAINING_DOT } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
 import { EventDetailDialog, type EventAttendance, type EventCallUps, type EventPlan } from "./EventDetailDialog";
 
 function badgeClass(event: CalendarEvent) {
-  return event.kind === "match" ? CATEGORY_BADGE[event.category] : TRAINING_BADGE;
+  return event.kind === "match" ? categoryBadgeClass(event.category) : TRAINING_BADGE;
 }
 
 function dotClass(event: CalendarEvent) {
-  return event.kind === "match" ? CATEGORY_DOT[event.category] : TRAINING_DOT;
+  return event.kind === "match" ? categoryDotClass(event.category) : TRAINING_DOT;
 }
 
 export function UpcomingStrip({

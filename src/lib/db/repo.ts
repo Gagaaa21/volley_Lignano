@@ -26,9 +26,14 @@ export interface MatchFilter {
   category?: import("@/lib/types").Category;
   from?: string; // ISO date, inclusive
   to?: string; // ISO date, inclusive
+  team?: TrainingTeam;
 }
 
 export interface TrainingFilter {
+  team?: TrainingTeam;
+}
+
+export interface TeamFilter {
   team?: TrainingTeam;
 }
 
@@ -85,7 +90,7 @@ export interface Repo {
   deleteTrainingBlock(id: string): Promise<void>;
 
   // Schede allenamento (composizione ordinata di blocchi)
-  listTrainingPlans(): Promise<TrainingPlan[]>;
+  listTrainingPlans(filter?: TeamFilter): Promise<TrainingPlan[]>;
   getTrainingPlan(id: string): Promise<TrainingPlan | null>;
   createTrainingPlan(input: TrainingPlanInput, createdBy: string | null): Promise<TrainingPlan>;
   updateTrainingPlan(id: string, input: TrainingPlanInput): Promise<TrainingPlan>;
@@ -108,7 +113,7 @@ export interface Repo {
   removeTrainingOccurrencePlan(trainingRuleId: string, occurrenceDate: string): Promise<void>;
 
   // Atlete
-  listAthletes(): Promise<Athlete[]>;
+  listAthletes(filter?: TeamFilter): Promise<Athlete[]>;
   getAthlete(id: string): Promise<Athlete | null>;
   createAthlete(input: AthleteInput, createdBy: string | null): Promise<Athlete>;
   createAthletesBulk(inputs: AthleteInput[], createdBy: string | null): Promise<Athlete[]>;
@@ -116,7 +121,7 @@ export interface Repo {
   deleteAthlete(id: string): Promise<void>;
 
   // Registro presenze
-  listAttendanceSessions(): Promise<AttendanceSession[]>;
+  listAttendanceSessions(filter?: TeamFilter): Promise<AttendanceSession[]>;
   getAttendanceSession(id: string): Promise<AttendanceSession | null>;
   getAttendanceSessionByOccurrence(
     trainingRuleId: string,

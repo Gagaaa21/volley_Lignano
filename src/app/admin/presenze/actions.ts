@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath, updateTag } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaffPage } from "@/lib/auth/guard";
+import { requireStaffPage, activeTeam } from "@/lib/auth/guard";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { AttendanceSessionInput, AttendanceStatus } from "@/lib/types";
 
@@ -37,20 +37,29 @@ export async function saveAttendanceAction(
     records[athleteId] = normalizeStatus(formData.get(`status_${athleteId}`)?.toString());
   }
 
-  const input: AttendanceSessionInput = { trainingRuleId, sessionDate, title, location, records };
   const repo = await getActiveRepo();
+  // La squadra di un registro esistente non cambia mai in modifica; per un
+  // nuovo registro collegato a un allenamento eredita la squadra di
+  // quell'allenamento, altrimenti la squadra attiva nello switcher.
+  const existingById = sessionId ? await repo.getAttendanceSession(sessionId) : null;
+  const existingByOccurrence =
+    !sessionId && trainingRuleId
+      ? await repo.getAttendanceSessionByOccurrence(trainingRuleId, sessionDate)
+      : null;
+  const existing = existingById ?? existingByOccurrence;
+  const team =
+    existing?.team ??
+    (trainingRuleId ? (await repo.getTraining(trainingRuleId))?.team : undefined) ??
+    activeTeam(session);
+
+  const input: AttendanceSessionInput = { trainingRuleId, team, sessionDate, title, location, records };
 
   if (sessionId) {
     await repo.updateAttendanceSession(sessionId, input);
+  } else if (existingByOccurrence) {
+    await repo.updateAttendanceSession(existingByOccurrence.id, input);
   } else {
-    const existing = trainingRuleId
-      ? await repo.getAttendanceSessionByOccurrence(trainingRuleId, sessionDate)
-      : null;
-    if (existing) {
-      await repo.updateAttendanceSession(existing.id, input);
-    } else {
-      await repo.createAttendanceSession(input, session.sub);
-    }
+    await repo.createAttendanceSession(input, session.sub);
   }
 
   revalidatePath("/admin/presenze");

@@ -18,9 +18,9 @@ import {
   Users,
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaff, activeTeam } from "@/lib/auth/guard";
 import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
-import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
+import { categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -96,14 +96,14 @@ export default async function AdminDashboardPage({
     visibleSections = SECTIONS.filter((section) => allowedPages.includes(section.page));
   }
 
-  // La dashboard mostra la squadra U14/U15 (Minivolley ha la propria sezione,
-  // senza presenze da registrare): niente allenamenti/tornei Minivolley nel
-  // conteggio "Allenamenti attivi" né tra le presenze da registrare.
+  // La dashboard riflette la squadra attiva nello switcher, come le sezioni
+  // Allenamenti/Partite/Schede/Presenze.
+  const team = activeTeam(session);
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
-    repo.listTrainings({ team: "u14u15" }),
-    repo.listMatches(),
-    repo.listAthletes(),
-    repo.listAttendanceSessions(),
+    repo.listTrainings({ team }),
+    repo.listMatches({ team }),
+    repo.listAthletes({ team }),
+    repo.listAttendanceSessions({ team }),
   ]);
 
   const today = new Date();
@@ -231,7 +231,7 @@ export default async function AdminDashboardPage({
             <div className="mt-4 space-y-2.5">
               {upcomingEvents.map((event) => {
                 const isTraining = event.kind === "training";
-                const badgeClass = isTraining ? TRAINING_BADGE : CATEGORY_BADGE[event.category];
+                const badgeClass = isTraining ? TRAINING_BADGE : categoryBadgeClass(event.category);
                 return (
                   <Link
                     key={event.id}
@@ -247,7 +247,11 @@ export default async function AdminDashboardPage({
                           {isTraining ? event.title : matchTitle(event)}
                         </p>
                         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", badgeClass)}>
-                          {isTraining ? "U14 · U15" : CATEGORY_LABELS[event.category]}
+                          {isTraining
+                            ? team === "minivolley"
+                              ? "Minivolley"
+                              : "U14 · U15"
+                            : (event.category ?? MATCH_NO_CATEGORY_LABEL)}
                         </span>
                       </div>
                       <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60">

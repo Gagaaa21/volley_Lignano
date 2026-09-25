@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { format } from "date-fns";
 import { List, Plus, Puzzle } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { requireStaff, activeTeam } from "@/lib/auth/guard";
 import { expandTrainings, getMonthGridRange, groupEventsByDate, occurrenceKey } from "@/lib/calendar";
 import { parseMonthParam } from "@/lib/month";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -19,12 +20,14 @@ export default async function TrainingsCalendarPage({
 }) {
   const { month } = await searchParams;
   const monthDate = parseMonthParam(month);
+  const session = await requireStaff();
+  const team = activeTeam(session);
 
   const repo = await getActiveRepo();
   const [trainings, occurrencePlans, plans] = await Promise.all([
-    repo.listTrainings({ team: "u14u15" }),
+    repo.listTrainings({ team }),
     repo.listTrainingOccurrencePlans(),
-    repo.listTrainingPlans(),
+    repo.listTrainingPlans({ team }),
   ]);
 
   const { start, end } = getMonthGridRange(monthDate);

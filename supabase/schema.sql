@@ -23,7 +23,7 @@ create table if not exists staff (
   -- Pagine dell'area riservata visibili a questo account (solo per role
   -- "admin", un Developer vede sempre tutto). Default: tutte, nessun
   -- account perde accesso finché il Developer non lo restringe.
-  allowed_pages text[] not null default '{allenamenti,minivolley,partite,schede,presenze,staff,guida}',
+  allowed_pages text[] not null default '{allenamenti,partite,schede,presenze,staff,guida}',
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -76,7 +76,10 @@ create policy "Allenamenti attivi visibili a tutti"
 -- =========================================================
 create table if not exists matches (
   id uuid primary key default gen_random_uuid(),
-  category text not null check (category in ('U14', 'U15')),
+  -- Squadra a cui appartiene, come per training_sessions.
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
+  -- Null per il Minivolley, che non ha la distinzione U14/U15.
+  category text check (category in ('U14', 'U15')),
   opponent text not null,
   is_home boolean not null default true,
   location text not null,
@@ -102,6 +105,7 @@ create table if not exists matches (
 
 create index if not exists matches_match_date_idx on matches (match_date);
 create index if not exists matches_category_idx on matches (category);
+create index if not exists matches_team_idx on matches (team);
 
 alter table matches enable row level security;
 
@@ -155,10 +159,15 @@ create table if not exists training_plans (
   title text not null,
   notes text,
   block_ids uuid[] not null default '{}',
+  -- Squadra a cui appartiene la scheda. training_blocks resta una libreria
+  -- condivisa tra le due squadre (nessun campo team lì).
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index if not exists training_plans_team_idx on training_plans (team);
 
 alter table training_plans enable row level security;
 -- Nessuna policy pubblica: stessa logica di training_blocks.
@@ -195,6 +204,9 @@ alter table training_occurrence_plans enable row level security;
 create table if not exists athletes (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
+  -- Squadra a cui appartiene. category si applica solo dentro "u14u15": per
+  -- il Minivolley resta sempre null.
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
   category text check (category in ('U14', 'U15')),
   is_active boolean not null default true,
   notes text,
@@ -204,6 +216,7 @@ create table if not exists athletes (
 );
 
 create index if not exists athletes_category_idx on athletes (category);
+create index if not exists athletes_team_idx on athletes (team);
 
 alter table athletes enable row level security;
 -- Nessuna policy pubblica: dati personali di minori, accesso solo staff
@@ -217,6 +230,9 @@ alter table athletes enable row level security;
 create table if not exists attendance_sessions (
   id uuid primary key default gen_random_uuid(),
   training_rule_id uuid references training_sessions(id) on delete set null,
+  -- Squadra a cui appartiene: necessario anche quando training_rule_id è
+  -- null, quindi non sempre derivabile dall'allenamento collegato.
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
   session_date date not null,
   title text not null,
   location text not null,
@@ -227,6 +243,7 @@ create table if not exists attendance_sessions (
 );
 
 create index if not exists attendance_sessions_date_idx on attendance_sessions (session_date);
+create index if not exists attendance_sessions_team_idx on attendance_sessions (team);
 
 -- Evita doppie registrazioni per lo stesso allenamento nello stesso giorno.
 create unique index if not exists attendance_sessions_occurrence_idx
@@ -338,6 +355,37 @@ exception when duplicate_object then null;
 end $$;
 do $$ begin
   alter table matches add constraint matches_result_sets_lost_check check (result_sets_lost between 0 and 3);
+exception when duplicate_object then null;
+end $$;
+
+-- Il Minivolley non è più una sezione admin a sé: ogni pagina (Allenamenti,
+-- Partite, Schede, Presenze) gestisce entrambe le squadre con lo switcher
+-- nell'header. Partite, schede, atlete e registri presenze guadagnano un
+-- campo "team", come già avveniva per training_sessions/push_subscriptions.
+-- Le righe esistenti (create prima di questa modifica) sono tutte U14/U15,
+-- da cui il default.
+alter table matches add column if not exists team text not null default 'u14u15';
+do $$ begin
+  alter table matches add constraint matches_team_check check (team in ('u14u15', 'minivolley'));
+exception when duplicate_object then null;
+end $$;
+alter table matches alter column category drop not null;
+
+alter table training_plans add column if not exists team text not null default 'u14u15';
+do $$ begin
+  alter table training_plans add constraint training_plans_team_check check (team in ('u14u15', 'minivolley'));
+exception when duplicate_object then null;
+end $$;
+
+alter table athletes add column if not exists team text not null default 'u14u15';
+do $$ begin
+  alter table athletes add constraint athletes_team_check check (team in ('u14u15', 'minivolley'));
+exception when duplicate_object then null;
+end $$;
+
+alter table attendance_sessions add column if not exists team text not null default 'u14u15';
+do $$ begin
+  alter table attendance_sessions add constraint attendance_sessions_team_check check (team in ('u14u15', 'minivolley'));
 exception when duplicate_object then null;
 end $$;
 

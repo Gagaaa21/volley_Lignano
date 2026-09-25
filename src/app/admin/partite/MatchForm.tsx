@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { saveMatchAction, type MatchFormState } from "./actions";
-import type { Match } from "@/lib/types";
+import type { Match, TrainingTeam } from "@/lib/types";
 
 const initialState: MatchFormState = {};
 
@@ -28,22 +28,26 @@ function todayStr() {
 
 const MAX_SETS = 5;
 
-export function MatchForm({ match }: { match?: Match }) {
+export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: TrainingTeam }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
   const [isTournament, setIsTournament] = useState(match?.isTournament ?? false);
   const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
+  const effectiveTeam = match?.team ?? team;
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
       {match && <input type="hidden" name="id" value={match.id} />}
+      <input type="hidden" name="team" value={effectiveTeam} />
 
-      <div>
-        <Label htmlFor="category">Categoria</Label>
-        <Select id="category" name="category" defaultValue={match?.category ?? "U15"} required>
-          <option value="U14">{CATEGORY_LABELS.U14}</option>
-          <option value="U15">{CATEGORY_LABELS.U15}</option>
-        </Select>
-      </div>
+      {effectiveTeam === "u14u15" && (
+        <div>
+          <Label htmlFor="category">Categoria</Label>
+          <Select id="category" name="category" defaultValue={match?.category ?? "U15"} required>
+            <option value="U14">{CATEGORY_LABELS.U14}</option>
+            <option value="U15">{CATEGORY_LABELS.U15}</option>
+          </Select>
+        </div>
+      )}
 
       <div>
         <Label htmlFor="opponent">{isTournament ? "Torneo / squadre coinvolte" : "Squadra avversaria"}</Label>

@@ -20,12 +20,13 @@ const MAX_OCCURRENCES_PREVIEW = 5;
 export default async function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const repo = await getActiveRepo();
-  const [training, allPlans, occurrencePlans] = await Promise.all([
-    repo.getTraining(id),
-    repo.listTrainingPlans(),
+  const training = await repo.getTraining(id);
+  if (!training) notFound();
+  // Solo schede della stessa squadra dell'allenamento.
+  const [allPlans, occurrencePlans] = await Promise.all([
+    repo.listTrainingPlans({ team: training.team }),
     repo.listTrainingOccurrencePlans(),
   ]);
-  if (!training || training.team !== "u14u15") notFound();
 
   const today = new Date();
   const rangeStart = training.repeat === "once" ? new Date(`${training.startDate}T00:00:00`) : today;
@@ -56,7 +57,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <TrainingForm training={training} />
+          <TrainingForm training={training} allowTournament={training.team === "minivolley"} />
         </CardBody>
       </Card>
 

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Home, MapPin, Pencil, Plane, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { requireStaff, activeTeam } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateLong } from "@/lib/format";
-import { CATEGORY_BADGE, CATEGORY_LABELS } from "@/lib/category";
+import { CATEGORY_LABELS, categoryBadgeClass, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -23,12 +24,16 @@ export default async function MatchesListPage({
   searchParams: Promise<{ cat?: string }>;
 }) {
   const { cat } = await searchParams;
-  const activeCategory: "all" | Category = cat === "U14" || cat === "U15" ? cat : "all";
+  const session = await requireStaff();
+  const team = activeTeam(session);
+  const isU14U15 = team === "u14u15";
+  const activeCategory: "all" | Category = isU14U15 && (cat === "U14" || cat === "U15") ? cat : "all";
 
   const repo = await getActiveRepo();
-  const matches = await repo.listMatches(
-    activeCategory === "all" ? undefined : { category: activeCategory },
-  );
+  const matches = await repo.listMatches({
+    team,
+    category: activeCategory === "all" ? undefined : activeCategory,
+  });
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
@@ -37,7 +42,7 @@ export default async function MatchesListPage({
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Partite</h1>
           <p className="mt-1 text-sm text-foreground/60">
-            Gestisci le partite di campionato per Under 14 e Under 15.
+            {isU14U15 ? "Gestisci le partite di campionato per Under 14 e Under 15." : "Squadra Minivolley."}
           </p>
         </div>
         <LinkButton href="/admin/partite/nuovo">
@@ -46,22 +51,24 @@ export default async function MatchesListPage({
         </LinkButton>
       </div>
 
-      <div className="mt-5 inline-flex items-center gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm shadow-sea-950/5">
-        {(["all", "U14", "U15"] as const).map((value) => (
-          <Link
-            key={value}
-            href={value === "all" ? "/admin/partite" : `/admin/partite?cat=${value}`}
-            className={cn(
-              "rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors",
-              activeCategory === value
-                ? "bg-sea-700 text-white shadow-sm"
-                : "text-foreground/60 hover:bg-surface-muted",
-            )}
-          >
-            {value === "all" ? "Tutte" : CATEGORY_LABELS[value]}
-          </Link>
-        ))}
-      </div>
+      {isU14U15 && (
+        <div className="mt-5 inline-flex items-center gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm shadow-sea-950/5">
+          {(["all", "U14", "U15"] as const).map((value) => (
+            <Link
+              key={value}
+              href={value === "all" ? "/admin/partite" : `/admin/partite?cat=${value}`}
+              className={cn(
+                "rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors",
+                activeCategory === value
+                  ? "bg-sea-700 text-white shadow-sm"
+                  : "text-foreground/60 hover:bg-surface-muted",
+              )}
+            >
+              {value === "all" ? "Tutte" : CATEGORY_LABELS[value]}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {matches.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
@@ -76,8 +83,8 @@ export default async function MatchesListPage({
                 <CardBody className="flex flex-wrap items-center justify-between gap-4 pt-5">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={CATEGORY_BADGE[match.category]}>
-                        {CATEGORY_LABELS[match.category]}
+                      <Badge className={categoryBadgeClass(match.category)}>
+                        {match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL}
                       </Badge>
                       {match.isFriendly && (
                         <Badge className="bg-foreground/8 text-foreground/60">Amichevole</Badge>

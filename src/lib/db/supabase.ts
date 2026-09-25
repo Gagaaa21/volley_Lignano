@@ -20,7 +20,7 @@ import type {
   TrainingRule,
   TrainingRuleInput,
 } from "@/lib/types";
-import type { MatchFilter, NewStaffInput, Repo, TrainingFilter } from "@/lib/db/repo";
+import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
 
 type TrainingRow = {
   id: string;
@@ -43,6 +43,7 @@ type TrainingRow = {
 
 type MatchRow = {
   id: string;
+  team: Match["team"];
   category: Match["category"];
   opponent: string;
   is_home: boolean;
@@ -116,6 +117,7 @@ function trainingToRow(input: TrainingRuleInput) {
 function matchFromRow(row: MatchRow): Match {
   return {
     id: row.id,
+    team: row.team,
     category: row.category,
     opponent: row.opponent,
     isHome: row.is_home,
@@ -138,6 +140,7 @@ function matchFromRow(row: MatchRow): Match {
 
 function matchToRow(input: MatchInput) {
   return {
+    team: input.team,
     category: input.category,
     opponent: input.opponent,
     is_home: input.isHome,
@@ -201,6 +204,7 @@ type TrainingPlanRow = {
   title: string;
   notes: string | null;
   block_ids: string[];
+  team: TrainingPlan["team"];
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -232,6 +236,7 @@ function trainingPlanFromRow(row: TrainingPlanRow): TrainingPlan {
     title: row.title,
     notes: row.notes,
     blockIds: row.block_ids ?? [],
+    team: row.team,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -243,6 +248,7 @@ function trainingPlanToRow(input: TrainingPlanInput) {
     title: input.title,
     notes: input.notes,
     block_ids: input.blockIds,
+    team: input.team,
   };
 }
 
@@ -273,6 +279,7 @@ function occurrencePlanFromRow(row: TrainingOccurrencePlanRow): TrainingOccurren
 type AthleteRow = {
   id: string;
   full_name: string;
+  team: Athlete["team"];
   category: Athlete["category"];
   is_active: boolean;
   notes: string | null;
@@ -284,6 +291,7 @@ type AthleteRow = {
 type AttendanceSessionRow = {
   id: string;
   training_rule_id: string | null;
+  team: AttendanceSession["team"];
   session_date: string;
   title: string;
   location: string;
@@ -297,6 +305,7 @@ function athleteFromRow(row: AthleteRow): Athlete {
   return {
     id: row.id,
     fullName: row.full_name,
+    team: row.team,
     category: row.category,
     isActive: row.is_active,
     notes: row.notes,
@@ -309,6 +318,7 @@ function athleteFromRow(row: AthleteRow): Athlete {
 function athleteToRow(input: AthleteInput) {
   return {
     full_name: input.fullName,
+    team: input.team,
     category: input.category,
     is_active: input.isActive,
     notes: input.notes,
@@ -319,6 +329,7 @@ function attendanceSessionFromRow(row: AttendanceSessionRow): AttendanceSession 
   return {
     id: row.id,
     trainingRuleId: row.training_rule_id,
+    team: row.team,
     sessionDate: row.session_date,
     title: row.title,
     location: row.location,
@@ -332,6 +343,7 @@ function attendanceSessionFromRow(row: AttendanceSessionRow): AttendanceSession 
 function attendanceSessionToRow(input: AttendanceSessionInput) {
   return {
     training_rule_id: input.trainingRuleId,
+    team: input.team,
     session_date: input.sessionDate,
     title: input.title,
     location: input.location,
@@ -413,6 +425,7 @@ export const supabaseRepo: Repo = {
     if (filter?.category) query = query.eq("category", filter.category);
     if (filter?.from) query = query.gte("match_date", `${filter.from}T00:00:00`);
     if (filter?.to) query = query.lte("match_date", `${filter.to}T23:59:59`);
+    if (filter?.team) query = query.eq("team", filter.team);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data as MatchRow[]).map(matchFromRow);
@@ -605,12 +618,11 @@ export const supabaseRepo: Repo = {
     }
   },
 
-  async listTrainingPlans() {
+  async listTrainingPlans(filter?: TeamFilter) {
     const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("training_plans")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let query = db.from("training_plans").select("*").order("created_at", { ascending: false });
+    if (filter?.team) query = query.eq("team", filter.team);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data as TrainingPlanRow[]).map(trainingPlanFromRow);
   },
@@ -691,12 +703,11 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
   },
 
-  async listAthletes() {
+  async listAthletes(filter?: TeamFilter) {
     const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("athletes")
-      .select("*")
-      .order("full_name", { ascending: true });
+    let query = db.from("athletes").select("*").order("full_name", { ascending: true });
+    if (filter?.team) query = query.eq("team", filter.team);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data as AthleteRow[]).map(athleteFromRow);
   },
@@ -741,12 +752,11 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
   },
 
-  async listAttendanceSessions() {
+  async listAttendanceSessions(filter?: TeamFilter) {
     const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("attendance_sessions")
-      .select("*")
-      .order("session_date", { ascending: false });
+    let query = db.from("attendance_sessions").select("*").order("session_date", { ascending: false });
+    if (filter?.team) query = query.eq("team", filter.team);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data as AttendanceSessionRow[]).map(attendanceSessionFromRow);
   },

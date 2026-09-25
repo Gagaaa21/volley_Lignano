@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarCheck, CheckCircle2, Clock, History, MapPin, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { requireStaff, activeTeam } from "@/lib/auth/guard";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -24,14 +25,14 @@ export default async function AttendanceHubPage({
   const { month } = await searchParams;
   const monthDate = parseMonthParam(month);
   const monthParam = formatMonthParam(monthDate);
+  const session = await requireStaff();
+  const team = activeTeam(session);
 
   const repo = await getActiveRepo();
-  // Le presenze riguardano solo la squadra U14/U15: Minivolley non ha
-  // registro presenze (fuori scope per ora).
   const [trainings, sessions, athletes] = await Promise.all([
-    repo.listTrainings({ team: "u14u15" }),
-    repo.listAttendanceSessions(),
-    repo.listAthletes(),
+    repo.listTrainings({ team }),
+    repo.listAttendanceSessions({ team }),
+    repo.listAthletes({ team }),
   ]);
 
   const { start, end } = getMonthGridRange(monthDate);

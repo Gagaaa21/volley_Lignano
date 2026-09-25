@@ -1,7 +1,7 @@
 import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import type { StaffRole } from "@/lib/types";
+import type { StaffRole, TrainingTeam } from "@/lib/types";
 
 export const SESSION_COOKIE = "volley_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 14; // 14 days
@@ -15,6 +15,10 @@ export interface SessionPayload {
   /** Modalità prova (solo dev): le modifiche vanno su un archivio separato
    * e scompaiono all'uscita. Assente/false per ogni sessione normale. */
   testMode?: boolean;
+  /** Squadra attiva nell'area riservata (switcher nell'header): scopa
+   * Allenamenti, Partite, Schede e Presenze per tutta la sessione. Assente =
+   * "u14u15" (vedi activeTeam() in guard.ts, mai letto direttamente). */
+  activeTeam?: TrainingTeam;
 }
 
 function getSecretKey() {

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaffPage } from "@/lib/auth/guard";
+import { requireStaffPage, activeTeam } from "@/lib/auth/guard";
 import type { AthleteInput } from "@/lib/types";
 
 const schema = z.object({
@@ -35,14 +35,17 @@ export async function saveAthleteAction(
   }
 
   const id = formData.get("id")?.toString();
+  const repo = await getActiveRepo();
+  // La squadra di un'atleta esistente non cambia mai in modifica.
+  const existing = id ? await repo.getAthlete(id) : null;
   const input: AthleteInput = {
     fullName: parsed.data.fullName,
+    team: existing?.team ?? activeTeam(session),
     category: parsed.data.category,
     notes: parsed.data.notes ?? null,
     isActive: parsed.data.isActive,
   };
 
-  const repo = await getActiveRepo();
   if (id) {
     await repo.updateAthlete(id, input);
   } else {
@@ -91,8 +94,10 @@ export async function bulkCreateAthletesAction(
     return { error: "Inserisci almeno un nominativo valido." };
   }
 
+  const team = activeTeam(session);
   const inputs: AthleteInput[] = names.map((fullName) => ({
     fullName,
+    team,
     category: parsed.data.category,
     notes: null,
     isActive: true,

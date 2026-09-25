@@ -15,12 +15,13 @@ export const metadata: Metadata = {
 export default async function EditMatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const repo = await getActiveRepo();
-  const [match, allAthletes, lineup] = await Promise.all([
-    repo.getMatch(id),
-    repo.listAthletes(),
+  const match = await repo.getMatch(id);
+  if (!match) notFound();
+  // Solo atlete della stessa squadra della partita.
+  const [allAthletes, lineup] = await Promise.all([
+    repo.listAthletes({ team: match.team }),
     repo.getMatchLineup(id),
   ]);
-  if (!match) notFound();
 
   const activeAthletes = allAthletes.filter((a) => a.isActive);
 

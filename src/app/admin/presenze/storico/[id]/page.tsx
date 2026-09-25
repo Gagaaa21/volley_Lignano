@@ -19,11 +19,9 @@ export default async function AttendanceSessionDetailPage({
 }) {
   const { id } = await params;
   const repo = await getActiveRepo();
-  const [session, athletes] = await Promise.all([
-    repo.getAttendanceSession(id),
-    repo.listAthletes(),
-  ]);
+  const session = await repo.getAttendanceSession(id);
   if (!session) notFound();
+  const athletes = await repo.listAthletes({ team: session.team });
 
   const athleteMap = new Map(athletes.map((a) => [a.id, a]));
   const recordedAthletes: Athlete[] = Object.keys(session.records)
@@ -32,6 +30,7 @@ export default async function AttendanceSessionDetailPage({
         athleteMap.get(athleteId) ?? {
           id: athleteId,
           fullName: "Atleta rimossa",
+          team: session.team,
           category: null,
           isActive: false,
           notes: null,

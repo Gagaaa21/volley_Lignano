@@ -7,31 +7,33 @@ import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
-import { CATEGORY_LABELS } from "@/lib/category";
+import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import type { MatchInput, MatchLineupInput, SetScore, TrainingTeam } from "@/lib/types";
+import type { MatchInput, MatchLineupInput, SetScore } from "@/lib/types";
 
-// Le partite sono sempre della squadra U14/U15: nessun campo "team" sul
-// Match (a differenza degli allenamenti, dove Minivolley condivide la
-// stessa tabella), ma notifyCalendarChange lo richiede comunque.
-const MATCH_TEAM: TrainingTeam = "u14u15";
-
-const schema = z.object({
-  category: z.enum(["U14", "U15"], { message: "Seleziona una categoria." }),
-  opponent: z.string().min(1, "Inserisci il nome della squadra avversaria."),
-  isHome: z.boolean(),
-  isFriendly: z.boolean(),
-  isTournament: z.boolean(),
-  location: z.string().min(1, "Inserisci il luogo della partita."),
-  matchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Inserisci data e ora della partita."),
-  meetingTime: z
-    .union([z.literal(""), z.string().regex(/^\d{2}:\d{2}$/)])
-    .optional()
-    .transform((v) => v || null),
-  meetingLocation: z.string().optional(),
-  notes: z.string().optional(),
-});
+const schema = z
+  .object({
+    team: z.enum(["u14u15", "minivolley"]),
+    // Solo per la squadra u14u15: il Minivolley non ha la distinzione U14/U15.
+    category: z.union([z.enum(["U14", "U15"]), z.literal("")]).optional(),
+    opponent: z.string().min(1, "Inserisci il nome della squadra avversaria."),
+    isHome: z.boolean(),
+    isFriendly: z.boolean(),
+    isTournament: z.boolean(),
+    location: z.string().min(1, "Inserisci il luogo della partita."),
+    matchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Inserisci data e ora della partita."),
+    meetingTime: z
+      .union([z.literal(""), z.string().regex(/^\d{2}:\d{2}$/)])
+      .optional()
+      .transform((v) => v || null),
+    meetingLocation: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .refine((data) => data.team !== "u14u15" || data.category === "U14" || data.category === "U15", {
+    message: "Seleziona una categoria.",
+    path: ["category"],
+  });
 
 interface ParsedResult {
   setScores: SetScore[] | null;
@@ -114,21 +116,22 @@ function matchScheduleLabel(matchDate: string, location: string): string {
  * ma per un torneo (dove "opponent" descrive l'evento, non un'unica
  * avversaria) quella sigla non avrebbe senso — si mostra solo il testo. */
 function matchupLabel(input: {
-  category: "U14" | "U15";
+  category: "U14" | "U15" | null;
   opponent: string;
   isHome: boolean;
   isFriendly: boolean;
   isTournament: boolean;
 }): string {
   const prefix = input.isFriendly ? "Amichevole " : "";
-  const categoryLabel = CATEGORY_LABELS[input.category];
+  const categoryLabel = input.category ? CATEGORY_LABELS[input.category] : MATCH_NO_CATEGORY_LABEL;
   if (input.isTournament) return `${prefix}${categoryLabel} · ${input.opponent}`;
   return `${prefix}${categoryLabel} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
 }
 
 function parseMatchForm(formData: FormData) {
   return schema.safeParse({
-    category: formData.get("category")?.toString(),
+    team: formData.get("team")?.toString() === "minivolley" ? "minivolley" : "u14u15",
+    category: formData.get("category")?.toString() ?? "",
     opponent: formData.get("opponent")?.toString().trim() ?? "",
     isHome: formData.get("isHome") === "home",
     isFriendly: formData.get("isFriendly") === "on",
@@ -170,9 +173,13 @@ export async function saveMatchAction(
   const repo = await getActiveRepo();
   // Le convocazioni si gestiscono solo dalla finestra "Convocazioni e
   // formazioni": qui si preserva il valore esistente invece di azzerarlo.
+  // La squadra di una partita esistente non cambia mai in modifica (il campo
+  // "team" nel form è nascosto e riflette quella già salvata).
   const existing = id ? await repo.getMatch(id) : null;
+  const team = existing?.team ?? parsed.data.team;
   const input: MatchInput = {
-    category: parsed.data.category,
+    team,
+    category: team === "u14u15" ? (parsed.data.category as "U14" | "U15") : null,
     opponent: parsed.data.opponent,
     isHome: parsed.data.isHome,
     isFriendly: parsed.data.isFriendly,
@@ -201,9 +208,9 @@ export async function saveMatchAction(
         {
           title: "Partita modificata",
           body: `${matchup} · ${scheduleLabel}${resultLabel}`,
-          url: "/",
+          url: team === "minivolley" ? "/minivolley" : "/",
         },
-        MATCH_TEAM,
+        team,
       );
     }
   } else {
@@ -213,9 +220,9 @@ export async function saveMatchAction(
         {
           title: "Partita creata",
           body: `${matchup} · ${scheduleLabel}`,
-          url: "/",
+          url: team === "minivolley" ? "/minivolley" : "/",
         },
-        MATCH_TEAM,
+        team,
       );
     }
   }
@@ -239,9 +246,9 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
       {
         title: "Partita eliminata",
         body: `${matchup} · ${matchScheduleLabel(match.matchDate, match.location)} · non è più in calendario.`,
-        url: "/",
+        url: match.team === "minivolley" ? "/minivolley" : "/",
       },
-      MATCH_TEAM,
+      match.team,
     );
   }
   revalidatePath("/admin/partite");
@@ -346,6 +353,7 @@ export async function saveCallUpsAndLineupAction(
   }
 
   const input: MatchInput = {
+    team: match.team,
     category: match.category,
     opponent: match.opponent,
     isHome: match.isHome,

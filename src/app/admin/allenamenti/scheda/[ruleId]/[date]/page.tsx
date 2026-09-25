@@ -24,13 +24,15 @@ export default async function OccurrencePlanPage({
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) notFound();
 
   const repo = await getActiveRepo();
-  const [training, occurrencePlan, allPlans, blocks] = await Promise.all([
+  const [training, occurrencePlan, blocks] = await Promise.all([
     repo.getTraining(ruleId),
     repo.getTrainingOccurrencePlan(ruleId, date),
-    repo.listTrainingPlans(),
     repo.listTrainingBlocks(),
   ]);
-  if (!training || training.team !== "u14u15") notFound();
+  if (!training) notFound();
+  // Solo schede della stessa squadra dell'allenamento: mai proporre di
+  // collegare una scheda Minivolley a un allenamento U14/U15 o viceversa.
+  const allPlans = await repo.listTrainingPlans({ team: training.team });
 
   const currentPlan = occurrencePlan ? await repo.getTrainingPlan(occurrencePlan.planId) : null;
   const blockById = new Map(blocks.map((b) => [b.id, b] as const));

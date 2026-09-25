@@ -5,7 +5,7 @@ import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { ChevronRight, ChevronUp, Dumbbell, History, Home, MapPin, Plane, Swords, Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
+import { CATEGORY_LABELS, categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
 
@@ -162,7 +162,7 @@ function EventRow({
       <span
         className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-          CATEGORY_BADGE[event.category],
+          categoryBadgeClass(event.category),
         )}
       >
         <Swords className="h-4.5 w-4.5" />
@@ -173,10 +173,10 @@ function EventRow({
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-              CATEGORY_BADGE[event.category],
+              categoryBadgeClass(event.category),
             )}
           >
-            {CATEGORY_LABELS[event.category]}
+            {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}
           </span>
           <span className="inline-flex items-center gap-1 text-xs font-medium text-foreground/50">
             {event.isHome ? <Home className="h-3.5 w-3.5" /> : <Plane className="h-3.5 w-3.5" />}

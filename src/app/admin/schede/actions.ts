@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaffPage } from "@/lib/auth/guard";
+import { requireStaffPage, activeTeam } from "@/lib/auth/guard";
 import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
 import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import { notifyStaffChange } from "@/lib/push";
@@ -82,18 +82,26 @@ export async function createPlanAction(
     blockIds.push(created.id);
   }
 
+  // Se la scheda nasce collegata a un allenamento, eredita la squadra di
+  // quell'allenamento (può differire dalla squadra attiva nello switcher, se
+  // ad es. si è passati a un'altra sezione nel frattempo); altrimenti la
+  // squadra attualmente selezionata nello switcher.
+  const { occurrenceRuleId, occurrenceDate } = parsed.data;
+  const occurrenceTraining = occurrenceRuleId ? await repo.getTraining(occurrenceRuleId) : null;
+  const team = occurrenceTraining?.team ?? activeTeam(session);
+
   const plan = await repo.createTrainingPlan(
     {
       title: parsed.data.title,
       notes: parsed.data.notes || preamble || null,
       blockIds,
+      team,
     },
     session.sub,
   );
 
   revalidatePath("/admin/schede");
 
-  const { occurrenceRuleId, occurrenceDate } = parsed.data;
   if (occurrenceRuleId && occurrenceDate) {
     await repo.setTrainingOccurrencePlan(
       occurrenceRuleId,
@@ -108,10 +116,9 @@ export async function createPlanAction(
     revalidatePath("/");
     updateTag(PUBLIC_CALENDAR_TAG);
 
-    const training = await repo.getTraining(occurrenceRuleId);
     await notifyStaffChange({
       title: "Nuova scheda creata e assegnata",
-      body: `${plan.title} · ${training?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
+      body: `${plan.title} · ${occurrenceTraining?.title ?? "Allenamento"} del ${formatDateShort(occurrenceDate)}`,
       url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
     });
 
@@ -156,6 +163,7 @@ export async function updatePlanDetailsAction(
     title: parsed.data.title,
     notes: parsed.data.notes ?? null,
     blockIds: plan.blockIds,
+    team: plan.team,
   });
 
   revalidatePath(`/admin/schede/${id}`);
@@ -187,6 +195,7 @@ export async function addBlockToPlanAction(formData: FormData): Promise<void> {
     title: plan.title,
     notes: plan.notes,
     blockIds: [...plan.blockIds, blockId],
+    team: plan.team,
   });
   revalidatePath(`/admin/schede/${planId}`);
 }
@@ -205,6 +214,7 @@ export async function removeBlockFromPlanAction(formData: FormData): Promise<voi
     title: plan.title,
     notes: plan.notes,
     blockIds: plan.blockIds.filter((id) => id !== blockId),
+    team: plan.team,
   });
   revalidatePath(`/admin/schede/${planId}`);
 }
@@ -231,6 +241,7 @@ export async function reorderPlanBlockAction(formData: FormData): Promise<void> 
     title: plan.title,
     notes: plan.notes,
     blockIds: nextBlockIds,
+    team: plan.team,
   });
   revalidatePath(`/admin/schede/${planId}`);
 }

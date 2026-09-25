@@ -60,6 +60,7 @@ export async function saveBlockAction(
         title: plan.title,
         notes: plan.notes,
         blockIds: [...plan.blockIds, created.id],
+        team: plan.team,
       });
       redirect(`/admin/schede/${planId}`);
     }

@@ -1,6 +1,6 @@
 import { Dumbbell, Home, Plane, Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
+import { categoryBadgeClass, categoryLabel, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
 
@@ -34,8 +34,8 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
     <button
       type="button"
       onClick={onSelect}
-      className={cn(pillClass, CATEGORY_BADGE[event.category])}
-      title={`${event.time} · ${event.category} ${event.isHome ? "in casa" : "in trasferta"} · ${matchTitle(event)} · ${event.location}`}
+      className={cn(pillClass, categoryBadgeClass(event.category))}
+      title={`${event.time} · ${categoryLabel(event.category)} ${event.isHome ? "in casa" : "in trasferta"} · ${matchTitle(event)} · ${event.location}`}
     >
       {event.isHome ? (
         <Home className="h-2.5 w-2.5 shrink-0" />
@@ -43,7 +43,7 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
         <Plane className="h-2.5 w-2.5 shrink-0" />
       )}
       <span className="truncate">
-        {event.time} {event.category} · {event.opponent}
+        {event.time} {event.category ? `${event.category} · ` : ""}{event.opponent}
       </span>
     </button>
   );

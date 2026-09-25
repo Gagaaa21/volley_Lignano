@@ -55,12 +55,12 @@ export default async function AthleteAttendancePage({
   const monthParam = formatMonthParam(monthDate);
 
   const repo = await getActiveRepo();
-  const [athlete, sessions, trainings] = await Promise.all([
-    repo.getAthlete(id),
-    repo.listAttendanceSessions(),
-    repo.listTrainings({ team: "u14u15" }),
-  ]);
+  const athlete = await repo.getAthlete(id);
   if (!athlete) notFound();
+  const [sessions, trainings] = await Promise.all([
+    repo.listAttendanceSessions({ team: athlete.team }),
+    repo.listTrainings({ team: athlete.team }),
+  ]);
 
   const history = sessions
     .filter((s) => id in s.records)

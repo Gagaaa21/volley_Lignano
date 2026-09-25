@@ -6,7 +6,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { getActiveRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS } from "@/lib/category";
+import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { emptyMatchLineupSets, emptySetLineup } from "@/lib/types";
 import type { Athlete, CourtPosition, SetLineup } from "@/lib/types";
@@ -254,7 +254,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   y -= 52;
   page.drawText(
-    `${CATEGORY_LABELS[match.category]} · ${match.isHome ? "Casa" : "Trasferta"} · ${matchTitle(match)}` +
+    `${match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL} · ${match.isHome ? "Casa" : "Trasferta"} · ${matchTitle(match)}` +
       (match.isFriendly ? " · Amichevole" : "") +
       (match.isTournament ? " · Torneo" : ""),
     { x: MARGIN, y, size: 13, font: fontBold, color: INK },

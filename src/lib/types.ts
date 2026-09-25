@@ -1,10 +1,11 @@
 export type StaffRole = "dev" | "admin";
 
 /** Ogni sezione dell'area riservata che un Developer può nascondere a un
- * singolo account Admin (Dashboard esclusa: sempre visibile a tutti). */
+ * singolo account Admin (Dashboard esclusa: sempre visibile a tutti).
+ * Minivolley non è più una sezione a sé: ogni pagina gestisce entrambe le
+ * squadre tramite lo switcher squadra nell'header. */
 export type AdminPage =
   | "allenamenti"
-  | "minivolley"
   | "partite"
   | "schede"
   | "presenze"
@@ -13,7 +14,6 @@ export type AdminPage =
 
 export const ADMIN_PAGES: AdminPage[] = [
   "allenamenti",
-  "minivolley",
   "partite",
   "schede",
   "presenze",
@@ -23,7 +23,6 @@ export const ADMIN_PAGES: AdminPage[] = [
 
 export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   allenamenti: "Allenamenti",
-  minivolley: "Minivolley",
   partite: "Partite",
   schede: "Schede",
   presenze: "Presenze",
@@ -55,10 +54,13 @@ export type Category = "U14" | "U15";
 
 export const CATEGORIES: Category[] = ["U14", "U15"];
 
-/** Squadra a cui appartiene un allenamento: "u14u15" è il gruppo agonistico
- * di oggi (condiviso tra le due categorie), "minivolley" è la squadra più
- * piccola, con calendario e pagina pubblica separati. Indipendente da
- * Category, che resta usata solo per le partite U14/U15. */
+/** Squadra a cui appartiene un allenamento, una partita, una scheda,
+ * un'atleta o un registro presenze: "u14u15" è il gruppo agonistico di
+ * oggi (condiviso tra le due categorie), "minivolley" è la squadra più
+ * piccola, con calendario e pagina pubblica separati. Nell'area riservata
+ * si sceglie con lo switcher squadra nell'header, valido per tutta la
+ * sessione. Indipendente da Category, che resta usata solo per distinguere
+ * U14/U15 dentro la squadra "u14u15". */
 export type TrainingTeam = "u14u15" | "minivolley";
 
 export const WEEKDAY_LABELS = [
@@ -113,7 +115,11 @@ export interface SetScore {
 
 export interface Match {
   id: string;
-  category: Category;
+  /** Squadra a cui appartiene: scopa l'elenco admin, il calendario pubblico
+   * e le notifiche push, come per TrainingRule. */
+  team: TrainingTeam;
+  /** Null per il Minivolley, che non ha la distinzione U14/U15. */
+  category: Category | null;
   opponent: string;
   isHome: boolean;
   location: string;
@@ -228,6 +234,9 @@ export interface TrainingPlan {
   title: string;
   notes: string | null;
   blockIds: string[]; // ordine dei blocchi nella scheda
+  /** Squadra a cui appartiene la scheda. I blocchi restano una libreria
+   * condivisa tra le due squadre (TrainingBlock non ha team). */
+  team: TrainingTeam;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -257,6 +266,9 @@ export interface TrainingOccurrencePlan {
 export interface Athlete {
   id: string;
   fullName: string;
+  /** Squadra a cui appartiene. Category si applica solo dentro "u14u15": per
+   * il Minivolley resta sempre null. */
+  team: TrainingTeam;
   category: Category | null;
   isActive: boolean;
   notes: string | null;
@@ -272,6 +284,10 @@ export type AttendanceStatus = "present" | "excused" | "unexcused";
 export interface AttendanceSession {
   id: string;
   trainingRuleId: string | null;
+  /** Squadra a cui appartiene: necessario anche quando trainingRuleId è
+   * null (registro non collegato a una regola), quindi non sempre derivabile
+   * dall'allenamento collegato. */
+  team: TrainingTeam;
   sessionDate: string; // "YYYY-MM-DD"
   title: string; // istantanea del titolo dell'allenamento al momento della registrazione
   location: string; // istantanea del luogo
@@ -320,7 +336,8 @@ export type CalendarEvent =
       id: string;
       date: string; // "YYYY-MM-DD"
       time: string;
-      category: Category;
+      team: TrainingTeam;
+      category: Category | null;
       opponent: string;
       isHome: boolean;
       location: string;

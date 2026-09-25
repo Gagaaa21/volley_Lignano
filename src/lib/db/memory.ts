@@ -19,7 +19,7 @@ import type {
   TrainingRule,
   TrainingRuleInput,
 } from "@/lib/types";
-import type { MatchFilter, NewStaffInput, Repo, TrainingFilter } from "@/lib/db/repo";
+import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
 
 /**
  * In-memory demo backend, used automatically when Supabase env vars are not
@@ -138,6 +138,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (filter?.category) result = result.filter((m) => m.category === filter.category);
       if (filter?.from) result = result.filter((m) => m.matchDate.slice(0, 10) >= filter.from!);
       if (filter?.to) result = result.filter((m) => m.matchDate.slice(0, 10) <= filter.to!);
+      if (filter?.team) result = result.filter((m) => m.team === filter.team);
       return result.sort((a, b) => a.matchDate.localeCompare(b.matchDate));
     },
     async getMatch(id) {
@@ -262,8 +263,10 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       }
     },
 
-    async listTrainingPlans() {
-      return [...trainingPlans].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    async listTrainingPlans(filter?: TeamFilter) {
+      let result = [...trainingPlans];
+      if (filter?.team) result = result.filter((p) => p.team === filter.team);
+      return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
     async getTrainingPlan(id) {
       return trainingPlans.find((p) => p.id === id) ?? null;
@@ -329,8 +332,10 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx !== -1) trainingOccurrencePlans.splice(idx, 1);
     },
 
-    async listAthletes() {
-      return [...athletes].sort((a, b) => a.fullName.localeCompare(b.fullName));
+    async listAthletes(filter?: TeamFilter) {
+      let result = [...athletes];
+      if (filter?.team) result = result.filter((a) => a.team === filter.team);
+      return result.sort((a, b) => a.fullName.localeCompare(b.fullName));
     },
     async getAthlete(id) {
       return athletes.find((a) => a.id === id) ?? null;
@@ -364,8 +369,10 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx !== -1) athletes.splice(idx, 1);
     },
 
-    async listAttendanceSessions() {
-      return [...attendanceSessions].sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
+    async listAttendanceSessions(filter?: TeamFilter) {
+      let result = [...attendanceSessions];
+      if (filter?.team) result = result.filter((s) => s.team === filter.team);
+      return result.sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
     },
     async getAttendanceSession(id) {
       return attendanceSessions.find((s) => s.id === id) ?? null;
