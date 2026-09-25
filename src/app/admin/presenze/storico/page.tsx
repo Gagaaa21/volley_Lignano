@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowLeft, Check, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateLong } from "@/lib/format";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function AttendanceHistoryPage() {
   const session = await requireStaff();
   const repo = await getActiveRepo();
-  const sessions = await repo.listAttendanceSessions({ team: activeTeam(session) });
+  const sessions = await repo.listAttendanceSessions({ team: await resolveActiveTeam(session) });
 
   return (
     <div>

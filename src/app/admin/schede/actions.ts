@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaffPage, activeTeam } from "@/lib/auth/guard";
+import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
 import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import { notifyStaffChange } from "@/lib/push";
@@ -88,7 +88,7 @@ export async function createPlanAction(
   // squadra attualmente selezionata nello switcher.
   const { occurrenceRuleId, occurrenceDate } = parsed.data;
   const occurrenceTraining = occurrenceRuleId ? await repo.getTraining(occurrenceRuleId) : null;
-  const team = occurrenceTraining?.team ?? activeTeam(session);
+  const team = occurrenceTraining?.team ?? (await resolveActiveTeam(session));
 
   const plan = await repo.createTrainingPlan(
     {

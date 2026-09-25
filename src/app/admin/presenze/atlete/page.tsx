@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ListPlus, Pencil, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { categoryLabel } from "@/lib/category";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -72,7 +72,7 @@ function AthleteGroup({ category, athletes }: { category: Category | null; athle
 export default async function AthletesPage() {
   const session = await requireStaff();
   const repo = await getActiveRepo();
-  const athletes = await repo.listAthletes({ team: activeTeam(session) });
+  const athletes = await repo.listAthletes({ team: await resolveActiveTeam(session) });
 
   return (
     <div>

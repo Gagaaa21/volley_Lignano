@@ -49,15 +49,28 @@ const TEAM_OPTIONS: { value: TrainingTeam; label: string }[] = [
 /** Sceglie la squadra attiva per tutta la sessione: Allenamenti, Partite,
  * Schede e Presenze mostrano da qui in poi i dati della squadra scelta.
  * Riporta sulla stessa pagina da cui è stato aperto, per non perdere il
- * punto in cui si era. */
-function TeamSwitcher({ activeTeam, pathname }: { activeTeam: TrainingTeam; pathname: string }) {
+ * punto in cui si era. Mostra solo le squadre che l'account può gestire
+ * (Centro di controllo → Permessi): se ne resta solo una, lo switcher non
+ * ha senso e sparisce del tutto. */
+function TeamSwitcher({
+  activeTeam,
+  allowedTeams,
+  pathname,
+}: {
+  activeTeam: TrainingTeam;
+  allowedTeams: TrainingTeam[];
+  pathname: string;
+}) {
+  const options = TEAM_OPTIONS.filter((option) => allowedTeams.includes(option.value));
+  if (options.length < 2) return null;
+
   return (
     <div
       className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface p-0.5 shadow-sm shadow-sea-950/5"
       role="group"
       aria-label="Squadra attiva"
     >
-      {TEAM_OPTIONS.map((option) => (
+      {options.map((option) => (
         <form key={option.value} action={setActiveTeamAction}>
           <input type="hidden" name="team" value={option.value} />
           <input type="hidden" name="redirectTo" value={pathname} />
@@ -175,10 +188,12 @@ function DevMenu({ pathname }: { pathname: string }) {
 export function AdminHeader({
   session,
   allowedPages,
+  allowedTeams,
   activeTeam,
 }: {
   session: SessionPayload;
   allowedPages: AdminPage[];
+  allowedTeams: TrainingTeam[];
   activeTeam: TrainingTeam;
 }) {
   const pathname = usePathname();
@@ -226,7 +241,7 @@ export function AdminHeader({
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <div className="hidden sm:block">
-              <TeamSwitcher activeTeam={activeTeam} pathname={pathname} />
+              <TeamSwitcher activeTeam={activeTeam} allowedTeams={allowedTeams} pathname={pathname} />
             </div>
             <InstallButton />
             <button
@@ -243,7 +258,7 @@ export function AdminHeader({
         </div>
 
         <div className="sm:hidden">
-          <TeamSwitcher activeTeam={activeTeam} pathname={pathname} />
+          <TeamSwitcher activeTeam={activeTeam} allowedTeams={allowedTeams} pathname={pathname} />
         </div>
 
         <div

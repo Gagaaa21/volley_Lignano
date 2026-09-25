@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { format } from "date-fns";
 import { Plus, Puzzle } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { SchedeLibrary, type SchedeCardData } from "./SchedeLibrary";
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function TrainingPlansPage() {
   const session = await requireStaff();
-  const team = activeTeam(session);
+  const team = await resolveActiveTeam(session);
   const repo = await getActiveRepo();
   const [plans, blocks, occurrencePlans] = await Promise.all([
     repo.listTrainingPlans({ team }),

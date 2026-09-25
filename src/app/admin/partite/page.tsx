@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Home, MapPin, Pencil, Plane, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateLong } from "@/lib/format";
 import { CATEGORY_LABELS, categoryBadgeClass, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
@@ -25,7 +25,7 @@ export default async function MatchesListPage({
 }) {
   const { cat } = await searchParams;
   const session = await requireStaff();
-  const team = activeTeam(session);
+  const team = await resolveActiveTeam(session);
   const isU14U15 = team === "u14u15";
   const activeCategory: "all" | Category = isU14U15 && (cat === "U14" || cat === "U15") ? cat : "all";
 

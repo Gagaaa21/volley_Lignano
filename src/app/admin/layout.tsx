@@ -4,22 +4,30 @@ import { requireStaff, activeTeam } from "@/lib/auth/guard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { isDemoMode, getActiveRepo } from "@/lib/db";
 import { exitTestModeAction } from "@/app/admin/test-mode/actions";
-import { ADMIN_PAGES } from "@/lib/types";
+import { ADMIN_PAGES, TEAMS } from "@/lib/types";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await requireStaff();
   const demo = isDemoMode();
 
   let allowedPages = ADMIN_PAGES;
+  let allowedTeams = TEAMS;
   if (session.role !== "dev") {
     const repo = await getActiveRepo();
     const staff = await repo.getStaffById(session.sub);
     allowedPages = staff?.allowedPages ?? [];
+    allowedTeams = staff?.allowedTeams ?? TEAMS;
   }
+
+  // Se la squadra scelta nello switcher non è (più) tra quelle permesse
+  // (es. il Developer ha appena tolto l'accesso al Minivolley, ma il
+  // cookie di sessione la ricorda ancora), ricade sulla prima permessa.
+  const requestedTeam = activeTeam(session);
+  const team = allowedTeams.includes(requestedTeam) ? requestedTeam : (allowedTeams[0] ?? "u14u15");
 
   return (
     <div className="app-surface flex min-h-screen flex-col">
-      <AdminHeader session={session} allowedPages={allowedPages} activeTeam={activeTeam(session)} />
+      <AdminHeader session={session} allowedPages={allowedPages} allowedTeams={allowedTeams} activeTeam={team} />
       {session.testMode && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 bg-[var(--color-u15)] px-4 py-2 text-center text-xs font-semibold text-white sm:text-sm">
           <span className="flex items-center gap-1.5">

@@ -18,7 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
 import { categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -98,7 +98,7 @@ export default async function AdminDashboardPage({
 
   // La dashboard riflette la squadra attiva nello switcher, come le sezioni
   // Allenamenti/Partite/Schede/Presenze.
-  const team = activeTeam(session);
+  const team = await resolveActiveTeam(session);
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
     repo.listTrainings({ team }),
     repo.listMatches({ team }),

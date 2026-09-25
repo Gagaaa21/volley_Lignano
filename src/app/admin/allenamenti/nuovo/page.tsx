@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { TrainingForm } from "../TrainingForm";
@@ -16,7 +16,7 @@ export default async function NewTrainingPage({
 }) {
   const { type } = await searchParams;
   const session = await requireStaff();
-  const team = activeTeam(session);
+  const team = await resolveActiveTeam(session);
   const isTournament = team === "minivolley" && type === "torneo";
 
   return (

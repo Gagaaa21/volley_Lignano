@@ -44,6 +44,11 @@ export interface StaffMember {
    * finché il Developer non lo restringe esplicitamente dal Centro di
    * controllo. */
   allowedPages: AdminPage[];
+  /** Squadre gestibili da questo account tramite lo switcher nell'header
+   * (solo per role "admin": un Developer vede sempre entrambe). Di default
+   * entrambe, così un account esistente non perde accesso finché il
+   * Developer non lo restringe esplicitamente dal Centro di controllo. */
+  allowedTeams: TrainingTeam[];
   createdBy: string | null;
   createdAt: string;
 }
@@ -62,6 +67,13 @@ export const CATEGORIES: Category[] = ["U14", "U15"];
  * sessione. Indipendente da Category, che resta usata solo per distinguere
  * U14/U15 dentro la squadra "u14u15". */
 export type TrainingTeam = "u14u15" | "minivolley";
+
+export const TEAMS: TrainingTeam[] = ["u14u15", "minivolley"];
+
+export const TEAM_LABELS: Record<TrainingTeam, string> = {
+  u14u15: "U14/U15",
+  minivolley: "Minivolley",
+};
 
 export const WEEKDAY_LABELS = [
   "Domenica",

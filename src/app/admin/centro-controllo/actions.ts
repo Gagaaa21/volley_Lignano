@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireDev } from "@/lib/auth/guard";
 import { notifyAdmins, notifyCalendarChange } from "@/lib/push";
-import { ADMIN_PAGES, type AdminPage } from "@/lib/types";
+import { ADMIN_PAGES, TEAMS, type AdminPage, type TrainingTeam } from "@/lib/types";
 
 const schema = z.object({
   title: z.string().min(1, "Inserisci un titolo."),
@@ -72,10 +72,10 @@ export async function sendManualNotificationAction(
   return { success: true, sentTo };
 }
 
-/** Aggiorna quali pagine dell'area riservata un account Admin può vedere.
- * Riservato al Developer: un account "dev" non è mai limitabile da qui (vede
- * sempre tutto), quindi la richiesta viene ignorata se il bersaglio non è un
- * Admin. */
+/** Aggiorna quali pagine dell'area riservata e quali squadre (U14/U15,
+ * Minivolley) un account Admin può gestire. Riservato al Developer: un
+ * account "dev" non è mai limitabile da qui (vede sempre tutto), quindi la
+ * richiesta viene ignorata se il bersaglio non è un Admin. */
 export async function updateStaffPermissionsAction(formData: FormData): Promise<void> {
   await requireDev();
 
@@ -89,6 +89,9 @@ export async function updateStaffPermissionsAction(formData: FormData): Promise<
   const submittedPages = new Set(formData.getAll("pages").map((v) => v.toString()));
   const allowedPages: AdminPage[] = ADMIN_PAGES.filter((page) => submittedPages.has(page));
 
-  await repo.updateStaffPermissions(staffId, allowedPages);
+  const submittedTeams = new Set(formData.getAll("teams").map((v) => v.toString()));
+  const allowedTeams: TrainingTeam[] = TEAMS.filter((team) => submittedTeams.has(team));
+
+  await repo.updateStaffPermissions(staffId, { allowedPages, allowedTeams });
   revalidatePath("/admin/centro-controllo");
 }

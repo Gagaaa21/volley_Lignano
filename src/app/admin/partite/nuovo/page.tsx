@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { MatchForm } from "../MatchForm";
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function NewMatchPage() {
   const session = await requireStaff();
-  const team = activeTeam(session);
+  const team = await resolveActiveTeam(session);
 
   return (
     <div className="mx-auto max-w-xl">

@@ -1,6 +1,6 @@
 "use client";
 
-import { ADMIN_PAGES, ADMIN_PAGE_LABELS, type AdminPage } from "@/lib/types";
+import { ADMIN_PAGES, ADMIN_PAGE_LABELS, TEAMS, TEAM_LABELS, type AdminPage, type TrainingTeam } from "@/lib/types";
 import { updateStaffPermissionsAction } from "./actions";
 
 interface AdminRow {
@@ -8,6 +8,7 @@ interface AdminRow {
   fullName: string;
   username: string;
   allowedPages: AdminPage[];
+  allowedTeams: TrainingTeam[];
 }
 
 function PermissionRow({ admin }: { admin: AdminRow }) {
@@ -21,7 +22,8 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
         <p className="truncate font-medium text-foreground">{admin.fullName}</p>
         <p className="truncate text-xs text-foreground/50">@{admin.username}</p>
       </div>
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
+      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Pagine</p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
         {ADMIN_PAGES.map((page) => (
           <label
             key={page}
@@ -36,6 +38,25 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
               className="sr-only"
             />
             {ADMIN_PAGE_LABELS[page]}
+          </label>
+        ))}
+      </div>
+      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Squadre</p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {TEAMS.map((team) => (
+          <label
+            key={team}
+            className="cursor-pointer rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
+          >
+            <input
+              type="checkbox"
+              name="teams"
+              value={team}
+              defaultChecked={admin.allowedTeams.includes(team)}
+              onChange={(event) => event.currentTarget.form?.requestSubmit()}
+              className="sr-only"
+            />
+            {TEAM_LABELS[team]}
           </label>
         ))}
       </div>

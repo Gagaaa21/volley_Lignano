@@ -110,7 +110,13 @@ export default async function CentroControlloPage() {
   // ---- Permessi pagine: un account Admin per riga ----
   const adminRows = staff
     .filter((s) => s.role === "admin")
-    .map((s) => ({ id: s.id, fullName: s.fullName, username: s.username, allowedPages: s.allowedPages }));
+    .map((s) => ({
+      id: s.id,
+      fullName: s.fullName,
+      username: s.username,
+      allowedPages: s.allowedPages,
+      allowedTeams: s.allowedTeams,
+    }));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -156,8 +162,8 @@ export default async function CentroControlloPage() {
           <div>
             <h2 className="font-display text-base font-semibold text-foreground">Permessi pagine</h2>
             <p className="text-sm text-muted-foreground">
-              Scegli quali sezioni dell&apos;area riservata può vedere ogni account Admin. Un
-              Developer vede sempre tutto.
+              Scegli quali sezioni dell&apos;area riservata e quali squadre (U14/U15, Minivolley) può
+              gestire ogni account Admin. Un Developer vede sempre tutto.
             </p>
           </div>
         </CardHeader>

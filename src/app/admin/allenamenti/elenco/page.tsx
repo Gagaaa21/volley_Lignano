@@ -3,7 +3,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarDays, Clock, MapPin, Pencil, Plus, Puzzle, Trophy } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, activeTeam } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -23,7 +23,7 @@ export default async function TrainingsListPage({
 }) {
   const { type } = await searchParams;
   const session = await requireStaff();
-  const team = activeTeam(session);
+  const team = await resolveActiveTeam(session);
   const isMinivolley = team === "minivolley";
   const activeType: "all" | "allenamenti" | "tornei" =
     isMinivolley && (type === "allenamenti" || type === "tornei") ? type : "all";

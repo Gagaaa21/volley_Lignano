@@ -24,6 +24,10 @@ create table if not exists staff (
   -- "admin", un Developer vede sempre tutto). Default: tutte, nessun
   -- account perde accesso finché il Developer non lo restringe.
   allowed_pages text[] not null default '{allenamenti,partite,schede,presenze,staff,guida}',
+  -- Squadre gestibili da questo account tramite lo switcher nell'header
+  -- (solo per role "admin", un Developer vede sempre entrambe). Default:
+  -- entrambe, stessa logica di allowed_pages.
+  allowed_teams text[] not null default '{u14u15,minivolley}',
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -388,6 +392,12 @@ do $$ begin
   alter table attendance_sessions add constraint attendance_sessions_team_check check (team in ('u14u15', 'minivolley'));
 exception when duplicate_object then null;
 end $$;
+
+-- Permette al Developer di scegliere, per singolo account Admin, quali
+-- squadre può gestire tramite lo switcher nell'header (oltre a quali pagine
+-- può vedere, già coperto da allowed_pages). Default entrambe, così nessun
+-- account esistente perde accesso finché il Developer non lo restringe.
+alter table staff add column if not exists allowed_teams text[] not null default '{u14u15,minivolley}';
 
 -- =========================================================
 -- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare
