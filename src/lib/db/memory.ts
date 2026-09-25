@@ -18,7 +18,7 @@ import type {
   TrainingRule,
   TrainingRuleInput,
 } from "@/lib/types";
-import type { MatchFilter, NewStaffInput, Repo } from "@/lib/db/repo";
+import type { MatchFilter, NewStaffInput, Repo, TrainingFilter } from "@/lib/db/repo";
 
 /**
  * In-memory demo backend, used automatically when Supabase env vars are not
@@ -106,8 +106,10 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   }
 
   return {
-    async listTrainings() {
-      return [...trainings].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    async listTrainings(filter?: TrainingFilter) {
+      let result = [...trainings];
+      if (filter?.team) result = result.filter((t) => t.team === filter.team);
+      return result.sort((a, b) => a.startTime.localeCompare(b.startTime));
     },
     async getTraining(id) {
       return trainings.find((t) => t.id === id) ?? null;
@@ -400,6 +402,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
           p256dh: input.p256dh,
           auth: input.auth,
           staffId: input.staffId ?? null,
+          team: input.team,
         };
         return;
       }
@@ -409,6 +412,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         p256dh: input.p256dh,
         auth: input.auth,
         staffId: input.staffId ?? null,
+        team: input.team,
         createdAt: new Date().toISOString(),
       });
     },

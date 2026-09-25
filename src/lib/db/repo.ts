@@ -18,12 +18,17 @@ import type {
   TrainingPlanInput,
   TrainingRule,
   TrainingRuleInput,
+  TrainingTeam,
 } from "@/lib/types";
 
 export interface MatchFilter {
   category?: import("@/lib/types").Category;
   from?: string; // ISO date, inclusive
   to?: string; // ISO date, inclusive
+}
+
+export interface TrainingFilter {
+  team?: TrainingTeam;
 }
 
 export interface NewStaffInput {
@@ -37,7 +42,7 @@ export interface NewStaffInput {
 
 export interface Repo {
   // Trainings
-  listTrainings(): Promise<TrainingRule[]>;
+  listTrainings(filter?: TrainingFilter): Promise<TrainingRule[]>;
   getTraining(id: string): Promise<TrainingRule | null>;
   createTraining(input: TrainingRuleInput, createdBy: string | null): Promise<TrainingRule>;
   updateTraining(id: string, input: TrainingRuleInput): Promise<TrainingRule>;
@@ -128,6 +133,7 @@ export interface Repo {
     p256dh: string;
     auth: string;
     staffId?: string | null;
+    team: TrainingTeam;
   }): Promise<void>;
   deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
 

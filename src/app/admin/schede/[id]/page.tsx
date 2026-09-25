@@ -56,7 +56,7 @@ export default async function TrainingPlanDetailPage({
   const [allBlocks, occurrencePlans, trainings] = await Promise.all([
     repo.listTrainingBlocks(),
     repo.listTrainingOccurrencePlans(),
-    repo.listTrainings(),
+    repo.listTrainings({ team: "u14u15" }),
   ]);
   const blockMap = new Map(allBlocks.map((b) => [b.id, b] as const));
   const planBlocks = plan.blockIds.map((blockId) => blockMap.get(blockId)).filter(Boolean) as NonNullable<

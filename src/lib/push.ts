@@ -2,7 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { getRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import type { PushSubscriptionRecord } from "@/lib/types";
+import type { PushSubscriptionRecord, TrainingTeam } from "@/lib/types";
 
 let configured = false;
 
@@ -55,18 +55,22 @@ async function sendToSubscriptions(
 }
 
 /**
- * Invia una notifica push a tutti i dispositivi iscritti quando il
- * calendario cambia. Non lancia mai eccezioni: se le chiavi VAPID non sono
- * configurate, o l'invio fallisce, l'operazione di calendario che l'ha
- * chiamata deve comunque andare a buon fine.
+ * Invia una notifica push ai dispositivi iscritti alla squadra "team"
+ * quando il suo calendario cambia — chi segue Minivolley non riceve gli
+ * avvisi U14/U15 e viceversa. Non lancia mai eccezioni: se le chiavi VAPID
+ * non sono configurate, o l'invio fallisce, l'operazione di calendario che
+ * l'ha chiamata deve comunque andare a buon fine.
  */
-export async function notifyCalendarChange(payload: CalendarNotification): Promise<void> {
+export async function notifyCalendarChange(
+  payload: CalendarNotification,
+  team: TrainingTeam,
+): Promise<void> {
   try {
     if (!ensureConfigured()) return;
     if ((await getSession())?.testMode) return;
 
     const repo = await getRepo();
-    const subscriptions = await repo.listPushSubscriptions();
+    const subscriptions = (await repo.listPushSubscriptions()).filter((sub) => sub.team === team);
     if (subscriptions.length === 0) return;
 
     await sendToSubscriptions(subscriptions, payload);

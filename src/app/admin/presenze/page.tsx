@@ -26,8 +26,10 @@ export default async function AttendanceHubPage({
   const monthParam = formatMonthParam(monthDate);
 
   const repo = await getActiveRepo();
+  // Le presenze riguardano solo la squadra U14/U15: Minivolley non ha
+  // registro presenze (fuori scope per ora).
   const [trainings, sessions, athletes] = await Promise.all([
-    repo.listTrainings(),
+    repo.listTrainings({ team: "u14u15" }),
     repo.listAttendanceSessions(),
     repo.listAthletes(),
   ]);

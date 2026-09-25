@@ -25,6 +25,8 @@ const schema = z
       .optional(),
     notes: z.string().optional(),
     isActive: z.boolean(),
+    team: z.enum(["u14u15", "minivolley"]),
+    isTournament: z.boolean(),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: "L'orario di fine deve essere successivo a quello di inizio.",
@@ -55,6 +57,8 @@ function parseTrainingForm(formData: FormData) {
     endDate: formData.get("endDate")?.toString() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
     isActive: formData.get("isActive") === "on",
+    team: formData.get("team")?.toString() === "minivolley" ? "minivolley" : "u14u15",
+    isTournament: formData.get("isTournament") === "on",
   });
 }
 
@@ -70,13 +74,16 @@ export async function saveTrainingAction(
 
   const id = formData.get("id")?.toString();
   const notify = formData.get("notify") === "on";
-  const isOnce = parsed.data.repeat === "once";
+  // Un torneo è per natura un evento singolo: forza "once" anche se il
+  // checkbox è stato spuntato senza passare dai radio Settimanale/Singolo
+  // giorno (es. submit rapido), qualunque cosa sia arrivata dal client.
+  const isOnce = parsed.data.repeat === "once" || parsed.data.isTournament;
   const repo = await getActiveRepo();
 
   const input: TrainingRuleInput = {
     title: parsed.data.title,
     location: parsed.data.location,
-    repeat: parsed.data.repeat,
+    repeat: isOnce ? "once" : parsed.data.repeat,
     weekdays: isOnce ? [] : [...new Set(parsed.data.weekdays)].sort((a, b) => a - b),
     startTime: parsed.data.startTime,
     endTime: parsed.data.endTime,
@@ -84,6 +91,8 @@ export async function saveTrainingAction(
     endDate: isOnce ? parsed.data.startDate : parsed.data.endDate || null,
     notes: parsed.data.notes ?? null,
     isActive: parsed.data.isActive,
+    team: parsed.data.team,
+    isTournament: parsed.data.isTournament,
   };
 
   const scheduleLabel = isOnce
@@ -93,28 +102,36 @@ export async function saveTrainingAction(
   if (id) {
     await repo.updateTraining(id, input);
     if (notify) {
-      await notifyCalendarChange({
-        title: "Allenamento modificato",
-        body: `${input.title} · ${scheduleLabel} · ${input.location}`,
-        url: "/",
-      });
+      await notifyCalendarChange(
+        {
+          title: "Allenamento modificato",
+          body: `${input.title} · ${scheduleLabel} · ${input.location}`,
+          url: input.team === "minivolley" ? "/minivolley" : "/",
+        },
+        input.team,
+      );
     }
   } else {
     await repo.createTraining(input, session.sub);
     if (notify) {
-      await notifyCalendarChange({
-        title: "Allenamento creato",
-        body: `${input.title} · ${scheduleLabel} · ${input.location}`,
-        url: "/",
-      });
+      await notifyCalendarChange(
+        {
+          title: "Allenamento creato",
+          body: `${input.title} · ${scheduleLabel} · ${input.location}`,
+          url: input.team === "minivolley" ? "/minivolley" : "/",
+        },
+        input.team,
+      );
     }
   }
 
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
+  revalidatePath("/admin/minivolley");
   revalidatePath("/");
+  revalidatePath("/minivolley");
   updateTag(PUBLIC_CALENDAR_TAG);
-  redirect("/admin/allenamenti/elenco");
+  redirect(input.team === "minivolley" ? "/admin/minivolley" : "/admin/allenamenti/elenco");
 }
 
 export async function setOccurrencePlanAction(formData: FormData): Promise<void> {
@@ -168,14 +185,19 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
       training.repeat === "once"
         ? `il ${formatDateLong(training.startDate)}`
         : `${formatWeekdays(training.weekdays)} ${training.startTime}–${training.endTime}`;
-    await notifyCalendarChange({
-      title: "Allenamento eliminato",
-      body: `${training.title} · ${scheduleLabel} · non è più in calendario.`,
-      url: "/",
-    });
+    await notifyCalendarChange(
+      {
+        title: "Allenamento eliminato",
+        body: `${training.title} · ${scheduleLabel} · non è più in calendario.`,
+        url: training.team === "minivolley" ? "/minivolley" : "/",
+      },
+      training.team,
+    );
   }
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
+  revalidatePath("/admin/minivolley");
   revalidatePath("/");
+  revalidatePath("/minivolley");
   updateTag(PUBLIC_CALENDAR_TAG);
 }

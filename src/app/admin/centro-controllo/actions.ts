@@ -8,7 +8,7 @@ import { notifyAdmins, notifyCalendarChange } from "@/lib/push";
 const schema = z.object({
   title: z.string().min(1, "Inserisci un titolo."),
   body: z.string().min(1, "Inserisci il testo della notifica."),
-  audience: z.enum(["all", "admins"]),
+  audience: z.enum(["all-u14u15", "all-minivolley", "admins"]),
 });
 
 export interface ManualNotificationState {
@@ -46,7 +46,8 @@ export async function sendManualNotificationAction(
     const adminIds = new Set(staff.filter((s) => s.role === "admin").map((s) => s.id));
     sentTo = subscriptions.filter((sub) => sub.staffId && adminIds.has(sub.staffId)).length;
   } else {
-    sentTo = subscriptions.length;
+    const team = parsed.data.audience === "all-minivolley" ? "minivolley" : "u14u15";
+    sentTo = subscriptions.filter((sub) => sub.team === team).length;
   }
 
   if (sentTo === 0) {
@@ -54,15 +55,17 @@ export async function sendManualNotificationAction(
       error:
         parsed.data.audience === "admins"
           ? "Nessun admin è iscritto alle notifiche al momento."
-          : "Nessun dispositivo è iscritto alle notifiche al momento.",
+          : "Nessun dispositivo è iscritto alle notifiche di questa squadra al momento.",
     };
   }
 
   const payload = { title: parsed.data.title, body: parsed.data.body, url: "/" };
   if (parsed.data.audience === "admins") {
     await notifyAdmins(payload);
+  } else if (parsed.data.audience === "all-minivolley") {
+    await notifyCalendarChange({ ...payload, url: "/minivolley" }, "minivolley");
   } else {
-    await notifyCalendarChange(payload);
+    await notifyCalendarChange(payload, "u14u15");
   }
   return { success: true, sentTo };
 }

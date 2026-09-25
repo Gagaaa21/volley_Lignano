@@ -25,7 +25,7 @@ export default async function RecordAttendancePage({
     repo.getAttendanceSessionByOccurrence(ruleId, date),
     repo.listAthletes(),
   ]);
-  if (!training) notFound();
+  if (!training || training.team !== "u14u15") notFound();
 
   const activeAthletes = athletes.filter((a) => a.isActive);
 

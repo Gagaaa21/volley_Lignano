@@ -22,7 +22,7 @@ export default async function TrainingsCalendarPage({
 
   const repo = await getActiveRepo();
   const [trainings, occurrencePlans, plans] = await Promise.all([
-    repo.listTrainings(),
+    repo.listTrainings({ team: "u14u15" }),
     repo.listTrainingOccurrencePlans(),
     repo.listTrainingPlans(),
   ]);

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
+  Baby,
   BookOpen,
   CalendarClock,
   ChevronDown,
@@ -32,6 +33,7 @@ import crest from "@/assets/lignano-crest.png";
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false },
+  { href: "/admin/minivolley", label: "Minivolley", icon: Baby, exact: false },
   { href: "/admin/partite", label: "Partite", icon: Swords, exact: false },
   { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false },
   { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false },

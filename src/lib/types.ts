@@ -18,6 +18,12 @@ export type Category = "U14" | "U15";
 
 export const CATEGORIES: Category[] = ["U14", "U15"];
 
+/** Squadra a cui appartiene un allenamento: "u14u15" è il gruppo agonistico
+ * di oggi (condiviso tra le due categorie), "minivolley" è la squadra più
+ * piccola, con calendario e pagina pubblica separati. Indipendente da
+ * Category, che resta usata solo per le partite U14/U15. */
+export type TrainingTeam = "u14u15" | "minivolley";
+
 export const WEEKDAY_LABELS = [
   "Domenica",
   "Lunedì",
@@ -44,6 +50,14 @@ export interface TrainingRule {
   endDate: string | null; // ISO date o null = indefinito (ignorato se repeat = "once")
   notes: string | null;
   isActive: boolean;
+  /** Squadra a cui appartiene: scopa il calendario pubblico, la pagina
+   * admin e le notifiche push. Default "u14u15" per tutti gli allenamenti
+   * di oggi. */
+  team: TrainingTeam;
+  /** Torneo/giornata multi-club (solo Minivolley): un evento singolo senza
+   * avversario/risultato, mostrato con badge "Torneo" invece di
+   * "Allenamento" ovunque nel calendario. */
+  isTournament: boolean;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -242,6 +256,10 @@ export interface PushSubscriptionRecord {
   auth: string;
   /** Staff collegato all'iscrizione, se attivata da un utente autenticato (area riservata). */
   staffId: string | null;
+  /** Squadra scelta al momento dell'iscrizione (in base alla pagina da cui è
+   * stata attivata): scopa le notifiche calendario così chi segue Minivolley
+   * non riceve avvisi U14/U15 e viceversa. */
+  team: TrainingTeam;
   createdAt: string;
 }
 
@@ -257,6 +275,8 @@ export type CalendarEvent =
       location: string;
       notes: string | null;
       planId: string | null; // scheda collegata a questa singola data (opzionale)
+      team: TrainingTeam;
+      isTournament: boolean;
     }
   | {
       kind: "match";

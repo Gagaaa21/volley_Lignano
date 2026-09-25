@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { ChevronRight, ChevronUp, Dumbbell, History, Home, MapPin, Plane, Swords } from "lucide-react";
+import { ChevronRight, ChevronUp, Dumbbell, History, Home, MapPin, Plane, Swords, Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_BADGE, CATEGORY_LABELS, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -122,19 +122,26 @@ function EventRow({
         <span
           className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", TRAINING_BADGE)}
         >
-          <Dumbbell className="h-4.5 w-4.5" />
+          {event.isTournament ? <Trophy className="h-4.5 w-4.5" /> : <Dumbbell className="h-4.5 w-4.5" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-foreground">{event.title}</p>
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                TRAINING_BADGE,
-              )}
-            >
-              U14 · U15
-            </span>
+            {event.team === "u14u15" && (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                  TRAINING_BADGE,
+                )}
+              >
+                U14 · U15
+              </span>
+            )}
+            {event.isTournament && (
+              <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/50">
+                Torneo
+              </span>
+            )}
           </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60">
             <span className="font-medium text-foreground/80">

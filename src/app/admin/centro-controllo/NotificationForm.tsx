@@ -20,10 +20,12 @@ function SubmitButton() {
 }
 
 export function NotificationForm({
-  totalSubscribers,
+  u14u15Subscribers,
+  minivolleySubscribers,
   adminSubscribers,
 }: {
-  totalSubscribers: number;
+  u14u15Subscribers: number;
+  minivolleySubscribers: number;
   adminSubscribers: number;
 }) {
   const [state, formAction] = useActionState(sendManualNotificationAction, initialState);
@@ -47,10 +49,14 @@ export function NotificationForm({
 
       <div>
         <Label>Destinatari</Label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
-            <input type="radio" name="audience" value="all" defaultChecked className="sr-only" />
-            Tutti ({totalSubscribers})
+            <input type="radio" name="audience" value="all-u14u15" defaultChecked className="sr-only" />
+            Tutti U14/U15 ({u14u15Subscribers})
+          </label>
+          <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
+            <input type="radio" name="audience" value="all-minivolley" className="sr-only" />
+            Tutti Minivolley ({minivolleySubscribers})
           </label>
           <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
             <input type="radio" name="audience" value="admins" className="sr-only" />
@@ -58,8 +64,8 @@ export function NotificationForm({
           </label>
         </div>
         <FieldHint>
-          Tutti: genitori, atlete e staff che hanno installato l&apos;app e attivato le notifiche.
-          Solo Admin: tutti gli account Admin registrati.
+          Tutti U14/U15 o Tutti Minivolley: genitori e atlete iscritti alle notifiche di quella
+          squadra. Solo Admin: tutti gli account Admin registrati, a prescindere dalla squadra.
         </FieldHint>
       </div>
 

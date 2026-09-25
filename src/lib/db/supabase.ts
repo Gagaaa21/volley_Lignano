@@ -20,7 +20,7 @@ import type {
   TrainingRule,
   TrainingRuleInput,
 } from "@/lib/types";
-import type { MatchFilter, NewStaffInput, Repo } from "@/lib/db/repo";
+import type { MatchFilter, NewStaffInput, Repo, TrainingFilter } from "@/lib/db/repo";
 
 type TrainingRow = {
   id: string;
@@ -34,6 +34,8 @@ type TrainingRow = {
   end_date: string | null;
   notes: string | null;
   is_active: boolean;
+  team: TrainingRule["team"];
+  is_tournament: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -85,6 +87,8 @@ function trainingFromRow(row: TrainingRow): TrainingRule {
     endDate: row.end_date,
     notes: row.notes,
     isActive: row.is_active,
+    team: row.team,
+    isTournament: row.is_tournament,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -103,6 +107,8 @@ function trainingToRow(input: TrainingRuleInput) {
     end_date: input.endDate,
     notes: input.notes,
     is_active: input.isActive,
+    team: input.team,
+    is_tournament: input.isTournament,
   };
 }
 
@@ -337,6 +343,7 @@ type PushSubscriptionRow = {
   p256dh: string;
   auth: string;
   staff_id: string | null;
+  team: PushSubscriptionRecord["team"];
   created_at: string;
 };
 
@@ -347,6 +354,7 @@ function pushSubscriptionFromRow(row: PushSubscriptionRow): PushSubscriptionReco
     p256dh: row.p256dh,
     auth: row.auth,
     staffId: row.staff_id,
+    team: row.team,
     createdAt: row.created_at,
   };
 }
@@ -358,12 +366,11 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
 }
 
 export const supabaseRepo: Repo = {
-  async listTrainings() {
+  async listTrainings(filter?: TrainingFilter) {
     const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("training_sessions")
-      .select("*")
-      .order("start_time", { ascending: true });
+    let query = db.from("training_sessions").select("*").order("start_time", { ascending: true });
+    if (filter?.team) query = query.eq("team", filter.team);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data as TrainingRow[]).map(trainingFromRow);
   },
@@ -794,6 +801,7 @@ export const supabaseRepo: Repo = {
         endpoint: input.endpoint,
         p256dh: input.p256dh,
         auth: input.auth,
+        team: input.team,
         ...(input.staffId !== undefined ? { staff_id: input.staffId } : {}),
       },
       { onConflict: "endpoint" },

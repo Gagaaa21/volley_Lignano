@@ -58,7 +58,7 @@ export default async function AthleteAttendancePage({
   const [athlete, sessions, trainings] = await Promise.all([
     repo.getAthlete(id),
     repo.listAttendanceSessions(),
-    repo.listTrainings(),
+    repo.listTrainings({ team: "u14u15" }),
   ]);
   if (!athlete) notFound();
 

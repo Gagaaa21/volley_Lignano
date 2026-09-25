@@ -83,8 +83,11 @@ export default async function AdminDashboardPage({
   const { password_changed } = await searchParams;
   const repo = await getActiveRepo();
 
+  // La dashboard mostra la squadra U14/U15 (Minivolley ha la propria sezione,
+  // senza presenze da registrare): niente allenamenti/tornei Minivolley nel
+  // conteggio "Allenamenti attivi" né tra le presenze da registrare.
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
-    repo.listTrainings(),
+    repo.listTrainings({ team: "u14u15" }),
     repo.listMatches(),
     repo.listAthletes(),
     repo.listAttendanceSessions(),

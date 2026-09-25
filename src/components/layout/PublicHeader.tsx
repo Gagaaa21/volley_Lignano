@@ -3,11 +3,11 @@ import { Logo } from "@/components/layout/Logo";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { InstallButton } from "@/components/pwa/InstallButton";
 
-export function PublicHeader() {
+export function PublicHeader({ subtitle }: { subtitle?: string } = {}) {
   return (
     <header className="page-header">
       <div className="mx-auto flex h-[4.25rem] max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
-        <Logo />
+        <Logo subtitle={subtitle} />
         <div className="flex items-center gap-1">
           <InstallButton />
           <LinkButton href="/login" variant="ghost" size="sm">

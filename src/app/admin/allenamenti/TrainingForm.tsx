@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { WeekdayPicker } from "@/components/forms/WeekdayPicker";
 import { saveTrainingAction, type TrainingFormState } from "./actions";
-import type { TrainingRepeat, TrainingRule } from "@/lib/types";
+import type { TrainingRepeat, TrainingRule, TrainingTeam } from "@/lib/types";
 
 const initialState: TrainingFormState = {};
 
@@ -21,14 +21,27 @@ function SubmitButton() {
   );
 }
 
-export function TrainingForm({ training }: { training?: TrainingRule }) {
+export function TrainingForm({
+  training,
+  team = "u14u15",
+  allowTournament = false,
+  defaultIsTournament = false,
+}: {
+  training?: TrainingRule;
+  team?: TrainingTeam;
+  allowTournament?: boolean;
+  defaultIsTournament?: boolean;
+}) {
   const [state, formAction] = useActionState(saveTrainingAction, initialState);
-  const [repeat, setRepeat] = useState<TrainingRepeat>(training?.repeat ?? "weekly");
+  const [repeat, setRepeat] = useState<TrainingRepeat>(
+    training?.repeat ?? (defaultIsTournament ? "once" : "weekly"),
+  );
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
       {training && <input type="hidden" name="id" value={training.id} />}
+      <input type="hidden" name="team" value={training?.team ?? team} />
 
       <div>
         <Label htmlFor="title">Titolo</Label>
@@ -85,6 +98,21 @@ export function TrainingForm({ training }: { training?: TrainingRule }) {
           <FieldHint>L&apos;allenamento si ripete ogni settimana nei giorni selezionati.</FieldHint>
         </div>
       ) : null}
+
+      {allowTournament && (
+        <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm font-medium text-foreground/85">
+          <input
+            type="checkbox"
+            name="isTournament"
+            defaultChecked={training?.isTournament ?? defaultIsTournament}
+            onChange={(e) => {
+              if (e.target.checked) setRepeat("once");
+            }}
+            className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
+          />
+          Torneo (giornata multi-club, senza avversario singolo)
+        </label>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>

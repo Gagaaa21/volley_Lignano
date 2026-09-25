@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import type { TrainingTeam } from "@/lib/types";
 
 interface SubscribeBody {
   endpoint?: unknown;
   keys?: { p256dh?: unknown; auth?: unknown };
+  team?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -16,10 +18,13 @@ export async function POST(request: Request) {
   if (typeof endpoint !== "string" || typeof p256dh !== "string" || typeof auth !== "string") {
     return NextResponse.json({ error: "Dati di iscrizione non validi." }, { status: 400 });
   }
+  // Se il client non manda "team" (es. bundle non aggiornato in cache),
+  // ricade sul comportamento di sempre.
+  const team: TrainingTeam = body?.team === "minivolley" ? "minivolley" : "u14u15";
 
   const session = await getSession();
   const repo = await getRepo();
-  await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: session?.sub ?? null });
+  await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: session?.sub ?? null, team });
   return NextResponse.json({ ok: true });
 }
 

@@ -30,7 +30,7 @@ export default async function OccurrencePlanPage({
     repo.listTrainingPlans(),
     repo.listTrainingBlocks(),
   ]);
-  if (!training) notFound();
+  if (!training || training.team !== "u14u15") notFound();
 
   const currentPlan = occurrencePlan ? await repo.getTrainingPlan(occurrencePlan.planId) : null;
   const blockById = new Map(blocks.map((b) => [b.id, b] as const));

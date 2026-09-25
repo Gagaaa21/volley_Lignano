@@ -1,7 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getRepo } from "@/lib/db";
-import type { AttendanceStatus, Category } from "@/lib/types";
+import type { AttendanceStatus, Category, TrainingTeam } from "@/lib/types";
 
 /** Tag usato per invalidare la cache da ogni azione admin che tocca il
  * calendario pubblico (allenamenti, partite, schede collegate a una data,
@@ -32,12 +32,14 @@ export type PublicCallUpsByMatchId = Record<string, string[]>;
  * ragionevole a fronte del traffico risparmiato verso il database.
  */
 export const getPublicCalendarData = unstable_cache(
-  async (from: string, to: string, category?: Category) => {
+  async (from: string, to: string, category?: Category, team: TrainingTeam = "u14u15") => {
     const repo = await getRepo();
+    // Minivolley non ha partite: evita una query inutile per dati che non
+    // verrebbero comunque mostrati sulla sua pagina pubblica.
     const [trainings, matches, occurrencePlans, plans, blocks, athletes, attendanceSessions] =
       await Promise.all([
-        repo.listTrainings(),
-        repo.listMatches({ from, to, category }),
+        repo.listTrainings({ team }),
+        team === "minivolley" ? Promise.resolve([]) : repo.listMatches({ from, to, category }),
         repo.listTrainingOccurrencePlans(),
         repo.listTrainingPlans(),
         repo.listTrainingBlocks(),

@@ -160,27 +160,43 @@ export function EventDetailDialog({
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", badgeClass)}>
-              {isTraining ? <Dumbbell className="h-5 w-5" /> : <Swords className="h-5 w-5" />}
+              {isTraining ? (
+                event.isTournament ? <Trophy className="h-5 w-5" /> : <Dumbbell className="h-5 w-5" />
+              ) : (
+                <Swords className="h-5 w-5" />
+              )}
             </span>
             <div className="min-w-0">
               <p className="truncate font-display text-lg font-bold text-foreground">
                 {eventTitle(event)}
               </p>
               <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                <span
-                  className={cn(
-                    "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                    badgeClass,
-                  )}
-                >
-                  {isTraining ? "U14 · U15" : CATEGORY_LABELS[event.category]}
-                </span>
+                {isTraining && event.team === "u14u15" && (
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      badgeClass,
+                    )}
+                  >
+                    U14 · U15
+                  </span>
+                )}
+                {!isTraining && (
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      badgeClass,
+                    )}
+                  >
+                    {CATEGORY_LABELS[event.category]}
+                  </span>
+                )}
                 {!isTraining && event.isFriendly && (
                   <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
                     Amichevole
                   </span>
                 )}
-                {!isTraining && event.isTournament && (
+                {event.isTournament && (
                   <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
                     Torneo
                   </span>

@@ -45,6 +45,8 @@ export default async function CentroControlloPage() {
   const adminSubscriberCount = pushSubscriptions.filter(
     (sub) => sub.staffId && adminIds.has(sub.staffId),
   ).length;
+  const u14u15SubscriberCount = pushSubscriptions.filter((sub) => sub.team === "u14u15").length;
+  const minivolleySubscriberCount = pushSubscriptions.filter((sub) => sub.team === "minivolley").length;
 
   // ---- Registro attività recenti: dai campi creazione/aggiornamento già
   // presenti su ogni tabella, raccolti qui in un'unica vista. Non è uno
@@ -131,7 +133,11 @@ export default async function CentroControlloPage() {
           </div>
         </CardHeader>
         <CardBody className="pt-0">
-          <NotificationForm totalSubscribers={pushSubscriptions.length} adminSubscribers={adminSubscriberCount} />
+          <NotificationForm
+            u14u15Subscribers={u14u15SubscriberCount}
+            minivolleySubscribers={minivolleySubscriberCount}
+            adminSubscribers={adminSubscriberCount}
+          />
         </CardBody>
       </Card>
 

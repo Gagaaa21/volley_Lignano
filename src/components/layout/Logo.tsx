@@ -8,6 +8,7 @@ interface LogoProps {
   variant?: "default" | "inverted";
   size?: "sm" | "md" | "lg";
   showWordmark?: boolean;
+  subtitle?: string;
 }
 
 const CHIP_SIZES = {
@@ -16,7 +17,13 @@ const CHIP_SIZES = {
   lg: "h-16 w-16 p-3",
 };
 
-export function Logo({ className, variant = "default", size = "md", showWordmark = true }: LogoProps) {
+export function Logo({
+  className,
+  variant = "default",
+  size = "md",
+  showWordmark = true,
+  subtitle = "U14 · U15",
+}: LogoProps) {
   const inverted = variant === "inverted";
   return (
     <Link href="/" className={cn("group flex items-center gap-3", className)}>
@@ -39,7 +46,7 @@ export function Logo({ className, variant = "default", size = "md", showWordmark
               inverted ? "text-sand-200" : "text-sand-600",
             )}
           >
-            U14 · U15
+            {subtitle}
           </span>
         </span>
       )}

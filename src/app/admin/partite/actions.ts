@@ -10,7 +10,12 @@ import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import type { MatchInput, MatchLineupInput, SetScore } from "@/lib/types";
+import type { MatchInput, MatchLineupInput, SetScore, TrainingTeam } from "@/lib/types";
+
+// Le partite sono sempre della squadra U14/U15: nessun campo "team" sul
+// Match (a differenza degli allenamenti, dove Minivolley condivide la
+// stessa tabella), ma notifyCalendarChange lo richiede comunque.
+const MATCH_TEAM: TrainingTeam = "u14u15";
 
 const schema = z.object({
   category: z.enum(["U14", "U15"], { message: "Seleziona una categoria." }),
@@ -192,20 +197,26 @@ export async function saveMatchAction(
         input.resultSetsWon !== null && input.resultSetsLost !== null
           ? ` · Risultato ${input.resultSetsWon}-${input.resultSetsLost}`
           : "";
-      await notifyCalendarChange({
-        title: "Partita modificata",
-        body: `${matchup} · ${scheduleLabel}${resultLabel}`,
-        url: "/",
-      });
+      await notifyCalendarChange(
+        {
+          title: "Partita modificata",
+          body: `${matchup} · ${scheduleLabel}${resultLabel}`,
+          url: "/",
+        },
+        MATCH_TEAM,
+      );
     }
   } else {
     await repo.createMatch(input, session.sub);
     if (notify) {
-      await notifyCalendarChange({
-        title: "Partita creata",
-        body: `${matchup} · ${scheduleLabel}`,
-        url: "/",
-      });
+      await notifyCalendarChange(
+        {
+          title: "Partita creata",
+          body: `${matchup} · ${scheduleLabel}`,
+          url: "/",
+        },
+        MATCH_TEAM,
+      );
     }
   }
 
@@ -224,11 +235,14 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   await repo.deleteMatch(id);
   if (match) {
     const matchup = matchupLabel(match);
-    await notifyCalendarChange({
-      title: "Partita eliminata",
-      body: `${matchup} · ${matchScheduleLabel(match.matchDate, match.location)} · non è più in calendario.`,
-      url: "/",
-    });
+    await notifyCalendarChange(
+      {
+        title: "Partita eliminata",
+        body: `${matchup} · ${matchScheduleLabel(match.matchDate, match.location)} · non è più in calendario.`,
+        url: "/",
+      },
+      MATCH_TEAM,
+    );
   }
   revalidatePath("/admin/partite");
   revalidatePath("/");

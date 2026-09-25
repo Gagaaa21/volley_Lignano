@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Dumbbell, Swords } from "lucide-react";
+import { Dumbbell, Swords, Trophy } from "lucide-react";
 import { eventTime, matchTitle } from "@/lib/calendar";
 import { CATEGORY_BADGE, CATEGORY_DOT, TRAINING_BADGE, TRAINING_DOT } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -49,14 +49,20 @@ export function UpcomingStrip({
               <span className={cn("absolute inset-y-0 left-0 w-1", dotClass(event))} aria-hidden />
               <div className="flex items-center gap-2">
                 <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", badgeClass(event))}>
-                  {isMatch ? <Swords className="h-3.5 w-3.5" /> : <Dumbbell className="h-3.5 w-3.5" />}
+                  {isMatch ? (
+                    <Swords className="h-3.5 w-3.5" />
+                  ) : event.isTournament ? (
+                    <Trophy className="h-3.5 w-3.5" />
+                  ) : (
+                    <Dumbbell className="h-3.5 w-3.5" />
+                  )}
                 </span>
                 <span className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
                   {format(date, "EEE d MMM", { locale: it })}
                 </span>
               </div>
               <p className="truncate text-sm font-bold text-foreground">
-                {isMatch ? matchTitle(event) : "Allenamento"}
+                {isMatch ? matchTitle(event) : event.isTournament ? "Torneo" : "Allenamento"}
               </p>
               <p className="truncate text-xs text-foreground/55">
                 {eventTime(event)} · {event.location}

@@ -25,7 +25,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
     repo.listTrainingPlans(),
     repo.listTrainingOccurrencePlans(),
   ]);
-  if (!training) notFound();
+  if (!training || training.team !== "u14u15") notFound();
 
   const today = new Date();
   const rangeStart = training.repeat === "once" ? new Date(`${training.startDate}T00:00:00`) : today;

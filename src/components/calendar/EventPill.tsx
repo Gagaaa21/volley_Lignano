@@ -1,4 +1,4 @@
-import { Dumbbell, Home, Plane } from "lucide-react";
+import { Dumbbell, Home, Plane, Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -18,8 +18,14 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
         className={cn(pillClass, TRAINING_BADGE)}
         title={`${event.startTime}–${event.endTime} · ${event.title} · ${event.location}`}
       >
-        <Dumbbell className="h-2.5 w-2.5 shrink-0" />
-        <span className="truncate">{event.startTime} Allenamento</span>
+        {event.isTournament ? (
+          <Trophy className="h-2.5 w-2.5 shrink-0" />
+        ) : (
+          <Dumbbell className="h-2.5 w-2.5 shrink-0" />
+        )}
+        <span className="truncate">
+          {event.startTime} {event.isTournament ? "Torneo" : "Allenamento"}
+        </span>
       </button>
     );
   }

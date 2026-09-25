@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { usePwaInstall } from "./PwaInstallContext";
+import type { TrainingTeam } from "@/lib/types";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
 const NOTIFY_PROMPTED_KEY = "vl-pwa-notify-prompted";
@@ -17,7 +19,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-async function subscribeToPush() {
+async function subscribeToPush(team: TrainingTeam) {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!publicKey) return;
 
@@ -31,7 +33,7 @@ async function subscribeToPush() {
   await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, team }),
   }).catch(() => {});
 }
 
@@ -66,6 +68,8 @@ export function PwaClient() {
   const mounted = useMounted();
   const [step, setStep] = useState<"install" | "notify" | "done">(computeInitialStep);
   const { canInstall, isStandalone, promptInstall } = usePwaInstall();
+  const pathname = usePathname();
+  const team: TrainingTeam = pathname?.startsWith("/minivolley") ? "minivolley" : "u14u15";
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -95,7 +99,7 @@ export function PwaClient() {
     if (accept) {
       try {
         const permission = await Notification.requestPermission();
-        if (permission === "granted") await subscribeToPush();
+        if (permission === "granted") await subscribeToPush(team);
       } catch {
         // ignora: l'utente resta comunque libero di attivarle dopo dal browser
       }
@@ -146,7 +150,9 @@ export function PwaClient() {
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold text-foreground">Attiva le notifiche</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Ricevi un avviso quando allenamenti o partite cambiano in calendario.
+                {team === "minivolley"
+                  ? "Ricevi un avviso quando allenamenti o tornei cambiano in calendario."
+                  : "Ricevi un avviso quando allenamenti o partite cambiano in calendario."}
               </p>
               <div className="mt-3 flex items-center gap-2">
                 <Button size="sm" onClick={() => handleNotify(true)}>

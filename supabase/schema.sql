@@ -45,12 +45,19 @@ create table if not exists training_sessions (
   end_date date,
   notes text,
   is_active boolean not null default true,
+  -- Squadra a cui appartiene: "u14u15" (gruppo agonistico, condiviso tra le
+  -- due categorie) o "minivolley" (calendario e pagina pubblica separati).
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
+  -- Torneo/giornata multi-club (solo Minivolley): evento singolo senza
+  -- avversario né risultato, badge "Torneo" invece di "Allenamento".
+  is_tournament boolean not null default false,
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists training_sessions_is_active_idx on training_sessions (is_active);
+create index if not exists training_sessions_team_idx on training_sessions (team);
 
 alter table training_sessions enable row level security;
 
@@ -238,10 +245,14 @@ create table if not exists push_subscriptions (
   p256dh text not null,
   auth text not null,
   staff_id uuid references staff(id) on delete set null,
+  -- Squadra scelta in base alla pagina da cui ci si è iscritti: scopa le
+  -- notifiche calendario tra u14u15 e minivolley.
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
   created_at timestamptz not null default now()
 );
 
 create unique index if not exists push_subscriptions_endpoint_idx on push_subscriptions (endpoint);
+create index if not exists push_subscriptions_team_idx on push_subscriptions (team);
 
 alter table push_subscriptions enable row level security;
 -- Nessuna policy pubblica: la sottoscrizione/cancellazione avviene tramite
@@ -295,6 +306,22 @@ alter table training_occurrence_plans add column if not exists is_public boolean
 
 alter table matches add column if not exists is_friendly boolean not null default false;
 alter table matches add column if not exists is_tournament boolean not null default false;
+
+-- Squadra Minivolley: allenamenti/tornei condividono la tabella
+-- training_sessions con U14/U15, distinti dal campo "team".
+alter table training_sessions add column if not exists team text not null default 'u14u15';
+do $$ begin
+  alter table training_sessions add constraint training_sessions_team_check check (team in ('u14u15', 'minivolley'));
+exception when duplicate_object then null;
+end $$;
+alter table training_sessions add column if not exists is_tournament boolean not null default false;
+
+alter table push_subscriptions add column if not exists team text not null default 'u14u15';
+do $$ begin
+  alter table push_subscriptions add constraint push_subscriptions_team_check check (team in ('u14u15', 'minivolley'));
+exception when duplicate_object then null;
+end $$;
+
 alter table matches add column if not exists meeting_time time;
 alter table matches add column if not exists meeting_location text;
 alter table matches add column if not exists set_scores jsonb;
