@@ -28,11 +28,12 @@ export default async function AttendanceHubPage({
   const session = await requireStaff();
   const team = await resolveActiveTeam(session);
 
+  const isMini = team === "minivolley";
   const repo = await getActiveRepo();
   const [trainings, sessions, athletes] = await Promise.all([
     repo.listTrainings({ team }),
     repo.listAttendanceSessions({ team }),
-    repo.listAthletes({ team }),
+    isMini ? Promise.resolve([]) : repo.listAthletes({ team }),
   ]);
 
   const { start, end } = getMonthGridRange(monthDate);
@@ -146,10 +147,12 @@ export default async function AttendanceHubPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <LinkButton href="/admin/presenze/atlete" variant="outline">
-            <Users className="h-4 w-4" />
-            Atlete
-          </LinkButton>
+          {!isMini && (
+            <LinkButton href="/admin/presenze/atlete" variant="outline">
+              <Users className="h-4 w-4" />
+              Atlete
+            </LinkButton>
+          )}
           <LinkButton href="/admin/presenze/storico" variant="outline">
             <History className="h-4 w-4" />
             Storico
@@ -157,7 +160,7 @@ export default async function AttendanceHubPage({
         </div>
       </div>
 
-      {activeAthleteCount === 0 && (
+      {!isMini && activeAthleteCount === 0 && (
         <div className="mt-6 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-8 text-center text-sm text-muted-foreground">
           Non hai ancora aggiunto nessuna atleta.{" "}
           <Link href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">

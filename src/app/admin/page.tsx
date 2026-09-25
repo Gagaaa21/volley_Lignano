@@ -105,10 +105,12 @@ export default async function AdminDashboardPage({
     visibleSections = visibleSections.filter((section) => allowedPages.includes(section.page));
   }
 
+  // Il Minivolley non ha anagrafica atlete (vedi MiniAttendanceForm).
+  const isMini = team === "minivolley";
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
     repo.listTrainings({ team }),
     showMatches ? repo.listMatches({ team }) : Promise.resolve([]),
-    repo.listAthletes({ team }),
+    isMini ? Promise.resolve([]) : repo.listAthletes({ team }),
     showPresenze ? repo.listAttendanceSessions({ team }) : Promise.resolve([]),
   ]);
 
@@ -181,19 +183,21 @@ export default async function AdminDashboardPage({
             </CardBody>
           </div>
         )}
-        <div className="stat-card">
-          <CardBody className="pt-5">
-            <div className="flex items-center gap-3">
-              <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]">
-                <Users className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{activeAthletes.length}</p>
-                <p className="text-xs text-muted-foreground">Atlete attive</p>
+        {!isMini && (
+          <div className="stat-card">
+            <CardBody className="pt-5">
+              <div className="flex items-center gap-3">
+                <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]">
+                  <Users className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{activeAthletes.length}</p>
+                  <p className="text-xs text-muted-foreground">Atlete attive</p>
+                </div>
               </div>
-            </div>
-          </CardBody>
-        </div>
+            </CardBody>
+          </div>
+        )}
         {showPresenze && (
           <Link href="/admin/presenze" className="stat-card block">
             <CardBody className="pt-5">

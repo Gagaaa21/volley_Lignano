@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, MapPin } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
+import { collectKnownNames } from "@/lib/attendanceNames";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AttendanceForm } from "../../../AttendanceForm";
@@ -26,10 +27,18 @@ export default async function RecordAttendancePage({
     repo.getAttendanceSessionByOccurrence(ruleId, date),
   ]);
   if (!training) notFound();
-  // Solo atlete della stessa squadra dell'allenamento.
-  const athletes = await repo.listAthletes({ team: training.team });
 
+  const isMini = training.team === "minivolley";
+  // Il Minivolley non ha anagrafica: solo atlete della stessa squadra
+  // dell'allenamento per il flusso classico con spunte.
+  const athletes = isMini ? [] : await repo.listAthletes({ team: training.team });
   const activeAthletes = athletes.filter((a) => a.isActive);
+  // Nomi già usati in passato per questa squadra, per suggerirli mentre si
+  // scrive (vedi MiniAttendanceForm): niente anagrafica da tenere
+  // aggiornata prima, solo un aiuto contro i refusi.
+  const knownNames = isMini
+    ? collectKnownNames(await repo.listAttendanceSessions({ team: "minivolley" }))
+    : [];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -60,23 +69,23 @@ export default async function RecordAttendancePage({
           </div>
         </CardHeader>
         <CardBody>
-          {activeAthletes.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-muted-foreground">
-              Nessuna atleta attiva in anagrafica.{" "}
-              <LinkButton href="/admin/presenze/atlete/nuova" variant="ghost" size="sm" className="mt-2">
-                Aggiungine una
-              </LinkButton>
-            </div>
-          ) : training.team === "minivolley" ? (
+          {isMini ? (
             <MiniAttendanceForm
-              athletes={activeAthletes}
-              initialPresentIds={Object.keys(existingSession?.records ?? {})}
+              knownNames={knownNames}
+              initialPresentNames={Object.keys(existingSession?.records ?? {})}
               sessionId={existingSession?.id}
               trainingRuleId={ruleId}
               sessionDate={date}
               title={training.title}
               location={training.location}
             />
+          ) : activeAthletes.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-muted-foreground">
+              Nessuna atleta attiva in anagrafica.{" "}
+              <LinkButton href="/admin/presenze/atlete/nuova" variant="ghost" size="sm" className="mt-2">
+                Aggiungine una
+              </LinkButton>
+            </div>
           ) : (
             <AttendanceForm
               athletes={activeAthletes}

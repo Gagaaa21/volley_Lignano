@@ -88,3 +88,12 @@ export async function resolveActiveTeam(session: SessionPayload): Promise<Traini
   const allowed = staff?.allowedTeams ?? TEAMS;
   return allowed.includes(requested) ? requested : (allowed[0] ?? "u14u15");
 }
+
+/** L'anagrafica atlete serve solo a U14/U15: il Minivolley segna le
+ * presenze scrivendo i nomi a mano, senza registrarle prima da nessuna
+ * parte (vedi MiniAttendanceForm). Torna alla pagina Presenze invece che
+ * alla dashboard, perché resta comunque dentro la sezione. */
+export async function requireU14U15Team(session: SessionPayload): Promise<void> {
+  const team = await resolveActiveTeam(session);
+  if (team === "minivolley") redirect("/admin/presenze");
+}

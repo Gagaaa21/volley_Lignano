@@ -49,7 +49,7 @@ export default async function MinivolleyPresenzePage() {
               <CardBody className="p-0">
                 <ul className="divide-y divide-border-subtle">
                   {rows.map((row) => (
-                    <li key={row.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                    <li key={row.fullName} className="flex items-center justify-between gap-3 px-5 py-3.5">
                       <span className="flex min-w-0 items-center gap-2.5">
                         <span className="icon-chip shrink-0">
                           <Users className="h-4 w-4" />

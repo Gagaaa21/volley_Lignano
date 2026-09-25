@@ -67,7 +67,7 @@ const SECTIONS: Section[] = [
       "Dalla schermata principale si sceglie l'allenamento da registrare: ogni atleta è di default \"Presente\", con un tasto per segnarla \"Assente\" e, in quel caso, specificare se l'assenza è giustificata o no.",
       "Lo \"Storico\" mostra tutti i registri salvati (modificabili in ogni momento) e, per ogni atleta, la propria percentuale di presenza e la cronologia.",
       "Appena salvi un registro, l'elenco nominativo con lo stato di ciascuna atleta compare anche nel dettaglio di quell'allenamento sul calendario pubblico, visibile a chiunque senza bisogno di accedere.",
-      "Per il Minivolley il registro è più semplice: niente elenco con spunte, basta scrivere il nome di chi era presente (con suggerimenti dall'anagrafica). Le assenze non si registrano: conta solo quante volte ciascuna atleta è stata presente, visibile alle famiglie in una pagina pubblica dedicata (\"Presenze\" nell'header del sito Minivolley).",
+      "Il Minivolley non ha anagrafica atlete: nessuna \"Atlete\" da tenere aggiornata. A ogni allenamento si scrive a mano il nome di chi era presente; man mano che si scrive, i nomi già usati in registri precedenti vengono suggeriti, solo per evitare refusi che spezzerebbero il conteggio della stessa persona in due. Le assenze non si registrano: conta solo quante volte ciascun nome è comparso come presente, visibile alle famiglie in una pagina pubblica dedicata (\"Presenze\" nell'header del sito Minivolley).",
     ],
   },
   {

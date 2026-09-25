@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
+import { collectKnownNames } from "@/lib/attendanceNames";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AttendanceForm } from "../../AttendanceForm";
@@ -22,7 +23,11 @@ export default async function AttendanceSessionDetailPage({
   const repo = await getActiveRepo();
   const session = await repo.getAttendanceSession(id);
   if (!session) notFound();
-  const athletes = await repo.listAthletes({ team: session.team });
+  const isMini = session.team === "minivolley";
+  const athletes = isMini ? [] : await repo.listAthletes({ team: session.team });
+  const knownNames = isMini
+    ? collectKnownNames(await repo.listAttendanceSessions({ team: "minivolley" }))
+    : [];
 
   const athleteMap = new Map(athletes.map((a) => [a.id, a]));
   const recordedAthletes: Athlete[] = Object.keys(session.records)
@@ -63,10 +68,10 @@ export default async function AttendanceSessionDetailPage({
           </p>
         </CardHeader>
         <CardBody>
-          {session.team === "minivolley" ? (
+          {isMini ? (
             <MiniAttendanceForm
-              athletes={athletes}
-              initialPresentIds={Object.keys(session.records)}
+              knownNames={knownNames}
+              initialPresentNames={Object.keys(session.records)}
               sessionId={session.id}
               trainingRuleId={session.trainingRuleId}
               sessionDate={session.sessionDate}

@@ -5,8 +5,8 @@ import { useFormStatus } from "react-dom";
 import { Plus, Save, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FieldError } from "@/components/ui/Field";
+import { normalizePersonName, suggestSimilarNames } from "@/lib/text";
 import { saveMiniAttendanceAction, type MiniAttendanceFormState } from "./actions";
-import type { Athlete } from "@/lib/types";
 
 const initialState: MiniAttendanceFormState = {};
 
@@ -20,58 +20,54 @@ function SubmitButton() {
   );
 }
 
-/** Registro presenze del Minivolley: niente elenco con spunte su ogni
- * atleta, solo un piccolo elenco libero costruito aggiungendo un nome alla
- * volta, con suggerimenti dall'anagrafica mentre si scrive. */
+/** Registro presenze del Minivolley: nessuna anagrafica da tenere
+ * aggiornata prima. Lo staff scrive a mano chi era presente allenamento
+ * per allenamento; i nomi usati in passato (per questa squadra) vengono
+ * suggeriti mentre si scrive, solo per evitare refusi che spezzerebbero il
+ * conteggio della stessa persona in due — mai un elenco da spuntare. */
 export function MiniAttendanceForm({
-  athletes,
-  initialPresentIds,
+  knownNames,
+  initialPresentNames,
   sessionId,
   trainingRuleId,
   sessionDate,
   title,
   location,
 }: {
-  athletes: Athlete[];
-  initialPresentIds: string[];
+  knownNames: string[];
+  initialPresentNames: string[];
   sessionId?: string;
   trainingRuleId: string | null;
   sessionDate: string;
   title: string;
   location: string;
 }) {
-  const [presentIds, setPresentIds] = useState<string[]>(() =>
-    initialPresentIds.filter((id) => athletes.some((a) => a.id === id)),
-  );
+  const [present, setPresent] = useState<string[]>(() => initialPresentNames);
   const [query, setQuery] = useState("");
   const [state, formAction] = useActionState(saveMiniAttendanceAction, initialState);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const athleteById = useMemo(() => new Map(athletes.map((a) => [a.id, a] as const)), [athletes]);
-  const present = presentIds.map((id) => athleteById.get(id)).filter((a): a is Athlete => Boolean(a));
-
   const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return athletes
-      .filter((a) => !presentIds.includes(a.id) && a.fullName.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [athletes, presentIds, query]);
+    const pool = knownNames.filter((name) => !present.includes(name));
+    return suggestSimilarNames(query, pool);
+  }, [knownNames, present, query]);
 
-  function addAthlete(id: string) {
-    setPresentIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  function addName(raw: string) {
+    const name = normalizePersonName(raw);
+    if (!name) return;
+    setPresent((prev) => (prev.includes(name) ? prev : [...prev, name]));
     setQuery("");
     inputRef.current?.focus();
   }
 
-  function removeAthlete(id: string) {
-    setPresentIds((prev) => prev.filter((existingId) => existingId !== id));
+  function removeName(name: string) {
+    setPresent((prev) => prev.filter((existing) => existing !== name));
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
       event.preventDefault();
-      if (suggestions[0]) addAthlete(suggestions[0].id);
+      addName(query);
     } else if (event.key === "Escape") {
       setQuery("");
     }
@@ -84,11 +80,10 @@ export function MiniAttendanceForm({
       <input type="hidden" name="sessionDate" value={sessionDate} />
       <input type="hidden" name="title" value={title} />
       <input type="hidden" name="location" value={location} />
-      <input type="hidden" name="presentAthleteIds" value={presentIds.join(",")} />
+      <input type="hidden" name="presentNames" value={JSON.stringify(present)} />
 
       <p className="text-sm text-muted-foreground">
-        <span className="font-semibold text-foreground">{present.length}</span> presenti su{" "}
-        {athletes.length} in anagrafica
+        <span className="font-semibold text-foreground">{present.length}</span> presenti
       </p>
 
       <div className="relative">
@@ -100,22 +95,35 @@ export function MiniAttendanceForm({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Scrivi il nome di chi era presente…"
+            placeholder="Scrivi un nome e premi Invio…"
             className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/35"
           />
+          {query.trim() && (
+            <button
+              type="button"
+              onClick={() => addName(query)}
+              aria-label="Aggiungi"
+              className="shrink-0 rounded-full p-1 text-primary transition-colors hover:bg-primary/10"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {suggestions.length > 0 && (
           <div className="absolute inset-x-0 top-full z-10 mt-1.5 overflow-hidden rounded-xl border border-border-subtle bg-surface shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)]">
-            {suggestions.map((athlete) => (
+            <p className="border-b border-border-subtle px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-foreground/40">
+              Forse intendevi
+            </p>
+            {suggestions.map((name) => (
               <button
-                key={athlete.id}
+                key={name}
                 type="button"
-                onClick={() => addAthlete(athlete.id)}
+                onClick={() => addName(name)}
                 className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
-                {athlete.fullName}
+                {name}
               </button>
             ))}
           </div>
@@ -124,20 +132,20 @@ export function MiniAttendanceForm({
 
       {present.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border-subtle px-4 py-6 text-center text-sm text-muted-foreground">
-          Nessuna atleta ancora aggiunta: scrivi un nome qui sopra.
+          Nessun nome ancora aggiunto: scrivi qui sopra chi era presente.
         </p>
       ) : (
         <ul className="flex flex-wrap gap-2">
-          {present.map((athlete) => (
+          {present.map((name) => (
             <li
-              key={athlete.id}
+              key={name}
               className="flex items-center gap-1.5 rounded-full bg-primary/10 py-1.5 pl-3.5 pr-2 text-sm font-medium text-primary"
             >
-              {athlete.fullName}
+              {name}
               <button
                 type="button"
-                onClick={() => removeAthlete(athlete.id)}
-                aria-label={`Rimuovi ${athlete.fullName}`}
+                onClick={() => removeName(name)}
+                aria-label={`Rimuovi ${name}`}
                 className="rounded-full p-0.5 text-primary/60 transition-colors hover:bg-primary/15 hover:text-primary"
               >
                 <X className="h-3.5 w-3.5" />

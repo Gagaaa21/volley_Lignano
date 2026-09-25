@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ArrowLeft, Check, Clock, MapPin, ShieldAlert, ShieldQuestion } from "lucide-react";
@@ -57,6 +57,9 @@ export default async function AthleteAttendancePage({
   const repo = await getActiveRepo();
   const athlete = await repo.getAthlete(id);
   if (!athlete) notFound();
+  // Il Minivolley non ha anagrafica (vedi MiniAttendanceForm): questa
+  // pagina esiste solo per U14/U15.
+  if (athlete.team === "minivolley") redirect("/admin/presenze");
   const [sessions, trainings] = await Promise.all([
     repo.listAttendanceSessions({ team: athlete.team }),
     repo.listTrainings({ team: athlete.team }),
@@ -67,16 +70,11 @@ export default async function AthleteAttendancePage({
     .map((s) => ({ session: s, status: s.records[id] }))
     .sort((a, b) => b.session.sessionDate.localeCompare(a.session.sessionDate));
 
-  const isMini = athlete.team === "minivolley";
   const total = history.length;
   const present = history.filter((h) => h.status === "present").length;
   const excused = history.filter((h) => h.status === "excused").length;
   const unexcused = history.filter((h) => h.status === "unexcused").length;
-  // Il Minivolley non registra le assenze (vedi MiniAttendanceForm): ogni
-  // sessione in cui l'atleta compare è per forza una presenza, quindi una
-  // percentuale sarebbe sempre 100% e non direbbe nulla. Ha senso solo il
-  // conteggio delle presenze.
-  const presencePct = !isMini && total > 0 ? Math.round((present / total) * 100) : null;
+  const presencePct = total > 0 ? Math.round((present / total) * 100) : null;
 
   const sessionByOccurrence = new Map(sessions.map((s) => [`${s.trainingRuleId}_${s.sessionDate}`, s]));
   const { start, end } = getMonthGridRange(monthDate);
@@ -171,37 +169,31 @@ export default async function AthleteAttendancePage({
         Tutti gli impegni dell&apos;atleta, passati e futuri: seleziona un giorno per i dettagli.
       </p>
 
-      <div className={cn("mt-6 grid grid-cols-2 gap-3", !isMini && "sm:grid-cols-4")}>
-        {!isMini && (
-          <div className="stat-card">
-            <CardBody className="pt-5">
-              <p className="text-2xl font-bold text-foreground">{presencePct ?? "–"}{presencePct !== null && "%"}</p>
-              <p className="text-xs text-muted-foreground">Presenza</p>
-            </CardBody>
-          </div>
-        )}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="stat-card">
+          <CardBody className="pt-5">
+            <p className="text-2xl font-bold text-foreground">{presencePct ?? "–"}{presencePct !== null && "%"}</p>
+            <p className="text-xs text-muted-foreground">Presenza</p>
+          </CardBody>
+        </div>
         <div className="stat-card">
           <CardBody className="pt-5">
             <p className="text-2xl font-bold text-foreground">{present}</p>
             <p className="text-xs text-muted-foreground">Presenze</p>
           </CardBody>
         </div>
-        {!isMini && (
-          <>
-            <div className="stat-card">
-              <CardBody className="pt-5">
-                <p className="text-2xl font-bold text-foreground">{excused}</p>
-                <p className="text-xs text-muted-foreground">Giustificate</p>
-              </CardBody>
-            </div>
-            <div className="stat-card">
-              <CardBody className="pt-5">
-                <p className="text-2xl font-bold text-foreground">{unexcused}</p>
-                <p className="text-xs text-muted-foreground">Non giustificate</p>
-              </CardBody>
-            </div>
-          </>
-        )}
+        <div className="stat-card">
+          <CardBody className="pt-5">
+            <p className="text-2xl font-bold text-foreground">{excused}</p>
+            <p className="text-xs text-muted-foreground">Giustificate</p>
+          </CardBody>
+        </div>
+        <div className="stat-card">
+          <CardBody className="pt-5">
+            <p className="text-2xl font-bold text-foreground">{unexcused}</p>
+            <p className="text-xs text-muted-foreground">Non giustificate</p>
+          </CardBody>
+        </div>
       </div>
 
       <div className="mt-8">
