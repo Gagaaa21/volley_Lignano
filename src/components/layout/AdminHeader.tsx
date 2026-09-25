@@ -304,7 +304,7 @@ export function AdminHeader({
 
           <div className="nav-cluster w-full shrink-0 sm:w-auto">
             <Link
-              href="/"
+              href={activeTeam === "minivolley" ? "/minivolley" : "/"}
               onClick={() => setMobileOpen(false)}
               className="nav-tile w-full sm:w-auto"
               aria-label="Vai al sito pubblico"
