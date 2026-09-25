@@ -773,7 +773,13 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
     if (!data) return null;
     const age = Date.now() - new Date(data.updated_at as string).getTime();
-    if (age > LIVE_SCORE_TTL_MS) return null;
+    if (age > LIVE_SCORE_TTL_MS) {
+      // Oltre le 3 ore non va solo ignorato: la riga va cancellata subito,
+      // altrimenti resterebbe a occupare spazio su Supabase finché
+      // qualcuno non riapre lo strumento (vedi LIVE_SCORE_TTL_MS).
+      await db.from("live_score_state").delete().eq("id", LIVE_SCORE_ROW_ID);
+      return null;
+    }
     return data.data as LiveScoreState;
   },
   async saveLiveScoreState(state: LiveScoreState) {
