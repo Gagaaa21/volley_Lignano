@@ -1,4 +1,5 @@
 import type {
+  AdminPage,
   Athlete,
   AthleteInput,
   AttendanceSession,
@@ -37,6 +38,7 @@ export interface NewStaffInput {
   fullName: string;
   role: StaffRole;
   mustChangePassword: boolean;
+  allowedPages: AdminPage[];
   createdBy: string | null;
 }
 
@@ -71,6 +73,7 @@ export interface Repo {
   createStaff(input: NewStaffInput): Promise<StaffMember>;
   updateStaffProfile(id: string, input: { username: string; fullName: string }): Promise<StaffMember>;
   setStaffPassword(id: string, passwordHash: string, mustChangePassword: boolean): Promise<void>;
+  updateStaffPermissions(id: string, allowedPages: AdminPage[]): Promise<void>;
   markGuideSeen(id: string): Promise<void>;
   deleteStaff(id: string): Promise<void>;
 

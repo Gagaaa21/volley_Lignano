@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
@@ -145,7 +145,7 @@ export async function saveMatchAction(
   _prevState: MatchFormState,
   formData: FormData,
 ): Promise<MatchFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("partite");
   const parsed = parseMatchForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -227,7 +227,7 @@ export async function saveMatchAction(
 }
 
 export async function deleteMatchAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("partite");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
@@ -323,7 +323,7 @@ export async function saveCallUpsAndLineupAction(
   _prevState: CallUpsAndLineupFormState,
   formData: FormData,
 ): Promise<CallUpsAndLineupFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("partite");
   const matchId = formData.get("matchId")?.toString();
   if (!matchId) return { error: "Partita non valida." };
 

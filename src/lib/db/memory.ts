@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { ADMIN_PAGES } from "@/lib/types";
 import type {
   Athlete,
   AthleteInput,
@@ -100,6 +101,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       role: "dev",
       mustChangePassword: true,
       hasSeenGuide: false,
+      allowedPages: ADMIN_PAGES,
       createdBy: null,
       createdAt: new Date().toISOString(),
     });
@@ -213,6 +215,11 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       const idx = staff.findIndex((s) => s.id === id);
       if (idx === -1) throw new Error("Utente non trovato");
       staff[idx] = { ...staff[idx], passwordHash, mustChangePassword };
+    },
+    async updateStaffPermissions(id, allowedPages) {
+      await ensureStaffSeeded();
+      const idx = staff.findIndex((s) => s.id === id);
+      if (idx !== -1) staff[idx] = { ...staff[idx], allowedPages };
     },
     async markGuideSeen(id) {
       await ensureStaffSeeded();

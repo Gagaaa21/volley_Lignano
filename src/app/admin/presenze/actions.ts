@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath, updateTag } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { AttendanceSessionInput, AttendanceStatus } from "@/lib/types";
 
@@ -19,7 +19,7 @@ export async function saveAttendanceAction(
   _prevState: AttendanceFormState,
   formData: FormData,
 ): Promise<AttendanceFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("presenze");
 
   const sessionId = formData.get("sessionId")?.toString() || undefined;
   const trainingRuleId = formData.get("trainingRuleId")?.toString() || null;
@@ -61,7 +61,7 @@ export async function saveAttendanceAction(
 }
 
 export async function deleteAttendanceSessionAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("presenze");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();

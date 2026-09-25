@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import type { AthleteInput } from "@/lib/types";
 
 const schema = z.object({
@@ -22,7 +22,7 @@ export async function saveAthleteAction(
   _prevState: AthleteFormState,
   formData: FormData,
 ): Promise<AthleteFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("presenze");
   const rawCategory = formData.get("category")?.toString().trim();
   const parsed = schema.safeParse({
     fullName: formData.get("fullName")?.toString().trim() ?? "",
@@ -68,7 +68,7 @@ export async function bulkCreateAthletesAction(
   _prevState: BulkAthleteFormState,
   formData: FormData,
 ): Promise<BulkAthleteFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("presenze");
 
   const rawCategory = formData.get("category")?.toString().trim();
   const parsed = bulkSchema.safeParse({
@@ -107,7 +107,7 @@ export async function bulkCreateAthletesAction(
 }
 
 export async function deleteAthleteAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("presenze");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();

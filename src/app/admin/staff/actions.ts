@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
-import { requireDev, requireStaff } from "@/lib/auth/guard";
+import { requireDev, requireStaffPage } from "@/lib/auth/guard";
 import { hashPassword } from "@/lib/auth/password";
+import { ADMIN_PAGES } from "@/lib/types";
 
 const schema = z.object({
   username: z
@@ -24,7 +25,7 @@ export async function createStaffAction(
   _prevState: StaffFormState,
   formData: FormData,
 ): Promise<StaffFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("staff");
 
   const parsed = schema.safeParse({
     username: formData.get("username")?.toString().trim() ?? "",
@@ -48,6 +49,7 @@ export async function createStaffAction(
     passwordHash,
     role: "admin",
     mustChangePassword: true,
+    allowedPages: ADMIN_PAGES,
     createdBy: session.sub,
   });
 

@@ -25,48 +25,54 @@ import { cn } from "@/lib/cn";
 import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import crest from "@/assets/lignano-crest.png";
-import type { CalendarEvent } from "@/lib/types";
+import type { AdminPage, CalendarEvent } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-const SECTIONS = [
+const SECTIONS: { href: string; label: string; description: string; icon: typeof CalendarClock; page: AdminPage }[] = [
   {
     href: "/admin/allenamenti",
     label: "Allenamenti",
     description: "Calendario, regole e schede per data",
     icon: CalendarClock,
+    page: "allenamenti",
   },
   {
     href: "/admin/partite",
     label: "Partite",
     description: "Calendario partite per categoria",
     icon: Swords,
+    page: "partite",
   },
   {
     href: "/admin/schede",
     label: "Schede",
     description: "Blocchi e schede allenamento",
     icon: Puzzle,
+    page: "schede",
   },
   {
     href: "/admin/presenze",
     label: "Presenze",
     description: "Registro e anagrafica atlete",
     icon: ClipboardCheck,
+    page: "presenze",
   },
   {
     href: "/admin/staff",
     label: "Staff",
     description: "Account Developer e Admin",
     icon: Users,
+    page: "staff",
   },
   {
     href: "/admin/guida",
     label: "Guida",
     description: "Come funziona il sito",
     icon: BookOpen,
+    page: "guida",
   },
 ];
 
@@ -82,6 +88,13 @@ export default async function AdminDashboardPage({
   const session = await requireStaff();
   const { password_changed } = await searchParams;
   const repo = await getActiveRepo();
+
+  let visibleSections = SECTIONS;
+  if (session.role !== "dev") {
+    const staff = await repo.getStaffById(session.sub);
+    const allowedPages = staff?.allowedPages ?? [];
+    visibleSections = SECTIONS.filter((section) => allowedPages.includes(section.page));
+  }
 
   // La dashboard mostra la squadra U14/U15 (Minivolley ha la propria sezione,
   // senza presenze da registrare): niente allenamenti/tornei Minivolley nel
@@ -261,7 +274,7 @@ export default async function AdminDashboardPage({
           <p className="eyebrow">Sezioni</p>
           <h2 className="mt-1.5 font-display text-lg font-bold text-foreground">Aree dell&apos;app</h2>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            {SECTIONS.map((section) => {
+            {visibleSections.map((section) => {
               const Icon = section.icon;
               return (
                 <Link key={section.href} href={section.href} className="section-card">

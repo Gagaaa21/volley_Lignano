@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bell, Clock, Eye, ListChecks, Shield } from "lucide-react";
+import { Bell, Clock, Eye, KeyRound, ListChecks, Shield } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
@@ -7,6 +7,7 @@ import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { OccurrenceVisibilityToggle } from "./OccurrenceVisibilityToggle";
 import { NotificationForm } from "./NotificationForm";
+import { PermissionsMatrix } from "./PermissionsMatrix";
 
 export const metadata: Metadata = {
   title: "Centro di controllo",
@@ -106,6 +107,11 @@ export default async function CentroControlloPage() {
   const planById = new Map(plans.map((p) => [p.id, p] as const));
   const occurrenceRows = [...occurrencePlans].sort((a, b) => (a.occurrenceDate < b.occurrenceDate ? 1 : -1));
 
+  // ---- Permessi pagine: un account Admin per riga ----
+  const adminRows = staff
+    .filter((s) => s.role === "admin")
+    .map((s) => ({ id: s.id, fullName: s.fullName, username: s.username, allowedPages: s.allowedPages }));
+
   return (
     <div className="mx-auto max-w-3xl">
       <p className="eyebrow">
@@ -138,6 +144,25 @@ export default async function CentroControlloPage() {
             minivolleySubscribers={minivolleySubscriberCount}
             adminSubscribers={adminSubscriberCount}
           />
+        </CardBody>
+      </Card>
+
+      {/* Permessi pagine */}
+      <Card className="mt-4">
+        <CardHeader className="flex flex-row items-center gap-3">
+          <span className="icon-chip shrink-0">
+            <KeyRound className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="font-display text-base font-semibold text-foreground">Permessi pagine</h2>
+            <p className="text-sm text-muted-foreground">
+              Scegli quali sezioni dell&apos;area riservata può vedere ogni account Admin. Un
+              Developer vede sempre tutto.
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody className="pt-0">
+          <PermissionsMatrix admins={adminRows} />
         </CardBody>
       </Card>
 

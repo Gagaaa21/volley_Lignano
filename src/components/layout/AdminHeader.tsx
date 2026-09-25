@@ -27,18 +27,19 @@ import { cn } from "@/lib/cn";
 import { logoutAction } from "@/lib/auth/actions";
 import { enterTestModeAction } from "@/app/admin/test-mode/actions";
 import type { SessionPayload } from "@/lib/auth/session";
+import type { AdminPage } from "@/lib/types";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import crest from "@/assets/lignano-crest.png";
 
-const NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false },
-  { href: "/admin/minivolley", label: "Minivolley", icon: Baby, exact: false },
-  { href: "/admin/partite", label: "Partite", icon: Swords, exact: false },
-  { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false },
-  { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false },
-  { href: "/admin/staff", label: "Staff", icon: Users, exact: false },
-  { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false },
+const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; exact: boolean; page: AdminPage | null }[] = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, page: null },
+  { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false, page: "allenamenti" },
+  { href: "/admin/minivolley", label: "Minivolley", icon: Baby, exact: false, page: "minivolley" },
+  { href: "/admin/partite", label: "Partite", icon: Swords, exact: false, page: "partite" },
+  { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false, page: "schede" },
+  { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze" },
+  { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff" },
+  { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida" },
 ];
 
 const DEV_NAV_ITEMS = [
@@ -134,9 +135,17 @@ function DevMenu({ pathname }: { pathname: string }) {
   );
 }
 
-export function AdminHeader({ session }: { session: SessionPayload }) {
+export function AdminHeader({
+  session,
+  allowedPages,
+}: {
+  session: SessionPayload;
+  allowedPages: AdminPage[];
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const visibleNavItems =
+    session.role === "dev" ? NAV_ITEMS : NAV_ITEMS.filter((item) => !item.page || allowedPages.includes(item.page));
 
   return (
     <header className="page-header">
@@ -202,7 +211,7 @@ export function AdminHeader({ session }: { session: SessionPayload }) {
             data-mobile={mobileOpen ? "true" : undefined}
             aria-label="Sezioni area riservata"
           >
-            {NAV_ITEMS.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.href}
                 item={item}

@@ -70,6 +70,7 @@ type StaffRow = {
   role: StaffMember["role"];
   must_change_password: boolean;
   has_seen_guide: boolean;
+  allowed_pages: StaffMember["allowedPages"];
   created_by: string | null;
   created_at: string;
 };
@@ -179,6 +180,7 @@ function staffFromRow(row: StaffRow): StaffMember {
     role: row.role,
     mustChangePassword: row.must_change_password,
     hasSeenGuide: row.has_seen_guide,
+    allowedPages: row.allowed_pages,
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
@@ -507,6 +509,7 @@ export const supabaseRepo: Repo = {
         full_name: input.fullName,
         role: input.role,
         must_change_password: input.mustChangePassword,
+        allowed_pages: input.allowedPages,
         created_by: input.createdBy,
       })
       .select("*")
@@ -529,6 +532,11 @@ export const supabaseRepo: Repo = {
       .from("staff")
       .update({ password_hash: passwordHash, must_change_password: mustChangePassword })
       .eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+  async updateStaffPermissions(id, allowedPages) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("staff").update({ allowed_pages: allowedPages }).eq("id", id);
     if (error) throw new Error(error.message);
   },
   async markGuideSeen(id) {

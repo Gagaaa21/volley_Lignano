@@ -20,6 +20,10 @@ create table if not exists staff (
   role text not null check (role in ('dev', 'admin')),
   must_change_password boolean not null default true,
   has_seen_guide boolean not null default false,
+  -- Pagine dell'area riservata visibili a questo account (solo per role
+  -- "admin", un Developer vede sempre tutto). Default: tutte, nessun
+  -- account perde accesso finché il Developer non lo restringe.
+  allowed_pages text[] not null default '{allenamenti,minivolley,partite,schede,presenze,staff,guida}',
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -272,6 +276,7 @@ alter table push_subscriptions enable row level security;
 -- =========================================================
 alter table athletes alter column category drop not null;
 alter table staff add column if not exists has_seen_guide boolean not null default false;
+alter table staff add column if not exists allowed_pages text[] not null default '{allenamenti,minivolley,partite,schede,presenze,staff,guida}';
 alter table training_sessions add column if not exists repeat text not null default 'weekly';
 do $$ begin
   alter table training_sessions add constraint training_sessions_repeat_check check (repeat in ('weekly', 'once'));

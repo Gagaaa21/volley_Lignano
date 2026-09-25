@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import { parseTrainingPlanText } from "@/lib/trainingPlanParser";
 import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import { notifyStaffChange } from "@/lib/push";
@@ -32,7 +32,7 @@ export async function createPlanAction(
   _prevState: PlanFormState,
   formData: FormData,
 ): Promise<PlanFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("schede");
   const parsed = createSchema.safeParse({
     title: formData.get("title")?.toString().trim() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
@@ -136,7 +136,7 @@ export async function updatePlanDetailsAction(
   _prevState: PlanFormState,
   formData: FormData,
 ): Promise<PlanFormState> {
-  await requireStaff();
+  await requireStaffPage("schede");
   const id = formData.get("id")?.toString();
   if (!id) return { error: "Scheda non valida." };
 
@@ -164,7 +164,7 @@ export async function updatePlanDetailsAction(
 }
 
 export async function deletePlanAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("schede");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
@@ -174,7 +174,7 @@ export async function deletePlanAction(formData: FormData): Promise<void> {
 }
 
 export async function addBlockToPlanAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("schede");
   const planId = formData.get("planId")?.toString();
   const blockId = formData.get("blockId")?.toString();
   if (!planId || !blockId) return;
@@ -192,7 +192,7 @@ export async function addBlockToPlanAction(formData: FormData): Promise<void> {
 }
 
 export async function removeBlockFromPlanAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("schede");
   const planId = formData.get("planId")?.toString();
   const blockId = formData.get("blockId")?.toString();
   if (!planId || !blockId) return;
@@ -210,7 +210,7 @@ export async function removeBlockFromPlanAction(formData: FormData): Promise<voi
 }
 
 export async function reorderPlanBlockAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("schede");
   const planId = formData.get("planId")?.toString();
   const blockId = formData.get("blockId")?.toString();
   const direction = formData.get("direction")?.toString();

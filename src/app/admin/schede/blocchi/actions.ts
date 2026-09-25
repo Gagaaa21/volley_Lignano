@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import type { TrainingBlockInput } from "@/lib/types";
 
 const schema = z.object({
@@ -25,7 +25,7 @@ export async function saveBlockAction(
   _prevState: BlockFormState,
   formData: FormData,
 ): Promise<BlockFormState> {
-  const session = await requireStaff();
+  const session = await requireStaffPage("schede");
   const parsed = schema.safeParse({
     title: formData.get("title")?.toString().trim() ?? "",
     durationMinutes: formData.get("durationMinutes")?.toString() ?? "",
@@ -69,7 +69,7 @@ export async function saveBlockAction(
 }
 
 export async function deleteBlockAction(formData: FormData): Promise<void> {
-  await requireStaff();
+  await requireStaffPage("schede");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();

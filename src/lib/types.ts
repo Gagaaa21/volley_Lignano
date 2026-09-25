@@ -1,5 +1,36 @@
 export type StaffRole = "dev" | "admin";
 
+/** Ogni sezione dell'area riservata che un Developer può nascondere a un
+ * singolo account Admin (Dashboard esclusa: sempre visibile a tutti). */
+export type AdminPage =
+  | "allenamenti"
+  | "minivolley"
+  | "partite"
+  | "schede"
+  | "presenze"
+  | "staff"
+  | "guida";
+
+export const ADMIN_PAGES: AdminPage[] = [
+  "allenamenti",
+  "minivolley",
+  "partite",
+  "schede",
+  "presenze",
+  "staff",
+  "guida",
+];
+
+export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
+  allenamenti: "Allenamenti",
+  minivolley: "Minivolley",
+  partite: "Partite",
+  schede: "Schede",
+  presenze: "Presenze",
+  staff: "Staff",
+  guida: "Guida",
+};
+
 export interface StaffMember {
   id: string;
   username: string;
@@ -8,6 +39,12 @@ export interface StaffMember {
   role: StaffRole;
   mustChangePassword: boolean;
   hasSeenGuide: boolean;
+  /** Pagine dell'area riservata visibili a questo account (solo per role
+   * "admin": un Developer vede sempre tutto, a prescindere da questo
+   * campo). Di default tutte, così un account esistente non perde accesso
+   * finché il Developer non lo restringe esplicitamente dal Centro di
+   * controllo. */
+  allowedPages: AdminPage[];
   createdBy: string | null;
   createdAt: string;
 }
