@@ -27,9 +27,11 @@ function halfCourtOrder(side: "left" | "right"): CourtPosition[] {
 function HalfCourt({
   side,
   renderCell,
+  large,
 }: {
   side: "left" | "right";
   renderCell: (position: CourtPosition) => ReactNode;
+  large: boolean;
 }) {
   const order = halfCourtOrder(side);
   return (
@@ -38,11 +40,19 @@ function HalfCourt({
         <div
           key={position}
           className={cn(
-            "relative flex min-h-20 flex-col items-center justify-center gap-1.5 bg-sand-400 px-2 py-4 text-center sm:min-h-24 sm:py-5",
+            "relative flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-sand-300 to-sand-400 px-2 py-4 text-center transition-[min-height] duration-200",
+            large ? "min-h-28 py-6 sm:min-h-40 sm:py-9" : "min-h-20 sm:min-h-24 sm:py-5",
             idx % 2 === 0 && "border-r-2 border-dashed border-white/70",
           )}
         >
-          <span className="absolute left-2 top-2 text-[10px] font-bold text-sea-950/40">{position}</span>
+          <span
+            className={cn(
+              "absolute left-2 top-2 font-bold text-sea-950/40",
+              large ? "text-xs sm:text-sm" : "text-[10px]",
+            )}
+          >
+            {position}
+          </span>
           {renderCell(position)}
         </div>
       ))}
@@ -53,10 +63,15 @@ function HalfCourt({
 /** Etichetta "Fondo campo" in verticale, alla fine del campo (bordo
  * esterno sinistro o destro) invece che come didascalia orizzontale sotto
  * — come un'etichetta di quota su una pianta. */
-function EndLabel({ text }: { text: string }) {
+function EndLabel({ text, large }: { text: string; large: boolean }) {
   return (
-    <div className="flex w-6 shrink-0 items-center justify-center sm:w-7">
-      <span className="origin-center -rotate-90 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.18em] text-sea-100/55 sm:text-[11px]">
+    <div className={cn("flex shrink-0 items-center justify-center", large ? "w-8 sm:w-10" : "w-6 sm:w-7")}>
+      <span
+        className={cn(
+          "origin-center -rotate-90 whitespace-nowrap font-bold uppercase tracking-[0.18em] text-sea-100/55",
+          large ? "text-xs sm:text-sm" : "text-[10px] sm:text-[11px]",
+        )}
+      >
         {text}
       </span>
     </div>
@@ -70,31 +85,54 @@ function EndLabel({ text }: { text: string }) {
  * (renderCellA/renderCellB), ma i due grid stanno incollati fianco a
  * fianco (senza spazio tra loro) così da sembrare un unico rettangolo —
  * la rete è solo una linea sottile disegnata sopra, non un terzo elemento
- * che occupa spazio nel layout. */
+ * che occupa spazio nel layout. `large` (schermo intero) ingrandisce
+ * celle, etichette e rete per restare leggibile da bordo campo. */
 export function DualLiveScoreCourt({
   renderCellA,
   renderCellB,
+  large = false,
 }: {
   renderCellA: (position: CourtPosition) => ReactNode;
   renderCellB: (position: CourtPosition) => ReactNode;
+  large?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border-subtle bg-sea-800 p-3 sm:p-4">
+    <div
+      className={cn(
+        "rounded-2xl border border-border-subtle bg-gradient-to-b from-sea-800 to-sea-950 shadow-xl shadow-sea-950/25",
+        large ? "p-4 sm:p-6" : "p-3 sm:p-4",
+      )}
+    >
       <div className="flex items-stretch">
-        <EndLabel text="Fondo campo" />
+        <EndLabel text="Fondo campo" large={large} />
 
         <div className="relative flex flex-1 overflow-hidden rounded-lg border-2 border-white/90 shadow-inner">
-          <HalfCourt side="left" renderCell={renderCellA} />
-          <HalfCourt side="right" renderCell={renderCellB} />
+          <HalfCourt side="left" renderCell={renderCellA} large={large} />
+          <HalfCourt side="right" renderCell={renderCellB} large={large} />
 
           {/* Rete: una linea sottile al centro con due "pali", puramente
            * decorativa e sovrapposta — non fa parte del layout a griglia. */}
-          <div className="pointer-events-none absolute inset-y-2 left-1/2 w-0.5 -translate-x-1/2 bg-sea-950/85 sm:inset-y-3" />
-          <div className="pointer-events-none absolute left-1/2 top-0 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sea-950 shadow-sm" />
-          <div className="pointer-events-none absolute bottom-0 left-1/2 h-3.5 w-3.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-sea-950 shadow-sm" />
+          <div
+            className={cn(
+              "pointer-events-none absolute left-1/2 -translate-x-1/2 bg-sea-950/85",
+              large ? "inset-y-3 w-1 sm:inset-y-4" : "inset-y-2 w-0.5 sm:inset-y-3",
+            )}
+          />
+          <div
+            className={cn(
+              "pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sea-950 shadow-sm",
+              large ? "h-5 w-5" : "h-3.5 w-3.5",
+            )}
+          />
+          <div
+            className={cn(
+              "pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rounded-full bg-sea-950 shadow-sm",
+              large ? "h-5 w-5" : "h-3.5 w-3.5",
+            )}
+          />
         </div>
 
-        <EndLabel text="Fondo campo" />
+        <EndLabel text="Fondo campo" large={large} />
       </div>
     </div>
   );

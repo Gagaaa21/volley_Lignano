@@ -17,7 +17,7 @@ export default async function LiveScorePage() {
   const athleteNames = athletes.filter((a) => a.isActive).map((a) => a.fullName);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-7xl">
       <LiveScoreClient athleteNames={athleteNames} />
     </div>
   );

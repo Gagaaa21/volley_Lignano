@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
-import { Pencil, RefreshCw, Repeat, Undo2, Volleyball } from "lucide-react";
+import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
@@ -302,6 +302,7 @@ function renderTeamCell(
   athleteNames: string[],
   isServing: boolean,
   dispatch: (action: Action) => void,
+  large: boolean,
 ) {
   return function TeamCell(position: CourtPosition) {
     if (editing) {
@@ -319,23 +320,32 @@ function renderTeamCell(
       <>
         {position === 1 && isServing && (
           <span
-            className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sea-950/70"
+            className={cn(
+              "absolute right-1.5 top-1.5 flex items-center justify-center rounded-full bg-sea-950/70",
+              large ? "h-6 w-6" : "h-3.5 w-3.5",
+            )}
             title="Al servizio"
             aria-label={`${team.label || "Squadra"} al servizio`}
           >
-            <Volleyball className="h-2.5 w-2.5 text-white" />
+            <Volleyball className={cn("text-white", large ? "h-4 w-4" : "h-2.5 w-2.5")} />
           </span>
         )}
         <span
           className={cn(
-            "line-clamp-2 rounded-full px-2 py-1 text-[11px] font-bold leading-tight shadow-sm sm:text-xs",
+            "line-clamp-2 rounded-full font-bold leading-tight shadow-sm",
+            large ? "px-3.5 py-2 text-lg sm:text-2xl" : "px-2 py-1 text-[11px] sm:text-xs",
             isLibero ? "bg-sea-950 text-white" : "bg-white/95 text-sea-950",
           )}
         >
           {name || "—"}
         </span>
         {isLibero && (
-          <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sea-950">
+          <span
+            className={cn(
+              "rounded-full bg-white/90 font-bold uppercase tracking-wide text-sea-950",
+              large ? "px-2.5 py-1 text-xs sm:text-sm" : "px-1.5 py-0.5 text-[9px]",
+            )}
+          >
             Libero
           </span>
         )}
@@ -349,30 +359,55 @@ function ScoreCard({
   isServing,
   onLabelChange,
   onPoint,
+  large,
 }: {
   team: LiveScoreTeamState;
   isServing: boolean;
   onLabelChange: (value: string) => void;
   onPoint: () => void;
+  large: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface p-4 text-center">
+    <div
+      className={cn(
+        "rounded-2xl border bg-gradient-to-b from-surface to-muted/30 text-center shadow-md transition-shadow",
+        large ? "p-6 sm:p-8" : "p-4",
+        isServing ? "border-primary/40 shadow-primary/10" : "border-border-subtle",
+      )}
+    >
       <div className="flex items-center justify-center gap-1.5">
         <input
           value={team.label}
           onChange={(e) => onLabelChange(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent text-center text-xs font-bold uppercase tracking-wide text-foreground/55 outline-none focus:text-foreground"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-foreground/55 outline-none focus:text-foreground",
+            large ? "text-base sm:text-lg" : "text-xs",
+          )}
         />
         {isServing && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
-            <Volleyball className="h-2.5 w-2.5" />
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 font-bold uppercase tracking-wide text-primary",
+              large ? "px-2.5 py-1 text-xs" : "px-1.5 py-0.5 text-[9px]",
+            )}
+          >
+            <Volleyball className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
             Al servizio
           </span>
         )}
       </div>
-      <p className="mt-1.5 font-display text-5xl font-bold tabular-nums text-foreground sm:text-6xl">{team.score}</p>
-      <p className="mt-1 text-xs font-medium text-muted-foreground">Set vinti: {team.setsWon}</p>
-      <Button onClick={onPoint} size="lg" className="mt-3 w-full">
+      <p
+        className={cn(
+          "font-display font-bold tabular-nums text-foreground",
+          large ? "mt-2 text-8xl sm:text-9xl" : "mt-1.5 text-5xl sm:text-6xl",
+        )}
+      >
+        {team.score}
+      </p>
+      <p className={cn("font-medium text-muted-foreground", large ? "mt-2 text-base" : "mt-1 text-xs")}>
+        Set vinti: {team.setsWon}
+      </p>
+      <Button onClick={onPoint} size="lg" className={cn("mt-3 w-full", large && "sm:text-lg")}>
         Punto {team.label}
       </Button>
     </div>
@@ -471,8 +506,34 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
   const [editingNames, setEditingNames] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [pendingServer, setPendingServer] = useState<TeamKey>("A");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const { match } = state;
+
+  // Segue lo stato reale dello schermo intero (anche se il coach esce con
+  // Esc invece che dal pulsante), per adattare grafica e pulsante insieme.
+  useEffect(() => {
+    function handleChange() {
+      setIsFullscreen(!!document.fullscreenElement && document.fullscreenElement === stageRef.current);
+    }
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => document.removeEventListener("fullscreenchange", handleChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    if (!stageRef.current) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await stageRef.current.requestFullscreen();
+      }
+    } catch {
+      // Schermo intero non supportato o negato dal browser: il pulsante
+      // resta semplicemente senza effetto, nessun dato in gioco.
+    }
+  }
 
   // Al montaggio, ripristina l'eventuale allenamento salvato di recente
   // (entro LIVE_SCORE_TTL_MS): senza questo la pagina parte sempre vuota,
@@ -541,8 +602,22 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
         </p>
       </div>
 
-      <div className="hidden sm:block">
-        {!match.started ? (
+      <div
+        ref={stageRef}
+        className={cn(
+          "hidden sm:block",
+          isFullscreen && "min-h-screen overflow-y-auto bg-background px-6 py-8 sm:px-10 sm:py-10",
+        )}
+      >
+        <div className={cn(isFullscreen && "mx-auto max-w-[1700px]")}>
+          <div className="mb-3 flex justify-end">
+            <Button variant="outline" size="sm" onClick={toggleFullscreen}>
+              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
+            </Button>
+          </div>
+
+          {!match.started ? (
           <div className="space-y-5">
             <div>
               <p className="eyebrow">
@@ -557,8 +632,9 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </div>
 
             <DualLiveScoreCourt
-              renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch)}
-              renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch)}
+              renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen)}
+              renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen)}
+              large={isFullscreen}
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -631,12 +707,14 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 isServing={match.servingTeam === leftKey}
                 onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
                 onPoint={() => dispatch({ type: "point", winner: leftKey })}
+                large={isFullscreen}
               />
               <ScoreCard
                 team={rightTeam}
                 isServing={match.servingTeam === rightKey}
                 onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
                 onPoint={() => dispatch({ type: "point", winner: rightKey })}
+                large={isFullscreen}
               />
             </div>
 
@@ -656,8 +734,9 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             )}
 
             <DualLiveScoreCourt
-              renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch)}
-              renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch)}
+              renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen)}
+              renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen)}
+              large={isFullscreen}
             />
 
             {editingNames ? (
@@ -672,7 +751,8 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </div>
     </>
   );
