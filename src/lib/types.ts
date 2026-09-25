@@ -34,9 +34,11 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
  * permessi dell'account (vale anche per un Developer): "Partite" è stata
  * rimossa del tutto — la squadra non gioca partite di campionato con
  * risultato, solo tornei multi-club, già coperti da "Allenamenti"
- * (isTournament); "Presenze" è disattivata per il momento su richiesta del
- * club. Nessuna delle due tocca la squadra U14/U15. */
-const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "presenze"];
+ * (isTournament). "Presenze" invece resta disponibile per entrambe le
+ * squadre, ma con un flusso diverso per il Minivolley (vedi
+ * MiniAttendanceForm): niente elenco con spunte, solo un elenco libero di
+ * chi era presente, con conteggio pubblico per atleta. */
+const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite"];
 
 export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
   return team !== "minivolley" || !PAGES_UNAVAILABLE_FOR_MINIVOLLEY.includes(page);

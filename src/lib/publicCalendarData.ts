@@ -80,6 +80,45 @@ export const getPublicCalendarData = unstable_cache(
   { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
 );
 
+export interface PublicAttendanceTallyRow {
+  id: string;
+  fullName: string;
+  count: number;
+}
+
+/**
+ * Conteggio totale delle presenze per atleta, per tutta la stagione (non
+ * limitato al mese visibile): usato dalla pagina pubblica delle presenze del
+ * Minivolley, dove il registro non traccia le assenze (vedi
+ * MiniAttendanceForm) e quindi ogni comparsa di un'atleta in un records è
+ * per forza una presenza. Stessa cache/tag di getPublicCalendarData, perché
+ * viene invalidata dagli stessi salvataggi presenze.
+ */
+export const getPublicAttendanceTally = unstable_cache(
+  async (team: TrainingTeam): Promise<PublicAttendanceTallyRow[]> => {
+    const repo = await getRepo();
+    const [athletes, attendanceSessions] = await Promise.all([
+      repo.listAthletes({ team }),
+      repo.listAttendanceSessions({ team }),
+    ]);
+
+    const countById = new Map<string, number>();
+    for (const session of attendanceSessions) {
+      for (const [athleteId, status] of Object.entries(session.records)) {
+        if (status !== "present") continue;
+        countById.set(athleteId, (countById.get(athleteId) ?? 0) + 1);
+      }
+    }
+
+    return athletes
+      .filter((a) => a.isActive)
+      .map((a) => ({ id: a.id, fullName: a.fullName, count: countById.get(a.id) ?? 0 }))
+      .sort((a, b) => b.count - a.count || a.fullName.localeCompare(b.fullName));
+  },
+  ["public-attendance-tally"],
+  { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
+);
+
 export interface SeasonRecord {
   category: Category;
   played: number;

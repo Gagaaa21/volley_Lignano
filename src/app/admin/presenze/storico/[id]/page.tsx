@@ -6,6 +6,7 @@ import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AttendanceForm } from "../../AttendanceForm";
+import { MiniAttendanceForm } from "../../MiniAttendanceForm";
 import type { Athlete } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -62,15 +63,27 @@ export default async function AttendanceSessionDetailPage({
           </p>
         </CardHeader>
         <CardBody>
-          <AttendanceForm
-            athletes={recordedAthletes}
-            initialRecords={session.records}
-            sessionId={session.id}
-            trainingRuleId={session.trainingRuleId}
-            sessionDate={session.sessionDate}
-            title={session.title}
-            location={session.location}
-          />
+          {session.team === "minivolley" ? (
+            <MiniAttendanceForm
+              athletes={athletes}
+              initialPresentIds={Object.keys(session.records)}
+              sessionId={session.id}
+              trainingRuleId={session.trainingRuleId}
+              sessionDate={session.sessionDate}
+              title={session.title}
+              location={session.location}
+            />
+          ) : (
+            <AttendanceForm
+              athletes={recordedAthletes}
+              initialRecords={session.records}
+              sessionId={session.id}
+              trainingRuleId={session.trainingRuleId}
+              sessionDate={session.sessionDate}
+              title={session.title}
+              location={session.location}
+            />
+          )}
         </CardBody>
       </Card>
     </div>

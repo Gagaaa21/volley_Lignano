@@ -1,4 +1,4 @@
-import { LogIn } from "lucide-react";
+import { ClipboardCheck, LogIn } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { InstallButton } from "@/components/pwa/InstallButton";
@@ -15,6 +15,12 @@ export function PublicHeader({ team = "u14u15" }: { team?: TrainingTeam } = {}) 
       <div className="mx-auto flex h-[4.25rem] max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Logo team={team} href={isMinivolley ? "/minivolley" : "/"} />
         <div className="flex items-center gap-1">
+          {isMinivolley && (
+            <LinkButton href="/minivolley/presenze" variant="ghost" size="sm">
+              <ClipboardCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Presenze</span>
+            </LinkButton>
+          )}
           <InstallButton />
           <LinkButton href="/login" variant="ghost" size="sm">
             <LogIn className="h-4 w-4" />

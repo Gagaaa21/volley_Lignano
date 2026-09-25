@@ -350,43 +350,54 @@ export function EventDetailDialog({
           </div>
         )}
 
-        {isTraining && attendance && attendance.records.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
-            <div className="flex items-center gap-3">
-              <span className="icon-chip">
-                <Users className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Presenze</p>
-                <p className="text-sm font-bold text-foreground">
-                  {attendance.records.filter((r) => r.status === "present").length}/
-                  {attendance.records.length} presenti
-                </p>
+        {isTraining && attendance && attendance.records.length > 0 && (() => {
+          // Il Minivolley non registra le assenze (vedi MiniAttendanceForm),
+          // quindi ogni voce è per forza presente: qui non si distingue dal
+          // caso (raro) in cui, in U14/U15, erano davvero presenti tutte —
+          // in entrambi i casi il testo "N/N presenti" e il badge ripetuto
+          // su ogni riga sarebbero solo rumore.
+          const allPresent = attendance.records.every((r) => r.status === "present");
+          return (
+            <div className="mt-4 rounded-2xl border border-border-subtle p-4">
+              <div className="flex items-center gap-3">
+                <span className="icon-chip">
+                  <Users className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Presenze</p>
+                  <p className="text-sm font-bold text-foreground">
+                    {allPresent
+                      ? `${attendance.records.length} presenti`
+                      : `${attendance.records.filter((r) => r.status === "present").length}/${attendance.records.length} presenti`}
+                  </p>
+                </div>
               </div>
-            </div>
-            <ul className="mt-3.5 space-y-1.5">
-              {attendance.records.map((record) => (
-                <li
-                  key={record.fullName}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-2.5"
-                >
-                  <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                    {record.fullName}
-                  </span>
-                  <span
-                    className={cn(
-                      "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                      ATTENDANCE_CLASS[record.status],
-                    )}
+              <ul className="mt-3.5 space-y-1.5">
+                {attendance.records.map((record) => (
+                  <li
+                    key={record.fullName}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-2.5"
                   >
-                    {record.status === "present" && <Check className="h-2.5 w-2.5" />}
-                    {ATTENDANCE_LABEL[record.status]}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                    <span className="min-w-0 truncate text-sm font-medium text-foreground">
+                      {record.fullName}
+                    </span>
+                    {!allPresent && (
+                      <span
+                        className={cn(
+                          "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                          ATTENDANCE_CLASS[record.status],
+                        )}
+                      >
+                        {record.status === "present" && <Check className="h-2.5 w-2.5" />}
+                        {ATTENDANCE_LABEL[record.status]}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
 
         <EventActions event={event} />
       </div>

@@ -40,6 +40,7 @@ export default async function AttendanceHistoryPage() {
             const present = statuses.filter((v) => v === "present").length;
             const excused = statuses.filter((v) => v === "excused").length;
             const unexcused = statuses.filter((v) => v === "unexcused").length;
+            const isMini = s.team === "minivolley";
             return (
               <Card key={s.id}>
                 <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-5">
@@ -58,14 +59,18 @@ export default async function AttendanceHistoryPage() {
                         <Check className="h-3.5 w-3.5" />
                         {present} presenti
                       </span>
-                      <span className="flex items-center gap-1 text-[var(--color-sand-700)]">
-                        <ShieldQuestion className="h-3.5 w-3.5" />
-                        {excused} giustificate
-                      </span>
-                      <span className="flex items-center gap-1 text-destructive">
-                        <ShieldAlert className="h-3.5 w-3.5" />
-                        {unexcused} non giustificate
-                      </span>
+                      {!isMini && (
+                        <>
+                          <span className="flex items-center gap-1 text-[var(--color-sand-700)]">
+                            <ShieldQuestion className="h-3.5 w-3.5" />
+                            {excused} giustificate
+                          </span>
+                          <span className="flex items-center gap-1 text-destructive">
+                            <ShieldAlert className="h-3.5 w-3.5" />
+                            {unexcused} non giustificate
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

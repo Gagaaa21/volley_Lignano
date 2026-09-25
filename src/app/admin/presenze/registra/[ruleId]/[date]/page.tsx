@@ -6,6 +6,7 @@ import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AttendanceForm } from "../../../AttendanceForm";
+import { MiniAttendanceForm } from "../../../MiniAttendanceForm";
 
 export const metadata: Metadata = {
   title: "Registra presenze",
@@ -66,6 +67,16 @@ export default async function RecordAttendancePage({
                 Aggiungine una
               </LinkButton>
             </div>
+          ) : training.team === "minivolley" ? (
+            <MiniAttendanceForm
+              athletes={activeAthletes}
+              initialPresentIds={Object.keys(existingSession?.records ?? {})}
+              sessionId={existingSession?.id}
+              trainingRuleId={ruleId}
+              sessionDate={date}
+              title={training.title}
+              location={training.location}
+            />
           ) : (
             <AttendanceForm
               athletes={activeAthletes}
