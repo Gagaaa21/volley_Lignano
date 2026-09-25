@@ -2,26 +2,30 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import type { CourtPosition } from "@/lib/types";
 
-/** Fila vicino alla rete: 2-3-4 dall'alto in basso. Fila sul fondo campo:
- * 1-6-5 dall'alto in basso — verificato sullo schema di rotazione reale
- * (posizione 1 e 2 sulla stessa fiancata di destra, 4 e 5 su quella di
- * sinistra, 3 e 6 al centro): un unico campo continuo in orizzontale con
- * la rete sottile al centro e il fondo campo di ciascuna squadra sul
- * bordo esterno (sinistro o destro), come un vero campo visto dall'alto
- * durante un allenamento a due squadre. */
-const NET_ROW: CourtPosition[] = [2, 3, 4];
-const BASELINE_ROW: CourtPosition[] = [1, 6, 5];
+/**
+ * Le due squadre giocano su lati opposti della rete e si guardano l'una
+ * con l'altra: la stessa posizione (es. 2, avanti a destra) cade quindi
+ * specchiata rispetto all'asse verticale a seconda di quale squadra la
+ * occupa — non un semplice ribaltamento colonna per colonna, ma due
+ * ordini davvero distinti. Verificato posizione per posizione su
+ * entrambi gli schemi di rotazione reali allegati (uno per squadra):
+ * fila vicino alla rete e fila sul fondo campo, dall'alto in basso.
+ */
+const LEFT_NET_COL: CourtPosition[] = [4, 3, 2];
+const LEFT_BASELINE_COL: CourtPosition[] = [5, 6, 1];
+const RIGHT_NET_COL: CourtPosition[] = [2, 3, 4];
+const RIGHT_BASELINE_COL: CourtPosition[] = [1, 6, 5];
 
 /** Le sei posizioni di una metà campo, in ordine di lettura riga per riga
  * di una griglia 2 colonne × 3 righe: colonna vicina al centro (rete) e
- * colonna verso il bordo esterno (fondo campo), specchiate a seconda del
- * lato. */
+ * colonna verso il bordo esterno (fondo campo). */
 function halfCourtOrder(side: "left" | "right"): CourtPosition[] {
-  const outerColumn = side === "left" ? BASELINE_ROW : NET_ROW;
-  const innerColumn = side === "left" ? NET_ROW : BASELINE_ROW;
+  const netCol = side === "left" ? LEFT_NET_COL : RIGHT_NET_COL;
+  const baselineCol = side === "left" ? LEFT_BASELINE_COL : RIGHT_BASELINE_COL;
   const order: CourtPosition[] = [];
   for (let row = 0; row < 3; row++) {
-    order.push(outerColumn[row], innerColumn[row]);
+    if (side === "left") order.push(baselineCol[row], netCol[row]);
+    else order.push(netCol[row], baselineCol[row]);
   }
   return order;
 }
@@ -37,20 +41,21 @@ function HalfCourt({
 }) {
   const order = halfCourtOrder(side);
   return (
-    <div className={cn("grid flex-1 grid-cols-2 grid-rows-3 gap-px bg-white/70", large && "h-full")}>
+    <div className={cn("grid flex-1 grid-cols-2 grid-rows-3 gap-px bg-white/80", large && "h-full")}>
       {order.map((position, idx) => (
         <div
           key={position}
           className={cn(
-            "relative flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-sand-300 to-sand-400 px-2 text-center transition-[min-height] duration-200",
+            "relative flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-sand-200 to-sand-400 px-2 text-center transition-[min-height] duration-200",
+            idx % 2 === 0 ? "from-sand-300 to-sand-400" : "from-sand-200 to-sand-300",
             large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
-            idx % 2 === 0 && "border-r-2 border-dashed border-white/70",
+            idx % 2 === 0 && "border-r-[3px] border-white/95",
           )}
         >
           <span
             className={cn(
-              "absolute left-2 top-2 font-bold text-sea-950/40",
-              large ? "text-xs sm:text-sm" : "text-[10px]",
+              "absolute flex items-center justify-center rounded-full bg-sea-950/10 font-bold text-sea-950/55 ring-1 ring-inset ring-sea-950/10",
+              large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
             )}
           >
             {position}
@@ -70,12 +75,36 @@ function EndLabel({ text, large }: { text: string; large: boolean }) {
     <div className={cn("flex shrink-0 items-center justify-center", large ? "h-full w-8 sm:w-10" : "w-6 sm:w-7")}>
       <span
         className={cn(
-          "origin-center -rotate-90 whitespace-nowrap font-bold uppercase tracking-[0.18em] text-sea-100/55",
+          "origin-center -rotate-90 whitespace-nowrap font-bold uppercase tracking-[0.18em] text-sea-100/60",
           large ? "text-xs sm:text-sm" : "text-[10px] sm:text-[11px]",
         )}
       >
         {text}
       </span>
+    </div>
+  );
+}
+
+/** Rete: nastro bianco sopra e sotto la maglia (trama a rombi incrociata),
+ * con due "pali" pieni alle estremità, come sui campi veri — puramente
+ * decorativa e sovrapposta, non fa parte del layout a griglia. */
+function Net({ large }: { large: boolean }) {
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute left-1/2 -translate-x-1/2 overflow-hidden rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.15)]",
+        large ? "inset-y-3 w-2.5 sm:inset-y-4 sm:w-3" : "inset-y-2 w-1.5 sm:inset-y-3 sm:w-2",
+      )}
+    >
+      <div
+        className="absolute inset-0 bg-sea-950/90"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(45deg, transparent 0 2px, rgba(255,255,255,0.35) 2px 3px), repeating-linear-gradient(-45deg, transparent 0 2px, rgba(255,255,255,0.35) 2px 3px)",
+        }}
+      />
+      <div className={cn("absolute inset-x-0 top-0 bg-white", large ? "h-2.5 sm:h-3" : "h-1.5 sm:h-2")} />
+      <div className={cn("absolute inset-x-0 bottom-0 bg-white", large ? "h-2.5 sm:h-3" : "h-1.5 sm:h-2")} />
     </div>
   );
 }
@@ -101,42 +130,26 @@ export function DualLiveScoreCourt({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border-subtle bg-gradient-to-b from-sea-800 to-sea-950 shadow-xl shadow-sea-950/25",
+        "relative overflow-hidden rounded-2xl border border-sea-700/50 bg-gradient-to-b from-sea-700 to-sea-950 shadow-xl shadow-sea-950/30",
         large ? "flex min-h-0 flex-1 flex-col p-4 sm:p-6" : "p-3 sm:p-4",
       )}
     >
-      <div className={cn("flex items-stretch", large && "min-h-0 flex-1")}>
+      {/* Luce ambientale dall'alto, per dare profondità al pannello invece di un blu piatto. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/10 to-transparent" />
+
+      <div className={cn("relative flex items-stretch", large && "min-h-0 flex-1")}>
         <EndLabel text="Fondo campo" large={large} />
 
         <div
           className={cn(
-            "relative flex flex-1 overflow-hidden rounded-lg border-2 border-white/90 shadow-inner",
+            "relative flex flex-1 overflow-hidden rounded-lg border-2 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.25)]",
             large && "min-h-0",
           )}
         >
           <HalfCourt side="left" renderCell={renderCellA} large={large} />
           <HalfCourt side="right" renderCell={renderCellB} large={large} />
 
-          {/* Rete: una linea sottile al centro con due "pali", puramente
-           * decorativa e sovrapposta — non fa parte del layout a griglia. */}
-          <div
-            className={cn(
-              "pointer-events-none absolute left-1/2 -translate-x-1/2 bg-sea-950/85",
-              large ? "inset-y-3 w-1 sm:inset-y-4" : "inset-y-2 w-0.5 sm:inset-y-3",
-            )}
-          />
-          <div
-            className={cn(
-              "pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sea-950 shadow-sm",
-              large ? "h-5 w-5" : "h-3.5 w-3.5",
-            )}
-          />
-          <div
-            className={cn(
-              "pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rounded-full bg-sea-950 shadow-sm",
-              large ? "h-5 w-5" : "h-3.5 w-3.5",
-            )}
-          />
+          <Net large={large} />
         </div>
 
         <EndLabel text="Fondo campo" large={large} />

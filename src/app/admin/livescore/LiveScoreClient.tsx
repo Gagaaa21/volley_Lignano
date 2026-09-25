@@ -321,7 +321,7 @@ function renderTeamCell(
         {position === 1 && isServing && (
           <span
             className={cn(
-              "absolute right-1.5 top-1.5 flex items-center justify-center rounded-full bg-sea-950/70",
+              "absolute right-1.5 top-1.5 flex items-center justify-center rounded-full bg-sea-950/80 shadow-sm ring-1 ring-white/40",
               large ? "h-6 w-6" : "h-3.5 w-3.5",
             )}
             title="Al servizio"
@@ -332,9 +332,11 @@ function renderTeamCell(
         )}
         <span
           className={cn(
-            "line-clamp-2 rounded-full font-bold leading-tight shadow-sm",
+            "line-clamp-2 rounded-full font-bold leading-tight",
             large ? "px-3.5 py-2 text-lg sm:text-2xl" : "px-2 py-1 text-[11px] sm:text-xs",
-            isLibero ? "bg-sea-950 text-white" : "bg-white/95 text-sea-950",
+            isLibero
+              ? "bg-sea-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_3px_8px_-2px_rgba(9,26,38,0.55)]"
+              : "bg-white text-sea-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_5px_-1px_rgba(9,26,38,0.25)]",
           )}
         >
           {name || "—"}
@@ -342,7 +344,7 @@ function renderTeamCell(
         {isLibero && (
           <span
             className={cn(
-              "rounded-full bg-white/90 font-bold uppercase tracking-wide text-sea-950",
+              "rounded-full bg-white font-bold uppercase tracking-wide text-sea-950 shadow-sm",
               large ? "px-2.5 py-1 text-xs sm:text-sm" : "px-1.5 py-0.5 text-[9px]",
             )}
           >
