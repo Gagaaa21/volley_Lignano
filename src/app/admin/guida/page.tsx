@@ -72,7 +72,7 @@ const SECTIONS: Section[] = [
   {
     icon: Users,
     title: "Staff",
-    intro: "Gestione degli account che accedono all'area riservata.",
+    intro: "Gestione degli account che accedono all'area tecnici.",
     points: [
       "Solo i Developer creano nuovi account Admin, con una password temporanea da cambiare al primo accesso.",
       "Un Developer può anche modificare il nome utente di un Admin o impostargli una nuova password temporanea.",
@@ -84,8 +84,8 @@ const SECTIONS: Section[] = [
     title: "Sito pubblico e notifiche",
     intro: "Il calendario è visibile a chiunque, senza bisogno di un account.",
     points: [
-      "Il pulsante \"Sito pubblico\" nell'header porta alla homepage pubblica; da lì \"Area riservata\" torna al login.",
-      "Chiunque visiti il sito (pubblico o area riservata) può installare l'app sul proprio dispositivo e attivare le notifiche: viene chiesto una sola volta, la prima volta che si naviga il sito.",
+      "Il pulsante \"Sito pubblico\" nell'header porta alla homepage pubblica; da lì \"Area tecnici\" torna al login.",
+      "Chiunque visiti il sito (pubblico o area tecnici) può installare l'app sul proprio dispositivo e attivare le notifiche: viene chiesto una sola volta, la prima volta che si naviga il sito.",
       "Chi ha attivato le notifiche riceve un avviso ogni volta che un allenamento o una partita viene aggiunto, modificato o rimosso dal calendario.",
     ],
   },
@@ -103,7 +103,7 @@ export default async function GuidaPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="font-display text-2xl font-bold text-foreground">Guida al sito</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Come funzionano le sezioni dell&apos;area riservata di Volley Lignano. Questa pagina resta
+        Come funzionano le sezioni dell&apos;area tecnici di Volley Lignano. Questa pagina resta
         sempre consultabile dal menu.
       </p>
 

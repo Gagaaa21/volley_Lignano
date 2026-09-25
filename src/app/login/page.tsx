@@ -23,7 +23,7 @@ export default function LoginPage() {
               </span>
               <p className="eyebrow mt-5">Volley Lignano · Lignano Sabbiadoro</p>
               <p className="mt-1 text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
-                Area riservata
+                Area tecnici
               </p>
               <h1 className="mt-2.5 font-display text-[1.7rem] leading-tight tracking-tight sm:text-3xl">
                 Bentornato

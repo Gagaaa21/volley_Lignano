@@ -18,7 +18,7 @@ export function PublicHeader({ team = "u14u15" }: { team?: TrainingTeam } = {}) 
           <InstallButton />
           <LinkButton href="/login" variant="ghost" size="sm">
             <LogIn className="h-4 w-4" />
-            <span className="hidden sm:inline">Area riservata</span>
+            <span className="hidden sm:inline">Area tecnici</span>
           </LinkButton>
         </div>
       </div>

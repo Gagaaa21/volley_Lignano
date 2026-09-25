@@ -212,7 +212,7 @@ export function AdminHeader({
             <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
           </Link>
           <div className="min-w-0">
-            <p className="eyebrow truncate">Area riservata</p>
+            <p className="eyebrow truncate">Area tecnici</p>
             <h1 className="truncate font-display text-lg leading-tight tracking-tight sm:text-xl">
               Volley Lignano
             </h1>
@@ -273,7 +273,7 @@ export function AdminHeader({
           <nav
             className="nav-rail scroll-fade-x w-full min-w-0 flex-1"
             data-mobile={mobileOpen ? "true" : undefined}
-            aria-label="Sezioni area riservata"
+            aria-label="Sezioni area tecnici"
           >
             {visibleNavItems.map((item) => (
               <NavLink

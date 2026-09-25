@@ -156,7 +156,7 @@ export default async function CentroControlloPage() {
           <div>
             <h2 className="font-display text-base font-semibold text-foreground">Permessi pagine</h2>
             <p className="text-sm text-muted-foreground">
-              Scegli quali sezioni dell&apos;area riservata e quali squadre (U14/U15, Minivolley) può
+              Scegli quali sezioni dell&apos;area tecnici e quali squadre (U14/U15, Minivolley) può
               gestire ogni account Admin. Un Developer vede sempre tutto.
             </p>
           </div>

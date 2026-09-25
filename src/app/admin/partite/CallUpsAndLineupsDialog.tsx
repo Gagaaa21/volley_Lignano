@@ -122,7 +122,7 @@ export function CallUpsAndLineupsDialog({
             <section className="border-t border-border-subtle pt-6">
               <h3 className="font-display text-base font-semibold text-foreground">Formazioni per set</h3>
               <p className="mt-0.5 mb-3 text-sm text-foreground/55">
-                Visibili solo allo staff dell&apos;area riservata: mai sul sito pubblico.
+                Visibili solo allo staff dell&apos;area tecnici: mai sul sito pubblico.
               </p>
               {calledUpAthletes.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-foreground/50">
