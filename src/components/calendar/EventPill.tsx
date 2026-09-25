@@ -1,6 +1,6 @@
 import { Dumbbell, Home, Plane, Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { categoryBadgeClass, categoryLabel, TRAINING_BADGE } from "@/lib/category";
+import { categoryBadgeClass, categoryLabel, trainingBadgeClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
 
@@ -15,7 +15,7 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
       <button
         type="button"
         onClick={onSelect}
-        className={cn(pillClass, TRAINING_BADGE)}
+        className={cn(pillClass, trainingBadgeClass(event.color))}
         title={`${event.startTime}–${event.endTime} · ${event.title} · ${event.location}`}
       >
         {event.isTournament ? (

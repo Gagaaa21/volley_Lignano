@@ -55,6 +55,7 @@ export function expandTrainings(
           planId: occurrencePlanIds.get(occurrenceKey(rule.id, rule.startDate)) ?? null,
           team: rule.team,
           isTournament: rule.isTournament,
+          color: rule.color,
         });
       }
       continue;
@@ -86,6 +87,7 @@ export function expandTrainings(
           planId: occurrencePlanIds.get(occurrenceKey(rule.id, dateStr)) ?? null,
           team: rule.team,
           isTournament: rule.isTournament,
+          color: rule.color,
         });
       }
       cursor = addDays(cursor, 1);

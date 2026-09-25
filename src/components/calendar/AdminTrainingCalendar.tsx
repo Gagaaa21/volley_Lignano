@@ -3,6 +3,7 @@ import { eachDayOfInterval, format, isSameMonth, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Clock, Puzzle } from "lucide-react";
 import { getMonthGridRange } from "@/lib/calendar";
+import { trainingBadgeClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent, TrainingPlan } from "@/lib/types";
 
@@ -23,7 +24,7 @@ function Occ({
       className={cn(
         "flex w-full min-w-0 items-start gap-1 rounded-md border px-1.5 py-1 text-left text-[10px] font-semibold leading-tight transition-colors sm:text-[11px]",
         hasPlan
-          ? "border-transparent bg-[var(--color-training-soft)] text-[var(--color-training-strong)] hover:opacity-80"
+          ? cn("border-transparent hover:opacity-80", trainingBadgeClass(event.color))
           : "border-dashed border-foreground/25 text-foreground/40 hover:border-primary/40 hover:text-primary",
       )}
       title={`${event.startTime} · ${planTitle ?? "Nessuna scheda"}`}
@@ -138,9 +139,7 @@ export function AdminTrainingCalendar({
                         <span
                           className={cn(
                             "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                            planTitle
-                              ? "bg-[var(--color-training-soft)] text-[var(--color-training-strong)]"
-                              : "bg-foreground/8 text-foreground/40",
+                            planTitle ? trainingBadgeClass(event.color) : "bg-foreground/8 text-foreground/40",
                           )}
                         >
                           {planTitle ? <Puzzle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}

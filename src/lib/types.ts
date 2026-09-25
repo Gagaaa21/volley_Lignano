@@ -103,6 +103,23 @@ export const WEEKDAY_LABELS_SHORT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "
 
 export type TrainingRepeat = "weekly" | "once";
 
+/** Colore assegnato a una regola di allenamento, per distinguerla a colpo
+ * d'occhio sul calendario da altre regole (es. "Tecnica" vs "Fisico" vs
+ * "Minivolley base"). Fissi (non scelti liberamente) per restare sempre
+ * leggibili col resto del design: vedi TRAINING_COLOR_* in lib/category.ts. */
+export const TRAINING_COLORS = [
+  "amber",
+  "blue",
+  "green",
+  "teal",
+  "violet",
+  "pink",
+  "orange",
+  "slate",
+] as const;
+export type TrainingColor = (typeof TRAINING_COLORS)[number];
+export const DEFAULT_TRAINING_COLOR: TrainingColor = "amber";
+
 export interface TrainingRule {
   id: string;
   title: string;
@@ -123,6 +140,7 @@ export interface TrainingRule {
    * avversario/risultato, mostrato con badge "Torneo" invece di
    * "Allenamento" ovunque nel calendario. */
   isTournament: boolean;
+  color: TrainingColor;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -350,6 +368,7 @@ export type CalendarEvent =
       planId: string | null; // scheda collegata a questa singola data (opzionale)
       team: TrainingTeam;
       isTournament: boolean;
+      color: TrainingColor;
     }
   | {
       kind: "match";

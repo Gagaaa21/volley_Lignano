@@ -40,6 +40,34 @@
   --color-training-soft: var(--color-sand-100);
   --color-training-strong: var(--color-sand-800);
 
+  /* Colori assegnabili a una regola di allenamento (vedi TrainingColor):
+     fissi qui in :root, NON ridefiniti dal tema Minivolley qui sotto, così
+     lo stesso colore resta riconoscibile identico sui due siti pubblici. */
+  --color-training-amber: #d97706;
+  --color-training-amber-soft: #fef3c7;
+  --color-training-amber-strong: #92400e;
+  --color-training-blue: #2563eb;
+  --color-training-blue-soft: #dbeafe;
+  --color-training-blue-strong: #1d4ed8;
+  --color-training-green: #16a34a;
+  --color-training-green-soft: #dcfce7;
+  --color-training-green-strong: #15803d;
+  --color-training-teal: #0891b2;
+  --color-training-teal-soft: #cffafe;
+  --color-training-teal-strong: #0e7490;
+  --color-training-violet: #9333ea;
+  --color-training-violet-soft: #f3e8ff;
+  --color-training-violet-strong: #7e22ce;
+  --color-training-pink: #db2777;
+  --color-training-pink-soft: #fce7f3;
+  --color-training-pink-strong: #9d174d;
+  --color-training-orange: #ea580c;
+  --color-training-orange-soft: #ffedd5;
+  --color-training-orange-strong: #9a3412;
+  --color-training-slate: #475569;
+  --color-training-slate-soft: #f1f5f9;
+  --color-training-slate-strong: #334155;
+
   /* Token semantici */
   --background: #f5f8fa;
   --foreground: #0c1e2a;

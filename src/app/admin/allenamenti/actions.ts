@@ -9,7 +9,7 @@ import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import type { TrainingRuleInput } from "@/lib/types";
+import { DEFAULT_TRAINING_COLOR, TRAINING_COLORS, type TrainingRuleInput } from "@/lib/types";
 
 const schema = z
   .object({
@@ -27,6 +27,7 @@ const schema = z
     isActive: z.boolean(),
     team: z.enum(["u14u15", "minivolley"]),
     isTournament: z.boolean(),
+    color: z.enum(TRAINING_COLORS),
   })
   .refine((data) => data.endTime > data.startTime, {
     message: "L'orario di fine deve essere successivo a quello di inizio.",
@@ -57,6 +58,7 @@ export interface TrainingFormValues {
   notes: string;
   isActive: boolean;
   isTournament: boolean;
+  color: string;
 }
 
 export interface TrainingFormState {
@@ -77,6 +79,7 @@ function readRawValues(formData: FormData): TrainingFormValues {
     notes: formData.get("notes")?.toString() ?? "",
     isActive: formData.get("isActive") === "on",
     isTournament: formData.get("isTournament") === "on",
+    color: formData.get("color")?.toString() ?? DEFAULT_TRAINING_COLOR,
   };
 }
 
@@ -94,6 +97,7 @@ function parseTrainingForm(formData: FormData) {
     isActive: formData.get("isActive") === "on",
     team: formData.get("team")?.toString() === "minivolley" ? "minivolley" : "u14u15",
     isTournament: formData.get("isTournament") === "on",
+    color: formData.get("color")?.toString() ?? DEFAULT_TRAINING_COLOR,
   });
 }
 
@@ -128,6 +132,7 @@ export async function saveTrainingAction(
     isActive: parsed.data.isActive,
     team: parsed.data.team,
     isTournament: parsed.data.isTournament,
+    color: parsed.data.color,
   };
 
   const scheduleLabel = isOnce

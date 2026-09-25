@@ -59,6 +59,9 @@ create table if not exists training_sessions (
   -- Torneo/giornata multi-club (solo Minivolley): evento singolo senza
   -- avversario né risultato, badge "Torneo" invece di "Allenamento".
   is_tournament boolean not null default false,
+  -- Colore sul calendario, per distinguere questa regola dalle altre.
+  color text not null default 'amber'
+    check (color in ('amber', 'blue', 'green', 'teal', 'violet', 'pink', 'orange', 'slate')),
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -419,6 +422,18 @@ do $$ begin
     alter table training_plans drop column block_ids;
     drop table training_blocks;
   end if;
+end $$;
+
+-- Colore assegnato a ogni regola di allenamento, per distinguerla dalle
+-- altre sul calendario (vedi TrainingColor in lib/types.ts). Le righe
+-- esistenti prendono il colore di default ("amber"), lo stesso che il
+-- calendario mostrava già per tutti gli allenamenti prima di questa
+-- modifica: nessun cambiamento visivo per chi non ne assegna uno nuovo.
+alter table training_sessions add column if not exists color text not null default 'amber';
+do $$ begin
+  alter table training_sessions add constraint training_sessions_color_check
+    check (color in ('amber', 'blue', 'green', 'teal', 'violet', 'pink', 'orange', 'slate'));
+exception when duplicate_object then null;
 end $$;
 
 -- =========================================================

@@ -6,6 +6,7 @@ import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { trainingDotClass } from "@/lib/category";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
@@ -107,7 +108,13 @@ export default async function TrainingsListPage({
             <Card key={training.id}>
               <CardBody className="pt-5">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-display text-base font-bold text-foreground">{training.title}</h2>
+                  <h2 className="flex min-w-0 items-center gap-2 font-display text-base font-bold text-foreground">
+                    <span
+                      className={cn("h-2.5 w-2.5 shrink-0 rounded-full", trainingDotClass(training.color))}
+                      aria-hidden
+                    />
+                    <span className="truncate">{training.title}</span>
+                  </h2>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     {training.isTournament && (
                       <Badge className="bg-foreground/8 text-foreground/60">Torneo</Badge>

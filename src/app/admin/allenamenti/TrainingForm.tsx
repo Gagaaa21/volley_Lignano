@@ -2,12 +2,14 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Save } from "lucide-react";
+import { Check, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { WeekdayPicker } from "@/components/forms/WeekdayPicker";
+import { cn } from "@/lib/cn";
+import { trainingDotClass, TRAINING_COLOR_LABELS } from "@/lib/category";
 import { saveTrainingAction, type TrainingFormState } from "./actions";
-import type { TrainingRepeat, TrainingRule, TrainingTeam } from "@/lib/types";
+import { DEFAULT_TRAINING_COLOR, TRAINING_COLORS, type TrainingColor, type TrainingRepeat, type TrainingRule, type TrainingTeam } from "@/lib/types";
 
 const initialState: TrainingFormState = {};
 
@@ -39,6 +41,9 @@ export function TrainingForm({
       training?.repeat ??
       (defaultIsTournament ? "once" : "weekly"),
   );
+  const [color, setColor] = useState<TrainingColor>(
+    (values?.color as TrainingColor | undefined) ?? training?.color ?? DEFAULT_TRAINING_COLOR,
+  );
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
@@ -60,6 +65,35 @@ export function TrainingForm({
           placeholder="Es. Palestra Comunale, Lignano Sabbiadoro"
           required
         />
+      </div>
+
+      <div>
+        <Label>Colore</Label>
+        <div className="flex flex-wrap gap-2.5">
+          {TRAINING_COLORS.map((c) => (
+            <label key={c} className="cursor-pointer rounded-full p-1 has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:checked]:ring-offset-2 has-[:checked]:ring-offset-surface">
+              <input
+                type="radio"
+                name="color"
+                value={c}
+                checked={color === c}
+                onChange={() => setColor(c)}
+                aria-label={TRAINING_COLOR_LABELS[c]}
+                className="sr-only"
+              />
+              <span
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full",
+                  trainingDotClass(c),
+                )}
+                title={TRAINING_COLOR_LABELS[c]}
+              >
+                {color === c && <Check className="h-3.5 w-3.5 text-white" />}
+              </span>
+            </label>
+          ))}
+        </div>
+        <FieldHint>Per distinguere questo allenamento dagli altri sul calendario.</FieldHint>
       </div>
 
       <div>

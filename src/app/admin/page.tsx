@@ -20,7 +20,7 @@ import {
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
 import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
-import { categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, TRAINING_BADGE } from "@/lib/category";
+import { categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, trainingBadgeClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -249,7 +249,7 @@ export default async function AdminDashboardPage({
             <div className="mt-4 space-y-2.5">
               {upcomingEvents.map((event) => {
                 const isTraining = event.kind === "training";
-                const badgeClass = isTraining ? TRAINING_BADGE : categoryBadgeClass(event.category);
+                const badgeClass = isTraining ? trainingBadgeClass(event.color) : categoryBadgeClass(event.category);
                 return (
                   <Link
                     key={event.id}
