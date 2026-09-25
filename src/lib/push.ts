@@ -22,6 +22,10 @@ export interface CalendarNotification {
   title: string;
   body: string;
   url?: string;
+  /** Icona mostrata nella notifica: di default lo stemma del club, ma per
+   * Minivolley usa il logo S3, così l'avviso si riconosce subito come
+   * "suo" anche fuori dall'app. */
+  icon?: string;
 }
 
 async function sendToSubscriptions(
@@ -33,14 +37,20 @@ async function sendToSubscriptions(
     title: payload.title,
     body: payload.body,
     url: payload.url ?? "/",
+    icon: payload.icon,
   });
 
   await Promise.all(
     subscriptions.map(async (sub) => {
       try {
+        // "urgency: high" dice al servizio push (FCM/APNs/Mozilla) di
+        // consegnare subito anche a schermo spento o app in background,
+        // invece di rimandare la consegna fino alla prossima riattivazione
+        // del dispositivo (comportamento di default senza questo header).
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           message,
+          { urgency: "high" },
         );
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode;
@@ -73,7 +83,8 @@ export async function notifyCalendarChange(
     const subscriptions = (await repo.listPushSubscriptions()).filter((sub) => sub.team === team);
     if (subscriptions.length === 0) return;
 
-    await sendToSubscriptions(subscriptions, payload);
+    const icon = payload.icon ?? (team === "minivolley" ? "/icons-s3/icon-192.png" : undefined);
+    await sendToSubscriptions(subscriptions, { ...payload, icon });
   } catch (err) {
     console.error("[push] notifyCalendarChange fallito:", err);
   }
