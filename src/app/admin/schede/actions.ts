@@ -11,13 +11,12 @@ import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import { notifyStaffChange } from "@/lib/push";
 import { formatDateShort } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import type { TrainingBlock } from "@/lib/types";
+import type { PlanBlock } from "@/lib/types";
 
 const createSchema = z.object({
   title: z.string().min(1, "Inserisci un titolo per la scheda."),
   notes: z.string().optional(),
   pastedText: z.string().optional(),
-  blockIds: z.array(z.string()),
   useAi: z.boolean().optional(),
   occurrenceRuleId: z.string().optional(),
   occurrenceDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
@@ -37,7 +36,6 @@ export async function createPlanAction(
     title: formData.get("title")?.toString().trim() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
     pastedText: formData.get("pastedText")?.toString() ?? "",
-    blockIds: formData.getAll("blockIds").map((v) => v.toString()),
     useAi: formData.get("useAi") === "on",
     occurrenceRuleId: formData.get("occurrenceRuleId")?.toString() || undefined,
     occurrenceDate: formData.get("occurrenceDate")?.toString() ?? "",
@@ -59,35 +57,16 @@ export async function createPlanAction(
     }
   }
 
-  const existingBlocks = await repo.listTrainingBlocks();
-  // Riusa un blocco esistente SOLO se titolo e contenuto coincidono
-  // entrambi (vero duplicato, nessuna informazione persa): un titolo
-  // generico come "Ricezione" può comparire in schede diverse con
-  // esercizi diversi, e abbinare solo sul titolo farebbe scartare in
-  // silenzio il testo appena incollato a favore di un blocco vecchio con
-  // lo stesso nome ma un contenuto ormai diverso.
-  const dedupKey = (title: string, content: string): string => `${title.trim().toLowerCase()}\u0000${content.trim()}`;
-  const byTitleAndContent = new Map(existingBlocks.map((b) => [dedupKey(b.title, b.content), b] as const));
-
-  const blockIds: string[] = [...new Set(parsed.data.blockIds)];
-  for (const parsedBlock of parsedBlocks) {
-    const key = dedupKey(parsedBlock.title, parsedBlock.content);
-    const existing: TrainingBlock | undefined = byTitleAndContent.get(key);
-    if (existing) {
-      if (!blockIds.includes(existing.id)) blockIds.push(existing.id);
-      continue;
-    }
-    const created = await repo.createTrainingBlock(
-      {
-        title: parsedBlock.title,
-        durationMinutes: parsedBlock.durationMinutes,
-        content: parsedBlock.content,
-      },
-      session.sub,
-    );
-    byTitleAndContent.set(key, created);
-    blockIds.push(created.id);
-  }
+  // I blocchi vivono solo dentro questa scheda: nessuna libreria condivisa
+  // da riusare, così il testo appena incollato viene sempre salvato per
+  // come è, senza rischio che un blocco vecchio con lo stesso titolo lo
+  // sostituisca silenziosamente.
+  const blocks: PlanBlock[] = parsedBlocks.map((b) => ({
+    id: crypto.randomUUID(),
+    title: b.title,
+    durationMinutes: b.durationMinutes,
+    content: b.content,
+  }));
 
   // Se la scheda nasce collegata a un allenamento, eredita la squadra di
   // quell'allenamento (può differire dalla squadra attiva nello switcher, se
@@ -101,7 +80,7 @@ export async function createPlanAction(
     {
       title: parsed.data.title,
       notes: parsed.data.notes || preamble || null,
-      blockIds,
+      blocks,
       team,
     },
     session.sub,
@@ -175,7 +154,7 @@ export async function updatePlanDetailsAction(
   await repo.updateTrainingPlan(id, {
     title: parsed.data.title,
     notes: parsed.data.notes ?? null,
-    blockIds: plan.blockIds,
+    blocks: plan.blocks,
     team: plan.team,
   });
 
@@ -194,25 +173,6 @@ export async function deletePlanAction(formData: FormData): Promise<void> {
   redirect("/admin/schede");
 }
 
-export async function addBlockToPlanAction(formData: FormData): Promise<void> {
-  await requireStaffPage("schede");
-  const planId = formData.get("planId")?.toString();
-  const blockId = formData.get("blockId")?.toString();
-  if (!planId || !blockId) return;
-
-  const repo = await getActiveRepo();
-  const plan = await repo.getTrainingPlan(planId);
-  if (!plan || plan.blockIds.includes(blockId)) return;
-
-  await repo.updateTrainingPlan(planId, {
-    title: plan.title,
-    notes: plan.notes,
-    blockIds: [...plan.blockIds, blockId],
-    team: plan.team,
-  });
-  revalidatePath(`/admin/schede/${planId}`);
-}
-
 export async function removeBlockFromPlanAction(formData: FormData): Promise<void> {
   await requireStaffPage("schede");
   const planId = formData.get("planId")?.toString();
@@ -226,7 +186,7 @@ export async function removeBlockFromPlanAction(formData: FormData): Promise<voi
   await repo.updateTrainingPlan(planId, {
     title: plan.title,
     notes: plan.notes,
-    blockIds: plan.blockIds.filter((id) => id !== blockId),
+    blocks: plan.blocks.filter((b) => b.id !== blockId),
     team: plan.team,
   });
   revalidatePath(`/admin/schede/${planId}`);
@@ -243,17 +203,17 @@ export async function reorderPlanBlockAction(formData: FormData): Promise<void> 
   const plan = await repo.getTrainingPlan(planId);
   if (!plan) return;
 
-  const index = plan.blockIds.indexOf(blockId);
+  const index = plan.blocks.findIndex((b) => b.id === blockId);
   const swapWith = direction === "up" ? index - 1 : index + 1;
-  if (index === -1 || swapWith < 0 || swapWith >= plan.blockIds.length) return;
+  if (index === -1 || swapWith < 0 || swapWith >= plan.blocks.length) return;
 
-  const nextBlockIds = [...plan.blockIds];
-  [nextBlockIds[index], nextBlockIds[swapWith]] = [nextBlockIds[swapWith], nextBlockIds[index]];
+  const nextBlocks = [...plan.blocks];
+  [nextBlocks[index], nextBlocks[swapWith]] = [nextBlocks[swapWith], nextBlocks[index]];
 
   await repo.updateTrainingPlan(planId, {
     title: plan.title,
     notes: plan.notes,
-    blockIds: nextBlockIds,
+    blocks: nextBlocks,
     team: plan.team,
   });
   revalidatePath(`/admin/schede/${planId}`);

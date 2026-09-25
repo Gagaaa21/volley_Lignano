@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { format } from "date-fns";
-import { Plus, Puzzle } from "lucide-react";
+import { Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateLong } from "@/lib/format";
@@ -15,12 +15,10 @@ export default async function TrainingPlansPage() {
   const session = await requireStaff();
   const team = await resolveActiveTeam(session);
   const repo = await getActiveRepo();
-  const [plans, blocks, occurrencePlans] = await Promise.all([
+  const [plans, occurrencePlans] = await Promise.all([
     repo.listTrainingPlans({ team }),
-    repo.listTrainingBlocks(),
     repo.listTrainingOccurrencePlans(),
   ]);
-  const blockMap = new Map(blocks.map((b) => [b.id, b] as const));
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const upcomingDatesByPlan = new Map<string, string[]>();
@@ -32,13 +30,13 @@ export default async function TrainingPlansPage() {
   }
 
   const cards: SchedeCardData[] = plans.map((plan) => {
-    const totalMinutes = plan.blockIds.reduce((sum, id) => sum + (blockMap.get(id)?.durationMinutes ?? 0), 0);
+    const totalMinutes = plan.blocks.reduce((sum, b) => sum + b.durationMinutes, 0);
     const upcomingDates = (upcomingDatesByPlan.get(plan.id) ?? []).sort();
     return {
       id: plan.id,
       title: plan.title,
       notes: plan.notes,
-      blockCount: plan.blockIds.length,
+      blockCount: plan.blocks.length,
       totalMinutes,
       upcomingCount: upcomingDates.length,
       nearestDateLabel: upcomingDates[0] ? formatDateLong(upcomingDates[0]) : null,
@@ -60,15 +58,11 @@ export default async function TrainingPlansPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Schede allenamento</h1>
           <p className="mt-1 text-sm text-foreground/60">
-            Visibili solo a Developer e Admin. Componi ogni scheda con blocchi riutilizzabili, in
-            stile puzzle.
+            Visibili solo a Developer e Admin. Incolla il testo di un allenamento: viene diviso
+            automaticamente in blocchi.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <LinkButton href="/admin/schede/blocchi" variant="outline">
-            <Puzzle className="h-4 w-4" />
-            Libreria blocchi
-          </LinkButton>
           <LinkButton href="/admin/schede/nuova">
             <Plus className="h-4 w-4" />
             Nuova scheda
@@ -78,8 +72,7 @@ export default async function TrainingPlansPage() {
 
       {cards.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
-          Nessuna scheda ancora. Crea la prima incollando il testo di un allenamento oppure
-          componendola da zero con blocchi esistenti.
+          Nessuna scheda ancora. Crea la prima incollando il testo di un allenamento.
         </div>
       ) : (
         <SchedeLibrary plans={cards} />

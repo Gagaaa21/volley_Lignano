@@ -51,11 +51,10 @@ const SECTIONS: Section[] = [
   {
     icon: Puzzle,
     title: "Schede allenamento",
-    intro: "Libreria di blocchi riutilizzabili per comporre le sedute di allenamento.",
+    intro: "Incolla il testo di un allenamento e viene diviso automaticamente in blocchi.",
     points: [
-      "In \"Blocchi\" si incolla il testo di un esercizio: viene salvato come blocco riutilizzabile con titolo e durata.",
-      "Una scheda allenamento è una sequenza ordinata di blocchi esistenti: si riordinano o si riusano senza riscriverli.",
-      "Modificare un blocco aggiorna automaticamente tutte le schede che lo usano.",
+      "Sull'allenamento desiderato incolli il testo così come lo scrivi di solito (es. \"1. TITOLO – 10'\"): viene diviso automaticamente in blocchi, uno per intestazione.",
+      "Il contenuto di ogni blocco resta esattamente come scritto, senza modifiche: si possono solo riordinare o rimuovere dalla scheda.",
       "Ogni volta che colleghi una scheda a un allenamento ti viene chiesto se renderla visibile alle atlete nel calendario pubblico: di default resta privata, allo staff. Puoi cambiare idea in qualsiasi momento dalla pagina di quell'allenamento.",
     ],
   },

@@ -11,8 +11,6 @@ import type {
   MatchLineupInput,
   PushSubscriptionRecord,
   StaffMember,
-  TrainingBlock,
-  TrainingBlockInput,
   TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
@@ -42,7 +40,6 @@ export interface MemoryStore {
   trainings: TrainingRule[];
   matches: Match[];
   matchLineups: MatchLineup[];
-  trainingBlocks: TrainingBlock[];
   trainingPlans: TrainingPlan[];
   trainingOccurrencePlans: TrainingOccurrencePlan[];
   athletes: Athlete[];
@@ -57,7 +54,6 @@ export function createEmptyStore(): MemoryStore {
     trainings: [],
     matches: [],
     matchLineups: [],
-    trainingBlocks: [],
     trainingPlans: [],
     trainingOccurrencePlans: [],
     athletes: [],
@@ -81,7 +77,6 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   const trainings = store.trainings;
   const matches = store.matches;
   const matchLineups = store.matchLineups;
-  const trainingBlocks = store.trainingBlocks;
   const trainingPlans = store.trainingPlans;
   const trainingOccurrencePlans = store.trainingOccurrencePlans;
   const athletes = store.athletes;
@@ -232,36 +227,6 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       await ensureStaffSeeded();
       const idx = staff.findIndex((s) => s.id === id);
       if (idx !== -1) staff.splice(idx, 1);
-    },
-
-    async listTrainingBlocks() {
-      return [...trainingBlocks].sort((a, b) => a.title.localeCompare(b.title));
-    },
-    async getTrainingBlock(id) {
-      return trainingBlocks.find((b) => b.id === id) ?? null;
-    },
-    async createTrainingBlock(input: TrainingBlockInput, createdBy) {
-      const now = new Date().toISOString();
-      const row: TrainingBlock = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
-      trainingBlocks.push(row);
-      return row;
-    },
-    async updateTrainingBlock(id, input: TrainingBlockInput) {
-      const idx = trainingBlocks.findIndex((b) => b.id === id);
-      if (idx === -1) throw new Error("Blocco non trovato");
-      trainingBlocks[idx] = { ...trainingBlocks[idx], ...input, updatedAt: new Date().toISOString() };
-      return trainingBlocks[idx];
-    },
-    async deleteTrainingBlock(id) {
-      const idx = trainingBlocks.findIndex((b) => b.id === id);
-      if (idx !== -1) trainingBlocks.splice(idx, 1);
-      for (const plan of trainingPlans) {
-        const pos = plan.blockIds.indexOf(id);
-        if (pos !== -1) {
-          plan.blockIds.splice(pos, 1);
-          plan.updatedAt = new Date().toISOString();
-        }
-      }
     },
 
     async listTrainingPlans(filter?: TeamFilter) {
@@ -441,7 +406,6 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "training_sessions", rows: trainings },
         { table: "matches", rows: matches },
         { table: "match_lineups", rows: matchLineups },
-        { table: "training_blocks", rows: trainingBlocks },
         { table: "training_plans", rows: trainingPlans },
         { table: "training_occurrence_plans", rows: trainingOccurrencePlans },
         { table: "athletes", rows: athletes },

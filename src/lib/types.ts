@@ -226,28 +226,22 @@ export function emptyMatchLineupSets(): SetLineup[] {
   return Array.from({ length: 5 }, () => emptySetLineup());
 }
 
-export interface TrainingBlock {
+/** Blocco di allenamento incorporato in una scheda: nasce dal testo incollato
+ * (diviso automaticamente per intestazione numerata) e vive solo dentro
+ * quella scheda, senza libreria condivisa da riusare altrove. */
+export interface PlanBlock {
   id: string;
   title: string;
   durationMinutes: number;
   content: string; // testo libero, righe con "-"/"*" o "1." diventano liste
-  createdBy: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
-
-export type TrainingBlockInput = Omit<
-  TrainingBlock,
-  "id" | "createdBy" | "createdAt" | "updatedAt"
->;
 
 export interface TrainingPlan {
   id: string;
   title: string;
   notes: string | null;
-  blockIds: string[]; // ordine dei blocchi nella scheda
-  /** Squadra a cui appartiene la scheda. I blocchi restano una libreria
-   * condivisa tra le due squadre (TrainingBlock non ha team). */
+  blocks: PlanBlock[]; // blocchi della scheda, in ordine
+  /** Squadra a cui appartiene la scheda. */
   team: TrainingTeam;
   createdBy: string | null;
   createdAt: string;

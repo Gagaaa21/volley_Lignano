@@ -2,12 +2,10 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Clock, Puzzle } from "lucide-react";
+import { Puzzle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
-import { cn } from "@/lib/cn";
 import { createPlanAction, type PlanFormState } from "./actions";
-import type { TrainingBlock } from "@/lib/types";
 
 const initialState: PlanFormState = {};
 
@@ -33,12 +31,10 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export function PlanCreateForm({
-  blocks = [],
   occurrenceRuleId,
   occurrenceDate,
   defaultTitle,
 }: {
-  blocks?: TrainingBlock[];
   occurrenceRuleId?: string;
   occurrenceDate?: string;
   defaultTitle?: string;
@@ -74,51 +70,14 @@ export function PlanCreateForm({
         />
       </div>
 
-      {blocks.length > 0 && (
-        <div>
-          <Label>Blocchi dalla libreria (opzionale)</Label>
-          <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-border-subtle bg-surface p-2">
-            {blocks.map((block) => (
-              <label
-                key={block.id}
-                className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors has-[:checked]:bg-primary/8"
-              >
-                <input
-                  type="checkbox"
-                  name="blockIds"
-                  value={block.id}
-                  className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
-                />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/85">
-                  {block.title}
-                </span>
-                <span
-                  className={cn(
-                    "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-[var(--color-training-strong)]",
-                    "bg-[var(--color-training-soft)]",
-                  )}
-                >
-                  <Clock className="h-2.5 w-2.5" />
-                  {block.durationMinutes}&apos;
-                </span>
-              </label>
-            ))}
-          </div>
-          <FieldHint>
-            Riusa blocchi già pronti: verranno aggiunti in cima alla scheda, prima di quelli incollati
-            qui sotto.
-          </FieldHint>
-        </div>
-      )}
-
       <div>
         <Label htmlFor="pastedText">Incolla il contenuto dell&apos;allenamento (opzionale)</Label>
         <Textarea id="pastedText" name="pastedText" rows={12} placeholder={EXAMPLE} className="font-mono text-xs" />
         <FieldHint>
           Ogni blocco deve iniziare con una riga tipo &quot;1. TITOLO – 10&apos;&quot;. Il testo
-          viene diviso automaticamente in macro blocchi riutilizzabili: se esiste già un blocco con
-          lo stesso titolo viene riusato invece di duplicarlo. Lascia vuoto per creare una scheda
-          vuota e comporla dopo con blocchi esistenti.
+          viene diviso automaticamente in blocchi, uno per intestazione: il contenuto resta
+          esattamente come scritto, senza modifiche. Lascia vuoto per creare una scheda senza
+          blocchi.
         </FieldHint>
         <label className="mt-2.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5">
           <input

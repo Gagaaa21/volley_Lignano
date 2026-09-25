@@ -34,13 +34,12 @@ export type PublicCallUpsByMatchId = Record<string, string[]>;
 export const getPublicCalendarData = unstable_cache(
   async (from: string, to: string, category?: Category, team: TrainingTeam = "u14u15") => {
     const repo = await getRepo();
-    const [trainings, matches, occurrencePlans, plans, blocks, athletes, attendanceSessions] =
+    const [trainings, matches, occurrencePlans, plans, athletes, attendanceSessions] =
       await Promise.all([
         repo.listTrainings({ team }),
         repo.listMatches({ team, from, to, category }),
         repo.listTrainingOccurrencePlans(),
         repo.listTrainingPlans({ team }),
-        repo.listTrainingBlocks(),
         repo.listAthletes({ team }),
         repo.listAttendanceSessions({ team }),
       ]);
@@ -72,7 +71,7 @@ export const getPublicCalendarData = unstable_cache(
         .sort((a, b) => a.localeCompare(b));
     }
 
-    return { trainings, matches, occurrencePlans, plans, blocks, attendance, callUpsByMatchId };
+    return { trainings, matches, occurrencePlans, plans, attendance, callUpsByMatchId };
   },
   ["public-calendar-data"],
   { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },

@@ -25,13 +25,12 @@ export default async function CentroControlloPage() {
   await requireDev();
   const repo = await getRepo();
 
-  const [staff, athletes, matches, trainings, blocks, plans, occurrencePlans, attendanceSessions, lineups, pushSubscriptions] =
+  const [staff, athletes, matches, trainings, plans, occurrencePlans, attendanceSessions, lineups, pushSubscriptions] =
     await Promise.all([
       repo.listStaff(),
       repo.listAthletes(),
       repo.listMatches(),
       repo.listTrainings(),
-      repo.listTrainingBlocks(),
       repo.listTrainingPlans(),
       repo.listTrainingOccurrencePlans(),
       repo.listAttendanceSessions(),
@@ -69,11 +68,6 @@ export default async function CentroControlloPage() {
     activity.push({ type: "Allenamento", label: t.title, by: byName(t.createdBy), at: t.createdAt, kind: "creata" });
     if (t.updatedAt !== t.createdAt)
       activity.push({ type: "Allenamento", label: t.title, by: null, at: t.updatedAt, kind: "aggiornata" });
-  }
-  for (const b of blocks) {
-    activity.push({ type: "Blocco scheda", label: b.title, by: byName(b.createdBy), at: b.createdAt, kind: "creata" });
-    if (b.updatedAt !== b.createdAt)
-      activity.push({ type: "Blocco scheda", label: b.title, by: null, at: b.updatedAt, kind: "aggiornata" });
   }
   for (const p of plans) {
     activity.push({ type: "Scheda", label: p.title, by: byName(p.createdBy), at: p.createdAt, kind: "creata" });

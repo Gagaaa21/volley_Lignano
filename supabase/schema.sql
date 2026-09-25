@@ -137,34 +137,17 @@ alter table match_lineups enable row level security;
 -- Nessuna policy pubblica: le formazioni sono riservate allo staff.
 
 -- =========================================================
--- training_blocks — blocchi di allenamento riutilizzabili
--- (libreria "puzzle", visibile solo a Developer e Admin)
--- =========================================================
-create table if not exists training_blocks (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  duration_minutes integer not null check (duration_minutes > 0),
-  content text not null default '',
-  created_by uuid references staff(id) on delete set null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table training_blocks enable row level security;
--- Nessuna policy pubblica: contenuto riservato allo staff, letto/scritto
--- solo tramite la service role key lato server.
-
--- =========================================================
--- training_plans — schede allenamento (composizione ordinata
--- di blocchi), visibili solo a Developer e Admin
+-- training_plans — schede allenamento, visibili solo a Developer e Admin.
+-- "blocks" è un array JSON incorporato nella scheda stessa (niente più
+-- libreria condivisa da riusare tra schede diverse): ogni elemento è
+-- {"id", "title", "durationMinutes", "content"}, nell'ordine della scheda.
 -- =========================================================
 create table if not exists training_plans (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   notes text,
-  block_ids uuid[] not null default '{}',
-  -- Squadra a cui appartiene la scheda. training_blocks resta una libreria
-  -- condivisa tra le due squadre (nessun campo team lì).
+  blocks jsonb not null default '[]'::jsonb,
+  -- Squadra a cui appartiene la scheda.
   team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -174,7 +157,8 @@ create table if not exists training_plans (
 create index if not exists training_plans_team_idx on training_plans (team);
 
 alter table training_plans enable row level security;
--- Nessuna policy pubblica: stessa logica di training_blocks.
+-- Nessuna policy pubblica: contenuto riservato allo staff, letto/scritto
+-- solo tramite la service role key lato server.
 
 -- =========================================================
 -- training_occurrence_plans — scheda collegata a un singolo giorno di
@@ -398,6 +382,44 @@ end $$;
 -- può vedere, già coperto da allowed_pages). Default entrambe, così nessun
 -- account esistente perde accesso finché il Developer non lo restringe.
 alter table staff add column if not exists allowed_teams text[] not null default '{u14u15,minivolley}';
+
+-- I blocchi non sono più una libreria condivisa (training_blocks) riusata
+-- per id da più schede (training_plans.block_ids): ogni scheda incorpora
+-- direttamente i propri blocchi in una colonna JSON. Chi ha già la vecchia
+-- tabella viene migrato qui sotto: si popola "blocks" risolvendo block_ids
+-- contro training_blocks (nell'ordine della scheda), poi si eliminano la
+-- vecchia colonna e la vecchia tabella.
+alter table training_plans add column if not exists blocks jsonb not null default '[]'::jsonb;
+do $$ begin
+  if exists (
+    select 1 from information_schema.tables where table_name = 'training_blocks'
+  ) and exists (
+    select 1 from information_schema.columns
+    where table_name = 'training_plans' and column_name = 'block_ids'
+  ) then
+    update training_plans tp
+    set blocks = coalesce(sub.blocks, '[]'::jsonb)
+    from (
+      select tp2.id as plan_id,
+             jsonb_agg(
+               jsonb_build_object(
+                 'id', tb.id,
+                 'title', tb.title,
+                 'durationMinutes', tb.duration_minutes,
+                 'content', tb.content
+               ) order by ord.ordinality
+             ) as blocks
+      from training_plans tp2
+      cross join lateral unnest(tp2.block_ids) with ordinality as ord(block_id, ordinality)
+      join training_blocks tb on tb.id = ord.block_id
+      group by tp2.id
+    ) sub
+    where sub.plan_id = tp.id;
+
+    alter table training_plans drop column block_ids;
+    drop table training_blocks;
+  end if;
+end $$;
 
 -- =========================================================
 -- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare

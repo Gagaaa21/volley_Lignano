@@ -26,10 +26,10 @@ staff (Developer e Admin).
   un Admin o impostargli una nuova password temporanea.
 - **Schede allenamento** (`/admin/schede`) — visibili solo a Developer e
   Admin. Incolla il testo di un allenamento (es. "1. TITOLO – 10' ...") e
-  viene diviso automaticamente in macro blocchi riutilizzabili in stile
-  puzzle (libreria in `/admin/schede/blocchi`): modificando un blocco si
-  aggiorna ovunque venga usato, e le schede successive si compongono
-  riordinando/riusando i blocchi esistenti.
+  viene diviso automaticamente in blocchi, uno per intestazione numerata:
+  il contenuto di ogni blocco resta esattamente come scritto, senza
+  modifiche, e vive solo dentro quella scheda (niente libreria condivisa
+  da riusare tra schede diverse).
 - **Presenze** (`/admin/presenze`) — registro presenze legato agli
   allenamenti del calendario: si sceglie l'allenamento da registrare e per
   ogni atleta si segna Presente/Assente (di default tutte presenti), con
@@ -140,7 +140,7 @@ src/
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti
       partite/             CRUD partite
-      schede/              Blocchi e schede allenamento riutilizzabili
+      schede/              Schede allenamento (blocchi incorporati nella scheda)
       presenze/            Registro presenze, anagrafica atlete, storico
       staff/               Creazione/modifica account admin
       guida/               Guida all'area riservata

@@ -10,8 +10,6 @@ import {
   Clock,
   Globe,
   Lock,
-  Pencil,
-  Plus,
   Puzzle,
   X,
 } from "lucide-react";
@@ -19,17 +17,10 @@ import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { Label, Select } from "@/components/ui/Field";
-import { Button } from "@/components/ui/Button";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { cn } from "@/lib/cn";
-import {
-  addBlockToPlanAction,
-  deletePlanAction,
-  removeBlockFromPlanAction,
-  reorderPlanBlockAction,
-} from "../actions";
+import { deletePlanAction, removeBlockFromPlanAction, reorderPlanBlockAction } from "../actions";
 import { PlanDetailsForm } from "./PlanDetailsForm";
 
 export const metadata: Metadata = {
@@ -54,16 +45,11 @@ export default async function TrainingPlanDetailPage({
   const plan = await repo.getTrainingPlan(id);
   if (!plan) notFound();
 
-  const [allBlocks, occurrencePlans, trainings] = await Promise.all([
-    repo.listTrainingBlocks(),
+  const [occurrencePlans, trainings] = await Promise.all([
     repo.listTrainingOccurrencePlans(),
     repo.listTrainings({ team: plan.team }),
   ]);
-  const blockMap = new Map(allBlocks.map((b) => [b.id, b] as const));
-  const planBlocks = plan.blockIds.map((blockId) => blockMap.get(blockId)).filter(Boolean) as NonNullable<
-    ReturnType<typeof blockMap.get>
-  >[];
-  const availableBlocks = allBlocks.filter((b) => !plan.blockIds.includes(b.id));
+  const planBlocks = plan.blocks;
   const totalMinutes = planBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
 
   const trainingTitleById = new Map(trainings.map((t) => [t.id, t.title] as const));
@@ -148,7 +134,7 @@ export default async function TrainingPlanDetailPage({
         <form action={deletePlanAction}>
           <input type="hidden" name="id" value={plan.id} />
           <ConfirmSubmitButton
-            confirmMessage={`Eliminare la scheda "${plan.title}"? I blocchi restano nella libreria.`}
+            confirmMessage={`Eliminare la scheda "${plan.title}"?`}
             variant="ghost"
             size="sm"
             className="text-destructive hover:bg-destructive/8"
@@ -177,13 +163,6 @@ export default async function TrainingPlanDetailPage({
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Link
-                      href={`/admin/schede/blocchi/${block.id}?planId=${plan.id}`}
-                      aria-label="Modifica blocco"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-surface-muted"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Link>
                     <form action={reorderPlanBlockAction}>
                       <input type="hidden" name="planId" value={plan.id} />
                       <input type="hidden" name="blockId" value={block.id} />
@@ -229,48 +208,6 @@ export default async function TrainingPlanDetailPage({
           </li>
         ))}
       </ol>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
-            <Plus className="h-4 w-4 text-sea-700" />
-            Aggiungi un blocco
-          </h2>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          {availableBlocks.length > 0 ? (
-            <form action={addBlockToPlanAction} className="flex flex-col gap-3 sm:flex-row">
-              <input type="hidden" name="planId" value={plan.id} />
-              <div className="flex-1">
-                <Label htmlFor="blockId" className="sr-only">
-                  Blocco esistente
-                </Label>
-                <Select id="blockId" name="blockId" defaultValue="">
-                  <option value="" disabled>
-                    Scegli un blocco dalla libreria…
-                  </option>
-                  {availableBlocks.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.title} · {b.durationMinutes}&apos;
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <Button type="submit" variant="outline">
-                Aggiungi alla scheda
-              </Button>
-            </form>
-          ) : (
-            <p className="text-sm text-foreground/50">
-              Tutti i blocchi della libreria sono già in questa scheda.
-            </p>
-          )}
-          <LinkButton href={`/admin/schede/blocchi/nuovo?planId=${plan.id}`} variant="ghost" size="sm">
-            <Plus className="h-4 w-4" />
-            Crea un nuovo blocco per questa scheda
-          </LinkButton>
-        </CardBody>
-      </Card>
     </div>
   );
 }

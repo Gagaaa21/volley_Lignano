@@ -63,12 +63,11 @@ function cloneAll<T>(items: T[]): T[] {
 }
 
 export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
-  const [trainings, matches, matchLineups, trainingBlocks, trainingPlans, trainingOccurrencePlans, athletes, attendanceSessions] =
+  const [trainings, matches, matchLineups, trainingPlans, trainingOccurrencePlans, athletes, attendanceSessions] =
     await Promise.all([
       realRepo.listTrainings(),
       realRepo.listMatches(),
       realRepo.listMatchLineups(),
-      realRepo.listTrainingBlocks(),
       realRepo.listTrainingPlans(),
       realRepo.listTrainingOccurrencePlans(),
       realRepo.listAthletes(),
@@ -79,7 +78,6 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
   store.trainings = cloneAll(trainings);
   store.matches = cloneAll(matches);
   store.matchLineups = cloneAll(matchLineups);
-  store.trainingBlocks = cloneAll(trainingBlocks);
   store.trainingPlans = cloneAll(trainingPlans);
   store.trainingOccurrencePlans = cloneAll(trainingOccurrencePlans);
   store.athletes = cloneAll(athletes);
@@ -104,9 +102,6 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "updateMatch",
   "deleteMatch",
   "saveMatchLineup",
-  "createTrainingBlock",
-  "updateTrainingBlock",
-  "deleteTrainingBlock",
   "createTrainingPlan",
   "updateTrainingPlan",
   "deleteTrainingPlan",

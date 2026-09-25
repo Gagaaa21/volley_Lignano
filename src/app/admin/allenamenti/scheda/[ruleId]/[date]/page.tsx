@@ -24,10 +24,9 @@ export default async function OccurrencePlanPage({
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) notFound();
 
   const repo = await getActiveRepo();
-  const [training, occurrencePlan, blocks] = await Promise.all([
+  const [training, occurrencePlan] = await Promise.all([
     repo.getTraining(ruleId),
     repo.getTrainingOccurrencePlan(ruleId, date),
-    repo.listTrainingBlocks(),
   ]);
   if (!training) notFound();
   // Solo schede della stessa squadra dell'allenamento: mai proporre di
@@ -35,10 +34,7 @@ export default async function OccurrencePlanPage({
   const allPlans = await repo.listTrainingPlans({ team: training.team });
 
   const currentPlan = occurrencePlan ? await repo.getTrainingPlan(occurrencePlan.planId) : null;
-  const blockById = new Map(blocks.map((b) => [b.id, b] as const));
-  const currentPlanBlocks = currentPlan
-    ? currentPlan.blockIds.map((id) => blockById.get(id)).filter((b): b is NonNullable<typeof b> => Boolean(b))
-    : [];
+  const currentPlanBlocks = currentPlan?.blocks ?? [];
   const otherPlans = allPlans.filter((p) => p.id !== currentPlan?.id);
 
   return (
@@ -156,7 +152,7 @@ export default async function OccurrencePlanPage({
                     </option>
                     {otherPlans.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.title} · {p.blockIds.length} blocch{p.blockIds.length === 1 ? "o" : "i"}
+                        {p.title} · {p.blocks.length} blocch{p.blocks.length === 1 ? "o" : "i"}
                       </option>
                     ))}
                   </Select>
@@ -185,18 +181,13 @@ export default async function OccurrencePlanPage({
               {currentPlan ? "Oppure crea una nuova scheda per questa data" : "Oppure crea una nuova scheda"}
             </span>
             <span className="mt-1 block text-sm text-foreground/60">
-              Incolla il contenuto dell&apos;allenamento o scegli blocchi già pronti dalla libreria.
+              Incolla il contenuto dell&apos;allenamento: viene diviso automaticamente in blocchi.
             </span>
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-foreground/40 transition-transform group-open:rotate-180" />
         </summary>
         <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-          <PlanCreateForm
-            blocks={blocks}
-            occurrenceRuleId={ruleId}
-            occurrenceDate={date}
-            defaultTitle={training.title}
-          />
+          <PlanCreateForm occurrenceRuleId={ruleId} occurrenceDate={date} defaultTitle={training.title} />
         </div>
       </details>
     </div>

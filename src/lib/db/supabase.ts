@@ -10,11 +10,10 @@ import type {
   MatchInput,
   MatchLineup,
   MatchLineupInput,
+  PlanBlock,
   PushSubscriptionRecord,
   SetLineup,
   StaffMember,
-  TrainingBlock,
-  TrainingBlockInput,
   TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
@@ -195,53 +194,23 @@ function staffFromRow(row: StaffRow): StaffMember {
   };
 }
 
-type TrainingBlockRow = {
-  id: string;
-  title: string;
-  duration_minutes: number;
-  content: string;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 type TrainingPlanRow = {
   id: string;
   title: string;
   notes: string | null;
-  block_ids: string[];
+  blocks: PlanBlock[];
   team: TrainingPlan["team"];
   created_by: string | null;
   created_at: string;
   updated_at: string;
 };
 
-function trainingBlockFromRow(row: TrainingBlockRow): TrainingBlock {
-  return {
-    id: row.id,
-    title: row.title,
-    durationMinutes: row.duration_minutes,
-    content: row.content,
-    createdBy: row.created_by,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function trainingBlockToRow(input: TrainingBlockInput) {
-  return {
-    title: input.title,
-    duration_minutes: input.durationMinutes,
-    content: input.content,
-  };
-}
-
 function trainingPlanFromRow(row: TrainingPlanRow): TrainingPlan {
   return {
     id: row.id,
     title: row.title,
     notes: row.notes,
-    blockIds: row.block_ids ?? [],
+    blocks: row.blocks ?? [],
     team: row.team,
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -253,7 +222,7 @@ function trainingPlanToRow(input: TrainingPlanInput) {
   return {
     title: input.title,
     notes: input.notes,
-    block_ids: input.blockIds,
+    blocks: input.blocks,
     team: input.team,
   };
 }
@@ -571,61 +540,6 @@ export const supabaseRepo: Repo = {
     const db = getSupabaseAdmin();
     const { error } = await db.from("staff").delete().eq("id", id);
     if (error) throw new Error(error.message);
-  },
-
-  async listTrainingBlocks() {
-    const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("training_blocks")
-      .select("*")
-      .order("title", { ascending: true });
-    if (error) throw new Error(error.message);
-    return (data as TrainingBlockRow[]).map(trainingBlockFromRow);
-  },
-  async getTrainingBlock(id) {
-    const db = getSupabaseAdmin();
-    const { data, error } = await db.from("training_blocks").select("*").eq("id", id).maybeSingle();
-    if (error) throw new Error(error.message);
-    return data ? trainingBlockFromRow(data as TrainingBlockRow) : null;
-  },
-  async createTrainingBlock(input, createdBy) {
-    const db = getSupabaseAdmin();
-    const result = await db
-      .from("training_blocks")
-      .insert({ ...trainingBlockToRow(input), created_by: createdBy })
-      .select("*")
-      .single();
-    return trainingBlockFromRow(unwrap(result) as TrainingBlockRow);
-  },
-  async updateTrainingBlock(id, input) {
-    const db = getSupabaseAdmin();
-    const result = await db
-      .from("training_blocks")
-      .update({ ...trainingBlockToRow(input), updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select("*")
-      .single();
-    return trainingBlockFromRow(unwrap(result) as TrainingBlockRow);
-  },
-  async deleteTrainingBlock(id) {
-    const db = getSupabaseAdmin();
-    const { error } = await db.from("training_blocks").delete().eq("id", id);
-    if (error) throw new Error(error.message);
-
-    const { data: affected, error: findError } = await db
-      .from("training_plans")
-      .select("id, block_ids")
-      .contains("block_ids", [id]);
-    if (findError) throw new Error(findError.message);
-
-    for (const plan of (affected ?? []) as Array<{ id: string; block_ids: string[] }>) {
-      const nextBlockIds = plan.block_ids.filter((blockId) => blockId !== id);
-      const { error: updateError } = await db
-        .from("training_plans")
-        .update({ block_ids: nextBlockIds, updated_at: new Date().toISOString() })
-        .eq("id", plan.id);
-      if (updateError) throw new Error(updateError.message);
-    }
   },
 
   async listTrainingPlans(filter?: TeamFilter) {

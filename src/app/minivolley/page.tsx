@@ -38,7 +38,7 @@ export default async function MinivolleyPage({
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
-  const { trainings, matches, occurrencePlans, plans, blocks, attendance, callUpsByMatchId } =
+  const { trainings, matches, occurrencePlans, plans, attendance, callUpsByMatchId } =
     await getPublicCalendarData(startStr, endStr, undefined, "minivolley");
 
   const occurrencePlanIds = new Map(
@@ -52,17 +52,12 @@ export default async function MinivolleyPage({
   const eventsByDate = groupEventsByDate(monthEvents);
 
   const planById = new Map(plans.map((p) => [p.id, p] as const));
-  const blockById = new Map(blocks.map((b) => [b.id, b] as const));
   const plansByEventId: Record<string, EventPlan> = {};
   for (const event of monthEvents) {
     if (event.kind !== "training" || !event.planId) continue;
     const plan = planById.get(event.planId);
     if (!plan) continue;
-    const planBlocks = plan.blockIds
-      .map((blockId) => blockById.get(blockId))
-      .filter((b): b is NonNullable<typeof b> => Boolean(b))
-      .map((b) => ({ id: b.id, title: b.title, durationMinutes: b.durationMinutes, content: b.content }));
-    plansByEventId[event.id] = { title: plan.title, blocks: planBlocks };
+    plansByEventId[event.id] = { title: plan.title, blocks: plan.blocks };
   }
 
   const attendanceByOccurrence = new Map(
