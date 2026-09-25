@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
+import { TEAMS } from "@/lib/types";
 import type {
   Athlete,
   AthleteInput,
@@ -185,7 +186,10 @@ function staffFromRow(row: StaffRow): StaffMember {
     mustChangePassword: row.must_change_password,
     hasSeenGuide: row.has_seen_guide,
     allowedPages: row.allowed_pages,
-    allowedTeams: row.allowed_teams,
+    // Fallback per chi non ha ancora eseguito la migrazione che aggiunge la
+    // colonna allowed_teams: senza, Supabase la restituisce undefined e il
+    // Centro di controllo va in errore (.includes su undefined).
+    allowedTeams: row.allowed_teams ?? TEAMS,
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
