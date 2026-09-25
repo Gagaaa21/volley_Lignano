@@ -27,7 +27,7 @@ import { logoutAction } from "@/lib/auth/actions";
 import { enterTestModeAction } from "@/app/admin/test-mode/actions";
 import { setActiveTeamAction } from "@/app/admin/actions";
 import type { SessionPayload } from "@/lib/auth/session";
-import type { AdminPage, TrainingTeam } from "@/lib/types";
+import { isPageAvailableForTeam, type AdminPage, type TrainingTeam } from "@/lib/types";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import crest from "@/assets/lignano-crest.png";
 
@@ -198,8 +198,11 @@ export function AdminHeader({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const visibleNavItems =
-    session.role === "dev" ? NAV_ITEMS : NAV_ITEMS.filter((item) => !item.page || allowedPages.includes(item.page));
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.page && !isPageAvailableForTeam(item.page, activeTeam)) return false;
+    if (session.role === "dev") return true;
+    return !item.page || allowedPages.includes(item.page);
+  });
 
   return (
     <header className="page-header">

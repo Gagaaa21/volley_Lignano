@@ -3,7 +3,13 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getActiveRepo } from "@/lib/db";
 import { getSession, type SessionPayload } from "@/lib/auth/session";
-import { TEAMS, type AdminPage, type StaffMember, type TrainingTeam } from "@/lib/types";
+import {
+  TEAMS,
+  isPageAvailableForTeam,
+  type AdminPage,
+  type StaffMember,
+  type TrainingTeam,
+} from "@/lib/types";
 
 export async function requireStaff(): Promise<SessionPayload> {
   const session = await getSession();
@@ -43,6 +49,13 @@ export async function requireDev(): Promise<SessionPayload> {
  */
 export async function requireStaffPage(page: AdminPage): Promise<SessionPayload> {
   const session = await requireStaff();
+
+  // Non è un permesso dell'account: alcune pagine non esistono affatto per
+  // una squadra (es. "Partite" su Minivolley), quindi vale anche per un
+  // Developer, che altrimenti vedrebbe sempre tutto.
+  const team = await resolveActiveTeam(session);
+  if (!isPageAvailableForTeam(page, team)) redirect("/admin");
+
   if (session.role === "dev") return session;
 
   const staff = await getOwnStaff(session.sub);

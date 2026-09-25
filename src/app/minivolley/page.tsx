@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import Image from "next/image";
-import { CalendarDays, CalendarPlus, Dumbbell, Swords, Trophy, Volleyball, Waves } from "lucide-react";
+import { CalendarDays, CalendarPlus, Dumbbell, Trophy, Volleyball, Waves } from "lucide-react";
 import crest from "@/assets/minivolley-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
@@ -9,17 +9,10 @@ import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
 import { getPublicCalendarData } from "@/lib/publicCalendarData";
-import {
-  expandTrainings,
-  getMonthGridRange,
-  groupEventsByDate,
-  matchesToEvents,
-  occurrenceKey,
-  sortEvents,
-} from "@/lib/calendar";
-import { NO_CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
+import { expandTrainings, getMonthGridRange, groupEventsByDate, occurrenceKey, sortEvents } from "@/lib/calendar";
+import { TRAINING_BADGE } from "@/lib/category";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
-import type { EventAttendance, EventCallUps, EventPlan } from "@/components/calendar/EventDetailDialog";
+import type { EventAttendance, EventPlan } from "@/components/calendar/EventDetailDialog";
 
 const TORNEO_BADGE = "bg-foreground/8 text-foreground/60";
 
@@ -38,17 +31,21 @@ export default async function MinivolleyPage({
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
 
-  const { trainings, matches, occurrencePlans, plans, attendance, callUpsByMatchId } =
-    await getPublicCalendarData(startStr, endStr, undefined, "minivolley");
+  // Niente sezione Partite per il Minivolley: solo tornei, già coperti
+  // dagli allenamenti con isTournament (vedi getPublicCalendarData).
+  const { trainings, occurrencePlans, plans, attendance } = await getPublicCalendarData(
+    startStr,
+    endStr,
+    undefined,
+    "minivolley",
+  );
 
   const occurrencePlanIds = new Map(
     occurrencePlans
       .filter((o) => o.isPublic)
       .map((o) => [occurrenceKey(o.trainingRuleId, o.occurrenceDate), o.planId] as const),
   );
-  const trainingEvents = expandTrainings(trainings, start, end, occurrencePlanIds);
-  const matchEvents = matchesToEvents(matches);
-  const monthEvents = sortEvents([...trainingEvents, ...matchEvents]);
+  const monthEvents = sortEvents(expandTrainings(trainings, start, end, occurrencePlanIds));
   const eventsByDate = groupEventsByDate(monthEvents);
 
   const planById = new Map(plans.map((p) => [p.id, p] as const));
@@ -68,13 +65,6 @@ export default async function MinivolleyPage({
     if (event.kind !== "training") continue;
     const records = attendanceByOccurrence.get(occurrenceKey(event.ruleId, event.date));
     if (records) attendanceByEventId[event.id] = { records };
-  }
-
-  const callUpsByEventId: Record<string, EventCallUps> = {};
-  for (const event of monthEvents) {
-    if (event.kind !== "match") continue;
-    const names = callUpsByMatchId[event.id];
-    if (names && names.length > 0) callUpsByEventId[event.id] = { names };
   }
 
   const isCurrentMonthView = monthParam === formatMonthParam(new Date());
@@ -102,7 +92,7 @@ export default async function MinivolleyPage({
               Minivolley
             </p>
             <h1 className="mt-4 font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl">
-              Calendario allenamenti &amp; partite
+              Calendario allenamenti
             </h1>
             <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground sm:text-base">
               <Waves className="h-4 w-4 shrink-0" />
@@ -127,7 +117,7 @@ export default async function MinivolleyPage({
                 events={upcoming}
                 plansByEventId={plansByEventId}
                 attendanceByEventId={attendanceByEventId}
-                callUpsByEventId={callUpsByEventId}
+                callUpsByEventId={{}}
               />
             </div>
           )}
@@ -152,14 +142,13 @@ export default async function MinivolleyPage({
             eventsByDate={eventsByDate}
             plansByEventId={plansByEventId}
             attendanceByEventId={attendanceByEventId}
-            callUpsByEventId={callUpsByEventId}
+            callUpsByEventId={{}}
           />
 
           <CalendarLegend
             items={[
               { icon: Dumbbell, label: "Allenamento", badgeClass: TRAINING_BADGE },
               { icon: Trophy, label: "Torneo", badgeClass: TORNEO_BADGE },
-              { icon: Swords, label: "Partita", badgeClass: NO_CATEGORY_BADGE },
             ]}
           />
         </div>

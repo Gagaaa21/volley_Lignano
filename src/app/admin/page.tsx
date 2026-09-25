@@ -25,7 +25,7 @@ import { cn } from "@/lib/cn";
 import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import crest from "@/assets/lignano-crest.png";
-import type { AdminPage, CalendarEvent } from "@/lib/types";
+import { isPageAvailableForTeam, type AdminPage, type CalendarEvent } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -89,21 +89,27 @@ export default async function AdminDashboardPage({
   const { password_changed } = await searchParams;
   const repo = await getActiveRepo();
 
-  let visibleSections = SECTIONS;
-  if (session.role !== "dev") {
-    const staff = await getOwnStaff(session.sub);
-    const allowedPages = staff?.allowedPages ?? [];
-    visibleSections = SECTIONS.filter((section) => allowedPages.includes(section.page));
-  }
-
   // La dashboard riflette la squadra attiva nello switcher, come le sezioni
   // Allenamenti/Partite/Schede/Presenze.
   const team = await resolveActiveTeam(session);
+  // Non permessi account: "Partite" e "Presenze" non esistono per la
+  // squadra Minivolley (vedi isPageAvailableForTeam), quindi vale anche per
+  // un Developer.
+  const showMatches = isPageAvailableForTeam("partite", team);
+  const showPresenze = isPageAvailableForTeam("presenze", team);
+
+  let visibleSections = SECTIONS.filter((section) => isPageAvailableForTeam(section.page, team));
+  if (session.role !== "dev") {
+    const staff = await getOwnStaff(session.sub);
+    const allowedPages = staff?.allowedPages ?? [];
+    visibleSections = visibleSections.filter((section) => allowedPages.includes(section.page));
+  }
+
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
     repo.listTrainings({ team }),
-    repo.listMatches({ team }),
+    showMatches ? repo.listMatches({ team }) : Promise.resolve([]),
     repo.listAthletes({ team }),
-    repo.listAttendanceSessions({ team }),
+    showPresenze ? repo.listAttendanceSessions({ team }) : Promise.resolve([]),
   ]);
 
   const today = new Date();
@@ -113,9 +119,11 @@ export default async function AdminDashboardPage({
   const activeAthletes = athletes.filter((a) => a.isActive);
 
   const recordedKeys = new Set(attendanceSessions.map((s) => `${s.trainingRuleId}_${s.sessionDate}`));
-  const pendingOccurrences = expandTrainings(trainings, subDays(today, 21), today).filter(
-    (o) => o.kind === "training" && !recordedKeys.has(`${o.ruleId}_${o.date}`),
-  );
+  const pendingOccurrences = showPresenze
+    ? expandTrainings(trainings, subDays(today, 21), today).filter(
+        (o) => o.kind === "training" && !recordedKeys.has(`${o.ruleId}_${o.date}`),
+      )
+    : [];
 
   const upcomingTrainingEvents = expandTrainings(trainings, today, addDays(today, 60));
   const upcomingMatchEvents = matchesToEvents(matches).filter((e) => e.date >= todayStr);
@@ -158,19 +166,21 @@ export default async function AdminDashboardPage({
             </div>
           </CardBody>
         </div>
-        <div className="stat-card">
-          <CardBody className="pt-5">
-            <div className="flex items-center gap-3">
-              <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u15),var(--color-u15-strong))]">
-                <Swords className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{matches.length}</p>
-                <p className="text-xs text-muted-foreground">Partite in calendario</p>
+        {showMatches && (
+          <div className="stat-card">
+            <CardBody className="pt-5">
+              <div className="flex items-center gap-3">
+                <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u15),var(--color-u15-strong))]">
+                  <Swords className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{matches.length}</p>
+                  <p className="text-xs text-muted-foreground">Partite in calendario</p>
+                </div>
               </div>
-            </div>
-          </CardBody>
-        </div>
+            </CardBody>
+          </div>
+        )}
         <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
@@ -184,24 +194,26 @@ export default async function AdminDashboardPage({
             </div>
           </CardBody>
         </div>
-        <Link href="/admin/presenze" className="stat-card block">
-          <CardBody className="pt-5">
-            <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  "icon-chip",
-                  pendingOccurrences.length > 0 && "bg-[linear-gradient(135deg,var(--color-sand-500),var(--color-sand-700))]",
-                )}
-              >
-                <ClipboardCheck className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{pendingOccurrences.length}</p>
-                <p className="text-xs text-muted-foreground">Presenze da registrare</p>
+        {showPresenze && (
+          <Link href="/admin/presenze" className="stat-card block">
+            <CardBody className="pt-5">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "icon-chip",
+                    pendingOccurrences.length > 0 && "bg-[linear-gradient(135deg,var(--color-sand-500),var(--color-sand-700))]",
+                  )}
+                >
+                  <ClipboardCheck className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{pendingOccurrences.length}</p>
+                  <p className="text-xs text-muted-foreground">Presenze da registrare</p>
+                </div>
               </div>
-            </div>
-          </CardBody>
-        </Link>
+            </CardBody>
+          </Link>
+        )}
       </div>
 
       {pendingOccurrences.length > 0 && (
@@ -225,7 +237,9 @@ export default async function AdminDashboardPage({
 
           {upcomingEvents.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
-              Nessun allenamento o partita in programma nei prossimi giorni.
+              {showMatches
+                ? "Nessun allenamento o partita in programma nei prossimi giorni."
+                : "Nessun allenamento in programma nei prossimi giorni."}
             </div>
           ) : (
             <div className="mt-4 space-y-2.5">

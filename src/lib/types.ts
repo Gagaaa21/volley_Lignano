@@ -30,6 +30,18 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   guida: "Guida",
 };
 
+/** Pagine non disponibili per la squadra Minivolley, indipendentemente dai
+ * permessi dell'account (vale anche per un Developer): "Partite" è stata
+ * rimossa del tutto — la squadra non gioca partite di campionato con
+ * risultato, solo tornei multi-club, già coperti da "Allenamenti"
+ * (isTournament); "Presenze" è disattivata per il momento su richiesta del
+ * club. Nessuna delle due tocca la squadra U14/U15. */
+const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "presenze"];
+
+export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
+  return team !== "minivolley" || !PAGES_UNAVAILABLE_FOR_MINIVOLLEY.includes(page);
+}
+
 export interface StaffMember {
   id: string;
   username: string;

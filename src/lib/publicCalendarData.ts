@@ -34,10 +34,13 @@ export type PublicCallUpsByMatchId = Record<string, string[]>;
 export const getPublicCalendarData = unstable_cache(
   async (from: string, to: string, category?: Category, team: TrainingTeam = "u14u15") => {
     const repo = await getRepo();
+    // Il Minivolley non ha più la sezione Partite (solo tornei, già coperti
+    // dagli allenamenti con isTournament): niente query né eventi partita
+    // per questa squadra.
     const [trainings, matches, occurrencePlans, plans, athletes, attendanceSessions] =
       await Promise.all([
         repo.listTrainings({ team }),
-        repo.listMatches({ team, from, to, category }),
+        team === "minivolley" ? Promise.resolve([]) : repo.listMatches({ team, from, to, category }),
         repo.listTrainingOccurrencePlans(),
         repo.listTrainingPlans({ team }),
         repo.listAthletes({ team }),
