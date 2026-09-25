@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { Minus, Pencil, Plus, RefreshCw, RotateCw, Undo2, Volleyball } from "lucide-react";
+import { useEffect, useReducer, useRef, useState } from "react";
+import { Pencil, RefreshCw, Repeat, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
@@ -9,140 +9,204 @@ import { DualLiveScoreCourt } from "./LiveScoreCourt";
 import type { CourtPosition, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
 
 /** I sei nomi "titolari" della rotazione, indicizzati per posizione
- * (positions[0] = posizione 1, ... positions[5] = posizione 6). Il libero
- * non è mai uno di questi sei: sostituisce solo visivamente chi è in
- * seconda linea (vedi cellDisplay), esattamente come nel regolamento. */
+ * (positions[0] = posizione 1, ... positions[5] = posizione 6). */
 type Positions = [string, string, string, string, string, string];
+type TeamKey = "A" | "B";
 
 const EMPTY_POSITIONS: Positions = ["", "", "", "", "", ""];
-/** Seconda linea (fondo campo): la libero può giocare solo qui. */
-const BACK_ROW: readonly CourtPosition[] = [1, 5, 6];
 const LIVESCORE_API = "/api/livescore";
 /** Tempo di inattività prima di salvare in automatico, per non fare una
  * richiesta a ogni singolo tasto premuto mentre si scrive un nome. */
 const AUTOSAVE_DELAY_MS = 900;
 
+function teamKeyProp(key: TeamKey): "teamA" | "teamB" {
+  return key === "A" ? "teamA" : "teamB";
+}
+
+function otherKey(key: TeamKey): TeamKey {
+  return key === "A" ? "B" : "A";
+}
+
 /** Una rotazione: chi era in posizione 2 diventa la nuova battitrice
  * (posizione 1), chi era in posizione 1 va in fondo (posizione 6), e così
- * via — l'ordine di rotazione standard della pallavolo. */
+ * via — l'ordine di rotazione standard della pallavolo (1→6→5→4→3→2→1). */
 function rotateOnce(positions: Positions): Positions {
   const [p1, p2, p3, p4, p5, p6] = positions;
   return [p2, p3, p4, p5, p6, p1];
 }
 
-function hostPosition(positions: Positions, hostName: string): CourtPosition | null {
-  const host = hostName.trim();
-  if (!host) return null;
-  const idx = positions.findIndex((name) => name.trim() === host);
-  return idx === -1 ? null : ((idx + 1) as CourtPosition);
+function isHost(team: LiveScoreTeamState, name: string): boolean {
+  const trimmed = name.trim();
+  return trimmed !== "" && team.hostNames.some((h) => h.trim() === trimmed);
 }
 
-function isLiberoOnCourt(positions: Positions, hostName: string, liberoName: string): boolean {
-  if (!liberoName.trim()) return false;
-  const position = hostPosition(positions, hostName);
-  return position !== null && BACK_ROW.includes(position);
-}
-
-/** Cosa mostrare in una cella del campo: il nome della titolare, oppure —
- * quando la giocatrice che la libero sostituisce è in seconda linea — il
- * nome della libero al suo posto. Appena quella giocatrice ruota in prima
- * linea, la libero esce e torna a comparire lei. */
-function cellDisplay(
-  position: CourtPosition,
-  positions: Positions,
-  hostName: string,
-  liberoName: string,
-): { name: string; isLibero: boolean } {
-  const host = hostPosition(positions, hostName);
-  if (host === position && BACK_ROW.includes(position) && liberoName.trim()) {
-    return { name: liberoName.trim(), isLibero: true };
-  }
-  return { name: positions[position - 1].trim(), isLibero: false };
-}
-
-function emptyTeamState(defaultLabel: string): LiveScoreTeamState {
-  return { label: defaultLabel, positions: EMPTY_POSITIONS, liberoName: "", hostName: "", score: 0 };
-}
-
-/** Tutto lo stato di una delle due squadre sul campo: formazione, libero,
- * punteggio e storico rotazioni (per l'annulla, mai salvato: vedi hydrate).
- * Le due squadre sono indipendenti l'una dall'altra — ognuna ha la propria
- * rotazione perché a un allenamento a due squadre si gira separatamente. */
-function useTeamState(defaultLabel: string) {
-  const [label, setLabel] = useState(defaultLabel);
-  const [positions, setPositions] = useState<Positions>(EMPTY_POSITIONS);
-  const [liberoName, setLiberoName] = useState("");
-  const [hostName, setHostName] = useState("");
-  const [history, setHistory] = useState<Positions[]>([]);
-  const [score, setScore] = useState(0);
-
-  const filledNames = useMemo(() => positions.map((n) => n.trim()).filter(Boolean), [positions]);
-
-  function updatePosition(position: CourtPosition, value: string) {
-    setPositions((prev) => {
-      const next = [...prev] as Positions;
-      next[position - 1] = value;
-      return next;
-    });
-  }
-
-  function rotate() {
-    setHistory((prev) => [...prev, positions]);
-    setPositions((prev) => rotateOnce(prev));
-  }
-
-  function undoRotate() {
-    setHistory((prev) => {
-      if (prev.length === 0) return prev;
-      setPositions(prev[prev.length - 1]);
-      return prev.slice(0, -1);
-    });
-  }
-
-  function reset() {
-    setLabel(defaultLabel);
-    setPositions(EMPTY_POSITIONS);
-    setLiberoName("");
-    setHostName("");
-    setHistory([]);
-    setScore(0);
-  }
-
-  /** Ripristina uno stato salvato (dal tabellone live su Supabase): niente
-   * storico rotazioni, che non viene mai salvato. */
-  function hydrate(saved: LiveScoreTeamState) {
-    setLabel(saved.label);
-    setPositions(saved.positions);
-    setLiberoName(saved.liberoName);
-    setHostName(saved.hostName);
-    setHistory([]);
-    setScore(saved.score);
-  }
-
-  const snapshot: LiveScoreTeamState = { label, positions, liberoName, hostName, score };
-
+function emptyTeam(label: string): LiveScoreTeamState {
   return {
     label,
-    setLabel,
-    positions,
-    updatePosition,
-    liberoName,
-    setLiberoName,
-    hostName,
-    setHostName,
-    history,
-    rotate,
-    undoRotate,
-    score,
-    setScore,
-    filledNames,
-    reset,
-    hydrate,
-    snapshot,
+    positions: EMPTY_POSITIONS,
+    liberoName: "",
+    hostNames: ["", ""],
+    liberoActiveFor: null,
+    score: 0,
+    setsWon: 0,
   };
 }
 
-type TeamState = ReturnType<typeof useTeamState>;
+function initialMatch(): LiveScoreState {
+  return {
+    started: false,
+    servingTeam: null,
+    sidesSwapped: false,
+    teamA: emptyTeam("Squadra A"),
+    teamB: emptyTeam("Squadra B"),
+  };
+}
+
+function isTeamEmpty(team: LiveScoreTeamState): boolean {
+  return (
+    team.positions.every((n) => n.trim() === "") &&
+    team.liberoName.trim() === "" &&
+    team.score === 0 &&
+    team.setsWon === 0
+  );
+}
+
+/**
+ * Assegna il punto alla squadra `winner`.
+ *
+ * Regolamento pallavolo: si ruota solo quando una squadra CONQUISTA la
+ * battuta (vinceva la palla ricevendo), non quando la mantiene vincendo
+ * mentre già serviva. La libero, secondo il regolamento, non è mai la
+ * prima a servire quando una centrale arriva in battuta: la centrale
+ * serve lei stessa finché la sua squadra continua a vincere (nessuna
+ * rotazione, stessa battitrice), e solo quando PERDE il punto da
+ * battitrice (side-out) la libero entra al suo posto — da quel momento la
+ * sostituisce per tutta la sua permanenza in seconda linea, finché non
+ * ruota di nuovo a rete (posizione 4), dove la centrale rientra di
+ * persona.
+ */
+function applyPoint(match: LiveScoreState, winner: TeamKey): LiveScoreState {
+  const winnerKey = teamKeyProp(winner);
+  const winnerTeam: LiveScoreTeamState = { ...match[winnerKey], score: match[winnerKey].score + 1 };
+
+  if (match.servingTeam === winner) {
+    // Stava già servendo e ha vinto: nessuna rotazione, nessun cambio libero.
+    return { ...match, [winnerKey]: winnerTeam };
+  }
+
+  const loserKeyName = otherKey(winner);
+  const loserKey = teamKeyProp(loserKeyName);
+  let loserTeam: LiveScoreTeamState = { ...match[loserKey] };
+
+  if (match.servingTeam === loserKeyName) {
+    // Side-out: la squadra che stava servendo perde il punto. Se in
+    // battuta (posizione 1) c'era una delle sue due centrali, da ora la
+    // libero entra al suo posto.
+    const server = loserTeam.positions[0].trim();
+    if (isHost(loserTeam, server) && loserTeam.liberoActiveFor !== server) {
+      loserTeam = { ...loserTeam, liberoActiveFor: server };
+    }
+  }
+
+  // La squadra che vince conquista la battuta e ruota: chi usciva dalla
+  // seconda linea (posizione 5 → 4) rientra in campo di persona se era lei
+  // ad avere la libero dentro.
+  const exiting = winnerTeam.positions[4].trim();
+  const rotatedWinner: LiveScoreTeamState = {
+    ...winnerTeam,
+    positions: rotateOnce(winnerTeam.positions),
+    liberoActiveFor: winnerTeam.liberoActiveFor === exiting ? null : winnerTeam.liberoActiveFor,
+  };
+
+  return {
+    ...match,
+    servingTeam: winner,
+    [winnerKey]: rotatedWinner,
+    [loserKey]: loserTeam,
+  };
+}
+
+/** Chiude il set corrente: vince chi ha più punti (pareggio bloccato,
+ * verificato anche a monte nel reducer). Punteggio azzerato per il set
+ * successivo, libero resettata per entrambe (si riparte da capo), il
+ * coach dovrà scegliere di nuovo chi serve per primo. */
+function closeSet(match: LiveScoreState): LiveScoreState {
+  if (match.teamA.score === match.teamB.score) return match;
+  const winner: TeamKey = match.teamA.score > match.teamB.score ? "A" : "B";
+  const winnerKey = teamKeyProp(winner);
+  const loserKey = teamKeyProp(otherKey(winner));
+  return {
+    ...match,
+    servingTeam: null,
+    [winnerKey]: { ...match[winnerKey], score: 0, setsWon: match[winnerKey].setsWon + 1, liberoActiveFor: null },
+    [loserKey]: { ...match[loserKey], score: 0, liberoActiveFor: null },
+  };
+}
+
+interface ReducerState {
+  match: LiveScoreState;
+  history: LiveScoreState[];
+}
+
+type Action =
+  | { type: "hydrate"; match: LiveScoreState }
+  | { type: "startMatch"; servingTeam: TeamKey }
+  | { type: "point"; winner: TeamKey }
+  | { type: "closeSet" }
+  | { type: "undo" }
+  | { type: "toggleSides" }
+  | { type: "newMatch" }
+  | { type: "setPosition"; team: TeamKey; position: CourtPosition; value: string }
+  | { type: "setLiberoName"; team: TeamKey; value: string }
+  | { type: "setHostName"; team: TeamKey; index: 0 | 1; value: string }
+  | { type: "setLabel"; team: TeamKey; value: string };
+
+function reducer(state: ReducerState, action: Action): ReducerState {
+  switch (action.type) {
+    case "hydrate":
+      return { match: action.match, history: [] };
+    case "startMatch":
+      return { match: { ...state.match, started: true, servingTeam: action.servingTeam }, history: [] };
+    case "point":
+      return { match: applyPoint(state.match, action.winner), history: [...state.history, state.match] };
+    case "closeSet": {
+      if (state.match.teamA.score === state.match.teamB.score) return state;
+      return { match: closeSet(state.match), history: [...state.history, state.match] };
+    }
+    case "undo": {
+      if (state.history.length === 0) return state;
+      return { match: state.history[state.history.length - 1], history: state.history.slice(0, -1) };
+    }
+    case "toggleSides":
+      return { ...state, match: { ...state.match, sidesSwapped: !state.match.sidesSwapped } };
+    case "newMatch":
+      return { match: initialMatch(), history: [] };
+    case "setPosition": {
+      const key = teamKeyProp(action.team);
+      const team = state.match[key];
+      const positions = [...team.positions] as Positions;
+      positions[action.position - 1] = action.value;
+      return { ...state, match: { ...state.match, [key]: { ...team, positions } } };
+    }
+    case "setLiberoName": {
+      const key = teamKeyProp(action.team);
+      return { ...state, match: { ...state.match, [key]: { ...state.match[key], liberoName: action.value } } };
+    }
+    case "setHostName": {
+      const key = teamKeyProp(action.team);
+      const team = state.match[key];
+      const hostNames = [...team.hostNames] as [string, string];
+      hostNames[action.index] = action.value;
+      return { ...state, match: { ...state.match, [key]: { ...team, hostNames } } };
+    }
+    case "setLabel": {
+      const key = teamKeyProp(action.team);
+      return { ...state, match: { ...state.match, [key]: { ...state.match[key], label: action.value } } };
+    }
+    default:
+      return state;
+  }
+}
 
 const CUSTOM_NAME_OPTION = "__altro__";
 
@@ -223,22 +287,37 @@ function PositionNameField({
   );
 }
 
-function renderTeamCell(team: TeamState, editing: boolean, athleteNames: string[]) {
+function cellDisplay(position: CourtPosition, team: LiveScoreTeamState): { name: string; isLibero: boolean } {
+  const nameAtPosition = team.positions[position - 1].trim();
+  if (team.liberoActiveFor && nameAtPosition === team.liberoActiveFor && team.liberoName.trim()) {
+    return { name: team.liberoName.trim(), isLibero: true };
+  }
+  return { name: nameAtPosition, isLibero: false };
+}
+
+function renderTeamCell(
+  team: LiveScoreTeamState,
+  teamKey: TeamKey,
+  editing: boolean,
+  athleteNames: string[],
+  isServing: boolean,
+  dispatch: (action: Action) => void,
+) {
   return function TeamCell(position: CourtPosition) {
     if (editing) {
       return (
         <PositionNameField
           value={team.positions[position - 1]}
-          onChange={(value) => team.updatePosition(position, value)}
+          onChange={(value) => dispatch({ type: "setPosition", team: teamKey, position, value })}
           athleteNames={athleteNames}
           placeholder={`Pos. ${position}`}
         />
       );
     }
-    const { name, isLibero } = cellDisplay(position, team.positions, team.hostName, team.liberoName);
+    const { name, isLibero } = cellDisplay(position, team);
     return (
       <>
-        {position === 1 && (
+        {position === 1 && isServing && (
           <span
             className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sea-950/70"
             title="Al servizio"
@@ -266,123 +345,115 @@ function renderTeamCell(team: TeamState, editing: boolean, athleteNames: string[
 }
 
 function ScoreCard({
-  label,
+  team,
+  isServing,
   onLabelChange,
-  score,
-  onScoreChange,
+  onPoint,
 }: {
-  label: string;
+  team: LiveScoreTeamState;
+  isServing: boolean;
   onLabelChange: (value: string) => void;
-  score: number;
-  onScoreChange: Dispatch<SetStateAction<number>>;
+  onPoint: () => void;
 }) {
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface p-4 text-center">
-      <input
-        value={label}
-        onChange={(e) => onLabelChange(e.target.value)}
-        className="w-full bg-transparent text-center text-xs font-bold uppercase tracking-wide text-foreground/55 outline-none focus:text-foreground"
-      />
-      <p className="mt-1.5 font-display text-5xl font-bold tabular-nums text-foreground sm:text-6xl">{score}</p>
-      <div className="mt-3 flex items-center justify-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => onScoreChange((v) => Math.max(0, v - 1))}
-          aria-label={`Togli un punto a ${label || "questa squadra"}`}
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle bg-surface text-foreground transition-colors active:bg-muted sm:hover:bg-muted"
-        >
-          <Minus className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => onScoreChange((v) => v + 1)}
-          aria-label={`Aggiungi un punto a ${label || "questa squadra"}`}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors active:opacity-80 sm:hover:opacity-90"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+      <div className="flex items-center justify-center gap-1.5">
+        <input
+          value={team.label}
+          onChange={(e) => onLabelChange(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-center text-xs font-bold uppercase tracking-wide text-foreground/55 outline-none focus:text-foreground"
+        />
+        {isServing && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
+            <Volleyball className="h-2.5 w-2.5" />
+            Al servizio
+          </span>
+        )}
       </div>
-    </div>
-  );
-}
-
-function TeamRotationControls({ team, idPrefix }: { team: TeamState; idPrefix: string }) {
-  return (
-    <div>
-      <div className="flex gap-2">
-        <Button onClick={team.rotate} size="lg" className="flex-1">
-          <RotateCw className="h-4 w-4" />
-          Ruota {team.label || idPrefix}
-        </Button>
-        <Button
-          onClick={team.undoRotate}
-          variant="outline"
-          size="lg"
-          disabled={team.history.length === 0}
-          aria-label={`Annulla ultima rotazione ${team.label || idPrefix}`}
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {team.liberoName.trim() && team.hostName.trim() && (
-        <p className="mt-2.5 text-center text-xs text-muted-foreground">
-          {isLiberoOnCourt(team.positions, team.hostName, team.liberoName)
-            ? `${team.liberoName.trim()} in campo per ${team.hostName.trim()}`
-            : hostPosition(team.positions, team.hostName)
-              ? `${team.hostName.trim()} in campo, ${team.liberoName.trim()} a riposo`
-              : `${team.hostName.trim()} non è più tra le titolari: aggiorna la formazione`}
-        </p>
-      )}
+      <p className="mt-1.5 font-display text-5xl font-bold tabular-nums text-foreground sm:text-6xl">{team.score}</p>
+      <p className="mt-1 text-xs font-medium text-muted-foreground">Set vinti: {team.setsWon}</p>
+      <Button onClick={onPoint} size="lg" className="mt-3 w-full">
+        Punto {team.label}
+      </Button>
     </div>
   );
 }
 
 function LiberoFields({
   team,
+  teamKey,
   idPrefix,
   athleteNames,
+  dispatch,
 }: {
-  team: TeamState;
+  team: LiveScoreTeamState;
+  teamKey: TeamKey;
   idPrefix: string;
   athleteNames: string[];
+  dispatch: (action: Action) => void;
 }) {
+  const filledNames = team.positions.map((n) => n.trim()).filter(Boolean);
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
       <Label htmlFor={`${idPrefix}-libero`}>Libero {team.label} (opzionale)</Label>
       <PositionNameField
         id={`${idPrefix}-libero`}
         value={team.liberoName}
-        onChange={team.setLiberoName}
+        onChange={(value) => dispatch({ type: "setLiberoName", team: teamKey, value })}
         athleteNames={athleteNames}
         placeholder="Nome della libero"
       />
       {team.liberoName.trim() && (
-        <div className="mt-3">
-          <Label htmlFor={`${idPrefix}-host`}>Sostituisce in seconda linea</Label>
-          <Select id={`${idPrefix}-host`} value={team.hostName} onChange={(e) => team.setHostName(e.target.value)}>
-            <option value="">Scegli chi sostituisce…</option>
-            {team.filledNames.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </Select>
-          <FieldHint>
-            La libero entra al suo posto ogni volta che è in seconda linea (posizioni 1, 5, 6), ed esce
-            quando tocca a lei giocare a rete.
-          </FieldHint>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor={`${idPrefix}-host1`}>1ª centrale</Label>
+            <Select
+              id={`${idPrefix}-host1`}
+              value={team.hostNames[0]}
+              onChange={(e) => dispatch({ type: "setHostName", team: teamKey, index: 0, value: e.target.value })}
+            >
+              <option value="">Scegli…</option>
+              {filledNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor={`${idPrefix}-host2`}>2ª centrale</Label>
+            <Select
+              id={`${idPrefix}-host2`}
+              value={team.hostNames[1]}
+              onChange={(e) => dispatch({ type: "setHostName", team: teamKey, index: 1, value: e.target.value })}
+            >
+              <option value="">Scegli…</option>
+              {filledNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       )}
+      <FieldHint>
+        La libero sostituisce qualunque delle due centrali sia in seconda linea. Se tocca a una di loro
+        servire, gioca lei stessa finché non perde il punto: solo da quel momento entra la libero al suo
+        posto, fino a quando quella centrale non rientra a rete.
+      </FieldHint>
     </div>
   );
 }
 
-function isTeamStateEmpty(state: LiveScoreTeamState): boolean {
+function LiberoStatus({ team }: { team: LiveScoreTeamState }) {
+  if (!team.liberoName.trim()) return null;
   return (
-    state.positions.every((name) => name.trim() === "") &&
-    state.liberoName.trim() === "" &&
-    state.score === 0
+    <p className="text-center text-xs text-muted-foreground">
+      {team.liberoActiveFor
+        ? `${team.liberoName.trim()} in campo per ${team.liberoActiveFor}`
+        : `${team.liberoName.trim()} pronta a entrare quando una centrale perde il servizio`}
+    </p>
   );
 }
 
@@ -390,19 +461,18 @@ function isTeamStateEmpty(state: LiveScoreTeamState): boolean {
  * Tabellone live per l'allenamento: pensato per tablet o computer a bordo
  * campo (vedi il gate `sm:hidden` più sotto), mai per telefono — due mezzi
  * campo e due tabelloni leggibili non ci stanno in una manciata di
- * centimetri. Il rotation undo è solo in memoria (si perde al ricaricare,
- * di proposito: è una comodità per la sessione in corso, non uno stato da
- * conservare), ma formazioni e punteggio si salvano in automatico su
- * Supabase per qualche ora — così un ricaricamento accidentale a bordo
- * campo non fa perdere l'allenamento in corso (vedi LIVE_SCORE_TTL_MS).
+ * centimetri. Formazioni, punteggio, set e stato della libero si salvano
+ * in automatico su Supabase per qualche ora (vedi LIVE_SCORE_TTL_MS), così
+ * un ricaricamento accidentale non fa perdere l'allenamento in corso; lo
+ * storico punti (per l'annulla) resta invece solo in memoria.
  */
 export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
-  const [started, setStarted] = useState(false);
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({ match: initialMatch(), history: [] }));
   const [editingNames, setEditingNames] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const teamA = useTeamState("Squadra A");
-  const teamB = useTeamState("Squadra B");
+  const [pendingServer, setPendingServer] = useState<TeamKey>("A");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { match } = state;
 
   // Al montaggio, ripristina l'eventuale allenamento salvato di recente
   // (entro LIVE_SCORE_TTL_MS): senza questo la pagina parte sempre vuota,
@@ -413,9 +483,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { state: LiveScoreState | null } | null) => {
         if (cancelled || !data?.state) return;
-        teamA.hydrate(data.state.teamA);
-        teamB.hydrate(data.state.teamB);
-        setStarted(data.state.started);
+        dispatch({ type: "hydrate", match: data.state });
       })
       .catch(() => {})
       .finally(() => {
@@ -424,7 +492,6 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Salvataggio automatico, con un breve debounce per non scrivere a ogni
@@ -433,37 +500,35 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
   // e quando non c'è ancora nulla da salvare.
   useEffect(() => {
     if (!loaded) return;
-    if (isTeamStateEmpty(teamA.snapshot) && isTeamStateEmpty(teamB.snapshot) && !started) return;
+    if (!match.started && isTeamEmpty(match.teamA) && isTeamEmpty(match.teamB)) return;
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const state: LiveScoreState = { started, teamA: teamA.snapshot, teamB: teamB.snapshot };
       fetch(LIVESCORE_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(state),
+        body: JSON.stringify(match),
       }).catch(() => {});
     }, AUTOSAVE_DELAY_MS);
 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, started, teamA.snapshot, teamB.snapshot]);
-
-  function handleStart() {
-    setStarted(true);
-    setEditingNames(false);
-  }
+  }, [loaded, match]);
 
   function handleNewMatch() {
     if (!window.confirm("Iniziare un nuovo allenamento? Punteggi e formazioni attuali andranno persi.")) return;
-    setStarted(false);
     setEditingNames(false);
-    teamA.reset();
-    teamB.reset();
+    dispatch({ type: "newMatch" });
     fetch(LIVESCORE_API, { method: "DELETE" }).catch(() => {});
   }
+
+  const leftKey: TeamKey = match.sidesSwapped ? "B" : "A";
+  const rightKey: TeamKey = match.sidesSwapped ? "A" : "B";
+  const leftTeam = match[teamKeyProp(leftKey)];
+  const rightTeam = match[teamKeyProp(rightKey)];
+  const matchWinner: TeamKey | null = match.teamA.setsWon >= 3 ? "A" : match.teamB.setsWon >= 3 ? "B" : null;
+  const tied = match.teamA.score === match.teamB.score;
 
   return (
     <>
@@ -477,7 +542,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
       </div>
 
       <div className="hidden sm:block">
-        {!started ? (
+        {!match.started ? (
           <div className="space-y-5">
             <div>
               <p className="eyebrow">
@@ -492,16 +557,37 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </div>
 
             <DualLiveScoreCourt
-              renderCellA={renderTeamCell(teamA, true, athleteNames)}
-              renderCellB={renderTeamCell(teamB, true, athleteNames)}
+              renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch)}
+              renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch)}
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <LiberoFields team={teamA} idPrefix="a-setup" athleteNames={athleteNames} />
-              <LiberoFields team={teamB} idPrefix="b-setup" athleteNames={athleteNames} />
+              <LiberoFields team={match.teamA} teamKey="A" idPrefix="a-setup" athleteNames={athleteNames} dispatch={dispatch} />
+              <LiberoFields team={match.teamB} teamKey="B" idPrefix="b-setup" athleteNames={athleteNames} dispatch={dispatch} />
             </div>
 
-            <Button onClick={handleStart} size="lg" className="w-full">
+            <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
+              <Label>Chi serve per prima?</Label>
+              <div className="mt-1.5 grid grid-cols-2 gap-2">
+                {(["A", "B"] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPendingServer(key)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+                      pendingServer === key
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border-subtle text-foreground/70 hover:bg-muted",
+                    )}
+                  >
+                    {match[teamKeyProp(key)].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={() => dispatch({ type: "startMatch", servingTeam: pendingServer })} size="lg" className="w-full">
               <Volleyball className="h-4 w-4" />
               Inizia
             </Button>
@@ -516,7 +602,11 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 </p>
                 <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">In campo</h1>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => dispatch({ type: "toggleSides" })}>
+                  <Repeat className="h-3.5 w-3.5" />
+                  Inverti campi
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditingNames((v) => !v)}>
                   <Pencil className="h-3.5 w-3.5" />
                   {editingNames ? "Fatto" : "Modifica formazioni"}
@@ -528,27 +618,59 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </div>
             </div>
 
-            <div className="grid gap-3.5 sm:grid-cols-2">
-              <ScoreCard label={teamA.label} onLabelChange={teamA.setLabel} score={teamA.score} onScoreChange={teamA.setScore} />
-              <ScoreCard label={teamB.label} onLabelChange={teamB.setLabel} score={teamB.score} onScoreChange={teamB.setScore} />
-            </div>
-
-            <DualLiveScoreCourt
-              renderCellA={renderTeamCell(teamA, editingNames, athleteNames)}
-              renderCellB={renderTeamCell(teamB, editingNames, athleteNames)}
-            />
-
-            {editingNames && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <LiberoFields team={teamA} idPrefix="a-live" athleteNames={athleteNames} />
-                <LiberoFields team={teamB} idPrefix="b-live" athleteNames={athleteNames} />
+            {matchWinner && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-center text-sm font-bold text-primary">
+                🏆 {match[teamKeyProp(matchWinner)].label} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
+                {match[teamKeyProp(otherKey(matchWinner))].setsWon})
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TeamRotationControls team={teamA} idPrefix="Squadra A" />
-              <TeamRotationControls team={teamB} idPrefix="Squadra B" />
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <ScoreCard
+                team={leftTeam}
+                isServing={match.servingTeam === leftKey}
+                onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
+                onPoint={() => dispatch({ type: "point", winner: leftKey })}
+              />
+              <ScoreCard
+                team={rightTeam}
+                isServing={match.servingTeam === rightKey}
+                onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
+                onPoint={() => dispatch({ type: "point", winner: rightKey })}
+              />
             </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button variant="outline" onClick={() => dispatch({ type: "closeSet" })} disabled={tied}>
+                Chiudi set
+              </Button>
+              <Button variant="ghost" onClick={() => dispatch({ type: "undo" })} disabled={state.history.length === 0}>
+                <Undo2 className="h-3.5 w-3.5" />
+                Annulla ultimo punto
+              </Button>
+            </div>
+            {tied && (
+              <p className="-mt-2 text-center text-xs text-muted-foreground">
+                Il punteggio è pari: continua a giocare prima di chiudere il set.
+              </p>
+            )}
+
+            <DualLiveScoreCourt
+              renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch)}
+              renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch)}
+            />
+
+            {editingNames ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <LiberoFields team={leftTeam} teamKey={leftKey} idPrefix={`${leftKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
+                <LiberoFields team={rightTeam} teamKey={rightKey} idPrefix={`${rightKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <LiberoStatus team={leftTeam} />
+                <LiberoStatus team={rightTeam} />
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -405,21 +405,40 @@ export interface StorageOverview {
   generatedAt: string;
 }
 
-/** Formazione + punteggio di una delle due squadre nel tabellone live
- * (src/app/admin/livescore): stesso significato dei campi lato client, così
- * il salvataggio automatico può scrivere e rileggere lo stato senza
- * trasformazioni. Niente storico rotazioni: l'annulla è una comodità solo
- * per la sessione in corso, non serve sopravvivere a un ricaricamento. */
+/** Formazione, libero e punteggio di una delle due squadre nel tabellone
+ * live (src/app/admin/livescore): stesso significato dei campi lato
+ * client, così il salvataggio automatico può scrivere e rileggere lo
+ * stato senza trasformazioni. Niente storico punti (per l'annulla): è una
+ * comodità solo per la sessione in corso, non serve sopravvivere a un
+ * ricaricamento. */
 export interface LiveScoreTeamState {
   label: string;
   positions: [string, string, string, string, string, string];
   liberoName: string;
-  hostName: string;
+  /** Le due centrali che la libero può sostituire (il regolamento parla
+   * sempre di due giocatrici, mai una sola). */
+  hostNames: [string, string];
+  /** Nome della centrale che la libero sta sostituendo in questo momento,
+   * o null se in campo giocano loro stesse. Non è deducibile dalla sola
+   * formazione: la libero entra solo dopo che la centrale è arrivata in
+   * battuta (posizione 1) e ha perso il punto, quindi va tracciato come
+   * stato a sé (vedi applyPoint in LiveScoreClient.tsx). */
+  liberoActiveFor: string | null;
   score: number;
+  setsWon: number;
 }
 
 export interface LiveScoreState {
   started: boolean;
+  /** Chi sta servendo in questo momento: unico per tutto il match, dato
+   * che le due squadre giocano davvero una contro l'altra sullo stesso
+   * campo (non due punteggi indipendenti). null solo prima che il coach
+   * scelga chi serve per prima, in fase di impostazione. */
+  servingTeam: "A" | "B" | null;
+  /** Se true, la Squadra A è disegnata sulla metà campo destra e la
+   * Squadra B su quella sinistra (vedi "Inverti campi") — solo resa
+   * visiva, non tocca mai i dati delle due squadre. */
+  sidesSwapped: boolean;
   teamA: LiveScoreTeamState;
   teamB: LiveScoreTeamState;
 }

@@ -9,12 +9,16 @@ const teamStateSchema = z.object({
   label: z.string(),
   positions: z.tuple([z.string(), z.string(), z.string(), z.string(), z.string(), z.string()]),
   liberoName: z.string(),
-  hostName: z.string(),
+  hostNames: z.tuple([z.string(), z.string()]),
+  liberoActiveFor: z.string().nullable(),
   score: z.number().int().min(0),
+  setsWon: z.number().int().min(0),
 });
 
 const liveScoreStateSchema = z.object({
   started: z.boolean(),
+  servingTeam: z.enum(["A", "B"]).nullable(),
+  sidesSwapped: z.boolean(),
   teamA: teamStateSchema,
   teamB: teamStateSchema,
 }) satisfies z.ZodType<LiveScoreState>;
