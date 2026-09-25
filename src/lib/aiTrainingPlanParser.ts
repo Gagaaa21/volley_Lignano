@@ -1,45 +1,44 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { ParsedTrainingText } from "./trainingPlanParser";
+import { TOTAL_RE, type ParsedBlock, type ParsedTrainingText } from "./trainingPlanParser";
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    preamble: {
-      type: Type.STRING,
-      description: "Testo introduttivo prima del primo blocco numerato (obiettivi, durata totale, ecc). Stringa vuota se assente.",
-    },
     blocks: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
+          headingLine: {
+            type: Type.STRING,
+            description:
+              "La riga di intestazione ESATTAMENTE come appare nel testo originale, carattere per carattere (stessi spazi, stessa punteggiatura, stesso trattino/apostrofo) — es. \"3. RICEZIONE – 30’\". Mai corretta, riformattata o parafrasata.",
+          },
           title: { type: Type.STRING, description: "Titolo del blocco, senza numero né durata." },
           durationMinutes: { type: Type.INTEGER, description: "Durata del blocco in minuti, come numero intero." },
-          content: { type: Type.STRING, description: "Contenuto completo del blocco (tutte le righe fino al blocco successivo)." },
         },
-        required: ["title", "durationMinutes", "content"],
+        required: ["headingLine", "title", "durationMinutes"],
       },
     },
   },
-  required: ["preamble", "blocks"],
+  required: ["blocks"],
 };
 
-const SYSTEM_INSTRUCTION = `Sei un assistente che struttura testi di allenamenti di pallavolo incollati da un allenatore.
-Il testo è diviso in "macro blocchi" (es. riscaldamento, circuito fisico, gioco finale), spesso introdotti da righe come
-"1. TITOLO – 10'" ma con formattazione irregolare (durate "circa", trattini diversi, titoli con più parole).
-Individua ogni blocco distinto, il suo titolo, la sua durata in minuti e tutto il suo contenuto.
+const SYSTEM_INSTRUCTION = `Sei un assistente che individua le intestazioni dei blocchi in un testo di allenamento di
+pallavolo incollato da un allenatore, spesso introdotte da righe come "1. TITOLO – 10'" (numero, titolo, durata) ma con
+formattazione irregolare (durate "circa", trattini diversi, titoli con più parole).
 
-Regole per il contenuto di ogni blocco:
-- Copia il testo così come scritto, senza riformularlo, riassumerlo o riordinarlo: il tuo compito è capire dove finisce
-  un blocco e inizia il successivo, non riscrivere il testo dell'allenatore.
-- Non inventare blocchi che non esistono nel testo e non perdere contenuto: ogni riga originale (esclusi i titoli
-  numerati dei macro blocchi e la riga "Totale") deve finire nel blocco a cui appartiene, nello stesso ordine.
-- Un macro blocco contiene spesso una sequenza di sotto-esercizi più brevi, ciascuno introdotto dalla propria durata
-  (es. "5' – Palleggio spinto da zona 1 → zona 5"): sono esercizi da svolgere IN SEQUENZA, uno dopo l'altro, non
-  stazioni a rotazione. Mantienili esattamente come sono scritti, nello stesso ordine, senza rietichettarli come
-  "Stazione 1", "Stazione 2" ecc. e senza trasformarli in un circuito a stazioni, a meno che il testo originale non usi
-  già quella parola.
-- Se una durata non è indicata per un blocco, stima un valore ragionevole in base al contenuto.`;
+Il tuo UNICO compito è individuare ogni riga di intestazione di un blocco numerato e restituirla ESATTAMENTE come
+appare nel testo originale (stessi spazi, stessa punteggiatura, stesso apostrofo/trattino), insieme al titolo e alla
+durata che ne estrai. Il contenuto che segue ogni intestazione NON lo scrivi tu: lo estrae il programma dal testo
+originale copiandolo carattere per carattere, quindi non devi mai riassumerlo, correggerlo, tradurlo, riordinarlo o
+inventarlo — anche solo descriverlo diversamente da come è scritto (es. cambiare "esercizi" in "stazioni", o
+aggiungere dettagli come zone del campo non menzionate) è un errore grave.
+
+Non considerare intestazione una riga che introduce un singolo esercizio più breve dentro un blocco più ampio (es.
+"5' – Palleggio spinto da zona 1 → zona 5", durata scritta PRIMA del titolo): fa parte del contenuto del blocco
+numerato che la precede, non è un nuovo blocco. Non inventare intestazioni che non esistono nel testo e non alterare
+l'ordine in cui compaiono.`;
 
 function getClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -75,41 +74,69 @@ async function generateWithRetry(client: GoogleGenAI, text: string) {
  * regex (parseTrainingPlanText) non riesce a riconoscere la formattazione. Ritorna null
  * per qualsiasi errore/assenza di configurazione, cosicché il chiamante possa ricadere
  * sul risultato del parser regex senza interrompere la creazione della scheda.
+ *
+ * L'IA individua SOLO dove inizia ogni blocco (titolo, durata, riga di intestazione
+ * esatta): il contenuto di ogni blocco viene sempre ritagliato dal testo originale con
+ * un semplice taglio di stringa, mai riscritto dal modello. Se una riga di intestazione
+ * restituita dall'IA non corrisponde esattamente (carattere per carattere) a una riga del
+ * testo originale — segno che il modello l'ha alterata invece di copiarla — l'intero
+ * risultato viene scartato e si ricade sul parser regex, per non rischiare di salvare
+ * contenuto inventato o riformulato.
  */
 export async function parseTrainingPlanWithAI(raw: string): Promise<ParsedTrainingText | null> {
-  const text = raw.trim();
-  if (!text) return null;
+  const cleaned = raw
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .filter((line) => !TOTAL_RE.test(line.trim()))
+    .join("\n")
+    .trim();
+  if (!cleaned) return null;
 
   const client = getClient();
   if (!client) return null;
 
   try {
-    const response = await generateWithRetry(client, text);
+    const response = await generateWithRetry(client, cleaned);
 
-    const raw2 = response.text;
-    if (!raw2) return null;
+    const responseText = response.text;
+    if (!responseText) return null;
 
-    const parsed = JSON.parse(raw2) as {
-      preamble?: unknown;
-      blocks?: Array<{ title?: unknown; durationMinutes?: unknown; content?: unknown }>;
+    const parsed = JSON.parse(responseText) as {
+      blocks?: Array<{ headingLine?: unknown; title?: unknown; durationMinutes?: unknown }>;
     };
-
     if (!Array.isArray(parsed.blocks) || parsed.blocks.length === 0) return null;
 
-    const blocks = parsed.blocks
-      .map((b) => ({
-        title: typeof b.title === "string" ? b.title.trim() : "",
-        durationMinutes: typeof b.durationMinutes === "number" ? Math.round(b.durationMinutes) : Number(b.durationMinutes),
-        content: typeof b.content === "string" ? b.content.trim() : "",
-      }))
-      .filter((b) => b.title && Number.isFinite(b.durationMinutes) && b.durationMinutes > 0);
+    const headings: { headingLine: string; title: string; durationMinutes: number }[] = [];
+    for (const b of parsed.blocks) {
+      if (typeof b.headingLine !== "string" || typeof b.title !== "string") continue;
+      const durationMinutes =
+        typeof b.durationMinutes === "number" ? Math.round(b.durationMinutes) : Number(b.durationMinutes);
+      const title = b.title.trim();
+      if (!title || !Number.isFinite(durationMinutes) || durationMinutes <= 0) continue;
+      headings.push({ headingLine: b.headingLine, title, durationMinutes });
+    }
+    if (headings.length === 0) return null;
 
+    // Localizza ogni intestazione nel testo originale, in ordine di comparsa.
+    const positions: number[] = [];
+    let cursor = 0;
+    for (const { headingLine } of headings) {
+      const idx = cleaned.indexOf(headingLine, cursor);
+      if (idx === -1) return null;
+      positions.push(idx);
+      cursor = idx + headingLine.length;
+    }
+
+    const blocks: ParsedBlock[] = [];
+    for (let i = 0; i < positions.length; i++) {
+      const start = positions[i] + headings[i].headingLine.length;
+      const end = i + 1 < positions.length ? positions[i + 1] : cleaned.length;
+      const content = cleaned.slice(start, end).trim();
+      if (content) blocks.push({ title: headings[i].title, durationMinutes: headings[i].durationMinutes, content });
+    }
     if (blocks.length === 0) return null;
 
-    return {
-      preamble: typeof parsed.preamble === "string" ? parsed.preamble.trim() : "",
-      blocks,
-    };
+    return { preamble: cleaned.slice(0, positions[0]).trim(), blocks };
   } catch {
     return null;
   }

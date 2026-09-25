@@ -14,7 +14,7 @@ export interface ParsedTrainingText {
 // contengono a loro volta un trattino, es. "5. Gioco finale – attacco + muro – 30'".
 const HEADING_RE =
   /^\d+[.)]\s*(.+?)\s*[–—-]\s*(?:circa\s*|ca\.?\s*|~\s*)?(\d+)\s*(?:['’′]|min(?:uti)?\.?)?\s*$/i;
-const TOTAL_RE = /^totale\b/i;
+export const TOTAL_RE = /^totale\b/i;
 
 /**
  * Divide un testo di allenamento incollato in "macro blocchi": ogni blocco
