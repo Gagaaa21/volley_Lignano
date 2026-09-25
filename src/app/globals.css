@@ -138,6 +138,50 @@
   --font-display: var(--font-display);
 }
 
+/* Tema Minivolley — applicato dentro [data-theme="minivolley"] (il sito
+   pubblico /minivolley, vedi src/app/minivolley/layout.tsx). Ridefinisce le
+   STESSE variabili sea-* e sand-* che ogni componente condiviso già usa
+   (calendario, pulsanti, badge, focus ring…): bastano queste righe per
+   cambiare l'aspetto di tutto il sito Minivolley — colori diversi (corallo
+   + turchese, dal logo Volley S3, al posto di blu + oro) e un carattere dei
+   titoli diverso — senza toccare i singoli componenti, e senza alcun
+   effetto sul sito U14/U15 o sull'area riservata, che restano fuori da
+   questo scope. */
+:root[data-theme="minivolley"],
+[data-theme="minivolley"] {
+  --color-sea-50: #fff4f1;
+  --color-sea-100: #ffe4da;
+  --color-sea-200: #ffc9b4;
+  --color-sea-300: #ffa382;
+  --color-sea-400: #fb7a51;
+  --color-sea-500: #f05726;
+  --color-sea-600: #d34117;
+  --color-sea-700: #ac3212;
+  --color-sea-800: #872812;
+  --color-sea-900: #6b2211;
+  --color-sea-950: #391008;
+
+  --color-sand-50: #eafbf8;
+  --color-sand-100: #cdf4ee;
+  --color-sand-200: #9de9df;
+  --color-sand-300: #63d6c8;
+  --color-sand-400: #34baad;
+  --color-sand-500: #1c9e92;
+  --color-sand-600: #158176;
+  --color-sand-700: #14665f;
+  --color-sand-800: #14514c;
+  --color-sand-900: #12413d;
+
+  --primary: var(--color-sea-700);
+  --primary-foreground: #fff8f6;
+  --accent: var(--color-sand-100);
+  --accent-foreground: var(--color-sand-800);
+  --ring: var(--primary);
+  --gradient-primary: linear-gradient(135deg, var(--color-sea-400), var(--color-sea-700));
+
+  --font-display: var(--font-display-minivolley);
+}
+
 /* Il sito usa sempre il tema chiaro, indipendentemente dalle preferenze
    di sistema del visitatore (nessun @media prefers-color-scheme: dark). */
 

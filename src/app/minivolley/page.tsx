@@ -85,7 +85,7 @@ export default async function MinivolleyPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PublicHeader subtitle="Minivolley" team="minivolley" />
+      <PublicHeader team="minivolley" />
 
       <section className="auth-stage relative overflow-hidden">
         <Image

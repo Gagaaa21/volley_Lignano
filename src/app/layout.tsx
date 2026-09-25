@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
+import { Baloo_2, IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
 import { PwaClient } from "@/components/pwa/PwaClient";
 import { PwaInstallProvider } from "@/components/pwa/PwaInstallContext";
 import "./globals.css";
@@ -14,6 +14,16 @@ const display = Libre_Baskerville({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["400", "700"],
+});
+
+// Titoli del sito Minivolley: un carattere rotondo e giocoso al posto del
+// serif elegante del sito U14/U15 principale, applicato solo dentro
+// [data-theme="minivolley"] (vedi globals.css) — un segnale immediato, a
+// colpo d'occhio, che non si tratta della stessa pagina.
+const displayMinivolley = Baloo_2({
+  variable: "--font-display-minivolley",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
 });
 
 const SITE_URL = "https://volley-lignano.vercel.app";
@@ -61,7 +71,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="it"
       data-scroll-behavior="smooth"
-      className={`${body.variable} ${display.variable} h-full scroll-smooth antialiased`}
+      className={`${body.variable} ${display.variable} ${displayMinivolley.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <PwaInstallProvider>

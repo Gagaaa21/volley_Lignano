@@ -41,6 +41,13 @@ export function Logo({
   href = "/",
 }: LogoProps) {
   const inverted = variant === "inverted";
+  const isMinivolley = team === "minivolley";
+  // Su Minivolley la gerarchia si inverte: "Minivolley" grande e in
+  // evidenza, "Volley Lignano" piccolo sotto — altrimenti, con "Volley
+  // Lignano" sempre in primo piano, è facile scambiarlo per il sito
+  // principale (il motivo per cui esiste questo prop team).
+  const primaryText = isMinivolley ? "Minivolley" : "Volley Lignano";
+  const secondaryText = isMinivolley ? "Volley Lignano" : subtitle;
   return (
     <Link href={href} className={cn("group flex items-center gap-3", className)}>
       <span className={cn("brand-chip shrink-0 transition-transform group-hover:scale-105", CHIP_SIZES[size])}>
@@ -59,7 +66,7 @@ export function Logo({
               inverted ? "text-white" : "text-foreground",
             )}
           >
-            Volley Lignano
+            {primaryText}
           </span>
           <span
             className={cn(
@@ -67,7 +74,7 @@ export function Logo({
               inverted ? "text-sand-200" : "text-sand-600",
             )}
           >
-            {subtitle}
+            {secondaryText}
           </span>
         </span>
       )}

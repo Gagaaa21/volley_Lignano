@@ -7,7 +7,7 @@
   "scope": "/minivolley",
   "display": "standalone",
   "background_color": "#f5f8fa",
-  "theme_color": "#1f5084",
+  "theme_color": "#ac3212",
   "lang": "it",
   "icons": [
     { "src": "/icons-s3/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
