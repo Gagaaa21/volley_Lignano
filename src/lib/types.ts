@@ -439,8 +439,18 @@ export interface LiveScoreSetResult {
   scoreB: number;
 }
 
+/** "training" (default): nomi delle atlete nelle 6 posizioni, come durante
+ * un allenamento. "match": numeri di maglia al posto dei nomi (spesso non
+ * si conoscono le atlete avversarie) e Squadra A è sempre "Volley Lignano"
+ * a etichetta fissa — si scrive solo il nome dell'avversaria in Squadra B. */
+export type LiveScoreMode = "training" | "match";
+
 export interface LiveScoreState {
   started: boolean;
+  /** "training" o "match" (vedi LiveScoreMode) — scelto in fase di
+   * impostazione, prima di "Inizia", e non più modificabile a match
+   * avviato. */
+  mode: LiveScoreMode;
   /** Chi sta servendo in questo momento: unico per tutto il match, dato
    * che le due squadre giocano davvero una contro l'altra sullo stesso
    * campo (non due punteggi indipendenti). null solo prima che il coach

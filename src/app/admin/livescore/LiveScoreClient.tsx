@@ -3,11 +3,11 @@
 import { useEffect, useReducer, useRef, useState, type CSSProperties } from "react";
 import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Timer, TimerOff, Trophy, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Label, Select, FieldHint } from "@/components/ui/Field";
+import { Label, Select, FieldHint, Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
 import { shortName } from "@/components/matches/VolleyCourt";
-import type { CourtPosition, LiveScoreSetResult, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
+import type { CourtPosition, LiveScoreMode, LiveScoreSetResult, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
 
 /** I sei nomi "titolari" della rotazione, indicizzati per posizione
  * (positions[0] = posizione 1, ... positions[5] = posizione 6). */
@@ -24,6 +24,9 @@ const TEAM_ACCENT: Record<TeamKey, { dot: string; gradient: string; glow: string
 };
 
 const EMPTY_POSITIONS: Positions = ["", "", "", "", "", ""];
+/** In modalità "Partita", Squadra A è sempre il Volley Lignano: etichetta
+ * fissa, non un'altra squadra generica da rinominare come in allenamento. */
+const HOME_TEAM_LABEL = "Volley Lignano";
 const LIVESCORE_API = "/api/livescore";
 /** Tempo di inattività prima di salvare in automatico, per non fare una
  * richiesta a ogni singolo tasto premuto mentre si scrive un nome. */
@@ -67,13 +70,14 @@ function emptyTeam(label: string): LiveScoreTeamState {
   };
 }
 
-function initialMatch(): LiveScoreState {
+function initialMatch(mode: LiveScoreMode = "training"): LiveScoreState {
   return {
     started: false,
+    mode,
     servingTeam: null,
     sidesSwapped: false,
-    teamA: emptyTeam("Squadra A"),
-    teamB: emptyTeam("Squadra B"),
+    teamA: emptyTeam(mode === "match" ? HOME_TEAM_LABEL : "Squadra A"),
+    teamB: emptyTeam(mode === "match" ? "" : "Squadra B"),
     setHistory: [],
   };
 }
@@ -189,6 +193,7 @@ type Action =
   | { type: "undo" }
   | { type: "toggleSides" }
   | { type: "newMatch" }
+  | { type: "setMode"; mode: LiveScoreMode }
   | { type: "toggleTimeout"; team: TeamKey }
   | { type: "setPosition"; team: TeamKey; position: CourtPosition; value: string }
   | { type: "setLiberoName"; team: TeamKey; value: string }
@@ -234,7 +239,19 @@ function reducer(state: ReducerState, action: Action): ReducerState {
     case "toggleSides":
       return { ...state, match: { ...state.match, sidesSwapped: !state.match.sidesSwapped } };
     case "newMatch":
-      return { match: initialMatch(), history: [], pointLog: [], pointLogHistory: [] };
+      return { match: initialMatch(state.match.mode), history: [], pointLog: [], pointLogHistory: [] };
+    case "setMode": {
+      if (state.match.started) return state;
+      return {
+        ...state,
+        match: {
+          ...state.match,
+          mode: action.mode,
+          teamA: { ...state.match.teamA, label: action.mode === "match" ? HOME_TEAM_LABEL : "Squadra A" },
+          teamB: { ...state.match.teamB, label: action.mode === "match" ? "" : "Squadra B" },
+        },
+      };
+    }
     case "toggleTimeout": {
       const key = teamKeyProp(action.team);
       const team = state.match[key];
@@ -283,6 +300,7 @@ function PositionNameField({
   athleteNames,
   placeholder,
   compact,
+  numeric,
 }: {
   id?: string;
   value: string;
@@ -290,6 +308,10 @@ function PositionNameField({
   athleteNames: string[];
   placeholder: string;
   compact?: boolean;
+  /** Modalità "Partita": numero di maglia invece del nome — niente menù a
+   * tendina con le atlete (le avversarie non ci sono in registro, e anche
+   * per le nostre si scrive il numero, non il nome). */
+  numeric?: boolean;
 }) {
   const [forceCustom, setForceCustom] = useState(false);
   const trimmed = value.trim();
@@ -301,13 +323,14 @@ function PositionNameField({
     ? "w-full rounded-full bg-white/95 px-2 py-1 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700"
     : "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700 sm:text-xs";
 
-  if (athleteNames.length === 0) {
+  if (numeric || athleteNames.length === 0) {
     return (
       <input
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        inputMode={numeric ? "numeric" : undefined}
         className={fieldClass}
       />
     );
@@ -366,6 +389,7 @@ function renderTeamCell(
   isServing: boolean,
   dispatch: (action: Action) => void,
   large: boolean,
+  numeric: boolean,
 ) {
   return function TeamCell(position: CourtPosition) {
     if (editing) {
@@ -374,7 +398,8 @@ function renderTeamCell(
           value={team.positions[position - 1]}
           onChange={(value) => dispatch({ type: "setPosition", team: teamKey, position, value })}
           athleteNames={athleteNames}
-          placeholder={`Pos. ${position}`}
+          placeholder={numeric ? "N." : `Pos. ${position}`}
+          numeric={numeric}
         />
       );
     }
@@ -433,6 +458,8 @@ function ScoreCard({
   onPoint,
   onToggleTimeout,
   large,
+  labelEditable = true,
+  labelPlaceholder,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
@@ -441,6 +468,10 @@ function ScoreCard({
   onPoint: () => void;
   onToggleTimeout: () => void;
   large: boolean;
+  /** false in modalità "Partita" per Squadra A: il Volley Lignano è sempre
+   * lo stesso, non un'etichetta da scrivere ogni volta. */
+  labelEditable?: boolean;
+  labelPlaceholder?: string;
 }) {
   const accent = TEAM_ACCENT[teamKey];
   return (
@@ -461,14 +492,26 @@ function ScoreCard({
           large ? "px-3 py-0.5" : "px-4 py-1.5",
         )}
       >
-        <input
-          value={team.label}
-          onChange={(e) => onLabelChange(e.target.value)}
-          className={cn(
-            "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-white/85 outline-none placeholder:text-white/50 focus:text-white",
-            large ? "text-sm sm:text-base" : "text-xs",
-          )}
-        />
+        {labelEditable ? (
+          <input
+            value={team.label}
+            onChange={(e) => onLabelChange(e.target.value)}
+            placeholder={labelPlaceholder}
+            className={cn(
+              "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-white/85 outline-none placeholder:text-white/50 focus:text-white",
+              large ? "text-sm sm:text-base" : "text-xs",
+            )}
+          />
+        ) : (
+          <p
+            className={cn(
+              "min-w-0 flex-1 truncate text-center font-bold uppercase tracking-wide text-white/85",
+              large ? "text-sm sm:text-base" : "text-xs",
+            )}
+          >
+            {team.label}
+          </p>
+        )}
         {/* A schermo intero, set vinti e time-out stanno qui, sulla stessa
          * riga colorata: risparmia un'intera riga rispetto a metterli sotto
          * il punteggio, dove lo spazio in verticale è quello che conta. */}
@@ -556,6 +599,7 @@ function LiberoFields({
   athleteNames,
   dispatch,
   large,
+  numeric,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
@@ -563,8 +607,10 @@ function LiberoFields({
   athleteNames: string[];
   dispatch: (action: Action) => void;
   large?: boolean;
+  numeric?: boolean;
 }) {
   const filledNames = team.positions.map((n) => n.trim()).filter(Boolean);
+  const liberoLabel = numeric ? `Numero libero ${team.label}` : `Nome della libero`;
   return (
     <div className={large ? "" : "rounded-2xl border border-border-subtle bg-surface p-3.5"}>
       {!large && <Label htmlFor={`${idPrefix}-libero`}>Libero {team.label} (opzionale)</Label>}
@@ -573,8 +619,9 @@ function LiberoFields({
         value={team.liberoName}
         onChange={(value) => dispatch({ type: "setLiberoName", team: teamKey, value })}
         athleteNames={athleteNames}
-        placeholder={large ? `Libero ${team.label} (opzionale)` : "Nome della libero"}
+        placeholder={large ? `Libero ${team.label} (opzionale)` : liberoLabel}
         compact={large}
+        numeric={numeric}
       />
       {team.liberoName.trim() && (
         <div className={cn("grid grid-cols-2", large ? "mt-1.5 gap-1.5" : "mt-3 gap-3")}>
@@ -825,21 +872,72 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 Imposta le due squadre
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Scegli i nomi nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le
-                libero (se le usi).
+                {match.mode === "match"
+                  ? "Scegli i numeri di maglia nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le libero (se le usi)."
+                  : "Scegli i nomi nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le libero (se le usi)."}
               </p>
             </div>
 
+            {/* Allenamento (nomi) o Partita (numeri di maglia, avversaria
+             * col suo nome invece di "Squadra B"): scelta fatta qui, prima
+             * di iniziare — cambia come si compilano le posizioni sotto. */}
+            <div className="inline-flex rounded-xl border border-border-subtle bg-surface p-1">
+              {(
+                [
+                  { mode: "training" as const, label: "Allenamento" },
+                  { mode: "match" as const, label: "Partita" },
+                ]
+              ).map(({ mode, label }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => dispatch({ type: "setMode", mode })}
+                  className={cn(
+                    "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+                    match.mode === mode ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {match.mode === "match" && (
+              <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
+                <Label htmlFor="opponent-name">Nome avversaria (vs {HOME_TEAM_LABEL})</Label>
+                <Input
+                  id="opponent-name"
+                  value={match.teamB.label}
+                  onChange={(e) => dispatch({ type: "setLabel", team: "B", value: e.target.value })}
+                  placeholder="Es. Pallavolo Città"
+                />
+              </div>
+            )}
+
             <DualLiveScoreCourt
               className="shrink-0"
-              renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen)}
-              renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen)}
+              renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
+              renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
               large={isFullscreen}
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <LiberoFields team={match.teamA} teamKey="A" idPrefix="a-setup" athleteNames={athleteNames} dispatch={dispatch} />
-              <LiberoFields team={match.teamB} teamKey="B" idPrefix="b-setup" athleteNames={athleteNames} dispatch={dispatch} />
+              <LiberoFields
+                team={match.teamA}
+                teamKey="A"
+                idPrefix="a-setup"
+                athleteNames={athleteNames}
+                dispatch={dispatch}
+                numeric={match.mode === "match"}
+              />
+              <LiberoFields
+                team={match.teamB}
+                teamKey="B"
+                idPrefix="b-setup"
+                athleteNames={athleteNames}
+                dispatch={dispatch}
+                numeric={match.mode === "match"}
+              />
             </div>
 
             <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
@@ -857,7 +955,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                         : "border-border-subtle text-foreground/70 hover:bg-muted",
                     )}
                   >
-                    {match[teamKeyProp(key)].label}
+                    {match[teamKeyProp(key)].label.trim() || (key === "A" ? "Squadra A" : "Squadra B")}
                   </button>
                 ))}
               </div>
@@ -950,6 +1048,8 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 onPoint={() => dispatch({ type: "point", winner: leftKey })}
                 onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: leftKey })}
                 large={isFullscreen}
+                labelEditable={!(match.mode === "match" && leftKey === "A")}
+                labelPlaceholder={match.mode === "match" && leftKey === "B" ? "Nome avversaria" : undefined}
               />
               <ScoreCard
                 team={rightTeam}
@@ -959,14 +1059,16 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 onPoint={() => dispatch({ type: "point", winner: rightKey })}
                 onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: rightKey })}
                 large={isFullscreen}
+                labelEditable={!(match.mode === "match" && rightKey === "A")}
+                labelPlaceholder={match.mode === "match" && rightKey === "B" ? "Nome avversaria" : undefined}
               />
             </div>
 
             <DualLiveScoreCourt
               className={isFullscreen ? "min-h-0 flex-1" : "shrink-0"}
               fitHeight={isFullscreen}
-              renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen)}
-              renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen)}
+              renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, match.mode === "match")}
+              renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, match.mode === "match")}
               large={isFullscreen}
             />
 
@@ -979,6 +1081,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   athleteNames={athleteNames}
                   dispatch={dispatch}
                   large={isFullscreen}
+                  numeric={match.mode === "match"}
                 />
                 <LiberoFields
                   team={rightTeam}
@@ -987,6 +1090,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   athleteNames={athleteNames}
                   dispatch={dispatch}
                   large={isFullscreen}
+                  numeric={match.mode === "match"}
                 />
               </div>
             )}

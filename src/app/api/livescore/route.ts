@@ -23,6 +23,7 @@ const setResultSchema = z.object({
 
 const liveScoreStateSchema = z.object({
   started: z.boolean(),
+  mode: z.enum(["training", "match"]),
   servingTeam: z.enum(["A", "B"]).nullable(),
   sidesSwapped: z.boolean(),
   teamA: teamStateSchema,

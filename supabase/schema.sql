@@ -477,7 +477,7 @@ alter table test_mode_store enable row level security;
 -- Nessuna policy pubblica: raggiungibile solo tramite la service role key.
 
 -- =========================================================
--- live_score_state — tabellone live (allenamento, src/app/admin/livescore):
+-- live_score_state — tabellone live (allenamento o partita, src/app/admin/livescore):
 -- salvataggio automatico per non perdere tutto se la pagina si ricarica,
 -- ma solo per qualche ora — oltre updated_at + 3h l'applicazione ignora la
 -- riga come se non ci fosse (vedi LIVE_SCORE_TTL_MS). Stessa struttura a
