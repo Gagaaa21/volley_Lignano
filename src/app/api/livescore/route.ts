@@ -13,6 +13,12 @@ const teamStateSchema = z.object({
   liberoActiveFor: z.string().nullable(),
   score: z.number().int().min(0),
   setsWon: z.number().int().min(0),
+  timeoutsUsed: z.number().int().min(0),
+});
+
+const setResultSchema = z.object({
+  scoreA: z.number().int().min(0),
+  scoreB: z.number().int().min(0),
 });
 
 const liveScoreStateSchema = z.object({
@@ -21,6 +27,7 @@ const liveScoreStateSchema = z.object({
   sidesSwapped: z.boolean(),
   teamA: teamStateSchema,
   teamB: teamStateSchema,
+  setHistory: z.array(setResultSchema),
 }) satisfies z.ZodType<LiveScoreState>;
 
 /** Stesso controllo di requireStaffPage("livescore") in guard.ts, ma senza

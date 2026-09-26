@@ -1,23 +1,35 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
-import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Undo2, Volleyball } from "lucide-react";
+import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Timer, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
-import type { CourtPosition, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
+import type { CourtPosition, LiveScoreSetResult, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
 
 /** I sei nomi "titolari" della rotazione, indicizzati per posizione
  * (positions[0] = posizione 1, ... positions[5] = posizione 6). */
 type Positions = [string, string, string, string, string, string];
 type TeamKey = "A" | "B";
 
+/** Colore distintivo per squadra, riusato ovunque serva riconoscerle a
+ * colpo d'occhio (storico set, ultimi punti, bordo dei tabelloni) — le
+ * due tinte del brand (blu mare / ambra sabbia), non colori nuovi. */
+const TEAM_ACCENT: Record<TeamKey, { dot: string; text: string; border: string }> = {
+  A: { dot: "bg-sea-600", text: "text-sea-700", border: "border-sea-600" },
+  B: { dot: "bg-sand-600", text: "text-sand-700", border: "border-sand-600" },
+};
+
 const EMPTY_POSITIONS: Positions = ["", "", "", "", "", ""];
 const LIVESCORE_API = "/api/livescore";
 /** Tempo di inattività prima di salvare in automatico, per non fare una
  * richiesta a ogni singolo tasto premuto mentre si scrive un nome. */
 const AUTOSAVE_DELAY_MS = 900;
+/** Quanti degli ultimi punti mostrare nella striscia "Ultimi punti". */
+const POINT_LOG_LIMIT = 12;
+/** Time-out ufficiali a disposizione di ciascuna squadra per set. */
+const MAX_TIMEOUTS_PER_SET = 2;
 
 function teamKeyProp(key: TeamKey): "teamA" | "teamB" {
   return key === "A" ? "teamA" : "teamB";
@@ -49,6 +61,7 @@ function emptyTeam(label: string): LiveScoreTeamState {
     liberoActiveFor: null,
     score: 0,
     setsWon: 0,
+    timeoutsUsed: 0,
   };
 }
 
@@ -59,6 +72,7 @@ function initialMatch(): LiveScoreState {
     sidesSwapped: false,
     teamA: emptyTeam("Squadra A"),
     teamB: emptyTeam("Squadra B"),
+    setHistory: [],
   };
 }
 
@@ -127,9 +141,11 @@ function applyPoint(match: LiveScoreState, winner: TeamKey): LiveScoreState {
 }
 
 /** Chiude il set corrente: vince chi ha più punti (pareggio bloccato,
- * verificato anche a monte nel reducer). Punteggio azzerato per il set
- * successivo, libero resettata per entrambe (si riparte da capo), il
- * coach dovrà scegliere di nuovo chi serve per primo. */
+ * verificato anche a monte nel reducer). Il punteggio finale resta in
+ * `setHistory` (altrimenti andrebbe perso non appena si azzera per il set
+ * successivo), poi punteggio e time-out si azzerano, libero resettata per
+ * entrambe (si riparte da capo), il coach dovrà scegliere di nuovo chi
+ * serve per primo. */
 function closeSet(match: LiveScoreState): LiveScoreState {
   if (match.teamA.score === match.teamB.score) return match;
   const winner: TeamKey = match.teamA.score > match.teamB.score ? "A" : "B";
@@ -138,14 +154,29 @@ function closeSet(match: LiveScoreState): LiveScoreState {
   return {
     ...match,
     servingTeam: null,
-    [winnerKey]: { ...match[winnerKey], score: 0, setsWon: match[winnerKey].setsWon + 1, liberoActiveFor: null },
-    [loserKey]: { ...match[loserKey], score: 0, liberoActiveFor: null },
+    setHistory: [...match.setHistory, { scoreA: match.teamA.score, scoreB: match.teamB.score }],
+    [winnerKey]: {
+      ...match[winnerKey],
+      score: 0,
+      setsWon: match[winnerKey].setsWon + 1,
+      liberoActiveFor: null,
+      timeoutsUsed: 0,
+    },
+    [loserKey]: { ...match[loserKey], score: 0, liberoActiveFor: null, timeoutsUsed: 0 },
   };
 }
 
 interface ReducerState {
   match: LiveScoreState;
   history: LiveScoreState[];
+  /** Chi ha segnato gli ultimi punti del set in corso (solo per la
+   * striscia "Ultimi punti": non si salva su Supabase, si riparte da vuoto
+   * a ogni ricarica o nuovo set — non serve sopravvivere, è solo un colpo
+   * d'occhio sull'andamento). */
+  pointLog: TeamKey[];
+  /** Istantanea di pointLog corrispondente a ogni voce di `history`, per
+   * poter tornare indietro esattamente con "Annulla ultimo punto". */
+  pointLogHistory: TeamKey[][];
 }
 
 type Action =
@@ -156,6 +187,7 @@ type Action =
   | { type: "undo" }
   | { type: "toggleSides" }
   | { type: "newMatch" }
+  | { type: "toggleTimeout"; team: TeamKey }
   | { type: "setPosition"; team: TeamKey; position: CourtPosition; value: string }
   | { type: "setLiberoName"; team: TeamKey; value: string }
   | { type: "setHostName"; team: TeamKey; index: 0 | 1; value: string }
@@ -164,23 +196,49 @@ type Action =
 function reducer(state: ReducerState, action: Action): ReducerState {
   switch (action.type) {
     case "hydrate":
-      return { match: action.match, history: [] };
+      return { match: action.match, history: [], pointLog: [], pointLogHistory: [] };
     case "startMatch":
-      return { match: { ...state.match, started: true, servingTeam: action.servingTeam }, history: [] };
+      return {
+        match: { ...state.match, started: true, servingTeam: action.servingTeam },
+        history: [],
+        pointLog: [],
+        pointLogHistory: [],
+      };
     case "point":
-      return { match: applyPoint(state.match, action.winner), history: [...state.history, state.match] };
+      return {
+        match: applyPoint(state.match, action.winner),
+        history: [...state.history, state.match],
+        pointLog: [...state.pointLog, action.winner].slice(-POINT_LOG_LIMIT),
+        pointLogHistory: [...state.pointLogHistory, state.pointLog],
+      };
     case "closeSet": {
       if (state.match.teamA.score === state.match.teamB.score) return state;
-      return { match: closeSet(state.match), history: [...state.history, state.match] };
+      return {
+        match: closeSet(state.match),
+        history: [...state.history, state.match],
+        pointLog: [],
+        pointLogHistory: [...state.pointLogHistory, state.pointLog],
+      };
     }
     case "undo": {
       if (state.history.length === 0) return state;
-      return { match: state.history[state.history.length - 1], history: state.history.slice(0, -1) };
+      return {
+        match: state.history[state.history.length - 1],
+        history: state.history.slice(0, -1),
+        pointLog: state.pointLogHistory[state.pointLogHistory.length - 1] ?? [],
+        pointLogHistory: state.pointLogHistory.slice(0, -1),
+      };
     }
     case "toggleSides":
       return { ...state, match: { ...state.match, sidesSwapped: !state.match.sidesSwapped } };
     case "newMatch":
-      return { match: initialMatch(), history: [] };
+      return { match: initialMatch(), history: [], pointLog: [], pointLogHistory: [] };
+    case "toggleTimeout": {
+      const key = teamKeyProp(action.team);
+      const team = state.match[key];
+      const timeoutsUsed = team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? 0 : team.timeoutsUsed + 1;
+      return { ...state, match: { ...state.match, [key]: { ...team, timeoutsUsed } } };
+    }
     case "setPosition": {
       const key = teamKeyProp(action.team);
       const team = state.match[key];
@@ -358,25 +416,31 @@ function renderTeamCell(
 
 function ScoreCard({
   team,
+  teamKey,
   isServing,
   onLabelChange,
   onPoint,
+  onToggleTimeout,
   large,
 }: {
   team: LiveScoreTeamState;
+  teamKey: TeamKey;
   isServing: boolean;
   onLabelChange: (value: string) => void;
   onPoint: () => void;
+  onToggleTimeout: () => void;
   large: boolean;
 }) {
+  const accent = TEAM_ACCENT[teamKey];
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-gradient-to-b from-surface to-muted/30 text-center shadow-md transition-shadow",
+        "relative overflow-hidden rounded-2xl border bg-gradient-to-b from-surface to-muted/30 text-center shadow-md transition-shadow",
         large ? "p-3 sm:p-4" : "p-4",
         isServing ? "border-primary/40 shadow-primary/10" : "border-border-subtle",
       )}
     >
+      <span className={cn("absolute inset-y-0 left-0 w-1", accent.dot)} />
       <div className="flex items-center justify-center gap-1.5">
         <input
           value={team.label}
@@ -406,9 +470,26 @@ function ScoreCard({
       >
         {team.score}
       </p>
-      <p className={cn("font-medium text-muted-foreground", large ? "mt-1 text-xs sm:text-sm" : "mt-1 text-xs")}>
-        Set vinti: {team.setsWon}
-      </p>
+      <div className={cn("flex items-center justify-center gap-2.5", large ? "mt-1" : "mt-1")}>
+        <p className={cn("font-medium text-muted-foreground", large ? "text-xs sm:text-sm" : "text-xs")}>
+          Set vinti: {team.setsWon}
+        </p>
+        <button
+          type="button"
+          onClick={onToggleTimeout}
+          title="Segna un time-out (2 a disposizione per set)"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border font-bold uppercase tracking-wide transition-colors",
+            large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
+            team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET
+              ? "border-destructive/30 bg-destructive/10 text-destructive"
+              : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
+          )}
+        >
+          <Timer className={large ? "h-3 w-3" : "h-2.5 w-2.5"} />
+          Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+        </button>
+      </div>
       <Button onClick={onPoint} size={large ? "md" : "lg"} className={cn("w-full", large ? "mt-1.5" : "mt-3")}>
         Punto {team.label}
       </Button>
@@ -494,6 +575,61 @@ function LiberoStatus({ team }: { team: LiveScoreTeamState }) {
   );
 }
 
+/** Striscia compatta con lo storico dei set già giocati (il punteggio
+ * finale, altrimenti perso non appena si azzera per il set successivo) e
+ * gli ultimi punti segnati, colorati per squadra, per leggere al volo chi
+ * ha in mano il momentum — utile per un coach durante l'allenamento senza
+ * dover tenere a mente lo storico a voce. Non occupa una riga in più
+ * quando non c'è ancora nulla da mostrare. */
+function SetHistoryAndStreak({
+  setHistory,
+  pointLog,
+}: {
+  setHistory: LiveScoreSetResult[];
+  pointLog: TeamKey[];
+}) {
+  if (setHistory.length === 0 && pointLog.length === 0) return null;
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-xl border border-border-subtle bg-surface px-3.5 py-2">
+      {setHistory.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Set</span>
+          {setHistory.map((set, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold tabular-nums text-foreground"
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", TEAM_ACCENT.A.dot)} />
+              {set.scoreA}–{set.scoreB}
+              <span className={cn("h-1.5 w-1.5 rounded-full", TEAM_ACCENT.B.dot)} />
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span />
+      )}
+      {pointLog.length > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Ultimi punti</span>
+          <div className="flex items-center gap-1">
+            {pointLog.map((winner, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  TEAM_ACCENT[winner].dot,
+                  i === pointLog.length - 1 && "ring-2 ring-offset-1 ring-offset-surface",
+                  i === pointLog.length - 1 && (winner === "A" ? "ring-sea-300" : "ring-sand-300"),
+                )}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Tabellone live per l'allenamento: pensato per tablet o computer a bordo
  * campo (vedi il gate `sm:hidden` più sotto), mai per telefono — due mezzi
@@ -504,7 +640,12 @@ function LiberoStatus({ team }: { team: LiveScoreTeamState }) {
  * storico punti (per l'annulla) resta invece solo in memoria.
  */
 export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => ({ match: initialMatch(), history: [] }));
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({
+    match: initialMatch(),
+    history: [],
+    pointLog: [],
+    pointLogHistory: [],
+  }));
   const [editingNames, setEditingNames] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [pendingServer, setPendingServer] = useState<TeamKey>("A");
@@ -717,19 +858,25 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </div>
             )}
 
+            <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} />
+
             <div className="grid shrink-0 gap-3.5 sm:grid-cols-2">
               <ScoreCard
                 team={leftTeam}
+                teamKey={leftKey}
                 isServing={match.servingTeam === leftKey}
                 onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
                 onPoint={() => dispatch({ type: "point", winner: leftKey })}
+                onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: leftKey })}
                 large={isFullscreen}
               />
               <ScoreCard
                 team={rightTeam}
+                teamKey={rightKey}
                 isServing={match.servingTeam === rightKey}
                 onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
                 onPoint={() => dispatch({ type: "point", winner: rightKey })}
+                onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: rightKey })}
                 large={isFullscreen}
               />
             </div>

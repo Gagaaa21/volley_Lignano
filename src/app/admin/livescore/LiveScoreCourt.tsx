@@ -41,7 +41,17 @@ function HalfCourt({
 }) {
   const order = halfCourtOrder(side);
   return (
-    <div className={cn("grid flex-1 grid-cols-2 grid-rows-3 gap-px bg-white/80", large && "h-full")}>
+    <div
+      className={cn(
+        "grid flex-1 grid-rows-3 gap-px bg-white/80",
+        // Ogni metà campo è un quadrato di 9x9m: la fila vicino alla rete
+        // occupa i primi 3m (linea d'attacco), il fondo campo i restanti
+        // 6m — colonne in proporzione 1:2, non a metà, per restare fedeli
+        // alle misure reali di un campo di pallavolo.
+        side === "left" ? "grid-cols-[2fr_1fr]" : "grid-cols-[1fr_2fr]",
+        large && "h-full",
+      )}
+    >
       {order.map((position, idx) => (
         <div
           key={position}
@@ -72,7 +82,7 @@ function HalfCourt({
  * — come un'etichetta di quota su una pianta. */
 function EndLabel({ text, large }: { text: string; large: boolean }) {
   return (
-    <div className={cn("flex shrink-0 items-center justify-center", large ? "h-full w-8 sm:w-10" : "w-6 sm:w-7")}>
+    <div className={cn("flex shrink-0 items-center justify-center", large ? "w-8 sm:w-10" : "w-6 sm:w-7")}>
       <span
         className={cn(
           "origin-center -rotate-90 whitespace-nowrap font-bold uppercase tracking-[0.18em] text-sea-100/60",
@@ -131,21 +141,19 @@ export function DualLiveScoreCourt({
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border border-sea-700/50 bg-gradient-to-b from-sea-700 to-sea-950 shadow-xl shadow-sea-950/30",
-        large ? "flex min-h-0 flex-1 flex-col p-4 sm:p-6" : "p-3 sm:p-4",
+        large ? "flex min-h-0 flex-1 flex-col items-center justify-center p-4 sm:p-6" : "p-3 sm:p-4",
       )}
     >
       {/* Luce ambientale dall'alto, per dare profondità al pannello invece di un blu piatto. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/10 to-transparent" />
 
-      <div className={cn("relative flex items-stretch", large && "min-h-0 flex-1")}>
+      {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato per riempire lo
+       * spazio. Si adatta alla larghezza disponibile e, a schermo intero,
+       * anche all'altezza rimasta (max-h-full) restando sempre in scala. */}
+      <div className="relative mx-auto flex aspect-[2/1] w-full max-h-full items-stretch">
         <EndLabel text="Fondo campo" large={large} />
 
-        <div
-          className={cn(
-            "relative flex flex-1 overflow-hidden rounded-lg border-2 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.25)]",
-            large && "min-h-0",
-          )}
-        >
+        <div className="relative flex flex-1 overflow-hidden rounded-lg border-2 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.25)]">
           <HalfCourt side="left" renderCell={renderCellA} large={large} />
           <HalfCourt side="right" renderCell={renderCellB} large={large} />
 

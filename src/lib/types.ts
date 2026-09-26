@@ -426,6 +426,17 @@ export interface LiveScoreTeamState {
   liberoActiveFor: string | null;
   score: number;
   setsWon: number;
+  /** Time-out chiamati in questo set (regolamento: 2 a disposizione per
+   * squadra per set). Azzerato alla chiusura del set insieme al punteggio. */
+  timeoutsUsed: number;
+}
+
+/** Punteggio finale di un set già chiuso, per lo storico mostrato in
+ * partita (es. "25-20") — altrimenti quel dato andrebbe perso non appena
+ * il punteggio si azzera per il set successivo. */
+export interface LiveScoreSetResult {
+  scoreA: number;
+  scoreB: number;
 }
 
 export interface LiveScoreState {
@@ -441,6 +452,7 @@ export interface LiveScoreState {
   sidesSwapped: boolean;
   teamA: LiveScoreTeamState;
   teamB: LiveScoreTeamState;
+  setHistory: LiveScoreSetResult[];
 }
 
 /** Il tabellone live si salva in automatico (per non perdere tutto se la
