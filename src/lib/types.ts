@@ -463,6 +463,11 @@ export interface LiveScoreState {
   teamA: LiveScoreTeamState;
   teamB: LiveScoreTeamState;
   setHistory: LiveScoreSetResult[];
+  /** Colore (esadecimale) della Squadra B in modalità "Partita", scelto dal
+   * coach per riconoscere l'avversaria vera invece di un colore inventato —
+   * in modalità "Allenamento" non si usa (Squadra B è sempre giallo acceso,
+   * vedi getTeamAccent in LiveScoreClient.tsx). */
+  opponentColor: string;
 }
 
 /** Il tabellone live si salva in automatico (per non perdere tutto se la

@@ -29,6 +29,7 @@ const liveScoreStateSchema = z.object({
   teamA: teamStateSchema,
   teamB: teamStateSchema,
   setHistory: z.array(setResultSchema),
+  opponentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 }) satisfies z.ZodType<LiveScoreState>;
 
 /** Stesso controllo di requireStaffPage("livescore") in guard.ts, ma senza
