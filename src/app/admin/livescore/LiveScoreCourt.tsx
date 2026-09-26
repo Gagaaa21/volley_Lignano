@@ -143,7 +143,7 @@ export function DualLiveScoreCourt({
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border border-sea-700/50 bg-gradient-to-b from-sea-700 to-sea-950 shadow-xl shadow-sea-950/30",
-        "p-3 sm:p-4",
+        "p-1.5 sm:p-2",
         className,
       )}
     >

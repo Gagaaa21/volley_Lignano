@@ -282,12 +282,14 @@ function PositionNameField({
   onChange,
   athleteNames,
   placeholder,
+  compact,
 }: {
   id?: string;
   value: string;
   onChange: (v: string) => void;
   athleteNames: string[];
   placeholder: string;
+  compact?: boolean;
 }) {
   const [forceCustom, setForceCustom] = useState(false);
   const trimmed = value.trim();
@@ -295,8 +297,9 @@ function PositionNameField({
   const showCustomInput = forceCustom || (trimmed !== "" && !isKnownAthlete);
   const selectValue = showCustomInput ? CUSTOM_NAME_OPTION : isKnownAthlete ? trimmed : "";
 
-  const fieldClass =
-    "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700 sm:text-xs";
+  const fieldClass = compact
+    ? "w-full rounded-full bg-white/95 px-2 py-1 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700"
+    : "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700 sm:text-xs";
 
   if (athleteNames.length === 0) {
     return (
@@ -453,7 +456,7 @@ function ScoreCard({
         className={cn(
           "flex items-center justify-center gap-1.5 bg-gradient-to-br",
           accent.gradient,
-          "px-4 py-1.5",
+          large ? "px-3 py-0.5" : "px-4 py-1.5",
         )}
       >
         <input
@@ -464,6 +467,28 @@ function ScoreCard({
             large ? "text-sm sm:text-base" : "text-xs",
           )}
         />
+        {/* A schermo intero, set vinti e time-out stanno qui, sulla stessa
+         * riga colorata: risparmia un'intera riga rispetto a metterli sotto
+         * il punteggio, dove lo spazio in verticale è quello che conta. */}
+        {large && (
+          <>
+            <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">
+              Set {team.setsWon}
+            </span>
+            <button
+              type="button"
+              onClick={onToggleTimeout}
+              title="Segna un time-out (2 a disposizione per set)"
+              className={cn(
+                "inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors",
+                team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? "bg-white text-destructive" : "bg-white/20 text-white hover:bg-white/30",
+              )}
+            >
+              <Timer className="h-2.5 w-2.5" />
+              {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+            </button>
+          </>
+        )}
         {isServing && (
           <span
             className={cn(
@@ -476,37 +501,36 @@ function ScoreCard({
           </span>
         )}
       </div>
-      <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", "p-3")}>
+      <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", large ? "p-1" : "p-3")}>
         <p
           className={cn(
             "font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-foreground",
-            "text-5xl sm:text-6xl",
+            large ? "text-3xl" : "text-5xl sm:text-6xl",
           )}
           style={{ textShadow: `0 8px 28px ${accent.glow}` }}
         >
           {team.score}
         </p>
-        <div className="mt-1 flex items-center justify-center gap-2.5">
-          <p className={cn("font-medium text-muted-foreground", large ? "text-xs sm:text-sm" : "text-xs")}>
-            Set vinti: {team.setsWon}
-          </p>
-          <button
-            type="button"
-            onClick={onToggleTimeout}
-            title="Segna un time-out (2 a disposizione per set)"
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full border font-bold uppercase tracking-wide transition-colors",
-              large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
-              team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET
-                ? "border-destructive/30 bg-destructive/10 text-destructive"
-                : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
-            )}
-          >
-            <Timer className={large ? "h-3 w-3" : "h-2.5 w-2.5"} />
-            Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
-          </button>
-        </div>
-        <Button onClick={onPoint} size={large ? "sm" : "lg"} className={cn("w-full", large ? "mt-1.5" : "mt-3")}>
+        {!large && (
+          <div className="mt-1 flex items-center justify-center gap-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Set vinti: {team.setsWon}</p>
+            <button
+              type="button"
+              onClick={onToggleTimeout}
+              title="Segna un time-out (2 a disposizione per set)"
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors",
+                team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET
+                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                  : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
+              )}
+            >
+              <Timer className="h-2.5 w-2.5" />
+              Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+            </button>
+          </div>
+        )}
+        <Button onClick={onPoint} size={large ? "sm" : "lg"} className={cn("w-full", large ? "mt-1" : "mt-3")}>
           Punto {team.label}
         </Button>
       </div>
@@ -520,34 +544,37 @@ function LiberoFields({
   idPrefix,
   athleteNames,
   dispatch,
+  large,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
   idPrefix: string;
   athleteNames: string[];
   dispatch: (action: Action) => void;
+  large?: boolean;
 }) {
   const filledNames = team.positions.map((n) => n.trim()).filter(Boolean);
   return (
-    <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
-      <Label htmlFor={`${idPrefix}-libero`}>Libero {team.label} (opzionale)</Label>
+    <div className={large ? "" : "rounded-2xl border border-border-subtle bg-surface p-3.5"}>
+      {!large && <Label htmlFor={`${idPrefix}-libero`}>Libero {team.label} (opzionale)</Label>}
       <PositionNameField
         id={`${idPrefix}-libero`}
         value={team.liberoName}
         onChange={(value) => dispatch({ type: "setLiberoName", team: teamKey, value })}
         athleteNames={athleteNames}
-        placeholder="Nome della libero"
+        placeholder={large ? `Libero ${team.label} (opzionale)` : "Nome della libero"}
+        compact={large}
       />
       {team.liberoName.trim() && (
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className={cn("grid grid-cols-2", large ? "mt-1.5 gap-1.5" : "mt-3 gap-3")}>
           <div>
-            <Label htmlFor={`${idPrefix}-host1`}>1ª centrale</Label>
+            {!large && <Label htmlFor={`${idPrefix}-host1`}>1ª centrale</Label>}
             <Select
               id={`${idPrefix}-host1`}
               value={team.hostNames[0]}
               onChange={(e) => dispatch({ type: "setHostName", team: teamKey, index: 0, value: e.target.value })}
             >
-              <option value="">Scegli…</option>
+              <option value="">1ª centrale…</option>
               {filledNames.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -556,13 +583,13 @@ function LiberoFields({
             </Select>
           </div>
           <div>
-            <Label htmlFor={`${idPrefix}-host2`}>2ª centrale</Label>
+            {!large && <Label htmlFor={`${idPrefix}-host2`}>2ª centrale</Label>}
             <Select
               id={`${idPrefix}-host2`}
               value={team.hostNames[1]}
               onChange={(e) => dispatch({ type: "setHostName", team: teamKey, index: 1, value: e.target.value })}
             >
-              <option value="">Scegli…</option>
+              <option value="">2ª centrale…</option>
               {filledNames.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -572,11 +599,13 @@ function LiberoFields({
           </div>
         </div>
       )}
-      <FieldHint>
-        La libero sostituisce qualunque delle due centrali sia in seconda linea. Se tocca a una di loro
-        servire, gioca lei stessa finché non perde il punto: solo da quel momento entra la libero al suo
-        posto, fino a quando quella centrale non rientra a rete.
-      </FieldHint>
+      {!large && (
+        <FieldHint>
+          La libero sostituisce qualunque delle due centrali sia in seconda linea. Se tocca a una di loro
+          servire, gioca lei stessa finché non perde il punto: solo da quel momento entra la libero al suo
+          posto, fino a quando quella centrale non rientra a rete.
+        </FieldHint>
+      )}
     </div>
   );
 }
@@ -754,7 +783,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
         className={cn(
           "hidden sm:block",
           isFullscreen &&
-            "h-screen w-screen overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-3 sm:p-4",
+            "h-screen w-screen overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-0.5 sm:p-1",
         )}
       >
         <div
@@ -826,16 +855,17 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </Button>
           </div>
         ) : (
-          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-2" : "space-y-4")}>
-            {/* Intestazione a tre zone (titolo, storico/ultimi punti, azioni):
-             * prima erano due righe separate, unite qui per lasciare più
-             * spazio verticale al campo, che a schermo intero è quello che
-             * conta davvero. */}
-            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-0" : "space-y-4")}>
+            {/* Intestazione a tre zone (titolo, storico/ultimi punti, tutte
+             * le azioni raggruppate in un'unica riga di pulsanti): prima
+             * erano tre righe separate, unite qui per lasciare più spazio
+             * verticale al campo, che a schermo intero è quello che conta
+             * davvero. */}
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1
                 className={cn(
                   "shrink-0 font-[family-name:var(--font-display-minivolley)] font-extrabold text-foreground",
-                  isFullscreen ? "text-xl" : "text-2xl",
+                  isFullscreen ? "text-sm" : "text-2xl",
                 )}
               >
                 In campo
@@ -843,18 +873,31 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               <div className="flex min-w-0 flex-1 justify-center">
                 <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} />
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => dispatch({ type: "closeSet" })}
+                  disabled={tied}
+                  title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
+                >
+                  Chiudi set
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "undo" })} disabled={state.history.length === 0}>
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Annulla
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => dispatch({ type: "toggleSides" })}>
                   <Repeat className="h-3.5 w-3.5" />
-                  Inverti campi
+                  Inverti
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setEditingNames((v) => !v)}>
                   <Pencil className="h-3.5 w-3.5" />
-                  {editingNames ? "Fatto" : "Modifica formazioni"}
+                  {editingNames ? "Fatto" : "Formazioni"}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={handleNewMatch}>
                   <RefreshCw className="h-3.5 w-3.5" />
-                  Nuovo allenamento
+                  Nuovo
                 </Button>
                 <Button variant="outline" size="sm" onClick={toggleFullscreen}>
                   {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -891,19 +934,6 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               />
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2.5">
-              <Button variant="outline" size="sm" onClick={() => dispatch({ type: "closeSet" })} disabled={tied}>
-                Chiudi set
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "undo" })} disabled={state.history.length === 0}>
-                <Undo2 className="h-3.5 w-3.5" />
-                Annulla ultimo punto
-              </Button>
-              {tied && (
-                <span className="text-xs text-muted-foreground">Punteggio pari: continua prima di chiudere il set.</span>
-              )}
-            </div>
-
             <DualLiveScoreCourt
               className="shrink-0"
               renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen)}
@@ -912,9 +942,23 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             />
 
             {editingNames && (
-              <div className="grid shrink-0 gap-4 sm:grid-cols-2">
-                <LiberoFields team={leftTeam} teamKey={leftKey} idPrefix={`${leftKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
-                <LiberoFields team={rightTeam} teamKey={rightKey} idPrefix={`${rightKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
+              <div className={cn("grid shrink-0 sm:grid-cols-2", isFullscreen ? "gap-1.5" : "gap-4")}>
+                <LiberoFields
+                  team={leftTeam}
+                  teamKey={leftKey}
+                  idPrefix={`${leftKey}-live`}
+                  athleteNames={athleteNames}
+                  dispatch={dispatch}
+                  large={isFullscreen}
+                />
+                <LiberoFields
+                  team={rightTeam}
+                  teamKey={rightKey}
+                  idPrefix={`${rightKey}-live`}
+                  athleteNames={athleteNames}
+                  dispatch={dispatch}
+                  large={isFullscreen}
+                />
               </div>
             )}
           </div>
