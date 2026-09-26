@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import type { CourtPosition } from "@/lib/types";
 
@@ -132,15 +134,52 @@ export function DualLiveScoreCourt({
   renderCellA,
   renderCellB,
   large = false,
+  fitHeight = false,
   className,
 }: {
   renderCellA: (position: CourtPosition) => ReactNode;
   renderCellB: (position: CourtPosition) => ReactNode;
   large?: boolean;
+  /** Se true, il campo rispetta anche un limite di ALTEZZA (oltre a quello
+   * di larghezza già dato dal genitore), restringendosi leggermente sugli
+   * schermi molto bassi (es. un PC 1366x768) invece di sforare in verticale
+   * e forzare lo scroll — il tablet testato finora era abbastanza alto da
+   * non far mai emergere il problema. Misurato via JS (ResizeObserver)
+   * invece che solo CSS: `aspect-ratio` unito a `max-height` blocca
+   * l'altezza ma non fa "seguire" la larghezza, quindi da solo
+   * deformerebbe il campo invece di rimpicciolirlo in proporzione. Il
+   * chiamante deve mettere questo componente dentro un contenitore
+   * flessibile con altezza definita (`flex-1 min-h-0`), altrimenti non
+   * c'è nessun limite reale da rispettare. */
+  fitHeight?: boolean;
   className?: string;
 }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!fitHeight || !el) {
+      setMaxWidth(undefined);
+      return;
+    }
+    // clientHeight include il padding verticale del pannello (p-1.5/p-2):
+    // va tolto per avere l'altezza reale a disposizione del campo, altrimenti
+    // lo si restringerebbe leggermente anche quando non ce n'è bisogno.
+    const update = () => {
+      const style = getComputedStyle(el);
+      const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      setMaxWidth(Math.max(0, (el.clientHeight - verticalPadding) * 2));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fitHeight]);
+
   return (
     <div
+      ref={wrapperRef}
       className={cn(
         "relative overflow-hidden rounded-2xl border border-sea-700/50 bg-gradient-to-b from-sea-700 to-sea-950 shadow-xl shadow-sea-950/30",
         "p-1.5 sm:p-2",
@@ -150,10 +189,14 @@ export function DualLiveScoreCourt({
       {/* Luce ambientale dall'alto, per dare profondità al pannello invece di un blu piatto. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/10 to-transparent" />
 
-      {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato — ma riempie
-       * sempre tutta la larghezza disponibile (mai più stretto delle card
-       * sopra), l'altezza segue di conseguenza. */}
-      <div className="relative mx-auto flex aspect-[2/1] w-full items-stretch">
+      {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato — riempie tutta
+       * la larghezza disponibile (mai più stretto delle card sopra) finché
+       * l'altezza risultante ci sta, altrimenti (fitHeight) si restringe
+       * quel tanto che basta a stare nello spazio verticale reale. */}
+      <div
+        className="relative mx-auto flex aspect-[2/1] w-full items-stretch"
+        style={maxWidth !== undefined ? { maxWidth } : undefined}
+      >
         <EndLabel text="Fondo campo" large={large} />
 
         <div className="relative flex flex-1 overflow-hidden rounded-lg border-2 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.25)]">

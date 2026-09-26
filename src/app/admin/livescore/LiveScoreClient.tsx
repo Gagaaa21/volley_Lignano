@@ -963,7 +963,8 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </div>
 
             <DualLiveScoreCourt
-              className="shrink-0"
+              className={isFullscreen ? "min-h-0 flex-1" : "shrink-0"}
+              fitHeight={isFullscreen}
               renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen)}
               renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen)}
               large={isFullscreen}
