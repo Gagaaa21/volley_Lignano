@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
+import { shortName } from "@/components/matches/VolleyCourt";
 import type { CourtPosition, LiveScoreSetResult, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
 
 /** I sei nomi "titolari" della rotazione, indicizzati per posizione
@@ -14,11 +15,14 @@ type Positions = [string, string, string, string, string, string];
 type TeamKey = "A" | "B";
 
 /** Colore distintivo per squadra, riusato ovunque serva riconoscerle a
- * colpo d'occhio (storico set, ultimi punti, bordo dei tabelloni) — le
- * due tinte del brand (blu mare / ambra sabbia), non colori nuovi. */
-const TEAM_ACCENT: Record<TeamKey, { dot: string; text: string; border: string }> = {
-  A: { dot: "bg-sea-600", text: "text-sea-700", border: "border-sea-600" },
-  B: { dot: "bg-sand-600", text: "text-sand-700", border: "border-sand-600" },
+ * colpo d'occhio (storico set, ultimi punti, bordo dei tabelloni, bagliore
+ * del punteggio a schermo intero) — le due tinte del brand (blu mare /
+ * ambra sabbia), non colori nuovi; abbastanza sature da leggersi bene sia
+ * sulla card chiara della pagina incorporata sia su quella scura a
+ * schermo intero. */
+const TEAM_ACCENT: Record<TeamKey, { dot: string; glow: string }> = {
+  A: { dot: "bg-sea-600", glow: "rgba(98,154,213,0.65)" },
+  B: { dot: "bg-sand-600", glow: "rgba(226,168,66,0.65)" },
 };
 
 const EMPTY_POSITIONS: Positions = ["", "", "", "", "", ""];
@@ -390,14 +394,15 @@ function renderTeamCell(
         )}
         <span
           className={cn(
-            "line-clamp-2 rounded-full font-bold leading-tight",
+            "block w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full font-bold",
             large ? "px-3.5 py-2 text-lg sm:text-2xl" : "px-2 py-1 text-[11px] sm:text-xs",
             isLibero
               ? "bg-sea-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_3px_8px_-2px_rgba(9,26,38,0.55)]"
               : "bg-white text-sea-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_5px_-1px_rgba(9,26,38,0.25)]",
           )}
+          title={name}
         >
-          {name || "—"}
+          {name ? shortName(name) : "—"}
         </span>
         {isLibero && (
           <span
@@ -467,6 +472,7 @@ function ScoreCard({
           "font-display font-bold leading-none tabular-nums text-foreground",
           large ? "mt-1 text-6xl sm:text-7xl" : "mt-1.5 text-5xl sm:text-6xl",
         )}
+        style={large ? { textShadow: `0 0 40px ${accent.glow}` } : undefined}
       >
         {team.score}
       </p>
@@ -590,9 +596,9 @@ function SetHistoryAndStreak({
 }) {
   if (setHistory.length === 0 && pointLog.length === 0) return null;
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-xl border border-border-subtle bg-surface px-3.5 py-2">
-      {setHistory.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex shrink-0 flex-wrap items-center justify-center gap-2.5">
+      {setHistory.length > 0 && (
+        <div className="inline-flex flex-wrap items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-3 py-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Set</span>
           {setHistory.map((set, i) => (
             <span
@@ -605,11 +611,9 @@ function SetHistoryAndStreak({
             </span>
           ))}
         </div>
-      ) : (
-        <span />
       )}
       {pointLog.length > 0 && (
-        <div className="flex items-center gap-1.5">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-3 py-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Ultimi punti</span>
           <div className="flex items-center gap-1">
             {pointLog.map((winner, i) => (
@@ -747,6 +751,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
 
       <div
         ref={stageRef}
+        data-theme={isFullscreen ? "livescore-dark" : undefined}
         className={cn(
           "hidden sm:block",
           isFullscreen &&
