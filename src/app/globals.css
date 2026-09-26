@@ -529,3 +529,31 @@
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 1px 0 color-mix(in oklab, white 65%, transparent) inset, 0 40px 70px -30px rgba(2, 10, 16, 0.65);
 }
+
+/* Live score: micro-animazioni. Definite come @keyframes semplici (non
+   @utility) e richiamate dal componente con la sintassi arbitraria
+   Tailwind `animate-[nome_durata_easing]`, già usata altrove nel file per
+   font/aspect-ratio — evita di dover registrare ogni animazione in
+   @theme solo per usarla una volta. */
+@keyframes livescore-score-pop {
+  0% {
+    transform: scale(1.28);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* Bagliore "vivo" attorno al tabellone di chi è al servizio: il colore
+   (diverso per squadra) arriva dal componente via --glow, qui si anima
+   solo l'intensità. */
+@keyframes livescore-serve-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--glow), 0 20px 38px -22px var(--glow);
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--glow), 0 26px 46px -18px var(--glow);
+  }
+}

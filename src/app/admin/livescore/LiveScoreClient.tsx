@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
-import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Timer, Undo2, Volleyball } from "lucide-react";
+import { useEffect, useReducer, useRef, useState, type CSSProperties } from "react";
+import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Timer, TimerOff, Trophy, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
@@ -383,23 +383,25 @@ function renderTeamCell(
       <>
         {position === 1 && isServing && (
           <span
-            className={cn(
-              "absolute right-1.5 top-1.5 flex items-center justify-center rounded-full bg-sea-950/80 shadow-sm ring-1 ring-white/40",
-              large ? "h-6 w-6" : "h-3.5 w-3.5",
-            )}
+            className={cn("absolute right-1.5 top-1.5", large ? "h-6 w-6" : "h-3.5 w-3.5")}
             title="Al servizio"
             aria-label={`${team.label || "Squadra"} al servizio`}
           >
-            <Volleyball className={cn("text-white", large ? "h-4 w-4" : "h-2.5 w-2.5")} />
+            <span className="absolute inset-0 animate-ping rounded-full bg-sea-950/60" />
+            <span className="relative flex h-full w-full items-center justify-center rounded-full bg-sea-950/80 shadow-sm ring-1 ring-white/40">
+              <Volleyball className={cn("text-white", large ? "h-4 w-4" : "h-2.5 w-2.5")} />
+            </span>
           </span>
         )}
         <span
           className={cn(
             "block w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full font-bold",
             large ? "px-3.5 py-2 text-lg sm:text-2xl" : "px-2 py-1 text-[11px] sm:text-xs",
-            isLibero
-              ? "bg-sea-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_3px_8px_-2px_rgba(9,26,38,0.55)]"
-              : "bg-white text-sea-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_5px_-1px_rgba(9,26,38,0.25)]",
+            !name
+              ? "bg-white/40 text-sea-950/30 shadow-none ring-1 ring-inset ring-sea-950/10"
+              : isLibero
+                ? "bg-sea-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_3px_8px_-2px_rgba(9,26,38,0.55)]"
+                : "bg-white text-sea-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_5px_-1px_rgba(9,26,38,0.25)]",
           )}
           title={name}
         >
@@ -445,9 +447,9 @@ function ScoreCard({
     <div
       className={cn(
         "overflow-hidden rounded-2xl border shadow-lg transition-shadow",
-        isServing ? "border-transparent" : "border-border-subtle",
+        isServing ? "border-transparent animate-[livescore-serve-glow_2600ms_ease-in-out_infinite]" : "border-border-subtle",
       )}
-      style={isServing ? { boxShadow: `0 0 0 3px ${accent.glow}, 0 22px 40px -22px ${accent.glow}` } : undefined}
+      style={isServing ? ({ "--glow": accent.glow } as CSSProperties) : undefined}
     >
       {/* Intestazione a tinta unita per squadra: molto più riconoscibile di
        * un semplice filo colorato sul bordo, e fa risaltare subito chi sta
@@ -484,7 +486,11 @@ function ScoreCard({
                 team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? "bg-white text-destructive" : "bg-white/20 text-white hover:bg-white/30",
               )}
             >
-              <Timer className="h-2.5 w-2.5" />
+              {team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? (
+                <TimerOff className="h-2.5 w-2.5" />
+              ) : (
+                <Timer className="h-2.5 w-2.5" />
+              )}
               {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
             </button>
           </>
@@ -503,8 +509,9 @@ function ScoreCard({
       </div>
       <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", large ? "p-1" : "p-3")}>
         <p
+          key={team.score}
           className={cn(
-            "font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-foreground",
+            "animate-[livescore-score-pop_320ms_ease-out] font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-foreground",
             large ? "text-3xl" : "text-5xl sm:text-6xl",
           )}
           style={{ textShadow: `0 8px 28px ${accent.glow}` }}
@@ -525,7 +532,11 @@ function ScoreCard({
                   : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
               )}
             >
-              <Timer className="h-2.5 w-2.5" />
+              {team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? (
+                <TimerOff className="h-2.5 w-2.5" />
+              ) : (
+                <Timer className="h-2.5 w-2.5" />
+              )}
               Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
             </button>
           </div>
@@ -632,7 +643,10 @@ function SetHistoryAndStreak({
           {setHistory.map((set, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold tabular-nums text-foreground"
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
+                set.scoreA > set.scoreB ? "bg-sea-100 text-sea-900" : "bg-sand-100 text-sand-900",
+              )}
             >
               <span className={cn("h-1.5 w-1.5 rounded-full", TEAM_ACCENT.A.dot)} />
               {set.scoreA}–{set.scoreB}
@@ -849,7 +863,14 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </div>
             </div>
 
-            <Button onClick={() => dispatch({ type: "startMatch", servingTeam: pendingServer })} size="lg" className="w-full">
+            <Button
+              onClick={() => {
+                dispatch({ type: "startMatch", servingTeam: pendingServer });
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              size="lg"
+              className="w-full"
+            >
               <Volleyball className="h-4 w-4" />
               Inizia
             </Button>
@@ -907,8 +928,15 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </div>
 
             {matchWinner && (
-              <div className="shrink-0 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-center text-sm font-bold text-primary">
-                🏆 {match[teamKeyProp(matchWinner)].label} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
+              <div
+                className={cn(
+                  "flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br px-4 py-3 text-center text-sm font-bold text-white",
+                  TEAM_ACCENT[matchWinner].gradient,
+                )}
+                style={{ boxShadow: `0 14px 32px -18px ${TEAM_ACCENT[matchWinner].glow}` }}
+              >
+                <Trophy className="h-4 w-4 shrink-0 text-white/90" />
+                {match[teamKeyProp(matchWinner)].label} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
                 {match[teamKeyProp(otherKey(matchWinner))].setsWon})
               </div>
             )}

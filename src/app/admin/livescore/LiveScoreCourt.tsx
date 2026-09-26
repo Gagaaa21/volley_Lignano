@@ -64,7 +64,7 @@ function HalfCourt({
         >
           <span
             className={cn(
-              "absolute flex items-center justify-center rounded-full bg-sea-950/10 font-bold text-sea-950/55 ring-1 ring-inset ring-sea-950/10",
+              "absolute flex items-center justify-center rounded-full bg-sea-950/10 font-bold text-sea-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-inset ring-sea-950/10",
               large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
             )}
           >
