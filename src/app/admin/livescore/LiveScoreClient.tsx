@@ -453,7 +453,7 @@ function ScoreCard({
         className={cn(
           "flex items-center justify-center gap-1.5 bg-gradient-to-br",
           accent.gradient,
-          large ? "px-4 py-2 sm:py-2.5" : "px-4 py-2",
+          "px-4 py-1.5",
         )}
       >
         <input
@@ -476,17 +476,17 @@ function ScoreCard({
           </span>
         )}
       </div>
-      <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", large ? "p-3 sm:p-4" : "p-4")}>
+      <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", "p-3")}>
         <p
           className={cn(
-            "font-display font-bold leading-none tabular-nums text-foreground",
-            large ? "text-6xl sm:text-7xl" : "text-5xl sm:text-6xl",
+            "font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-foreground",
+            "text-5xl sm:text-6xl",
           )}
           style={{ textShadow: `0 8px 28px ${accent.glow}` }}
         >
           {team.score}
         </p>
-        <div className="mt-1.5 flex items-center justify-center gap-2.5">
+        <div className="mt-1 flex items-center justify-center gap-2.5">
           <p className={cn("font-medium text-muted-foreground", large ? "text-xs sm:text-sm" : "text-xs")}>
             Set vinti: {team.setsWon}
           </p>
@@ -506,7 +506,7 @@ function ScoreCard({
             Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
           </button>
         </div>
-        <Button onClick={onPoint} size={large ? "md" : "lg"} className={cn("w-full", large ? "mt-2" : "mt-3")}>
+        <Button onClick={onPoint} size={large ? "sm" : "lg"} className={cn("w-full", large ? "mt-1.5" : "mt-3")}>
           Punto {team.label}
         </Button>
       </div>
@@ -578,17 +578,6 @@ function LiberoFields({
         posto, fino a quando quella centrale non rientra a rete.
       </FieldHint>
     </div>
-  );
-}
-
-function LiberoStatus({ team }: { team: LiveScoreTeamState }) {
-  if (!team.liberoName.trim()) return null;
-  return (
-    <p className="text-center text-xs text-muted-foreground">
-      {team.liberoActiveFor
-        ? `${team.liberoName.trim()} in campo per ${team.liberoActiveFor}`
-        : `${team.liberoName.trim()} pronta a entrare quando una centrale perde il servizio`}
-    </p>
   );
 }
 
@@ -765,7 +754,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
         className={cn(
           "hidden sm:block",
           isFullscreen &&
-            "h-screen w-screen overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-4 sm:p-6",
+            "h-screen w-screen overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-3 sm:p-4",
         )}
       >
         <div
@@ -773,12 +762,14 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             isFullscreen && "mx-auto flex h-full max-w-[1700px] flex-col gap-2.5",
           )}
         >
-          <div className="flex shrink-0 justify-end">
-            <Button variant="outline" size="sm" onClick={toggleFullscreen}>
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-              {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
-            </Button>
-          </div>
+          {!match.started && (
+            <div className="flex shrink-0 justify-end">
+              <Button variant="outline" size="sm" onClick={toggleFullscreen}>
+                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
+              </Button>
+            </div>
+          )}
 
           {!match.started ? (
           <div className="space-y-5">
@@ -787,7 +778,9 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 <Volleyball className="h-3 w-3" />
                 Live score
               </p>
-              <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Imposta le due squadre</h1>
+              <h1 className="mt-1.5 font-[family-name:var(--font-display-minivolley)] text-2xl font-extrabold text-foreground">
+                Imposta le due squadre
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Scegli i nomi nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le
                 libero (se le usi).
@@ -795,6 +788,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </div>
 
             <DualLiveScoreCourt
+              className="shrink-0"
               renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen)}
               renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen)}
               large={isFullscreen}
@@ -832,25 +826,24 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </Button>
           </div>
         ) : (
-          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-2.5" : "space-y-5")}>
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-              <div>
-                {!isFullscreen && (
-                  <p className="eyebrow">
-                    <Volleyball className="h-3 w-3" />
-                    Live score
-                  </p>
+          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-2" : "space-y-4")}>
+            {/* Intestazione a tre zone (titolo, storico/ultimi punti, azioni):
+             * prima erano due righe separate, unite qui per lasciare più
+             * spazio verticale al campo, che a schermo intero è quello che
+             * conta davvero. */}
+            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+              <h1
+                className={cn(
+                  "shrink-0 font-[family-name:var(--font-display-minivolley)] font-extrabold text-foreground",
+                  isFullscreen ? "text-xl" : "text-2xl",
                 )}
-                <h1
-                  className={cn(
-                    "font-display font-bold text-foreground",
-                    isFullscreen ? "text-xl" : "mt-1.5 text-2xl",
-                  )}
-                >
-                  In campo
-                </h1>
+              >
+                In campo
+              </h1>
+              <div className="flex min-w-0 flex-1 justify-center">
+                <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => dispatch({ type: "toggleSides" })}>
                   <Repeat className="h-3.5 w-3.5" />
                   Inverti campi
@@ -863,6 +856,10 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   <RefreshCw className="h-3.5 w-3.5" />
                   Nuovo allenamento
                 </Button>
+                <Button variant="outline" size="sm" onClick={toggleFullscreen}>
+                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                  {isFullscreen ? "Esci" : "Schermo intero"}
+                </Button>
               </div>
             </div>
 
@@ -872,8 +869,6 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 {match[teamKeyProp(otherKey(matchWinner))].setsWon})
               </div>
             )}
-
-            <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} />
 
             <div className="grid shrink-0 gap-3.5 sm:grid-cols-2">
               <ScoreCard
@@ -896,36 +891,30 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               />
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
-              <Button variant="outline" onClick={() => dispatch({ type: "closeSet" })} disabled={tied}>
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2.5">
+              <Button variant="outline" size="sm" onClick={() => dispatch({ type: "closeSet" })} disabled={tied}>
                 Chiudi set
               </Button>
-              <Button variant="ghost" onClick={() => dispatch({ type: "undo" })} disabled={state.history.length === 0}>
+              <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "undo" })} disabled={state.history.length === 0}>
                 <Undo2 className="h-3.5 w-3.5" />
                 Annulla ultimo punto
               </Button>
+              {tied && (
+                <span className="text-xs text-muted-foreground">Punteggio pari: continua prima di chiudere il set.</span>
+              )}
             </div>
-            {tied && (
-              <p className="-mt-2 shrink-0 text-center text-xs text-muted-foreground">
-                Il punteggio è pari: continua a giocare prima di chiudere il set.
-              </p>
-            )}
 
             <DualLiveScoreCourt
+              className="shrink-0"
               renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen)}
               renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen)}
               large={isFullscreen}
             />
 
-            {editingNames ? (
+            {editingNames && (
               <div className="grid shrink-0 gap-4 sm:grid-cols-2">
                 <LiberoFields team={leftTeam} teamKey={leftKey} idPrefix={`${leftKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
                 <LiberoFields team={rightTeam} teamKey={rightKey} idPrefix={`${rightKey}-live`} athleteNames={athleteNames} dispatch={dispatch} />
-              </div>
-            ) : (
-              <div className="grid shrink-0 gap-2 sm:grid-cols-2">
-                <LiberoStatus team={leftTeam} />
-                <LiberoStatus team={rightTeam} />
               </div>
             )}
           </div>

@@ -132,25 +132,28 @@ export function DualLiveScoreCourt({
   renderCellA,
   renderCellB,
   large = false,
+  className,
 }: {
   renderCellA: (position: CourtPosition) => ReactNode;
   renderCellB: (position: CourtPosition) => ReactNode;
   large?: boolean;
+  className?: string;
 }) {
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border border-sea-700/50 bg-gradient-to-b from-sea-700 to-sea-950 shadow-xl shadow-sea-950/30",
-        large ? "flex min-h-0 flex-1 flex-col items-center justify-center p-4 sm:p-6" : "p-3 sm:p-4",
+        "p-3 sm:p-4",
+        className,
       )}
     >
       {/* Luce ambientale dall'alto, per dare profondità al pannello invece di un blu piatto. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/10 to-transparent" />
 
-      {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato per riempire lo
-       * spazio. Si adatta alla larghezza disponibile e, a schermo intero,
-       * anche all'altezza rimasta (max-h-full) restando sempre in scala. */}
-      <div className="relative mx-auto flex aspect-[2/1] w-full max-h-full items-stretch">
+      {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato — ma riempie
+       * sempre tutta la larghezza disponibile (mai più stretto delle card
+       * sopra), l'altezza segue di conseguenza. */}
+      <div className="relative mx-auto flex aspect-[2/1] w-full items-stretch">
         <EndLabel text="Fondo campo" large={large} />
 
         <div className="relative flex flex-1 overflow-hidden rounded-lg border-2 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.25)]">
