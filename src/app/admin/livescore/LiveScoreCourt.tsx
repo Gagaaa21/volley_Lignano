@@ -32,6 +32,10 @@ function halfCourtOrder(side: "left" | "right"): CourtPosition[] {
   return order;
 }
 
+/** Metà campo su fondo piatto e continuo (nessuna scacchiera): la colonna
+ * "campo lungo" (2fr) è sempre sul bordo esterno, quella vicina alla rete
+ * (1fr) sempre adiacente al centro — il confine fra le due, marcato da un
+ * sottile filo bianco, è la linea dei 3 metri. */
 function HalfCourt({
   side,
   renderCell,
@@ -45,7 +49,7 @@ function HalfCourt({
   return (
     <div
       className={cn(
-        "grid flex-1 grid-rows-3 gap-px bg-white/80",
+        "grid flex-1 grid-rows-3",
         // Ogni metà campo è un quadrato di 9x9m: la fila vicino alla rete
         // occupa i primi 3m (linea d'attacco), il fondo campo i restanti
         // 6m — colonne in proporzione 1:2, non a metà, per restare fedeli
@@ -58,15 +62,15 @@ function HalfCourt({
         <div
           key={position}
           className={cn(
-            "relative flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-sand-200 to-sand-400 px-2 text-center transition-[min-height] duration-200",
-            idx % 2 === 0 ? "from-sand-300 to-sand-400" : "from-sand-200 to-sand-300",
+            "relative flex flex-col items-center justify-center gap-1.5 px-2 text-center",
             large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
-            idx % 2 === 0 && "border-r-[3px] border-white/95",
+            // Confine fra colonna campo-lungo e colonna rete: la linea dei 3m.
+            idx % 2 === 0 && "border-r-2 border-white/80",
           )}
         >
           <span
             className={cn(
-              "absolute flex items-center justify-center rounded-full bg-sea-950/10 font-bold text-sea-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-inset ring-sea-950/10",
+              "absolute flex items-center justify-center rounded-full bg-white/25 font-bold text-white shadow-sm ring-1 ring-inset ring-white/30",
               large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
             )}
           >
@@ -79,66 +83,55 @@ function HalfCourt({
   );
 }
 
-/** Etichetta "Fondo campo" in verticale, alla fine del campo (bordo
- * esterno sinistro o destro) invece che come didascalia orizzontale sotto
- * — come un'etichetta di quota su una pianta. */
-function EndLabel({ text, large }: { text: string; large: boolean }) {
-  return (
-    <div className={cn("flex shrink-0 items-center justify-center", large ? "w-8 sm:w-10" : "w-6 sm:w-7")}>
-      <span
-        className={cn(
-          "origin-center -rotate-90 whitespace-nowrap font-bold uppercase tracking-[0.18em] text-sea-100/60",
-          large ? "text-xs sm:text-sm" : "text-[10px] sm:text-[11px]",
-        )}
-      >
-        {text}
-      </span>
-    </div>
-  );
-}
-
 /** Rete: nastro bianco sopra e sotto la maglia (trama a rombi incrociata),
- * con due "pali" pieni alle estremità, come sui campi veri — puramente
- * decorativa e sovrapposta, non fa parte del layout a griglia. */
+ * più corposa dei fili di un vero campo per restare leggibile da bordo
+ * campo — puramente decorativa e sovrapposta, non fa parte del layout a
+ * griglia. */
 function Net({ large }: { large: boolean }) {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute left-1/2 -translate-x-1/2 overflow-hidden rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.15)]",
-        large ? "inset-y-3 w-2.5 sm:inset-y-4 sm:w-3" : "inset-y-2 w-1.5 sm:inset-y-3 sm:w-2",
+        "pointer-events-none absolute inset-y-0 left-1/2 z-10 -translate-x-1/2 overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.15)]",
+        large ? "w-4 sm:w-5" : "w-2.5 sm:w-3",
       )}
     >
       <div
-        className="absolute inset-0 bg-sea-950/90"
+        className="absolute inset-0 bg-sea-950"
         style={{
           backgroundImage:
             "repeating-linear-gradient(45deg, transparent 0 2px, rgba(255,255,255,0.35) 2px 3px), repeating-linear-gradient(-45deg, transparent 0 2px, rgba(255,255,255,0.35) 2px 3px)",
         }}
       />
-      <div className={cn("absolute inset-x-0 top-0 bg-white", large ? "h-2.5 sm:h-3" : "h-1.5 sm:h-2")} />
-      <div className={cn("absolute inset-x-0 bottom-0 bg-white", large ? "h-2.5 sm:h-3" : "h-1.5 sm:h-2")} />
+      <div className={cn("absolute inset-x-0 top-0 bg-white", large ? "h-3 sm:h-3.5" : "h-2 sm:h-2.5")} />
+      <div className={cn("absolute inset-x-0 bottom-0 bg-white", large ? "h-3 sm:h-3.5" : "h-2 sm:h-2.5")} />
     </div>
   );
 }
 
 /** Campo intero e continuo in orizzontale, come un vero campo visto
- * dall'alto: una sola rete sottile al centro (non un divisorio largo), il
- * fondo campo di ciascuna squadra sul bordo esterno, etichettato in
- * verticale alla fine del campo. Le due metà restano indipendenti nei dati
- * (renderCellA/renderCellB), ma i due grid stanno incollati fianco a
- * fianco (senza spazio tra loro) così da sembrare un unico rettangolo —
- * la rete è solo una linea sottile disegnata sopra, non un terzo elemento
- * che occupa spazio nel layout. `large` (schermo intero) ingrandisce
- * celle, etichette e rete per restare leggibile da bordo campo. */
+ * dall'alto: fondo piatto a tinta unica (niente scacchiera), un sottile
+ * bordo bianco a delimitarlo, la linea dei 3 metri per squadra e una sola
+ * rete al centro, più corposa. Il nome delle due squadre sta sul riquadro
+ * blu che circonda il campo, non sul campo stesso. Le due metà restano
+ * indipendenti nei dati (renderCellA/renderCellB), ma i due grid stanno
+ * incollati fianco a fianco (senza spazio tra loro) così da sembrare un
+ * unico rettangolo. `large` (schermo intero) ingrandisce celle, etichette
+ * e rete per restare leggibile da bordo campo. */
 export function DualLiveScoreCourt({
   renderCellA,
   renderCellB,
+  labelA,
+  labelB,
   large = false,
   fitHeight = false,
   className,
 }: {
   renderCellA: (position: CourtPosition) => ReactNode;
   renderCellB: (position: CourtPosition) => ReactNode;
+  /** Nome delle due squadre, mostrato sugli angoli del riquadro che
+   * circonda il campo (sinistra = A, destra = B). */
+  labelA?: string;
+  labelB?: string;
   large?: boolean;
   /** Se true, il campo rispetta anche un limite di ALTEZZA (oltre a quello
    * di larghezza già dato dal genitore), restringendosi leggermente sugli
@@ -155,6 +148,7 @@ export function DualLiveScoreCourt({
   className?: string;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
   const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined);
 
   useEffect(() => {
@@ -163,17 +157,20 @@ export function DualLiveScoreCourt({
       setMaxWidth(undefined);
       return;
     }
-    // clientHeight include il padding verticale del pannello (p-1.5/p-2):
-    // va tolto per avere l'altezza reale a disposizione del campo, altrimenti
-    // lo si restringerebbe leggermente anche quando non ce n'è bisogno.
+    // clientHeight include il padding verticale del pannello e la riga dei
+    // nomi squadra sopra il campo: vanno tolti entrambi per avere l'altezza
+    // reale a disposizione del campo, altrimenti lo si restringerebbe anche
+    // quando non ce n'è bisogno.
     const update = () => {
       const style = getComputedStyle(el);
       const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-      setMaxWidth(Math.max(0, (el.clientHeight - verticalPadding) * 2));
+      const labelHeight = labelRef.current?.offsetHeight ?? 0;
+      setMaxWidth(Math.max(0, (el.clientHeight - verticalPadding - labelHeight) * 2));
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
+    if (labelRef.current) observer.observe(labelRef.current);
     return () => observer.disconnect();
   }, [fitHeight]);
 
@@ -181,32 +178,44 @@ export function DualLiveScoreCourt({
     <div
       ref={wrapperRef}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-sea-700/50 bg-gradient-to-b from-sea-700 to-sea-950 shadow-xl shadow-sea-950/30",
-        "p-1.5 sm:p-2",
+        "relative overflow-hidden rounded-2xl bg-sea-500 shadow-[0_16px_30px_-22px_rgba(12,30,42,0.4)]",
+        "p-2.5 sm:p-3",
         className,
       )}
     >
-      {/* Luce ambientale dall'alto, per dare profondità al pannello invece di un blu piatto. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/10 to-transparent" />
+      <div className="mx-auto" style={maxWidth !== undefined ? { maxWidth } : undefined}>
+        {(labelA || labelB) && (
+          <div ref={labelRef} className={cn("flex items-center justify-between gap-2 px-1", large ? "pb-2 sm:pb-2.5" : "pb-1.5")}>
+            <span
+              className={cn(
+                "truncate font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(6,16,26,0.35)]",
+                large ? "text-xs sm:text-sm" : "text-[10px] sm:text-xs",
+              )}
+            >
+              {labelA}
+            </span>
+            <span
+              className={cn(
+                "truncate text-right font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(6,16,26,0.35)]",
+                large ? "text-xs sm:text-sm" : "text-[10px] sm:text-xs",
+              )}
+            >
+              {labelB}
+            </span>
+          </div>
+        )}
 
-      {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato — riempie tutta
-       * la larghezza disponibile (mai più stretto delle card sopra) finché
-       * l'altezza risultante ci sta, altrimenti (fitHeight) si restringe
-       * quel tanto che basta a stare nello spazio verticale reale. */}
-      <div
-        className="relative mx-auto flex aspect-[2/1] w-full items-stretch"
-        style={maxWidth !== undefined ? { maxWidth } : undefined}
-      >
-        <EndLabel text="Fondo campo" large={large} />
-
-        <div className="relative flex flex-1 overflow-hidden rounded-lg border-2 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.25)]">
-          <HalfCourt side="left" renderCell={renderCellA} large={large} />
-          <HalfCourt side="right" renderCell={renderCellB} large={large} />
-
-          <Net large={large} />
+        {/* Un campo vero è 18x9m: rapporto 2:1, mai deformato — riempie
+         * tutta la larghezza disponibile finché l'altezza risultante ci
+         * sta, altrimenti (fitHeight) si restringe quel tanto che basta a
+         * stare nello spazio verticale reale. */}
+        <div className="relative flex aspect-[2/1] w-full items-stretch">
+          <div className="relative flex flex-1 overflow-hidden rounded-md border-2 border-white bg-sand-500 sm:border-[3px]">
+            <HalfCourt side="left" renderCell={renderCellA} large={large} />
+            <HalfCourt side="right" renderCell={renderCellB} large={large} />
+            <Net large={large} />
+          </div>
         </div>
-
-        <EndLabel text="Fondo campo" large={large} />
       </div>
     </div>
   );

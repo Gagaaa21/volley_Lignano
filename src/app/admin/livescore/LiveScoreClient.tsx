@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { Maximize2, Minimize2, Pencil, RefreshCw, Repeat, Timer, TimerOff, Trophy, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint, Input } from "@/components/ui/Field";
@@ -15,13 +15,52 @@ type Positions = [string, string, string, string, string, string];
 type TeamKey = "A" | "B";
 
 /** Colore distintivo per squadra, riusato ovunque serva riconoscerle a
- * colpo d'occhio — le due tinte del brand (blu mare / ambra sabbia), non
- * colori nuovi: intestazione colorata del tabellone, storico set, ultimi
- * punti, bagliore del punteggio. */
-const TEAM_ACCENT: Record<TeamKey, { dot: string; gradient: string; glow: string }> = {
-  A: { dot: "bg-sea-600", gradient: "from-sea-500 to-sea-700", glow: "rgba(31,80,132,0.45)" },
-  B: { dot: "bg-sand-500", gradient: "from-sand-400 to-sand-600", glow: "rgba(148,85,29,0.4)" },
-};
+ * colpo d'occhio: tabellone, storico set, ultimi punti, pulsanti "Punto".
+ * Squadra A è sempre il blu del club. Squadra B usa l'ambra del club solo
+ * in allenamento (è la "nostra" seconda squadra); in Partita è un'avversaria
+ * vera, quindi un grigio neutro — l'ambra è un colore del NOSTRO brand e non
+ * ha senso rappresentare chi ci gioca contro. */
+type TeamAccent = { solid: string; stripe: string; soft: string; dot: string; ring: string; glow: string };
+
+function getTeamAccent(teamKey: TeamKey, mode: LiveScoreMode): TeamAccent {
+  if (teamKey === "A") {
+    return {
+      solid: "bg-sea-500",
+      stripe: "bg-sea-200/80",
+      soft: "bg-sea-100 text-sea-900",
+      dot: "bg-sea-600",
+      ring: "ring-sea-300",
+      glow: "rgba(58,120,187,0.45)",
+    };
+  }
+  if (mode === "match") {
+    return {
+      solid: "bg-slate-600",
+      stripe: "bg-slate-300/80",
+      soft: "bg-slate-100 text-slate-900",
+      dot: "bg-slate-500",
+      ring: "ring-slate-300",
+      glow: "rgba(71,85,105,0.4)",
+    };
+  }
+  return {
+    solid: "bg-sand-500",
+    stripe: "bg-sand-200/80",
+    soft: "bg-sand-100 text-sand-900",
+    dot: "bg-sand-500",
+    ring: "ring-sand-300",
+    glow: "rgba(182,113,33,0.4)",
+  };
+}
+
+/** Etichetta di una squadra da mostrare, con un fallback quando è ancora
+ * vuota (es. nome avversaria non ancora scritto in modalità Partita). */
+function displayLabel(team: LiveScoreTeamState, key: TeamKey): string {
+  return team.label.trim() || (key === "A" ? "Squadra A" : "Squadra B");
+}
+
+const POINT_BUTTON_BASE =
+  "inline-flex items-center justify-center gap-2 rounded-xl font-bold uppercase tracking-wide text-white shadow-sm transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
 
 const EMPTY_POSITIONS: Positions = ["", "", "", "", "", ""];
 /** In modalità "Partita", Squadra A è sempre il Volley Lignano: etichetta
@@ -450,143 +489,129 @@ function renderTeamCell(
   };
 }
 
-function ScoreCard({
+/** Blocco squadra del tabellone "stile tv": nome, set vinti e time-out —
+ * niente più intestazione a gradiente, tinta piatta del colore squadra
+ * (vedi getTeamAccent). Il punteggio grande e l'indicatore di chi serve
+ * stanno nel display centrale condiviso (vedi CenterDisplay), non qui. */
+function TeamBlock({
   team,
   teamKey,
-  isServing,
+  mode,
+  editable,
+  placeholder,
   onLabelChange,
-  onPoint,
   onToggleTimeout,
   large,
-  labelEditable = true,
-  labelPlaceholder,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
-  isServing: boolean;
-  onLabelChange: (value: string) => void;
-  onPoint: () => void;
-  onToggleTimeout: () => void;
-  large: boolean;
+  mode: LiveScoreMode;
   /** false in modalità "Partita" per Squadra A: il Volley Lignano è sempre
    * lo stesso, non un'etichetta da scrivere ogni volta. */
-  labelEditable?: boolean;
-  labelPlaceholder?: string;
+  editable: boolean;
+  placeholder?: string;
+  onLabelChange: (value: string) => void;
+  onToggleTimeout: () => void;
+  large: boolean;
 }) {
-  const accent = TEAM_ACCENT[teamKey];
+  const accent = getTeamAccent(teamKey, mode);
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border shadow-lg transition-shadow",
-        isServing ? "border-transparent animate-[livescore-serve-glow_2600ms_ease-in-out_infinite]" : "border-border-subtle",
+        "relative flex shrink-0 flex-col items-center justify-center gap-1.5",
+        accent.solid,
+        large ? "w-36 py-2.5 sm:w-52 sm:py-3.5 md:w-64" : "w-24 py-1.5 sm:w-36 sm:py-2",
       )}
-      style={isServing ? ({ "--glow": accent.glow } as CSSProperties) : undefined}
     >
-      {/* Intestazione a tinta unita per squadra: molto più riconoscibile di
-       * un semplice filo colorato sul bordo, e fa risaltare subito chi sta
-       * servendo. */}
-      <div
-        className={cn(
-          "flex items-center justify-center gap-1.5 bg-gradient-to-br",
-          accent.gradient,
-          large ? "px-3 py-0.5" : "px-4 py-1.5",
-        )}
-      >
-        {labelEditable ? (
-          <input
-            value={team.label}
-            onChange={(e) => onLabelChange(e.target.value)}
-            placeholder={labelPlaceholder}
-            className={cn(
-              "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-white/85 outline-none placeholder:text-white/50 focus:text-white",
-              large ? "text-sm sm:text-base" : "text-xs",
-            )}
-          />
-        ) : (
-          <p
-            className={cn(
-              "min-w-0 flex-1 truncate text-center font-bold uppercase tracking-wide text-white/85",
-              large ? "text-sm sm:text-base" : "text-xs",
-            )}
-          >
-            {team.label}
-          </p>
-        )}
-        {/* A schermo intero, set vinti e time-out stanno qui, sulla stessa
-         * riga colorata: risparmia un'intera riga rispetto a metterli sotto
-         * il punteggio, dove lo spazio in verticale è quello che conta. */}
-        {large && (
-          <>
-            <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">
-              Set {team.setsWon}
-            </span>
-            <button
-              type="button"
-              onClick={onToggleTimeout}
-              title="Segna un time-out (2 a disposizione per set)"
-              className={cn(
-                "inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors",
-                team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? "bg-white text-destructive" : "bg-white/20 text-white hover:bg-white/30",
-              )}
-            >
-              {team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? (
-                <TimerOff className="h-2.5 w-2.5" />
-              ) : (
-                <Timer className="h-2.5 w-2.5" />
-              )}
-              {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
-            </button>
-          </>
-        )}
-        {isServing && (
-          <span
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full bg-white/25 font-bold uppercase tracking-wide text-white",
-              large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
-            )}
-          >
-            <Volleyball className={large ? "h-3 w-3" : "h-2.5 w-2.5"} />
-            Al servizio
-          </span>
-        )}
-      </div>
-      <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", large ? "p-1" : "p-3")}>
-        <p
-          key={team.score}
+      <span className={cn("absolute inset-x-0 top-0 h-[3px]", accent.stripe)} />
+      {editable ? (
+        <input
+          value={team.label}
+          onChange={(e) => onLabelChange(e.target.value)}
+          placeholder={placeholder}
           className={cn(
-            "animate-[livescore-score-pop_320ms_ease-out] font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-foreground",
-            large ? "text-3xl" : "text-5xl sm:text-6xl",
+            "w-full min-w-0 bg-transparent px-1 text-center font-bold uppercase tracking-wide text-white outline-none placeholder:text-white/60 [text-shadow:0_1px_3px_rgba(6,16,26,0.35)]",
+            large ? "text-sm sm:text-base" : "text-[11px] sm:text-xs",
           )}
-          style={{ textShadow: `0 8px 28px ${accent.glow}` }}
+        />
+      ) : (
+        <p
+          className={cn(
+            "w-full truncate px-1 text-center font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(6,16,26,0.35)]",
+            large ? "text-sm sm:text-base" : "text-[11px] sm:text-xs",
+          )}
         >
-          {team.score}
+          {team.label}
         </p>
-        {!large && (
-          <div className="mt-1 flex items-center justify-center gap-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Set vinti: {team.setsWon}</p>
-            <button
-              type="button"
-              onClick={onToggleTimeout}
-              title="Segna un time-out (2 a disposizione per set)"
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors",
-                team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET
-                  ? "border-destructive/30 bg-destructive/10 text-destructive"
-                  : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
-              )}
-            >
-              {team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? (
-                <TimerOff className="h-2.5 w-2.5" />
-              ) : (
-                <Timer className="h-2.5 w-2.5" />
-              )}
-              Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
-            </button>
-          </div>
-        )}
-        <Button onClick={onPoint} size={large ? "sm" : "lg"} className={cn("w-full", large ? "mt-1" : "mt-3")}>
-          Punto {team.label}
-        </Button>
+      )}
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-white/80 sm:text-[10px]">
+          Set <b className="font-bold text-white">{team.setsWon}</b>
+        </span>
+        <button
+          type="button"
+          onClick={onToggleTimeout}
+          title="Segna un time-out (2 a disposizione per set)"
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition-colors",
+            team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? "bg-white text-destructive" : "bg-white/20 text-white hover:bg-white/30",
+          )}
+        >
+          {team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET ? (
+            <TimerOff className="h-2.5 w-2.5" />
+          ) : (
+            <Timer className="h-2.5 w-2.5" />
+          )}
+          {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Piccolo triangolo "al servizio", stile grafica tv, accanto al punteggio
+ * di chi sta servendo nel display centrale. */
+function ServeIndicator() {
+  return (
+    <span
+      aria-hidden
+      className="inline-block h-0 w-0 border-x-[6px] border-x-transparent border-b-[9px] border-b-green-400"
+    />
+  );
+}
+
+/** Display centrale del tabellone: i due punteggi, grandi, separati da un
+ * sottile divisorio verticale — il "digital display" al centro del
+ * tabellone tv, tra i due blocchi colorati di squadra. */
+function CenterDisplay({
+  leftScore,
+  rightScore,
+  servingSide,
+  large,
+}: {
+  leftScore: number;
+  rightScore: number;
+  servingSide: "left" | "right" | null;
+  large: boolean;
+}) {
+  const scoreClass = cn(
+    "animate-[livescore-score-pop_320ms_ease-out] font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-white",
+    large ? "text-4xl sm:text-6xl" : "text-2xl sm:text-3xl",
+  );
+  return (
+    <div className="flex flex-1 items-center bg-sea-950">
+      <div className={cn("flex flex-1 items-center justify-end gap-2 sm:gap-3", large ? "pr-3 sm:pr-6" : "pr-2 sm:pr-4")}>
+        {servingSide === "left" && <ServeIndicator />}
+        <span key={leftScore} className={scoreClass}>
+          {leftScore}
+        </span>
+      </div>
+      <div className={cn("my-3 w-px shrink-0 self-stretch bg-white/15 sm:my-4", large && "sm:my-5")} />
+      <div className={cn("flex flex-1 items-center gap-2 sm:gap-3", large ? "pl-3 sm:pl-6" : "pl-2 sm:pl-4")}>
+        <span key={rightScore} className={scoreClass}>
+          {rightScore}
+        </span>
+        {servingSide === "right" && <ServeIndicator />}
       </div>
     </div>
   );
@@ -677,11 +702,15 @@ function LiberoFields({
 function SetHistoryAndStreak({
   setHistory,
   pointLog,
+  mode,
 }: {
   setHistory: LiveScoreSetResult[];
   pointLog: TeamKey[];
+  mode: LiveScoreMode;
 }) {
   if (setHistory.length === 0 && pointLog.length === 0) return null;
+  const accentA = getTeamAccent("A", mode);
+  const accentB = getTeamAccent("B", mode);
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-center gap-2.5">
       {setHistory.length > 0 && (
@@ -692,12 +721,12 @@ function SetHistoryAndStreak({
               key={i}
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
-                set.scoreA > set.scoreB ? "bg-sea-100 text-sea-900" : "bg-sand-100 text-sand-900",
+                set.scoreA > set.scoreB ? accentA.soft : accentB.soft,
               )}
             >
-              <span className={cn("h-1.5 w-1.5 rounded-full", TEAM_ACCENT.A.dot)} />
+              <span className={cn("h-1.5 w-1.5 rounded-full", accentA.dot)} />
               {set.scoreA}–{set.scoreB}
-              <span className={cn("h-1.5 w-1.5 rounded-full", TEAM_ACCENT.B.dot)} />
+              <span className={cn("h-1.5 w-1.5 rounded-full", accentB.dot)} />
             </span>
           ))}
         </div>
@@ -706,17 +735,19 @@ function SetHistoryAndStreak({
         <div className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-3 py-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Ultimi punti</span>
           <div className="flex items-center gap-1">
-            {pointLog.map((winner, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "h-2 w-2 rounded-full",
-                  TEAM_ACCENT[winner].dot,
-                  i === pointLog.length - 1 && "ring-2 ring-offset-1 ring-offset-surface",
-                  i === pointLog.length - 1 && (winner === "A" ? "ring-sea-300" : "ring-sand-300"),
-                )}
-              />
-            ))}
+            {pointLog.map((winner, i) => {
+              const accent = getTeamAccent(winner, mode);
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    accent.dot,
+                    i === pointLog.length - 1 && cn("ring-2 ring-offset-1 ring-offset-surface", accent.ring),
+                  )}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -916,6 +947,8 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
 
             <DualLiveScoreCourt
               className="shrink-0"
+              labelA={displayLabel(leftTeam, leftKey)}
+              labelB={displayLabel(rightTeam, rightKey)}
               renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
               renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
               large={isFullscreen}
@@ -990,7 +1023,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                 In campo
               </h1>
               <div className="flex min-w-0 flex-1 justify-center">
-                <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} />
+                <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} mode={match.mode} />
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                 <Button
@@ -1028,45 +1061,77 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             {matchWinner && (
               <div
                 className={cn(
-                  "flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br px-4 py-3 text-center text-sm font-bold text-white",
-                  TEAM_ACCENT[matchWinner].gradient,
+                  "flex shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center text-sm font-bold text-white",
+                  getTeamAccent(matchWinner, match.mode).solid,
                 )}
-                style={{ boxShadow: `0 14px 32px -18px ${TEAM_ACCENT[matchWinner].glow}` }}
+                style={{ boxShadow: `0 14px 32px -18px ${getTeamAccent(matchWinner, match.mode).glow}` }}
               >
                 <Trophy className="h-4 w-4 shrink-0 text-white/90" />
-                {match[teamKeyProp(matchWinner)].label} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
+                {displayLabel(match[teamKeyProp(matchWinner)], matchWinner)} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
                 {match[teamKeyProp(otherKey(matchWinner))].setsWon})
               </div>
             )}
 
-            <div className="grid shrink-0 gap-3.5 sm:grid-cols-2">
-              <ScoreCard
+            {/* Tabellone "stile tv": due blocchi squadra a tinta piatta ai
+             * lati, display centrale con i due punteggi grandi — sostituisce
+             * le due card separate di prima, molto più compatto in
+             * orizzontale e più riconoscibile a colpo d'occhio. */}
+            <div
+              className={cn(
+                "flex shrink-0 overflow-hidden rounded-2xl ring-1 ring-sea-950/10",
+                isFullscreen ? "shadow-[0_20px_40px_-18px_rgba(12,30,42,0.5)]" : "shadow-lg",
+              )}
+            >
+              <TeamBlock
                 team={leftTeam}
                 teamKey={leftKey}
-                isServing={match.servingTeam === leftKey}
-                onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
-                onPoint={() => dispatch({ type: "point", winner: leftKey })}
-                onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: leftKey })}
+                mode={match.mode}
                 large={isFullscreen}
-                labelEditable={!(match.mode === "match" && leftKey === "A")}
-                labelPlaceholder={match.mode === "match" && leftKey === "B" ? "Nome avversaria" : undefined}
+                editable={!(match.mode === "match" && leftKey === "A")}
+                placeholder={match.mode === "match" && leftKey === "B" ? "Nome avversaria" : undefined}
+                onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
+                onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: leftKey })}
               />
-              <ScoreCard
+              <CenterDisplay
+                leftScore={leftTeam.score}
+                rightScore={rightTeam.score}
+                servingSide={match.servingTeam === leftKey ? "left" : match.servingTeam === rightKey ? "right" : null}
+                large={isFullscreen}
+              />
+              <TeamBlock
                 team={rightTeam}
                 teamKey={rightKey}
-                isServing={match.servingTeam === rightKey}
-                onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
-                onPoint={() => dispatch({ type: "point", winner: rightKey })}
-                onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: rightKey })}
+                mode={match.mode}
                 large={isFullscreen}
-                labelEditable={!(match.mode === "match" && rightKey === "A")}
-                labelPlaceholder={match.mode === "match" && rightKey === "B" ? "Nome avversaria" : undefined}
+                editable={!(match.mode === "match" && rightKey === "A")}
+                placeholder={match.mode === "match" && rightKey === "B" ? "Nome avversaria" : undefined}
+                onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
+                onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: rightKey })}
               />
+            </div>
+
+            <div className={cn("grid shrink-0 grid-cols-2 gap-2.5 sm:gap-3.5", isFullscreen ? "h-11 sm:h-12" : "h-11")}>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "point", winner: leftKey })}
+                className={cn(POINT_BUTTON_BASE, getTeamAccent(leftKey, match.mode).solid, isFullscreen ? "text-sm sm:text-base" : "text-xs sm:text-sm")}
+              >
+                Punto {displayLabel(leftTeam, leftKey)}
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "point", winner: rightKey })}
+                className={cn(POINT_BUTTON_BASE, getTeamAccent(rightKey, match.mode).solid, isFullscreen ? "text-sm sm:text-base" : "text-xs sm:text-sm")}
+              >
+                Punto {displayLabel(rightTeam, rightKey)}
+              </button>
             </div>
 
             <DualLiveScoreCourt
               className={isFullscreen ? "min-h-0 flex-1" : "shrink-0"}
               fitHeight={isFullscreen}
+              labelA={displayLabel(leftTeam, leftKey)}
+              labelB={displayLabel(rightTeam, rightKey)}
               renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, match.mode === "match")}
               renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, match.mode === "match")}
               large={isFullscreen}
