@@ -15,14 +15,12 @@ type Positions = [string, string, string, string, string, string];
 type TeamKey = "A" | "B";
 
 /** Colore distintivo per squadra, riusato ovunque serva riconoscerle a
- * colpo d'occhio (storico set, ultimi punti, bordo dei tabelloni, bagliore
- * del punteggio a schermo intero) — le due tinte del brand (blu mare /
- * ambra sabbia), non colori nuovi; abbastanza sature da leggersi bene sia
- * sulla card chiara della pagina incorporata sia su quella scura a
- * schermo intero. */
-const TEAM_ACCENT: Record<TeamKey, { dot: string; glow: string }> = {
-  A: { dot: "bg-sea-600", glow: "rgba(98,154,213,0.65)" },
-  B: { dot: "bg-sand-600", glow: "rgba(226,168,66,0.65)" },
+ * colpo d'occhio — le due tinte del brand (blu mare / ambra sabbia), non
+ * colori nuovi: intestazione colorata del tabellone, storico set, ultimi
+ * punti, bagliore del punteggio. */
+const TEAM_ACCENT: Record<TeamKey, { dot: string; gradient: string; glow: string }> = {
+  A: { dot: "bg-sea-600", gradient: "from-sea-500 to-sea-700", glow: "rgba(31,80,132,0.45)" },
+  B: { dot: "bg-sand-500", gradient: "from-sand-400 to-sand-600", glow: "rgba(148,85,29,0.4)" },
 };
 
 const EMPTY_POSITIONS: Positions = ["", "", "", "", "", ""];
@@ -404,11 +402,14 @@ function renderTeamCell(
         >
           {name ? shortName(name) : "—"}
         </span>
+        {/* Etichetta "Libero" sovrapposta (assoluta, non impilata nel flusso):
+         * la cella ha un'altezza fissa uguale per tutte le posizioni, un
+         * elemento in più nel flex avrebbe schiacciato il nome sopra. */}
         {isLibero && (
           <span
             className={cn(
-              "rounded-full bg-white font-bold uppercase tracking-wide text-sea-950 shadow-sm",
-              large ? "px-2.5 py-1 text-xs sm:text-sm" : "px-1.5 py-0.5 text-[9px]",
+              "absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white font-bold uppercase tracking-wide text-sea-950 shadow-sm ring-1 ring-sea-950/10",
+              large ? "bottom-1.5 px-2 py-0.5 text-[10px] sm:bottom-2 sm:text-[11px]" : "bottom-1 px-1.5 py-[1px] text-[7px]",
             )}
           >
             Libero
@@ -440,25 +441,33 @@ function ScoreCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-gradient-to-b from-surface to-muted/30 text-center shadow-md transition-shadow",
-        large ? "p-3 sm:p-4" : "p-4",
-        isServing ? "border-primary/40 shadow-primary/10" : "border-border-subtle",
+        "overflow-hidden rounded-2xl border shadow-lg transition-shadow",
+        isServing ? "border-transparent" : "border-border-subtle",
       )}
+      style={isServing ? { boxShadow: `0 0 0 3px ${accent.glow}, 0 22px 40px -22px ${accent.glow}` } : undefined}
     >
-      <span className={cn("absolute inset-y-0 left-0 w-1", accent.dot)} />
-      <div className="flex items-center justify-center gap-1.5">
+      {/* Intestazione a tinta unita per squadra: molto più riconoscibile di
+       * un semplice filo colorato sul bordo, e fa risaltare subito chi sta
+       * servendo. */}
+      <div
+        className={cn(
+          "flex items-center justify-center gap-1.5 bg-gradient-to-br",
+          accent.gradient,
+          large ? "px-4 py-2 sm:py-2.5" : "px-4 py-2",
+        )}
+      >
         <input
           value={team.label}
           onChange={(e) => onLabelChange(e.target.value)}
           className={cn(
-            "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-foreground/55 outline-none focus:text-foreground",
+            "min-w-0 flex-1 bg-transparent text-center font-bold uppercase tracking-wide text-white/85 outline-none placeholder:text-white/50 focus:text-white",
             large ? "text-sm sm:text-base" : "text-xs",
           )}
         />
         {isServing && (
           <span
             className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 font-bold uppercase tracking-wide text-primary",
+              "inline-flex shrink-0 items-center gap-1 rounded-full bg-white/25 font-bold uppercase tracking-wide text-white",
               large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
             )}
           >
@@ -467,38 +476,40 @@ function ScoreCard({
           </span>
         )}
       </div>
-      <p
-        className={cn(
-          "font-display font-bold leading-none tabular-nums text-foreground",
-          large ? "mt-1 text-6xl sm:text-7xl" : "mt-1.5 text-5xl sm:text-6xl",
-        )}
-        style={large ? { textShadow: `0 0 40px ${accent.glow}` } : undefined}
-      >
-        {team.score}
-      </p>
-      <div className={cn("flex items-center justify-center gap-2.5", large ? "mt-1" : "mt-1")}>
-        <p className={cn("font-medium text-muted-foreground", large ? "text-xs sm:text-sm" : "text-xs")}>
-          Set vinti: {team.setsWon}
-        </p>
-        <button
-          type="button"
-          onClick={onToggleTimeout}
-          title="Segna un time-out (2 a disposizione per set)"
+      <div className={cn("bg-gradient-to-b from-surface to-muted/20 text-center", large ? "p-3 sm:p-4" : "p-4")}>
+        <p
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border font-bold uppercase tracking-wide transition-colors",
-            large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
-            team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
+            "font-display font-bold leading-none tabular-nums text-foreground",
+            large ? "text-6xl sm:text-7xl" : "text-5xl sm:text-6xl",
           )}
+          style={{ textShadow: `0 8px 28px ${accent.glow}` }}
         >
-          <Timer className={large ? "h-3 w-3" : "h-2.5 w-2.5"} />
-          Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
-        </button>
+          {team.score}
+        </p>
+        <div className="mt-1.5 flex items-center justify-center gap-2.5">
+          <p className={cn("font-medium text-muted-foreground", large ? "text-xs sm:text-sm" : "text-xs")}>
+            Set vinti: {team.setsWon}
+          </p>
+          <button
+            type="button"
+            onClick={onToggleTimeout}
+            title="Segna un time-out (2 a disposizione per set)"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border font-bold uppercase tracking-wide transition-colors",
+              large ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-1.5 py-0.5 text-[9px]",
+              team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET
+                ? "border-destructive/30 bg-destructive/10 text-destructive"
+                : "border-border-subtle text-muted-foreground hover:border-primary/30 hover:text-foreground",
+            )}
+          >
+            <Timer className={large ? "h-3 w-3" : "h-2.5 w-2.5"} />
+            Time-out {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+          </button>
+        </div>
+        <Button onClick={onPoint} size={large ? "md" : "lg"} className={cn("w-full", large ? "mt-2" : "mt-3")}>
+          Punto {team.label}
+        </Button>
       </div>
-      <Button onClick={onPoint} size={large ? "md" : "lg"} className={cn("w-full", large ? "mt-1.5" : "mt-3")}>
-        Punto {team.label}
-      </Button>
     </div>
   );
 }
@@ -751,11 +762,10 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
 
       <div
         ref={stageRef}
-        data-theme={isFullscreen ? "livescore-dark" : undefined}
         className={cn(
           "hidden sm:block",
           isFullscreen &&
-            "h-screen w-screen overflow-y-auto bg-background p-4 sm:p-6",
+            "h-screen w-screen overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-4 sm:p-6",
         )}
       >
         <div

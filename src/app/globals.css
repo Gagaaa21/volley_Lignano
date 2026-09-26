@@ -213,47 +213,6 @@
 /* Il sito usa sempre il tema chiaro, indipendentemente dalle preferenze
    di sistema del visitatore (nessun @media prefers-color-scheme: dark). */
 
-/* Tema scuro "tabellone" per il Live score a schermo intero (vedi
-   isFullscreen in LiveScoreClient.tsx): ridefinisce solo i token
-   semantici (sfondo/testo/superfici), non le palette sea e sand che il
-   campo usa già direttamente — il campo resta identico, cambia solo il
-   pannello attorno, così ogni componente condiviso (Button, Card, testo)
-   si ritinge da solo senza bisogno di varianti dedicate. Tre livelli di
-   profondità (sfondo più scuro della superficie, superficie più scura del
-   muted) come in una vera interfaccia scura, non un semplice invertitore
-   di colore. */
-:root[data-theme="livescore-dark"],
-[data-theme="livescore-dark"] {
-  color-scheme: dark;
-
-  --background: #070f18;
-  --foreground: #eef4f9;
-  --card: #142839;
-  --card-foreground: var(--foreground);
-  --popover: #142839;
-  --popover-foreground: var(--foreground);
-  --primary: var(--color-sea-400);
-  --primary-foreground: #06121e;
-  --secondary: #1b3245;
-  --secondary-foreground: var(--foreground);
-  --muted: #1b3245;
-  --muted-foreground: #93aabd;
-  --accent: #23415a;
-  --accent-foreground: var(--color-sand-200);
-  --destructive: #ef4444;
-  --destructive-strong: #dc2626;
-  --destructive-foreground: #fff5f4;
-  --border: #24425a;
-  --input: #24425a;
-  --ring: var(--primary);
-
-  --surface: var(--card);
-  --surface-muted: var(--muted);
-  --border-subtle: var(--border);
-
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 36px -20px rgba(0, 0, 0, 0.55);
-}
-
 @layer base {
   * {
     border-color: var(--border);
