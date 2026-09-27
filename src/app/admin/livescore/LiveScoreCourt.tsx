@@ -86,13 +86,17 @@ function HalfCourt({
 /** Rete: nastro bianco sopra e sotto la maglia (trama a rombi incrociata),
  * più corposa dei fili di un vero campo per restare leggibile da bordo
  * campo — puramente decorativa e sovrapposta, non fa parte del layout a
- * griglia. */
+ * griglia. Staccata di qualche pixel dal bordo bianco che delimita il
+ * campo (non `inset-y-0`): a contatto diretto, il nastro bianco della rete
+ * e il bordo del campo si fondevano in un'unica linea, come se la rete si
+ * allungasse per tutta la larghezza del campo invece di restare una
+ * striscia verticale isolata al centro. */
 function Net({ large }: { large: boolean }) {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-y-0 left-1/2 z-10 -translate-x-1/2 overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.15)]",
-        large ? "w-4 sm:w-5" : "w-2.5 sm:w-3",
+        "pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 overflow-hidden rounded-[1px] shadow-[0_0_0_1px_rgba(0,0,0,0.15),0_3px_10px_rgba(9,26,38,0.35)]",
+        large ? "inset-y-1.5 w-4 sm:inset-y-2 sm:w-5" : "inset-y-1 w-2.5 sm:w-3",
       )}
     >
       <div

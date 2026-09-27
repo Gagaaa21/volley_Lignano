@@ -1067,7 +1067,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             </Button>
           </div>
         ) : (
-          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-0" : "space-y-4")}>
+          <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-2" : "space-y-4")}>
             {/* Intestazione a tre zone (titolo, storico/ultimi punti, tutte
              * le azioni raggruppate in un'unica riga di pulsanti): prima
              * erano tre righe separate, unite qui per lasciare più spazio
@@ -1145,8 +1145,8 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
              * grandi. */}
             <div
               className={cn(
-                "shrink-0 rounded-3xl border border-border-subtle bg-surface shadow-sm",
-                isFullscreen ? "p-1.5" : "p-2",
+                "shrink-0 rounded-3xl border-2 border-border-subtle bg-surface shadow-[0_8px_24px_-16px_rgba(15,23,42,0.4)]",
+                isFullscreen ? "p-2" : "p-2.5",
               )}
             >
               <div
