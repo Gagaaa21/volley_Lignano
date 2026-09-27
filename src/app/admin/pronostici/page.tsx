@@ -8,6 +8,7 @@ import {
   computeLeaderboard,
   computeMatchResults,
   computeTournamentMatchResults,
+  isMatchDayToday,
   isMatchLocked,
   matchHasResult,
 } from "@/lib/predictions";
@@ -105,6 +106,7 @@ export default async function PronosticiPage() {
               const matchPredictions = predictionsByMatch.get(match.id) ?? [];
               const mine = matchPredictions.find((p) => p.staffId === session.sub);
               const count = matchPredictions.length;
+              const openToday = isMatchDayToday(match.matchDate);
               return (
                 <Card key={match.id}>
                   <CardBody className="flex flex-wrap items-center justify-between gap-4 pt-5">
@@ -118,12 +120,20 @@ export default async function PronosticiPage() {
                         <span className="truncate">{match.location}</span>
                       </p>
                       <p className="mt-1 text-xs text-foreground/45">
-                        {count === 0 ? "Nessun pronostico ancora" : `${count} pronostic${count === 1 ? "o" : "i"}`}
+                        {openToday
+                          ? count === 0
+                            ? "Nessun pronostico ancora"
+                            : `${count} pronostic${count === 1 ? "o" : "i"}`
+                          : "Si apre il giorno della partita"}
                       </p>
                     </div>
-                    <LinkButton href={`/admin/pronostici/${match.id}`} variant={mine ? "outline" : "primary"} size="sm">
+                    <LinkButton
+                      href={`/admin/pronostici/${match.id}`}
+                      variant={openToday && mine ? "outline" : openToday ? "primary" : "outline"}
+                      size="sm"
+                    >
                       <Target className="h-3.5 w-3.5" />
-                      {mine ? "Modifica pronostico" : "Pronostica"}
+                      {openToday ? (mine ? "Modifica pronostico" : "Pronostica") : "Dettagli"}
                     </LinkButton>
                   </CardBody>
                 </Card>

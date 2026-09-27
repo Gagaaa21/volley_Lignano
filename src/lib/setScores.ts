@@ -10,14 +10,20 @@ export interface ParsedSetScores {
 
 /**
  * Deriva set vinti/persi da una sequenza di coppie punteggio (es. "25-20"),
- * set per set — la regola di validità condivisa da ogni punto
- * dell'applicazione che chiede un risultato di pallavolo: una squadra deve
- * arrivare esattamente a 3 set vinti, nessun set in parità. Coppie
- * completamente in bianco vengono ignorate (set non giocato/non
- * pronosticato), non contano come errore finché almeno un set completo è
- * stato inserito.
+ * set per set. Ogni singolo set deve comunque essere valido (nessun set in
+ * parità, punteggi 0-99) — coppie completamente in bianco vengono ignorate
+ * (set non giocato/non pronosticato), non contano come errore finché almeno
+ * un set completo è stato inserito. Con `requireThreeSetWins` (default
+ * true, la regola di una partita normale) una squadra deve arrivare
+ * esattamente a 3 set vinti; i tornei non seguono questa regola (formati
+ * diversi, es. una sola partita secca) e passano `false`, accettando
+ * qualunque sequenza di set validi già giocati.
  */
-export function validateSetScorePairs(pairs: { us: string; them: string }[]): ParsedSetScores {
+export function validateSetScorePairs(
+  pairs: { us: string; them: string }[],
+  options: { requireThreeSetWins?: boolean } = {},
+): ParsedSetScores {
+  const requireThreeSetWins = options.requireThreeSetWins ?? true;
   const setScores: SetScore[] = [];
   for (let i = 0; i < pairs.length; i++) {
     const usRaw = pairs[i].us.trim();
@@ -58,15 +64,17 @@ export function validateSetScorePairs(pairs: { us: string; them: string }[]): Pa
 
   const resultSetsWon = setScores.filter((s) => s.us > s.them).length;
   const resultSetsLost = setScores.filter((s) => s.us < s.them).length;
-  const max = Math.max(resultSetsWon, resultSetsLost);
-  const min = Math.min(resultSetsWon, resultSetsLost);
-  if (max !== 3 || min >= 3) {
-    return {
-      setScores: null,
-      resultSetsWon: null,
-      resultSetsLost: null,
-      error: "Risultato non valido: una squadra deve arrivare a 3 set.",
-    };
+  if (requireThreeSetWins) {
+    const max = Math.max(resultSetsWon, resultSetsLost);
+    const min = Math.min(resultSetsWon, resultSetsLost);
+    if (max !== 3 || min >= 3) {
+      return {
+        setScores: null,
+        resultSetsWon: null,
+        resultSetsLost: null,
+        error: "Risultato non valido: una squadra deve arrivare a 3 set.",
+      };
+    }
   }
 
   return { setScores, resultSetsWon, resultSetsLost };
@@ -95,8 +103,11 @@ export interface ParsedTournamentGames {
  * nessun punteggio) viene ignorato; un'avversaria senza punteggio è valida
  * solo per il risultato reale ("sappiamo contro chi ma non ancora il
  * risultato" — `requireCompleteScore: false`), mentre per un pronostico
- * (`requireCompleteScore: true`) un punteggio mancante o incompleto fa
- * scartare silenziosamente quella partita invece di bloccare il salvataggio.
+ * (`requireCompleteScore: true`) un punteggio mancante fa scartare
+ * silenziosamente quella partita invece di bloccare il salvataggio. Una
+ * partita del torneo non segue la regola dei 3 set delle partite normali
+ * (`validateSetScorePairs` con `requireThreeSetWins: false`): i set singoli
+ * restano comunque validati.
  */
 export function parseTournamentGamesJson(
   json: string,
@@ -127,7 +138,7 @@ export function parseTournamentGamesJson(
       return { tournamentGames: null, error: `Inserisci il nome dell'avversaria per la partita ${i + 1}.` };
     }
 
-    const result = validateSetScorePairs(pairs);
+    const result = validateSetScorePairs(pairs, { requireThreeSetWins: false });
     if (options.requireCompleteScore) {
       if (!result.setScores) continue;
       games.push({ id: crypto.randomUUID(), opponent, setScores: result.setScores });

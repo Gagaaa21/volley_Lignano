@@ -9,6 +9,23 @@ export function isMatchLocked(matchDate: string): boolean {
   return new Date(matchDate).getTime() <= Date.now();
 }
 
+/** Vero se oggi è lo stesso giorno di calendario della partita — confronto
+ * solo sulla data, stesso pattern già usato in partite/actions.ts per il
+ * risultato reale. Tutte le partite restano visibili nell'elenco "Da
+ * pronosticare" fin dall'inizio della stagione, ma si può effettivamente
+ * pronosticare solo il giorno stesso (non prima): una partita fra due mesi
+ * non si può ancora pronosticare, anche se non è "bloccata" nel senso di
+ * isMatchLocked. */
+export function isMatchDayToday(matchDate: string): boolean {
+  return matchDate.slice(0, 10) === new Date().toISOString().slice(0, 10);
+}
+
+/** Vero se in questo momento si può inviare o modificare un pronostico per
+ * questa partita: solo il giorno stesso, prima che inizi. */
+export function canPredict(matchDate: string): boolean {
+  return isMatchDayToday(matchDate) && !isMatchLocked(matchDate);
+}
+
 /**
  * Motore di punteggio dei Pronostici: per ogni set REALMENTE giocato,
  * stabilisce chi tra i pronostici presentati si è "avvicinato di più" al

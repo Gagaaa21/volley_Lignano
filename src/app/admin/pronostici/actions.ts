@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
-import { isMatchLocked } from "@/lib/predictions";
+import { isMatchDayToday, isMatchLocked } from "@/lib/predictions";
 
 export interface PredictionFormState {
   error?: string;
@@ -25,6 +25,9 @@ export async function savePredictionAction(
   if (isMatchLocked(match.matchDate)) {
     return { error: "Non puoi più pronosticare o modificare: la partita è già iniziata." };
   }
+  if (!isMatchDayToday(match.matchDate)) {
+    return { error: "Puoi pronosticare questa partita solo il giorno stesso in cui si gioca." };
+  }
 
   if (match.isTournament) {
     const tournamentResult = parseTournamentGamesJson(formData.get("tournamentGames")?.toString() ?? "[]", {
@@ -32,7 +35,7 @@ export async function savePredictionAction(
     });
     if (tournamentResult.error) return { error: tournamentResult.error };
     if (!tournamentResult.tournamentGames || tournamentResult.tournamentGames.length === 0) {
-      return { error: "Inserisci almeno un pronostico completo: avversaria e punteggio (una squadra a 3 set)." };
+      return { error: "Inserisci almeno un pronostico completo: avversaria e punteggio." };
     }
     await repo.upsertPrediction(matchId, session.sub, {
       setScores: null,

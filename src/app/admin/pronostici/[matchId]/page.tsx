@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Lock, MapPin } from "lucide-react";
+import { ArrowLeft, CalendarClock, Lock, MapPin } from "lucide-react";
 import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateLong } from "@/lib/format";
-import { computeMatchResults, computeTournamentMatchResults, isMatchLocked, matchHasResult } from "@/lib/predictions";
+import {
+  computeMatchResults,
+  computeTournamentMatchResults,
+  isMatchDayToday,
+  isMatchLocked,
+  matchHasResult,
+} from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PredictionForm } from "../PredictionForm";
@@ -24,9 +30,10 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
   if (!match) notFound();
 
   const locked = isMatchLocked(match.matchDate);
+  const openToday = !locked && isMatchDayToday(match.matchDate);
   const hasResult = matchHasResult(match);
 
-  const myPrediction = locked ? null : await repo.getPrediction(matchId, session.sub);
+  const myPrediction = openToday ? await repo.getPrediction(matchId, session.sub) : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -49,7 +56,7 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
           <CardBody className="pt-5">
             <LockedPredictions matchId={matchId} hasResult={hasResult} />
           </CardBody>
-        ) : (
+        ) : openToday ? (
           <>
             <CardHeader>
               <h2 className="font-display text-base font-semibold text-foreground">
@@ -65,6 +72,13 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
               />
             </CardBody>
           </>
+        ) : (
+          <CardBody className="pt-5">
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <CalendarClock className="h-4 w-4 shrink-0" />
+              Potrai pronosticare a partire dal giorno stesso della partita ({formatDateLong(match.matchDate.slice(0, 10))}).
+            </p>
+          </CardBody>
         )}
       </Card>
     </div>

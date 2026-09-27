@@ -52,7 +52,7 @@ export function PredictionForm({
           onChange={setTournamentGames}
           hiddenFieldName="tournamentGames"
           title="Il tuo pronostico"
-          hint="Aggiungi una partita per ogni avversaria che pensi affronteremo, con il punteggio che prevedi. Una partita senza un punteggio completo (una squadra a 3 set) non viene salvata."
+          hint="Aggiungi una partita per ogni avversaria che pensi affronteremo, con il punteggio che prevedi. Una partita senza almeno un set valido non viene salvata."
         />
       ) : (
         <>
