@@ -104,11 +104,15 @@ create table if not exists matches (
   meeting_location text,
   notes text,
   called_up_athlete_ids uuid[] not null default '{}',
-  -- Risultato finale (set), valorizzato solo a partita giocata.
+  -- Risultato finale (set), valorizzato solo a partita giocata. Sempre null
+  -- per i tornei (is_tournament): vedi tournament_games sotto.
   -- set_scores: parziali dei singoli set, es. [{"us":25,"them":20}, ...].
   set_scores jsonb,
   result_sets_won smallint check (result_sets_won between 0 and 3),
   result_sets_lost smallint check (result_sets_lost between 0 and 3),
+  -- Solo per is_tournament: le partite giocate nel torneo, una per
+  -- avversaria affrontata, es. [{"id":"...","opponent":"Squadra A","setScores":[...]}, ...].
+  tournament_games jsonb,
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -153,7 +157,9 @@ create table if not exists match_predictions (
   id uuid primary key default gen_random_uuid(),
   match_id uuid not null references matches(id) on delete cascade,
   staff_id uuid not null references staff(id) on delete cascade,
-  set_scores jsonb not null,
+  -- Uno solo dei due è valorizzato, a seconda di matches.is_tournament.
+  set_scores jsonb,
+  tournament_games jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -366,6 +372,9 @@ alter table matches add column if not exists meeting_location text;
 alter table matches add column if not exists set_scores jsonb;
 alter table matches add column if not exists result_sets_won smallint;
 alter table matches add column if not exists result_sets_lost smallint;
+alter table matches add column if not exists tournament_games jsonb;
+alter table match_predictions add column if not exists tournament_games jsonb;
+alter table match_predictions alter column set_scores drop not null;
 do $$ begin
   alter table matches add constraint matches_result_sets_won_check check (result_sets_won between 0 and 3);
 exception when duplicate_object then null;

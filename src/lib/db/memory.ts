@@ -201,11 +201,24 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       const now = new Date().toISOString();
       const idx = matchPredictions.findIndex((p) => p.matchId === matchId && p.staffId === staffId);
       if (idx === -1) {
-        const row: MatchPrediction = { id: uid(), matchId, staffId, setScores: input.setScores, createdAt: now, updatedAt: now };
+        const row: MatchPrediction = {
+          id: uid(),
+          matchId,
+          staffId,
+          setScores: input.setScores,
+          tournamentGames: input.tournamentGames,
+          createdAt: now,
+          updatedAt: now,
+        };
         matchPredictions.push(row);
         return row;
       }
-      matchPredictions[idx] = { ...matchPredictions[idx], setScores: input.setScores, updatedAt: now };
+      matchPredictions[idx] = {
+        ...matchPredictions[idx],
+        setScores: input.setScores,
+        tournamentGames: input.tournamentGames,
+        updatedAt: now,
+      };
       return matchPredictions[idx];
     },
 

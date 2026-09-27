@@ -254,7 +254,7 @@ export function EventDetailDialog({
           )}
         </div>
 
-        {!isTraining && event.resultSetsWon !== null && event.resultSetsLost !== null && (
+        {!isTraining && !event.isTournament && event.resultSetsWon !== null && event.resultSetsLost !== null && (
           <div className="mt-4 rounded-2xl border border-border-subtle p-4">
             <div className="flex items-center gap-3">
               <span
@@ -289,6 +289,39 @@ export function EventDetailDialog({
             )}
           </div>
         )}
+
+        {!isTraining &&
+          event.isTournament &&
+          event.tournamentGames &&
+          event.tournamentGames.some((g) => g.setScores.length > 0) && (
+            <div className="mt-4 rounded-2xl border border-border-subtle p-4">
+              <div className="flex items-center gap-3">
+                <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]">
+                  <Trophy className="h-4 w-4" />
+                </span>
+                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Risultati del torneo</p>
+              </div>
+              <div className="mt-3.5 space-y-3">
+                {event.tournamentGames
+                  .filter((g) => g.setScores.length > 0)
+                  .map((g) => (
+                    <div key={g.id}>
+                      <p className="text-sm font-bold text-foreground">vs {g.opponent}</p>
+                      <p className="mt-1.5 flex flex-wrap gap-1.5">
+                        {g.setScores.map((s, i) => (
+                          <span
+                            key={i}
+                            className="rounded-lg bg-surface-muted px-2 py-1 text-xs font-semibold text-foreground/70"
+                          >
+                            {s.us}-{s.them}
+                          </span>
+                        ))}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
         {!isTraining && callUps && callUps.names.length > 0 && (
           <div className="mt-4 rounded-2xl border border-border-subtle p-4">

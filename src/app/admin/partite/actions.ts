@@ -10,7 +10,7 @@ import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import { parseSetScoresFromFormData } from "@/lib/setScores";
+import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
 import type { MatchInput, MatchLineupInput } from "@/lib/types";
 
 const schema = z
@@ -88,11 +88,24 @@ export async function saveMatchAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const result = parseSetScoresFromFormData(formData);
-  if (result.error) {
+  const isTournament = parsed.data.isTournament;
+  // Per un torneo il risultato non è un unico setScores ma una partita per
+  // ogni avversaria affrontata (tournamentGames) — i due campi sono a
+  // esclusione reciproca, mai valorizzati entrambi.
+  const result = isTournament ? { setScores: null, resultSetsWon: null, resultSetsLost: null } : parseSetScoresFromFormData(formData);
+  if ("error" in result && result.error) {
     return { error: result.error };
   }
-  if (result.resultSetsWon !== null) {
+  const tournamentResult = isTournament
+    ? parseTournamentGamesJson(formData.get("tournamentGames")?.toString() ?? "[]", { requireCompleteScore: false })
+    : { tournamentGames: null };
+  if ("error" in tournamentResult && tournamentResult.error) {
+    return { error: tournamentResult.error };
+  }
+
+  const hasResultInput =
+    result.resultSetsWon !== null || (tournamentResult.tournamentGames?.some((g) => g.setScores.length > 0) ?? false);
+  if (hasResultInput) {
     // Confronto solo sulla data (non sull'ora, per evitare falsi negativi
     // dovuti al fuso orario tra client e server) — chi inserisce un
     // risultato lo fa comunque a partita già conclusa da un pezzo.
@@ -133,6 +146,7 @@ export async function saveMatchAction(
       setScores: result.setScores,
       resultSetsWon: result.resultSetsWon,
       resultSetsLost: result.resultSetsLost,
+      tournamentGames: tournamentResult.tournamentGames,
     };
 
     const matchup = matchupLabel(input);
@@ -315,6 +329,7 @@ export async function saveCallUpsAndLineupAction(
     setScores: match.setScores,
     resultSetsWon: match.resultSetsWon,
     resultSetsLost: match.resultSetsLost,
+    tournamentGames: match.tournamentGames,
   };
   try {
     await repo.updateMatch(matchId, input);

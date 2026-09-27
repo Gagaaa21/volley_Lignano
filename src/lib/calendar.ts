@@ -116,6 +116,7 @@ export function matchesToEvents(matches: Match[]): CalendarEvent[] {
     setScores: m.setScores,
     resultSetsWon: m.resultSetsWon,
     resultSetsLost: m.resultSetsLost,
+    tournamentGames: m.tournamentGames,
   }));
 }
 

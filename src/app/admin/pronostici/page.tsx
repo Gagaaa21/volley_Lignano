@@ -4,11 +4,17 @@ import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateLong } from "@/lib/format";
-import { computeLeaderboard, computeMatchResults, isMatchLocked } from "@/lib/predictions";
-import { cn } from "@/lib/cn";
+import {
+  computeLeaderboard,
+  computeMatchResults,
+  computeTournamentMatchResults,
+  isMatchLocked,
+  matchHasResult,
+} from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
-import type { MatchPrediction } from "@/lib/types";
+import { SetRankingBadges } from "./PredictionRankings";
+import type { Match, MatchPrediction } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Pronostici",
@@ -25,8 +31,6 @@ export default async function PronosticiPage() {
     staffRepo.listStaff(),
   ]);
 
-  // I tornei non hanno un singolo "noi vs loro" a cui applicare un pronostico.
-  const predictable = matches.filter((m) => !m.isTournament);
   const nameById = new Map(staff.map((s) => [s.id, s.fullName]));
 
   const predictionsByMatch = new Map<string, MatchPrediction[]>();
@@ -36,11 +40,9 @@ export default async function PronosticiPage() {
     predictionsByMatch.set(prediction.matchId, list);
   }
 
-  const withResult = predictable.filter((m) => m.setScores && m.setScores.length > 0);
-  const upcoming = predictable.filter((m) => !isMatchLocked(m.matchDate));
-  const lockedNoResult = predictable.filter(
-    (m) => isMatchLocked(m.matchDate) && !(m.setScores && m.setScores.length > 0),
-  );
+  const withResult = matches.filter((m) => matchHasResult(m));
+  const upcoming = matches.filter((m) => !isMatchLocked(m.matchDate));
+  const lockedNoResult = matches.filter((m) => isMatchLocked(m.matchDate) && !matchHasResult(m));
 
   const leaderboard = computeLeaderboard(withResult, predictionsByMatch);
 
@@ -158,55 +160,110 @@ export default async function PronosticiPage() {
         <div className="mt-8">
           <h2 className="font-display text-lg font-bold text-foreground">Risultati</h2>
           <div className="mt-3 space-y-3">
-            {withResult.map((match) => {
-              const results = computeMatchResults(match, predictionsByMatch.get(match.id) ?? []);
-              const hasAnyPrediction = results?.some((r) => r.rankings.length > 0) ?? false;
-              return (
-                <Card key={match.id}>
-                  <CardHeader>
-                    <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
-                    <p className="mt-1 text-sm text-foreground/60">{formatDateLong(match.matchDate.slice(0, 10))}</p>
-                  </CardHeader>
-                  <CardBody>
-                    {!results || !hasAnyPrediction ? (
-                      <p className="text-sm text-muted-foreground">Nessun pronostico per questa partita.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {results
-                          .filter((r) => r.rankings.length > 0)
-                          .map((r) => (
-                            <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
-                                Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
-                              </p>
-                              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                {r.rankings.map((entry) => (
-                                  <span
-                                    key={entry.staffId}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
-                                      entry.isWinner
-                                        ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
-                                        : "bg-surface-muted text-foreground/60",
-                                    )}
-                                  >
-                                    {entry.isWinner && <Trophy className="h-3 w-3" />}
-                                    {nameById.get(entry.staffId) ?? "Utente rimosso"}: {entry.predicted.us}-
-                                    {entry.predicted.them}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  </CardBody>
-                </Card>
-              );
-            })}
+            {withResult.map((match) => (
+              <MatchResultCard
+                key={match.id}
+                match={match}
+                predictions={predictionsByMatch.get(match.id) ?? []}
+                nameById={nameById}
+              />
+            ))}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MatchResultCard({
+  match,
+  predictions,
+  nameById,
+}: {
+  match: Match;
+  predictions: MatchPrediction[];
+  nameById: Map<string, string>;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
+        <p className="mt-1 text-sm text-foreground/60">{formatDateLong(match.matchDate.slice(0, 10))}</p>
+      </CardHeader>
+      <CardBody>
+        {match.isTournament ? (
+          <TournamentResultBlock match={match} predictions={predictions} nameById={nameById} />
+        ) : (
+          <MatchResultBlock match={match} predictions={predictions} nameById={nameById} />
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function MatchResultBlock({
+  match,
+  predictions,
+  nameById,
+}: {
+  match: Match;
+  predictions: MatchPrediction[];
+  nameById: Map<string, string>;
+}) {
+  const results = computeMatchResults(match, predictions);
+  const hasAnyPrediction = results?.some((r) => r.rankings.length > 0) ?? false;
+  if (!results || !hasAnyPrediction) {
+    return <p className="text-sm text-muted-foreground">Nessun pronostico per questa partita.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {results
+        .filter((r) => r.rankings.length > 0)
+        .map((r) => (
+          <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
+            </p>
+            <SetRankingBadges rankings={r.rankings} nameById={nameById} />
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function TournamentResultBlock({
+  match,
+  predictions,
+  nameById,
+}: {
+  match: Match;
+  predictions: MatchPrediction[];
+  nameById: Map<string, string>;
+}) {
+  const gameResults = computeTournamentMatchResults(match, predictions) ?? [];
+  const playedGames = gameResults.filter((g) => g.sets.some((s) => s.rankings.length > 0));
+  if (playedGames.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nessun pronostico per questa partita.</p>;
+  }
+  return (
+    <div className="space-y-4">
+      {playedGames.map((game) => (
+        <div key={game.gameId}>
+          <p className="mb-1.5 text-sm font-semibold text-foreground/80">vs {game.opponent}</p>
+          <div className="space-y-2">
+            {game.sets
+              .filter((r) => r.rankings.length > 0)
+              .map((r) => (
+                <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+                    Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
+                  </p>
+                  <SetRankingBadges rankings={r.rankings} nameById={nameById} />
+                </div>
+              ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

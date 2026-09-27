@@ -17,6 +17,7 @@ import type {
   PushSubscriptionRecord,
   SetLineup,
   StaffMember,
+  TournamentGame,
   TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
@@ -62,6 +63,7 @@ type MatchRow = {
   set_scores: { us: number; them: number }[] | null;
   result_sets_won: number | null;
   result_sets_lost: number | null;
+  tournament_games: TournamentGame[] | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -140,6 +142,7 @@ function matchFromRow(row: MatchRow): Match {
     setScores: row.set_scores,
     resultSetsWon: row.result_sets_won,
     resultSetsLost: row.result_sets_lost,
+    tournamentGames: row.tournament_games,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -163,6 +166,7 @@ function matchToRow(input: MatchInput) {
     set_scores: input.setScores,
     result_sets_won: input.resultSetsWon,
     result_sets_lost: input.resultSetsLost,
+    tournament_games: input.tournamentGames,
   };
 }
 
@@ -186,7 +190,8 @@ type MatchPredictionRow = {
   id: string;
   match_id: string;
   staff_id: string;
-  set_scores: { us: number; them: number }[];
+  set_scores: { us: number; them: number }[] | null;
+  tournament_games: TournamentGame[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -197,6 +202,7 @@ function matchPredictionFromRow(row: MatchPredictionRow): MatchPrediction {
     matchId: row.match_id,
     staffId: row.staff_id,
     setScores: row.set_scores,
+    tournamentGames: row.tournament_games,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -522,7 +528,13 @@ export const supabaseRepo: Repo = {
     const result = await db
       .from("match_predictions")
       .upsert(
-        { match_id: matchId, staff_id: staffId, set_scores: input.setScores, updated_at: new Date().toISOString() },
+        {
+          match_id: matchId,
+          staff_id: staffId,
+          set_scores: input.setScores,
+          tournament_games: input.tournamentGames,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: "match_id,staff_id" },
       )
       .select("*")

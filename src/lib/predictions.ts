@@ -1,4 +1,4 @@
-import type { Match, MatchPrediction, SetScore } from "@/lib/types";
+import type { Match, MatchPrediction, SetScore, TournamentGame } from "@/lib/types";
 
 /** Un pronostico si blocca esattamente all'orario della partita (non solo
  * al giorno, a differenza del gate "isPastMatch" del risultato reale in
@@ -102,18 +102,69 @@ export interface MatchSetResult {
 }
 
 /** Applica rankSetPredictions a ogni set REALMENTE giocato di una partita
- * (match.setScores), ignorando eventuali set pronosticati oltre la
- * lunghezza reale della partita. null se la partita non ha ancora un
- * risultato. */
+ * non-torneo (match.setScores), ignorando eventuali set pronosticati oltre
+ * la lunghezza reale della partita. null se la partita non ha ancora un
+ * risultato (o è un torneo: vedi computeTournamentMatchResults). */
 export function computeMatchResults(match: Match, predictions: MatchPrediction[]): MatchSetResult[] | null {
   if (!match.setScores || match.setScores.length === 0) return null;
 
   return match.setScores.map((actual, setIndex) => {
     const entries: PredictionEntry[] = predictions
-      .filter((p) => p.setScores[setIndex] !== undefined)
-      .map((p) => ({ staffId: p.staffId, predicted: p.setScores[setIndex] }));
+      .filter((p) => p.setScores?.[setIndex] !== undefined)
+      .map((p) => ({ staffId: p.staffId, predicted: p.setScores![setIndex] }));
     return { setIndex, actual, rankings: rankSetPredictions(actual, entries) };
   });
+}
+
+function normalizeOpponent(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+export interface TournamentGameSetResults {
+  gameId: string;
+  opponent: string;
+  sets: MatchSetResult[];
+}
+
+/** Come computeMatchResults, ma per un torneo: una partita per ogni
+ * avversaria REALMENTE affrontata (match.tournamentGames). Un pronostico si
+ * abbina a una partita reale per nome avversaria (confronto normalizzato:
+ * spazi e maiuscole/minuscole ignorati, non un vero fuzzy-match) — un
+ * pronostico contro un'avversaria mai affrontata non entra nel confronto,
+ * nessuna penalità. null se il torneo non ha ancora nessun risultato. */
+export function computeTournamentMatchResults(
+  match: Match,
+  predictions: MatchPrediction[],
+): TournamentGameSetResults[] | null {
+  if (!match.tournamentGames || match.tournamentGames.length === 0) return null;
+  const played = match.tournamentGames.filter((g) => g.setScores.length > 0);
+  if (played.length === 0) return null;
+
+  return played.map((game) => {
+    const predictedGamesByStaff = predictions
+      .map((p) => ({
+        staffId: p.staffId,
+        game: p.tournamentGames?.find((g: TournamentGame) => normalizeOpponent(g.opponent) === normalizeOpponent(game.opponent)),
+      }))
+      .filter((entry): entry is { staffId: string; game: TournamentGame } => Boolean(entry.game));
+
+    const sets: MatchSetResult[] = game.setScores.map((actual, setIndex) => {
+      const entries: PredictionEntry[] = predictedGamesByStaff
+        .filter(({ game: predictedGame }) => predictedGame.setScores[setIndex] !== undefined)
+        .map(({ staffId, game: predictedGame }) => ({ staffId, predicted: predictedGame.setScores[setIndex] }));
+      return { setIndex, actual, rankings: rankSetPredictions(actual, entries) };
+    });
+
+    return { gameId: game.id, opponent: game.opponent, sets };
+  });
+}
+
+/** true se una partita ha già un risultato inserito — normale o torneo. */
+export function matchHasResult(match: Match): boolean {
+  if (match.isTournament) {
+    return Boolean(match.tournamentGames?.some((g) => g.setScores.length > 0));
+  }
+  return Boolean(match.setScores && match.setScores.length > 0);
 }
 
 export interface LeaderboardEntry {
@@ -134,9 +185,11 @@ export function computeLeaderboard(
 
   for (const match of matches) {
     const predictions = predictionsByMatch.get(match.id) ?? [];
-    const results = computeMatchResults(match, predictions);
-    if (!results) continue;
-    for (const result of results) {
+    const setResults = match.isTournament
+      ? (computeTournamentMatchResults(match, predictions) ?? []).flatMap((g) => g.sets)
+      : computeMatchResults(match, predictions);
+    if (!setResults) continue;
+    for (const result of setResults) {
       for (const entry of result.rankings) {
         setsPredicted.set(entry.staffId, (setsPredicted.get(entry.staffId) ?? 0) + 1);
         if (entry.isWinner) {

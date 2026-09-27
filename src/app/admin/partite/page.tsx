@@ -107,6 +107,8 @@ export default async function MatchesListPage({
                           {match.resultSetsWon > match.resultSetsLost ? "Vinta" : "Persa"}{" "}
                           {match.resultSetsWon}-{match.resultSetsLost}
                         </Badge>
+                      ) : match.isTournament && match.tournamentGames?.some((g) => g.setScores.length > 0) ? (
+                        <Badge className="bg-foreground/10 text-foreground/60">Risultato registrato</Badge>
                       ) : (
                         isPast && <Badge className="bg-foreground/10 text-foreground/50">Disputata</Badge>
                       )}
@@ -121,11 +123,22 @@ export default async function MatchesListPage({
                       <MapPin className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{match.location}</span>
                     </p>
-                    {match.setScores && match.setScores.length > 0 && (
-                      <p className="mt-1 text-xs text-foreground/45">
-                        {match.setScores.map((s) => `${s.us}-${s.them}`).join(", ")}
-                      </p>
-                    )}
+                    {match.isTournament
+                      ? match.tournamentGames &&
+                        match.tournamentGames.some((g) => g.setScores.length > 0) && (
+                          <p className="mt-1 text-xs text-foreground/45">
+                            {match.tournamentGames
+                              .filter((g) => g.setScores.length > 0)
+                              .map((g) => `vs ${g.opponent}: ${g.setScores.map((s) => `${s.us}-${s.them}`).join(", ")}`)
+                              .join(" · ")}
+                          </p>
+                        )
+                      : match.setScores &&
+                        match.setScores.length > 0 && (
+                          <p className="mt-1 text-xs text-foreground/45">
+                            {match.setScores.map((s) => `${s.us}-${s.them}`).join(", ")}
+                          </p>
+                        )}
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">

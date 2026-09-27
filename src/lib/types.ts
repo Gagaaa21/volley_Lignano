@@ -171,6 +171,20 @@ export interface SetScore {
   them: number;
 }
 
+/** Una partita giocata (o pronosticata) dentro un torneo: un'avversaria
+ * affrontata e il suo risultato set per set. Le partite normali non usano
+ * questo tipo — restano su Match.setScores/opponent, "noi vs loro" contro
+ * un'unica avversaria, come sempre. */
+export interface TournamentGame {
+  id: string;
+  opponent: string;
+  /** Stessa regola di validità di Match.setScores (una squadra a 3 set
+   * vinti, nessun set in parità); vuoto se l'avversaria è nota ma non si è
+   * ancora giocato (solo per il risultato reale — un pronostico senza
+   * punteggio non ha senso e viene scartato). */
+  setScores: SetScore[];
+}
+
 export interface Match {
   id: string;
   /** Squadra a cui appartiene: scopa l'elenco admin, il calendario pubblico
@@ -196,11 +210,17 @@ export interface Match {
   meetingLocation: string | null;
   notes: string | null;
   calledUpAthleteIds: string[]; // convocate per questa partita
-  /** Parziali dei singoli set, in ordine di gioco; valorizzati solo a partita giocata. */
+  /** Parziali dei singoli set, in ordine di gioco; valorizzati solo a partita
+   * giocata. Sempre null per i tornei (vedi tournamentGames): con più
+   * avversarie non c'è un unico "noi vs loro" a cui applicarli. */
   setScores: SetScore[] | null;
-  /** Set vinti/persi totali, derivati automaticamente dai parziali. */
+  /** Set vinti/persi totali, derivati automaticamente dai parziali. Sempre
+   * null per i tornei, per lo stesso motivo di setScores. */
   resultSetsWon: number | null;
   resultSetsLost: number | null;
+  /** Solo per isTournament: le partite giocate nel torneo, una per
+   * avversaria affrontata. Null per le partite normali. */
+  tournamentGames: TournamentGame[] | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -219,12 +239,17 @@ export interface MatchPrediction {
   id: string;
   matchId: string;
   staffId: string;
-  setScores: SetScore[];
+  /** Usato solo per le partite non-torneo. */
+  setScores: SetScore[] | null;
+  /** Usato solo per i tornei: una partita pronosticata per ogni avversaria
+   * che lo staff pensa di affrontare, abbinata al risultato reale per nome
+   * avversaria (vedi computeTournamentMatchResults in lib/predictions.ts). */
+  tournamentGames: TournamentGame[] | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type MatchPredictionInput = { setScores: SetScore[] };
+export type MatchPredictionInput = { setScores: SetScore[] | null; tournamentGames: TournamentGame[] | null };
 
 // Formazioni partita (riservate allo staff, mai esposte sul sito pubblico) —
 // ruoli standard della pallavolo assegnabili a ciascuna delle 6 posizioni in
@@ -420,6 +445,7 @@ export type CalendarEvent =
       setScores: SetScore[] | null;
       resultSetsWon: number | null;
       resultSetsLost: number | null;
+      tournamentGames: TournamentGame[] | null;
     };
 
 export interface StorageTableInfo {

@@ -5,6 +5,11 @@ import { useFormStatus } from "react-dom";
 import { Save, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
+import {
+  TournamentGamesEditor,
+  tournamentGamesToFormState,
+  type TournamentGameFormState,
+} from "@/components/admin/TournamentGamesEditor";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { saveMatchAction, type MatchFormState } from "./actions";
 import type { Match, TrainingTeam } from "@/lib/types";
@@ -31,6 +36,9 @@ const MAX_SETS = 5;
 export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: TrainingTeam }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
   const [isTournament, setIsTournament] = useState(match?.isTournament ?? false);
+  const [tournamentGames, setTournamentGames] = useState<TournamentGameFormState[]>(() =>
+    tournamentGamesToFormState(match?.tournamentGames),
+  );
   const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
   const effectiveTeam = match?.team ?? team;
 
@@ -162,7 +170,17 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
         />
       </div>
 
-      {isPastMatch && (
+      {isPastMatch && isTournament && (
+        <TournamentGamesEditor
+          games={tournamentGames}
+          onChange={setTournamentGames}
+          hiddenFieldName="tournamentGames"
+          title="Risultati del torneo"
+          hint="Aggiungi una partita per ogni avversaria affrontata e i punti dei singoli set. Lascia in bianco i set non giocati, o l'intera partita se non conosci ancora il risultato: set vinti e persi vengono calcolati automaticamente."
+        />
+      )}
+
+      {isPastMatch && !isTournament && (
         <div className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3.5">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
             <Trophy className="h-4 w-4 text-sand-600" />
