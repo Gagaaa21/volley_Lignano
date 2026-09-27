@@ -46,6 +46,21 @@ export function EditStaffForm({ member }: { member: StaffMember }) {
         </FieldHint>
       </div>
 
+      <label className="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm">
+        <input
+          type="checkbox"
+          name="hiddenFromAdmins"
+          defaultChecked={member.hiddenFromAdmins}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-subtle text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <span>
+          <span className="block font-medium text-foreground">Nascondi questo admin agli altri admin</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Sparisce dall&apos;elenco Staff visto da altri account Admin. Tu (Developer) lo vedi comunque sempre.
+          </span>
+        </span>
+      </label>
+
       {state.error && (
         <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5">
           <FieldError>{state.error}</FieldError>

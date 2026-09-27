@@ -10,7 +10,8 @@ import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import type { MatchInput, MatchLineupInput, SetScore } from "@/lib/types";
+import { parseSetScoresFromFormData } from "@/lib/setScores";
+import type { MatchInput, MatchLineupInput } from "@/lib/types";
 
 const schema = z
   .object({
@@ -34,73 +35,6 @@ const schema = z
     message: "Seleziona una categoria.",
     path: ["category"],
   });
-
-interface ParsedResult {
-  setScores: SetScore[] | null;
-  resultSetsWon: number | null;
-  resultSetsLost: number | null;
-  error?: string;
-}
-
-/** Deriva set vinti/persi dai parziali inseriti (es. "25-20"), set per set. */
-function parseSetScores(formData: FormData): ParsedResult {
-  const usValues = formData.getAll("setUs").map((v) => v.toString().trim());
-  const themValues = formData.getAll("setThem").map((v) => v.toString().trim());
-  const count = Math.max(usValues.length, themValues.length);
-
-  const setScores: SetScore[] = [];
-  for (let i = 0; i < count; i++) {
-    const usRaw = usValues[i] ?? "";
-    const themRaw = themValues[i] ?? "";
-    if (!usRaw && !themRaw) continue;
-    if (!usRaw || !themRaw) {
-      return {
-        setScores: null,
-        resultSetsWon: null,
-        resultSetsLost: null,
-        error: `Inserisci il punteggio di entrambe le squadre per il set ${i + 1}.`,
-      };
-    }
-    const us = Number(usRaw);
-    const them = Number(themRaw);
-    if (!Number.isInteger(us) || !Number.isInteger(them) || us < 0 || them < 0 || us > 99 || them > 99) {
-      return {
-        setScores: null,
-        resultSetsWon: null,
-        resultSetsLost: null,
-        error: `Punteggio non valido per il set ${i + 1}.`,
-      };
-    }
-    if (us === them) {
-      return {
-        setScores: null,
-        resultSetsWon: null,
-        resultSetsLost: null,
-        error: `Il set ${i + 1} non può terminare in parità.`,
-      };
-    }
-    setScores.push({ us, them });
-  }
-
-  if (setScores.length === 0) {
-    return { setScores: null, resultSetsWon: null, resultSetsLost: null };
-  }
-
-  const resultSetsWon = setScores.filter((s) => s.us > s.them).length;
-  const resultSetsLost = setScores.filter((s) => s.us < s.them).length;
-  const max = Math.max(resultSetsWon, resultSetsLost);
-  const min = Math.min(resultSetsWon, resultSetsLost);
-  if (max !== 3 || min >= 3) {
-    return {
-      setScores: null,
-      resultSetsWon: null,
-      resultSetsLost: null,
-      error: "Risultato non valido: una squadra deve arrivare a 3 set.",
-    };
-  }
-
-  return { setScores, resultSetsWon, resultSetsLost };
-}
 
 export interface MatchFormState {
   error?: string;
@@ -154,7 +88,7 @@ export async function saveMatchAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const result = parseSetScores(formData);
+  const result = parseSetScoresFromFormData(formData);
   if (result.error) {
     return { error: result.error };
   }

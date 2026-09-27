@@ -9,6 +9,8 @@ import type {
   MatchInput,
   MatchLineup,
   MatchLineupInput,
+  MatchPrediction,
+  MatchPredictionInput,
   PushSubscriptionRecord,
   StaffMember,
   StaffRole,
@@ -76,12 +78,25 @@ export interface Repo {
     updatedBy: string | null,
   ): Promise<MatchLineup>;
 
+  // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
+  // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).
+  listPredictions(filter?: { matchId?: string }): Promise<MatchPrediction[]>;
+  getPrediction(matchId: string, staffId: string): Promise<MatchPrediction | null>;
+  upsertPrediction(
+    matchId: string,
+    staffId: string,
+    input: MatchPredictionInput,
+  ): Promise<MatchPrediction>;
+
   // Staff
   listStaff(): Promise<StaffMember[]>;
   getStaffById(id: string): Promise<StaffMember | null>;
   getStaffByUsername(username: string): Promise<StaffMember | null>;
   createStaff(input: NewStaffInput): Promise<StaffMember>;
-  updateStaffProfile(id: string, input: { username: string; fullName: string }): Promise<StaffMember>;
+  updateStaffProfile(
+    id: string,
+    input: { username: string; fullName: string; hiddenFromAdmins: boolean },
+  ): Promise<StaffMember>;
   setStaffPassword(id: string, passwordHash: string, mustChangePassword: boolean): Promise<void>;
   updateStaffPermissions(id: string, input: StaffPermissionsInput): Promise<void>;
   markGuideSeen(id: string): Promise<void>;

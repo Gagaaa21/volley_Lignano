@@ -10,6 +10,8 @@ import type {
   MatchInput,
   MatchLineup,
   MatchLineupInput,
+  MatchPrediction,
+  MatchPredictionInput,
   PushSubscriptionRecord,
   StaffMember,
   TrainingOccurrencePlan,
@@ -41,6 +43,7 @@ export interface MemoryStore {
   trainings: TrainingRule[];
   matches: Match[];
   matchLineups: MatchLineup[];
+  matchPredictions: MatchPrediction[];
   trainingPlans: TrainingPlan[];
   trainingOccurrencePlans: TrainingOccurrencePlan[];
   athletes: Athlete[];
@@ -56,6 +59,7 @@ export function createEmptyStore(): MemoryStore {
     trainings: [],
     matches: [],
     matchLineups: [],
+    matchPredictions: [],
     trainingPlans: [],
     trainingOccurrencePlans: [],
     athletes: [],
@@ -80,6 +84,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   const trainings = store.trainings;
   const matches = store.matches;
   const matchLineups = store.matchLineups;
+  const matchPredictions = store.matchPredictions;
   const trainingPlans = store.trainingPlans;
   const trainingOccurrencePlans = store.trainingOccurrencePlans;
   const athletes = store.athletes;
@@ -101,6 +106,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       hasSeenGuide: false,
       allowedPages: ADMIN_PAGES,
       allowedTeams: TEAMS,
+      hiddenFromAdmins: false,
       createdBy: null,
       createdAt: new Date().toISOString(),
     });
@@ -160,6 +166,9 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx !== -1) matches.splice(idx, 1);
       const lineupIdx = matchLineups.findIndex((l) => l.matchId === id);
       if (lineupIdx !== -1) matchLineups.splice(lineupIdx, 1);
+      for (let i = matchPredictions.length - 1; i >= 0; i--) {
+        if (matchPredictions[i].matchId === id) matchPredictions.splice(i, 1);
+      }
     },
 
     async listMatchLineups() {
@@ -180,6 +189,26 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       return row;
     },
 
+    async listPredictions(filter?: { matchId?: string }) {
+      let result = [...matchPredictions];
+      if (filter?.matchId) result = result.filter((p) => p.matchId === filter.matchId);
+      return result;
+    },
+    async getPrediction(matchId, staffId) {
+      return matchPredictions.find((p) => p.matchId === matchId && p.staffId === staffId) ?? null;
+    },
+    async upsertPrediction(matchId, staffId, input: MatchPredictionInput) {
+      const now = new Date().toISOString();
+      const idx = matchPredictions.findIndex((p) => p.matchId === matchId && p.staffId === staffId);
+      if (idx === -1) {
+        const row: MatchPrediction = { id: uid(), matchId, staffId, setScores: input.setScores, createdAt: now, updatedAt: now };
+        matchPredictions.push(row);
+        return row;
+      }
+      matchPredictions[idx] = { ...matchPredictions[idx], setScores: input.setScores, updatedAt: now };
+      return matchPredictions[idx];
+    },
+
     async listStaff() {
       await ensureStaffSeeded();
       return [...staff].sort((a, b) => a.username.localeCompare(b.username));
@@ -198,6 +227,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         ...input,
         id: uid(),
         hasSeenGuide: false,
+        hiddenFromAdmins: false,
         createdAt: new Date().toISOString(),
       };
       staff.push(row);
@@ -207,7 +237,12 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       await ensureStaffSeeded();
       const idx = staff.findIndex((s) => s.id === id);
       if (idx === -1) throw new Error("Utente non trovato");
-      staff[idx] = { ...staff[idx], username: input.username, fullName: input.fullName };
+      staff[idx] = {
+        ...staff[idx],
+        username: input.username,
+        fullName: input.fullName,
+        hiddenFromAdmins: input.hiddenFromAdmins,
+      };
       return staff[idx];
     },
     async setStaffPassword(id, passwordHash, mustChangePassword) {
@@ -428,6 +463,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "training_sessions", rows: trainings },
         { table: "matches", rows: matches },
         { table: "match_lineups", rows: matchLineups },
+        { table: "match_predictions", rows: matchPredictions },
         { table: "training_plans", rows: trainingPlans },
         { table: "training_occurrence_plans", rows: trainingOccurrencePlans },
         { table: "athletes", rows: athletes },

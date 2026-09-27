@@ -53,7 +53,7 @@ export async function createStaffAction(
       allowedPages: ADMIN_PAGES,
       allowedTeams: TEAMS,
       createdBy: session.sub,
-    });
+    }); // hiddenFromAdmins: false di default — si nasconde dopo, dalla pagina di modifica.
 
     revalidatePath("/admin/staff");
     return { created: { username: parsed.data.username, password: parsed.data.temporaryPassword } };
@@ -119,7 +119,12 @@ export async function updateStaffAction(
       return { error: "Questo nome utente è già in uso." };
     }
 
-    await repo.updateStaffProfile(id, { username: parsed.data.username, fullName: parsed.data.fullName });
+    const hiddenFromAdmins = formData.get("hiddenFromAdmins") === "on";
+    await repo.updateStaffProfile(id, {
+      username: parsed.data.username,
+      fullName: parsed.data.fullName,
+      hiddenFromAdmins,
+    });
 
     let resetPassword: UpdateStaffFormState["resetPassword"];
     if (parsed.data.newPassword) {

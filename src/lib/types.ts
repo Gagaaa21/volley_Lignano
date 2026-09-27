@@ -10,6 +10,7 @@ export type AdminPage =
   | "schede"
   | "presenze"
   | "livescore"
+  | "pronostici"
   | "staff"
   | "guida";
 
@@ -19,6 +20,7 @@ export const ADMIN_PAGES: AdminPage[] = [
   "schede",
   "presenze",
   "livescore",
+  "pronostici",
   "staff",
   "guida",
 ];
@@ -29,6 +31,7 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   schede: "Schede",
   presenze: "Presenze",
   livescore: "Live score",
+  pronostici: "Pronostici",
   staff: "Staff",
   guida: "Guida",
 };
@@ -37,11 +40,12 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
  * permessi dell'account (vale anche per un Developer): "Partite" è stata
  * rimossa del tutto — la squadra non gioca partite di campionato con
  * risultato, solo tornei multi-club, già coperti da "Allenamenti"
- * (isTournament). "Presenze" invece resta disponibile per entrambe le
- * squadre, ma con un flusso diverso per il Minivolley (vedi
- * MiniAttendanceForm): niente elenco con spunte, solo un elenco libero di
- * chi era presente, con conteggio pubblico per atleta. */
-const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite"];
+ * (isTournament). "Pronostici" ne dipende (si pronostica il risultato di
+ * una partita) e quindi segue la stessa esclusione. "Presenze" invece resta
+ * disponibile per entrambe le squadre, ma con un flusso diverso per il
+ * Minivolley (vedi MiniAttendanceForm): niente elenco con spunte, solo un
+ * elenco libero di chi era presente, con conteggio pubblico per atleta. */
+const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici"];
 
 export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
   return team !== "minivolley" || !PAGES_UNAVAILABLE_FOR_MINIVOLLEY.includes(page);
@@ -66,6 +70,13 @@ export interface StaffMember {
    * entrambe, così un account esistente non perde accesso finché il
    * Developer non lo restringe esplicitamente dal Centro di controllo. */
   allowedTeams: TrainingTeam[];
+  /** Se true, questo account non compare nell'elenco Staff visto da altri
+   * Admin (solo lì — resta comunque l'autore visibile ovunque compaia
+   * "creato da"): il Developer lo vede sempre, e la pagina/azioni di
+   * modifica restano comunque riservate al Developer come per ogni altro
+   * account admin, quindi non serve altra protezione oltre al filtro
+   * sull'elenco. Impostabile solo dal Developer, mai dall'admin stesso. */
+  hiddenFromAdmins: boolean;
   createdBy: string | null;
   createdAt: string;
 }
@@ -196,6 +207,24 @@ export interface Match {
 }
 
 export type MatchInput = Omit<Match, "id" | "createdBy" | "createdAt" | "updatedAt">;
+
+/** Pronostico di un membro dello staff sul punteggio di ogni set di una
+ * partita non ancora giocata (vedi "Pronostici", src/lib/predictions.ts per
+ * come viene giudicato). Stessa forma di Match.setScores (us = Volley
+ * Lignano), ma qui è sempre valorizzato: un pronostico deve essere un esito
+ * di partita completo e valido (una squadra a 3 set vinti, nessun set in
+ * parità), non un risultato parziale. Un solo pronostico per (matchId,
+ * staffId): si sovrascrive modificandolo, non se ne accumulano più di uno. */
+export interface MatchPrediction {
+  id: string;
+  matchId: string;
+  staffId: string;
+  setScores: SetScore[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MatchPredictionInput = { setScores: SetScore[] };
 
 // Formazioni partita (riservate allo staff, mai esposte sul sito pubblico) —
 // ruoli standard della pallavolo assegnabili a ciascuna delle 6 posizioni in

@@ -11,6 +11,8 @@ import type {
   MatchInput,
   MatchLineup,
   MatchLineupInput,
+  MatchPrediction,
+  MatchPredictionInput,
   PlanBlock,
   PushSubscriptionRecord,
   SetLineup,
@@ -75,6 +77,7 @@ type StaffRow = {
   has_seen_guide: boolean;
   allowed_pages: StaffMember["allowedPages"];
   allowed_teams: StaffMember["allowedTeams"];
+  hidden_from_admins: boolean;
   created_by: string | null;
   created_at: string;
 };
@@ -179,6 +182,26 @@ function matchLineupFromRow(row: MatchLineupRow): MatchLineup {
   };
 }
 
+type MatchPredictionRow = {
+  id: string;
+  match_id: string;
+  staff_id: string;
+  set_scores: { us: number; them: number }[];
+  created_at: string;
+  updated_at: string;
+};
+
+function matchPredictionFromRow(row: MatchPredictionRow): MatchPrediction {
+  return {
+    id: row.id,
+    matchId: row.match_id,
+    staffId: row.staff_id,
+    setScores: row.set_scores,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function staffFromRow(row: StaffRow): StaffMember {
   return {
     id: row.id,
@@ -193,6 +216,9 @@ function staffFromRow(row: StaffRow): StaffMember {
     // colonna allowed_teams: senza, Supabase la restituisce undefined e il
     // Centro di controllo va in errore (.includes su undefined).
     allowedTeams: row.allowed_teams ?? TEAMS,
+    // Stesso fallback: senza la migrazione che aggiunge hidden_from_admins,
+    // Supabase la restituisce undefined — di default un account non è nascosto.
+    hiddenFromAdmins: row.hidden_from_admins ?? false,
     createdBy: row.created_by,
     createdAt: row.created_at,
   };
@@ -472,6 +498,38 @@ export const supabaseRepo: Repo = {
     return matchLineupFromRow(unwrap(result) as MatchLineupRow);
   },
 
+  async listPredictions(filter?: { matchId?: string }) {
+    const db = getSupabaseAdmin();
+    let query = db.from("match_predictions").select("*");
+    if (filter?.matchId) query = query.eq("match_id", filter.matchId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data as MatchPredictionRow[]).map(matchPredictionFromRow);
+  },
+  async getPrediction(matchId, staffId) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db
+      .from("match_predictions")
+      .select("*")
+      .eq("match_id", matchId)
+      .eq("staff_id", staffId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? matchPredictionFromRow(data as MatchPredictionRow) : null;
+  },
+  async upsertPrediction(matchId, staffId, input: MatchPredictionInput) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("match_predictions")
+      .upsert(
+        { match_id: matchId, staff_id: staffId, set_scores: input.setScores, updated_at: new Date().toISOString() },
+        { onConflict: "match_id,staff_id" },
+      )
+      .select("*")
+      .single();
+    return matchPredictionFromRow(unwrap(result) as MatchPredictionRow);
+  },
+
   async listStaff() {
     const db = getSupabaseAdmin();
     const { data, error } = await db.from("staff").select("*").order("username", { ascending: true });
@@ -516,7 +574,7 @@ export const supabaseRepo: Repo = {
     const db = getSupabaseAdmin();
     const result = await db
       .from("staff")
-      .update({ username: input.username, full_name: input.fullName })
+      .update({ username: input.username, full_name: input.fullName, hidden_from_admins: input.hiddenFromAdmins })
       .eq("id", id)
       .select("*")
       .single();

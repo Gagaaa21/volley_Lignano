@@ -28,6 +28,10 @@ create table if not exists staff (
   -- (solo per role "admin", un Developer vede sempre entrambe). Default:
   -- entrambe, stessa logica di allowed_pages.
   allowed_teams text[] not null default '{u14u15,minivolley}',
+  -- Se true, l'account non compare nell'elenco Staff visto da altri Admin
+  -- (solo lì): il Developer lo vede comunque sempre. Impostabile solo dal
+  -- Developer, mai dall'admin stesso.
+  hidden_from_admins boolean not null default false,
   created_by uuid references staff(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -138,6 +142,27 @@ create table if not exists match_lineups (
 
 alter table match_lineups enable row level security;
 -- Nessuna policy pubblica: le formazioni sono riservate allo staff.
+
+-- =========================================================
+-- match_predictions — pronostici sul punteggio di ogni set di una partita
+-- non ancora giocata, uno per (match, membro dello staff). Vedi
+-- src/lib/predictions.ts per come vengono giudicati una volta inseriti i
+-- parziali reali su matches.set_scores.
+-- =========================================================
+create table if not exists match_predictions (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references matches(id) on delete cascade,
+  staff_id uuid not null references staff(id) on delete cascade,
+  set_scores jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists match_predictions_match_staff_idx on match_predictions (match_id, staff_id);
+create index if not exists match_predictions_match_idx on match_predictions (match_id);
+
+alter table match_predictions enable row level security;
+-- Nessuna policy pubblica: pronostici riservati allo staff con accesso alla pagina "pronostici".
 
 -- =========================================================
 -- training_plans — schede allenamento, visibili solo a Developer e Admin.
@@ -285,6 +310,7 @@ alter table push_subscriptions enable row level security;
 alter table athletes alter column category drop not null;
 alter table staff add column if not exists has_seen_guide boolean not null default false;
 alter table staff add column if not exists allowed_pages text[] not null default '{allenamenti,minivolley,partite,schede,presenze,staff,guida}';
+alter table staff add column if not exists hidden_from_admins boolean not null default false;
 alter table training_sessions add column if not exists repeat text not null default 'weekly';
 do $$ begin
   alter table training_sessions add constraint training_sessions_repeat_check check (repeat in ('weekly', 'once'));

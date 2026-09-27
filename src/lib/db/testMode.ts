@@ -63,21 +63,31 @@ function cloneAll<T>(items: T[]): T[] {
 }
 
 export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
-  const [trainings, matches, matchLineups, trainingPlans, trainingOccurrencePlans, athletes, attendanceSessions] =
-    await Promise.all([
-      realRepo.listTrainings(),
-      realRepo.listMatches(),
-      realRepo.listMatchLineups(),
-      realRepo.listTrainingPlans(),
-      realRepo.listTrainingOccurrencePlans(),
-      realRepo.listAthletes(),
-      realRepo.listAttendanceSessions(),
-    ]);
+  const [
+    trainings,
+    matches,
+    matchLineups,
+    matchPredictions,
+    trainingPlans,
+    trainingOccurrencePlans,
+    athletes,
+    attendanceSessions,
+  ] = await Promise.all([
+    realRepo.listTrainings(),
+    realRepo.listMatches(),
+    realRepo.listMatchLineups(),
+    realRepo.listPredictions(),
+    realRepo.listTrainingPlans(),
+    realRepo.listTrainingOccurrencePlans(),
+    realRepo.listAthletes(),
+    realRepo.listAttendanceSessions(),
+  ]);
 
   const store = createEmptyStore();
   store.trainings = cloneAll(trainings);
   store.matches = cloneAll(matches);
   store.matchLineups = cloneAll(matchLineups);
+  store.matchPredictions = cloneAll(matchPredictions);
   store.trainingPlans = cloneAll(trainingPlans);
   store.trainingOccurrencePlans = cloneAll(trainingOccurrencePlans);
   store.athletes = cloneAll(athletes);
@@ -102,6 +112,7 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "updateMatch",
   "deleteMatch",
   "saveMatchLineup",
+  "upsertPrediction",
   "createTrainingPlan",
   "updateTrainingPlan",
   "deleteTrainingPlan",

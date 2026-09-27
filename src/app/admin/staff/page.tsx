@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Pencil, ShieldCheck, UserCog } from "lucide-react";
+import { EyeOff, Pencil, ShieldCheck, UserCog } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -17,6 +17,9 @@ export default async function StaffPage() {
   const session = await requireStaff();
   const repo = await getRepo();
   const staff = await repo.listStaff();
+  // Un admin "nascosto" (impostabile solo dal Developer, vedi EditStaffForm)
+  // non compare qui per gli altri Admin — il Developer vede comunque tutti.
+  const visibleStaff = session.role === "dev" ? staff : staff.filter((m) => !m.hiddenFromAdmins);
 
   return (
     <div>
@@ -40,7 +43,7 @@ export default async function StaffPage() {
         </Card>
 
         <div className="space-y-3">
-          {staff.map((member) => {
+          {visibleStaff.map((member) => {
             const canManage = session.role === "dev" && member.role !== "dev" && member.id !== session.sub;
             return (
               <Card key={member.id}>
@@ -64,6 +67,16 @@ export default async function StaffPage() {
                           "Admin"
                         )}
                       </Badge>
+                      {/* Visibile solo al Developer: gli altri admin non
+                       * vedono nemmeno questo account, figuriamoci il badge. */}
+                      {session.role === "dev" && member.hiddenFromAdmins && (
+                        <Badge className="bg-muted text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <EyeOff className="h-3 w-3" />
+                            Nascosto
+                          </span>
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-0.5 text-sm text-foreground/55">@{member.username}</p>
                     {member.mustChangePassword && (
