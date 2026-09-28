@@ -25,7 +25,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: "/admin",
     target: null,
     title: "Benvenuto/a in Volley Lignano!",
-    body: "Facciamo un giro veloce dell'area riservata: ti mostriamo solo quello che puoi effettivamente usare. Premi \"Avanti\" per iniziare, o \"Salta il tour\" se preferisci esplorare da solo/a.",
+    body: "Facciamo un giro veloce dell'area riservata. Premi \"Avanti\" per iniziare, o \"Salta il tour\" se preferisci esplorare da solo/a.",
   },
   {
     id: "dashboard-stats",
@@ -103,7 +103,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "nav-staff",
     page: "staff",
     title: "Staff",
-    body: "Gli account che accedono qui: solo un Developer può crearne di nuovi o toglierne l'accesso.",
+    body: "Da qui si creano nuovi account per lo staff e si gestisce chi ha accesso all'area riservata.",
   },
   {
     id: "nav-centro-controllo",
@@ -111,7 +111,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "nav-centro-controllo",
     devOnly: true,
     title: "Centro di controllo",
-    body: "Solo per te: da qui decidi quali pagine e quali squadre può vedere ogni Admin, e puoi nascondere un account admin agli altri admin.",
+    body: "Da qui decidi quali pagine e quali squadre può vedere ogni Admin, e puoi nascondere un account admin agli altri admin.",
   },
   {
     id: "nav-manutenzione",
