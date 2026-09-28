@@ -8,7 +8,15 @@ import { buildOpenInChromeUrl, usePwaInstall } from "./PwaInstallContext";
 import type { TrainingTeam } from "@/lib/types";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
-const NOTIFY_PROMPTED_KEY = "vl-pwa-notify-prompted";
+/** Timestamp (ms) dell'ultima volta che il banner "Attiva le notifiche" è
+ * stato mostrato — sostituisce il vecchio flag booleano "chiesto una volta
+ * sola": chi non ha ancora concesso il permesso lo rivede una volta a
+ * settimana, invece di restare per sempre senza notifiche per aver chiuso
+ * il banner una volta per sbaglio. Chi lo ha già concesso (o negato dal
+ * browser) non lo rivede comunque, perché isNotifyEligible controlla lo
+ * stato reale di Notification.permission, non solo questo timestamp. */
+const NOTIFY_LAST_PROMPTED_KEY = "vl-pwa-notify-last-prompted-at";
+const NOTIFY_REPROMPT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -70,9 +78,10 @@ function readActiveTeamCookie(): TrainingTeam {
 
 function isNotifyEligible(): boolean {
   if (typeof window === "undefined") return false;
-  if (localStorage.getItem(NOTIFY_PROMPTED_KEY) === "1") return false;
   const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
-  return supported && Notification.permission === "default";
+  if (!supported || Notification.permission !== "default") return false;
+  const lastPrompted = Number(localStorage.getItem(NOTIFY_LAST_PROMPTED_KEY) ?? "0");
+  return Date.now() - lastPrompted >= NOTIFY_REPROMPT_INTERVAL_MS;
 }
 
 export function PwaClient() {
@@ -122,7 +131,7 @@ export function PwaClient() {
   }
 
   async function handleNotify(accept: boolean) {
-    localStorage.setItem(NOTIFY_PROMPTED_KEY, "1");
+    localStorage.setItem(NOTIFY_LAST_PROMPTED_KEY, String(Date.now()));
     if (accept) {
       try {
         const permission = await Notification.requestPermission();
