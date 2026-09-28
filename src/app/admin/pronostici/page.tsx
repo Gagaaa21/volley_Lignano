@@ -14,6 +14,8 @@ import {
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { SECTION_PRONOSTICI_STEPS } from "@/components/tour/sectionSteps";
 import { SetRankingBadges } from "./PredictionRankings";
 import type { Match, MatchPrediction } from "@/lib/types";
 
@@ -49,15 +51,18 @@ export default async function PronosticiPage() {
 
   return (
     <div>
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Pronostici</h1>
-        <p className="mt-1 text-sm text-foreground/60">
-          Pronostica il punteggio di ogni set prima che si giochi: chi si avvicina di più vince il set. A fine
-          stagione vince chi ha totalizzato più punti.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Pronostici</h1>
+          <p className="mt-1 text-sm text-foreground/60">
+            Pronostica il punteggio di ogni set prima che si giochi: chi si avvicina di più vince il set. A fine
+            stagione vince chi ha totalizzato più punti.
+          </p>
+        </div>
+        <SectionTour steps={SECTION_PRONOSTICI_STEPS} />
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6" data-tour="section-pronostici-leaderboard">
         <CardHeader>
           <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
             <Trophy className="h-4 w-4 text-sand-600" />
@@ -94,7 +99,7 @@ export default async function PronosticiPage() {
         </CardBody>
       </Card>
 
-      <div className="mt-8">
+      <div className="mt-8" data-tour="section-pronostici-open">
         <h2 className="font-display text-lg font-bold text-foreground">Da pronosticare</h2>
         {upcoming.length === 0 ? (
           <div className="mt-3 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-10 text-center text-sm text-foreground/50">
@@ -167,7 +172,7 @@ export default async function PronosticiPage() {
       )}
 
       {withResult.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-8" data-tour="section-pronostici-results">
           <h2 className="font-display text-lg font-bold text-foreground">Risultati</h2>
           <div className="mt-3 space-y-3">
             {withResult.map((match) => (

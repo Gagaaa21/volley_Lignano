@@ -12,6 +12,8 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
 import { MonthCalendarPicker, type DayMarker } from "@/components/presenze/MonthCalendarPicker";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { SECTION_PRESENZE_STEPS } from "@/components/tour/sectionSteps";
 
 export const metadata: Metadata = {
   title: "Presenze",
@@ -146,7 +148,8 @@ export default async function AttendanceHubPage({
             Seleziona un giorno per registrare le presenze o vedere i dettagli.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-tour="section-presenze-toolbar">
+          <SectionTour steps={SECTION_PRESENZE_STEPS} />
           {!isMini && (
             <LinkButton href="/admin/presenze/atlete" variant="outline">
               <Users className="h-4 w-4" />
@@ -179,7 +182,7 @@ export default async function AttendanceHubPage({
           Include anche gli allenamenti futuri, non ancora registrabili.
         </p>
 
-        <div className="mt-4">
+        <div className="mt-4" data-tour="section-presenze-calendar">
           <MonthCalendarPicker
             monthDate={monthDate}
             basePath="/admin/presenze"

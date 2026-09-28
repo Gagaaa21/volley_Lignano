@@ -11,6 +11,8 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
 import { deleteMatchAction } from "./actions";
 
@@ -45,14 +47,20 @@ export default async function MatchesListPage({
             {isU14U15 ? "Gestisci le partite di campionato per Under 14 e Under 15." : "Squadra Minivolley."}
           </p>
         </div>
-        <LinkButton href="/admin/partite/nuovo">
-          <Plus className="h-4 w-4" />
-          Nuova partita
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <SectionTour steps={SECTION_PARTITE_STEPS} />
+          <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
+            <Plus className="h-4 w-4" />
+            Nuova partita
+          </LinkButton>
+        </div>
       </div>
 
       {isU14U15 && (
-        <div className="mt-5 inline-flex items-center gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm shadow-sea-950/5">
+        <div
+          className="mt-5 inline-flex items-center gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm shadow-sea-950/5"
+          data-tour="section-partite-filter"
+        >
           {(["all", "U14", "U15"] as const).map((value) => (
             <Link
               key={value}
@@ -75,7 +83,7 @@ export default async function MatchesListPage({
           Nessuna partita in programma.
         </div>
       ) : (
-        <div className="mt-6 space-y-3">
+        <div className="mt-6 space-y-3" data-tour="section-partite-cards">
           {matches.map((match) => {
             const isPast = match.matchDate.slice(0, 10) < todayStr;
             return (

@@ -10,9 +10,12 @@ import {
   KeyRound,
   Puzzle,
   Swords,
+  Target,
   Users,
+  Volleyball,
 } from "lucide-react";
-import { requireStaff } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
+import { isPageAvailableForTeam, type AdminPage } from "@/lib/types";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 
@@ -21,6 +24,9 @@ export const metadata: Metadata = {
 };
 
 interface Section {
+  /** Assente per una sezione senza permesso dedicato (es. "Sito pubblico e
+   * notifiche"): visibile a chiunque raggiunga questa pagina, senza filtro. */
+  page?: AdminPage;
   icon: typeof CalendarClock;
   title: string;
   intro: string;
@@ -29,6 +35,7 @@ interface Section {
 
 const SECTIONS: Section[] = [
   {
+    page: "allenamenti",
     icon: CalendarClock,
     title: "Allenamenti",
     intro: "Regole ricorrenti che generano automaticamente il calendario pubblico.",
@@ -39,6 +46,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    page: "partite",
     icon: Swords,
     title: "Partite",
     intro: "Partite di campionato per categoria U14/U15.",
@@ -50,6 +58,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    page: "schede",
     icon: Puzzle,
     title: "Schede allenamento",
     intro: "Incolla il testo di un allenamento e viene diviso automaticamente in blocchi.",
@@ -60,6 +69,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    page: "presenze",
     icon: ClipboardCheck,
     title: "Presenze",
     intro: "Registro presenze collegato agli allenamenti del calendario.",
@@ -72,6 +82,29 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    page: "livescore",
+    icon: Volleyball,
+    title: "Live score",
+    intro: "Un tabellone punteggio dal vivo per allenamenti e partite.",
+    points: [
+      "Si dispongono le due squadre sul campo, indicando anche la libero: da lì il tabellone calcola da solo la rotazione a ogni cambio palla, gestendo pure gli ingressi e le uscite della libero.",
+      "In modalità Partita si usano i numeri di maglia e si sceglie il nome e il colore dell'avversaria; in Allenamento si usano direttamente i nomi.",
+      "Punteggio, set, formazioni e stato della libero si aggiornano in tempo reale e restano salvati finché non si preme \"Nuovo\".",
+    ],
+  },
+  {
+    page: "pronostici",
+    icon: Target,
+    title: "Pronostici",
+    intro: "Pronostica il punteggio di ogni set insieme al resto dello staff.",
+    points: [
+      "Tutte le partite della stagione sono visibili fin da subito, ma si può pronosticare solo il giorno stesso in cui si gioca.",
+      "Chi si avvicina di più al risultato reale di un set vince il set: i punti totalizzati compongono la classifica.",
+      "Anche le partite dei tornei si pronosticano, una gara alla volta.",
+    ],
+  },
+  {
+    page: "staff",
     icon: Users,
     title: "Staff",
     intro: "Gestione degli account che accedono all'area tecnici.",
@@ -95,6 +128,16 @@ const SECTIONS: Section[] = [
 
 export default async function GuidaPage() {
   const session = await requireStaff();
+  const team = await resolveActiveTeam(session);
+
+  let visibleSections = SECTIONS.filter(
+    (section) => !section.page || isPageAvailableForTeam(section.page, team),
+  );
+  if (session.role !== "dev") {
+    const staff = await getOwnStaff(session.sub);
+    const allowedPages = staff?.allowedPages ?? [];
+    visibleSections = visibleSections.filter((section) => !section.page || allowedPages.includes(section.page));
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -113,7 +156,7 @@ export default async function GuidaPage() {
       </div>
 
       <div className="mt-6 space-y-4">
-        {SECTIONS.map((section) => {
+        {visibleSections.map((section) => {
           const Icon = section.icon;
           return (
             <Card key={section.title}>

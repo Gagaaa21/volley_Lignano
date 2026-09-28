@@ -30,7 +30,7 @@ export function CalendarSection({
 
   return (
     <>
-      <div className="mt-6">
+      <div className="mt-6" data-tour="public-calendar">
         <MonthGrid monthDate={monthDate} eventsByDate={eventsByDate} onSelectEvent={setSelectedEvent} />
       </div>
 

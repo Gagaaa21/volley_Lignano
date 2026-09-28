@@ -65,9 +65,9 @@ export function SchedeLibrary({ plans }: { plans: SchedeCardData[] }) {
   const libreria = filtered.filter((p) => p.upcomingCount === 0);
 
   return (
-    <div>
+    <div data-tour="section-schede-cards">
       {plans.length > 5 && (
-        <div className="relative mt-6 max-w-sm">
+        <div className="relative mt-6 max-w-sm" data-tour="section-schede-search">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
           <input
             type="search"

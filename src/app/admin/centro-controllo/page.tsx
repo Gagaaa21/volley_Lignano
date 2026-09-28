@@ -8,6 +8,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { OccurrenceVisibilityToggle } from "./OccurrenceVisibilityToggle";
 import { NotificationForm } from "./NotificationForm";
 import { PermissionsMatrix } from "./PermissionsMatrix";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { SECTION_CENTRO_CONTROLLO_STEPS } from "@/components/tour/sectionSteps";
 
 export const metadata: Metadata = {
   title: "Centro di controllo",
@@ -114,18 +116,23 @@ export default async function CentroControlloPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <p className="eyebrow">
-        <Shield className="h-3 w-3" />
-        Solo Developer
-      </p>
-      <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Centro di controllo</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Notifiche manuali, visibilità pubblica delle schede e attività recenti, riservato al
-        Developer. Per gli account staff vai alla sezione &quot;Staff&quot;.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="eyebrow">
+            <Shield className="h-3 w-3" />
+            Solo Developer
+          </p>
+          <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Centro di controllo</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Notifiche manuali, visibilità pubblica delle schede e attività recenti, riservato al
+            Developer. Per gli account staff vai alla sezione &quot;Staff&quot;.
+          </p>
+        </div>
+        <SectionTour steps={SECTION_CENTRO_CONTROLLO_STEPS} />
+      </div>
 
       {/* Notifica manuale */}
-      <Card className="mt-6">
+      <Card className="mt-6" data-tour="section-cc-notification">
         <CardHeader className="flex flex-row items-center gap-3">
           <span className="icon-chip shrink-0">
             <Bell className="h-4 w-4" />
@@ -148,7 +155,7 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Permessi pagine */}
-      <Card className="mt-4">
+      <Card className="mt-4" data-tour="section-cc-permissions">
         <CardHeader className="flex flex-row items-center gap-3">
           <span className="icon-chip shrink-0">
             <KeyRound className="h-4 w-4" />
@@ -167,7 +174,7 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Visibilità pubblica delle schede */}
-      <Card className="mt-4">
+      <Card className="mt-4" data-tour="section-cc-visibility">
         <CardHeader className="flex flex-row items-center gap-3">
           <span className="icon-chip shrink-0">
             <Eye className="h-4 w-4" />
@@ -216,7 +223,7 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Attività recenti */}
-      <Card className="mt-4">
+      <Card className="mt-4" data-tour="section-cc-activity">
         <CardHeader className="flex flex-row items-center gap-3">
           <span className="icon-chip shrink-0">
             <ListChecks className="h-4 w-4" />

@@ -7,6 +7,8 @@ import { Label, Select, FieldHint, Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
 import { shortName } from "@/components/matches/VolleyCourt";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { LIVESCORE_INGAME_TOUR_STEPS, LIVESCORE_SETUP_TOUR_STEPS } from "@/components/tour/sectionSteps";
 import type { CourtPosition, LiveScoreMode, LiveScoreSetResult, LiveScoreState, LiveScoreTeamState } from "@/lib/types";
 
 /** I sei nomi "titolari" della rotazione, indicizzati per posizione
@@ -915,7 +917,8 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
           )}
         >
           {!match.started && (
-            <div className="flex shrink-0 justify-end">
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              <SectionTour steps={LIVESCORE_SETUP_TOUR_STEPS} />
               <Button variant="outline" size="sm" onClick={toggleFullscreen}>
                 {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                 {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
@@ -943,7 +946,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             {/* Allenamento (nomi) o Partita (numeri di maglia, avversaria
              * col suo nome invece di "Squadra B"): scelta fatta qui, prima
              * di iniziare — cambia come si compilano le posizioni sotto. */}
-            <div className="inline-flex rounded-xl border border-border-subtle bg-surface p-1">
+            <div className="inline-flex rounded-xl border border-border-subtle bg-surface p-1" data-tour="section-livescore-mode">
               {(
                 [
                   { mode: "training" as const, label: "Allenamento" },
@@ -1005,16 +1008,18 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </div>
             )}
 
-            <DualLiveScoreCourt
-              className="shrink-0"
-              labelA={displayLabel(leftTeam, leftKey)}
-              labelB={displayLabel(rightTeam, rightKey)}
-              renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
-              renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
-              large={isFullscreen}
-            />
+            <div data-tour="section-livescore-court">
+              <DualLiveScoreCourt
+                className="shrink-0"
+                labelA={displayLabel(leftTeam, leftKey)}
+                labelB={displayLabel(rightTeam, rightKey)}
+                renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
+                renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, match.mode === "match")}
+                large={isFullscreen}
+              />
+            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2" data-tour="section-livescore-libero">
               <LiberoFields
                 team={match.teamA}
                 teamKey="A"
@@ -1061,6 +1066,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               }}
               size="lg"
               className="w-full"
+              data-tour="section-livescore-start"
             >
               <Volleyball className="h-4 w-4" />
               Inizia
@@ -1090,7 +1096,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   opponentColor={match.opponentColor}
                 />
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5" data-tour="section-livescore-toolbar">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1108,7 +1114,12 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   <Repeat className="h-3.5 w-3.5" />
                   Inverti
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setEditingNames((v) => !v)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingNames((v) => !v)}
+                  data-tour="section-livescore-formations"
+                >
                   <Pencil className="h-3.5 w-3.5" />
                   {editingNames ? "Fatto" : "Formazioni"}
                 </Button>
@@ -1116,10 +1127,16 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   <RefreshCw className="h-3.5 w-3.5" />
                   Nuovo
                 </Button>
-                <Button variant="outline" size="sm" onClick={toggleFullscreen}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleFullscreen}
+                  data-tour="section-livescore-fullscreen"
+                >
                   {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                   {isFullscreen ? "Esci" : "Schermo intero"}
                 </Button>
+                <SectionTour steps={LIVESCORE_INGAME_TOUR_STEPS} />
               </div>
             </div>
 
@@ -1186,7 +1203,10 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
               </div>
             </div>
 
-            <div className={cn("grid shrink-0 grid-cols-2 gap-2.5 sm:gap-3.5", isFullscreen ? "h-11 sm:h-12" : "h-11")}>
+            <div
+              className={cn("grid shrink-0 grid-cols-2 gap-2.5 sm:gap-3.5", isFullscreen ? "h-11 sm:h-12" : "h-11")}
+              data-tour="section-livescore-score"
+            >
               <button
                 type="button"
                 onClick={() => dispatch({ type: "point", winner: leftKey })}

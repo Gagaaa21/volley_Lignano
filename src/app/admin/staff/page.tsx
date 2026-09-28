@@ -6,6 +6,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { SECTION_STAFF_STEPS } from "@/components/tour/sectionSteps";
 import { StaffForm } from "./StaffForm";
 import { deleteStaffAction } from "./actions";
 
@@ -23,14 +25,19 @@ export default async function StaffPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-foreground">Staff</h1>
-      <p className="mt-1 text-sm text-foreground/60">
-        Crea nuovi account amministratore. Ogni admin riceve un nome utente e una password
-        temporanea da cambiare al primo accesso.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Staff</h1>
+          <p className="mt-1 text-sm text-foreground/60">
+            Crea nuovi account amministratore. Ogni admin riceve un nome utente e una password
+            temporanea da cambiare al primo accesso.
+          </p>
+        </div>
+        <SectionTour steps={SECTION_STAFF_STEPS} />
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card className="h-fit">
+        <Card className="h-fit" data-tour="section-staff-form">
           <CardHeader>
             <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
               <UserCog className="h-4 w-4 text-sea-700" />
@@ -42,7 +49,7 @@ export default async function StaffPage() {
           </CardBody>
         </Card>
 
-        <div className="space-y-3">
+        <div className="space-y-3" data-tour="section-staff-list">
           {visibleStaff.map((member) => {
             const canManage = session.role === "dev" && member.role !== "dev" && member.id !== session.sub;
             return (

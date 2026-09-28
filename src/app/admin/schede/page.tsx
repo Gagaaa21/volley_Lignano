@@ -5,6 +5,8 @@ import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { SECTION_SCHEDE_STEPS } from "@/components/tour/sectionSteps";
 import { SchedeLibrary, type SchedeCardData } from "./SchedeLibrary";
 
 export const metadata: Metadata = {
@@ -63,7 +65,8 @@ export default async function TrainingPlansPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <LinkButton href="/admin/schede/nuova">
+          <SectionTour steps={SECTION_SCHEDE_STEPS} />
+          <LinkButton href="/admin/schede/nuova" data-tour="section-schede-new">
             <Plus className="h-4 w-4" />
             Nuova scheda
           </LinkButton>

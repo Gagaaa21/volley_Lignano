@@ -10,7 +10,7 @@ const OPTIONS: { value: "all" | Category; label: string }[] = [
 
 export function CategoryFilter({ active, month }: { active: "all" | Category; month: string }) {
   return (
-    <div className="nav-rail w-fit">
+    <div className="nav-rail w-fit" data-tour="public-category-filter">
       {OPTIONS.map((opt) => {
         const href = opt.value === "all" ? `/?month=${month}` : `/?month=${month}&cat=${opt.value}`;
         const isActive = active === opt.value;

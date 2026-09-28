@@ -4,6 +4,7 @@ import { CalendarDays, CalendarPlus, Dumbbell, Swords, Volleyball, Waves } from 
 import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
+import { PublicTour } from "@/components/tour/PublicTour";
 import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
@@ -91,6 +92,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   return (
     <div className="flex min-h-screen flex-col">
       <PublicHeader />
+      <PublicTour team="u14u15" />
 
       <section className="auth-stage relative overflow-hidden">
         <Image
@@ -115,6 +117,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             </p>
             <a
               href="/calendario.ics"
+              data-tour="public-ics-button"
               className="mt-5 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-muted"
             >
               <CalendarPlus className="h-4 w-4" />

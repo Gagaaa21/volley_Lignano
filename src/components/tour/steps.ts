@@ -87,7 +87,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "nav-livescore",
     page: "livescore",
     title: "Live score",
-    body: "Un tabellone punteggio dal vivo da usare durante allenamenti o partite, con formazioni e chi è al servizio.",
+    body: "Un tabellone punteggio dal vivo per allenamenti o partite: calcola da solo la rotazione delle giocatrici a ogni cambio palla, gestendo anche gli ingressi e le uscite della libero.",
   },
   {
     id: "nav-pronostici",
