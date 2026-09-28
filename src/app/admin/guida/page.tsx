@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   CalendarClock,
   ClipboardCheck,
+  Compass,
   FlaskConical,
   Gauge,
   Globe,
@@ -11,9 +12,9 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { LinkButton } from "@/components/ui/LinkButton";
 
 export const metadata: Metadata = {
   title: "Guida",
@@ -94,19 +95,22 @@ const SECTIONS: Section[] = [
 
 export default async function GuidaPage() {
   const session = await requireStaff();
-  const repo = await getRepo();
-  const staff = await repo.getStaffById(session.sub);
-  if (staff && !staff.hasSeenGuide) {
-    await repo.markGuideSeen(session.sub);
-  }
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="font-display text-2xl font-bold text-foreground">Guida al sito</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Come funzionano le sezioni dell&apos;area tecnici di Volley Lignano. Questa pagina resta
-        sempre consultabile dal menu.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Guida al sito</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Come funzionano le sezioni dell&apos;area tecnici di Volley Lignano. Questa pagina resta
+            sempre consultabile dal menu.
+          </p>
+        </div>
+        <LinkButton href="/admin?tour=restart" variant="outline" size="sm">
+          <Compass className="h-3.5 w-3.5" />
+          Rivedi il tour guidato
+        </LinkButton>
+      </div>
 
       <div className="mt-6 space-y-4">
         {SECTIONS.map((section) => {

@@ -54,6 +54,7 @@ export async function changePasswordAction(
       fullName: staff.fullName,
       role: staff.role,
       mustChangePassword: false,
+      hasSeenGuide: staff.hasSeenGuide,
     });
   } catch (err) {
     console.error("[cambia-password] impossibile aggiornare la sessione:", err);
@@ -62,5 +63,8 @@ export async function changePasswordAction(
     };
   }
 
-  redirect(staff.hasSeenGuide ? "/admin?password_changed=1" : "/admin/guida?password_changed=1");
+  // Se non ha ancora visto la guida, il tour guidato si avvia da solo sulla
+  // dashboard (vedi src/components/tour/Tour.tsx) — non serve più un
+  // redirect dedicato a /admin/guida.
+  redirect("/admin?password_changed=1");
 }

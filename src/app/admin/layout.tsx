@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { FlaskConical, LogOut } from "lucide-react";
 import { requireStaff, activeTeam, getOwnStaff } from "@/lib/auth/guard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
+import { Tour } from "@/components/tour/Tour";
 import { isDemoMode } from "@/lib/db";
 import { exitTestModeAction } from "@/app/admin/test-mode/actions";
 import { ADMIN_PAGES, TEAMS } from "@/lib/types";
@@ -27,6 +28,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <div className="app-surface flex min-h-screen flex-col">
       <AdminHeader session={session} allowedPages={allowedPages} allowedTeams={allowedTeams} activeTeam={team} />
+      <Tour session={session} allowedPages={allowedPages} allowedTeams={allowedTeams} activeTeam={team} />
       {session.testMode && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 bg-[var(--color-u15)] px-4 py-2 text-center text-xs font-semibold text-white sm:text-sm">
           <span className="flex items-center gap-1.5">

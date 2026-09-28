@@ -19,6 +19,15 @@ export interface SessionPayload {
    * Allenamenti, Partite, Schede e Presenze per tutta la sessione. Assente =
    * "u14u15" (vedi activeTeam() in guard.ts, mai letto direttamente). */
   activeTeam?: TrainingTeam;
+  /** Rispecchia StaffMember.hasSeenGuide al momento del login/cambio
+   * password: letta dal tour guidato (src/components/tour/Tour.tsx) per
+   * decidere se avviarsi da solo, senza bisogno di una query a Supabase a
+   * ogni richiesta — sullo stesso modello di testMode/activeTeam. Va
+   * aggiornata sia su Supabase/memory (repo.markGuideSeen) sia qui (vedi
+   * finishTourAction) quando il tour viene completato o saltato, altrimenti
+   * un valore stantio nel cookie (valido 14 giorni) lo farebbe ripartire da
+   * capo a ogni nuova apertura del tab. */
+  hasSeenGuide?: boolean;
 }
 
 function getSecretKey() {

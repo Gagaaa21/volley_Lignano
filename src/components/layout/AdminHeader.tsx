@@ -33,16 +33,23 @@ import { isPageAvailableForTeam, type AdminPage, type TrainingTeam } from "@/lib
 import { InstallButton } from "@/components/pwa/InstallButton";
 import crest from "@/assets/lignano-crest.png";
 
-const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; exact: boolean; page: AdminPage | null }[] = [
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact: boolean;
+  page: AdminPage | null;
+  tourId?: string;
+}[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, page: null },
-  { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false, page: "allenamenti" },
-  { href: "/admin/partite", label: "Partite", icon: Swords, exact: false, page: "partite" },
-  { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false, page: "schede" },
-  { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze" },
-  { href: "/admin/livescore", label: "Live score", icon: Volleyball, exact: false, page: "livescore" },
-  { href: "/admin/pronostici", label: "Pronostici", icon: Target, exact: false, page: "pronostici" },
-  { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff" },
-  { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida" },
+  { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false, page: "allenamenti", tourId: "nav-allenamenti" },
+  { href: "/admin/partite", label: "Partite", icon: Swords, exact: false, page: "partite", tourId: "nav-partite" },
+  { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false, page: "schede", tourId: "nav-schede" },
+  { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze", tourId: "nav-presenze" },
+  { href: "/admin/livescore", label: "Live score", icon: Volleyball, exact: false, page: "livescore", tourId: "nav-livescore" },
+  { href: "/admin/pronostici", label: "Pronostici", icon: Target, exact: false, page: "pronostici", tourId: "nav-pronostici" },
+  { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff", tourId: "nav-staff" },
+  { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida", tourId: "nav-guida" },
 ];
 
 const TEAM_OPTIONS: { value: TrainingTeam; label: string }[] = [
@@ -73,6 +80,7 @@ function TeamSwitcher({
       className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface p-0.5 shadow-sm shadow-sea-950/5"
       role="group"
       aria-label="Squadra attiva"
+      data-tour="team-switcher"
     >
       {options.map((option) => (
         <form key={option.value} action={setActiveTeamAction}>
@@ -97,8 +105,8 @@ function TeamSwitcher({
 }
 
 const DEV_NAV_ITEMS = [
-  { href: "/admin/centro-controllo", label: "Centro di controllo", icon: Shield, exact: false },
-  { href: "/admin/manutenzione", label: "Manutenzione", icon: Gauge, exact: false },
+  { href: "/admin/centro-controllo", label: "Centro di controllo", icon: Shield, exact: false, tourId: "nav-centro-controllo" },
+  { href: "/admin/manutenzione", label: "Manutenzione", icon: Gauge, exact: false, tourId: "nav-manutenzione" },
 ];
 
 function isActive(pathname: string, href: string, exact: boolean) {
@@ -110,13 +118,19 @@ function NavLink({
   active,
   onClick,
 }: {
-  item: { href: string; label: string; icon: typeof LayoutDashboard };
+  item: { href: string; label: string; icon: typeof LayoutDashboard; tourId?: string };
   active: boolean;
   onClick: () => void;
 }) {
   const Icon = item.icon;
   return (
-    <Link href={item.href} data-active={active ? "true" : undefined} onClick={onClick} className="nav-tile">
+    <Link
+      href={item.href}
+      data-active={active ? "true" : undefined}
+      data-tour={item.tourId}
+      onClick={onClick}
+      className="nav-tile"
+    >
       <Icon className="h-4 w-4" />
       {item.label}
     </Link>
@@ -152,6 +166,7 @@ function DevMenu({ pathname }: { pathname: string }) {
         aria-expanded={open}
         aria-haspopup="menu"
         data-active={devActive ? "true" : undefined}
+        data-tour="dev-menu-toggle"
         className="nav-tile"
       >
         <Shield className="h-4 w-4" />
@@ -172,6 +187,7 @@ function DevMenu({ pathname }: { pathname: string }) {
                 key={item.href}
                 href={item.href}
                 role="menuitem"
+                data-tour={item.tourId}
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/75 transition-colors hover:bg-muted hover:text-foreground",
@@ -237,6 +253,7 @@ export function AdminHeader({
                 <form action={enterTestModeAction}>
                   <button
                     type="submit"
+                    data-tour="test-mode-toggle"
                     className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-u15-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-u15-strong)] transition-opacity hover:opacity-80"
                   >
                     <FlaskConical className="h-2.5 w-2.5" />
@@ -256,6 +273,7 @@ export function AdminHeader({
               onClick={() => setMobileOpen((v) => !v)}
               aria-expanded={mobileOpen}
               aria-label={mobileOpen ? "Chiudi menu" : "Apri menu"}
+              data-tour="mobile-menu-toggle"
               className="nav-tile shrink-0 sm:hidden"
             >
               {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}

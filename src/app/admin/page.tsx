@@ -162,7 +162,7 @@ export default async function AdminDashboardPage({
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4" data-tour="dashboard-stats">
         <div className="stat-card">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
@@ -243,7 +243,7 @@ export default async function AdminDashboardPage({
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div>
+        <div data-tour="dashboard-upcoming">
           <p className="eyebrow">Prossimi impegni</p>
           <h2 className="mt-1.5 font-display text-lg font-bold text-foreground">Cosa c&apos;è in arrivo</h2>
 

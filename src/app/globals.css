@@ -557,3 +557,16 @@
     box-shadow: 0 0 0 5px var(--glow), 0 26px 46px -18px var(--glow);
   }
 }
+
+/* Tour guidato (src/components/tour/Tour.tsx): dissolvenza della scheda a
+   ogni nuovo passo. Stessa convenzione delle animazioni live score sopra. */
+@keyframes tour-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -38,6 +38,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
       fullName: staff.fullName,
       role: staff.role,
       mustChangePassword: staff.mustChangePassword,
+      hasSeenGuide: staff.hasSeenGuide,
     });
   } catch (err) {
     console.error("[login] impossibile creare la sessione:", err);
@@ -47,5 +48,8 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   }
 
   if (staff.mustChangePassword) redirect("/admin/cambia-password");
-  redirect(staff.hasSeenGuide ? "/admin" : "/admin/guida");
+  // Se non ha ancora visto la guida, il tour guidato si avvia da solo sulla
+  // dashboard (vedi src/components/tour/Tour.tsx) — non serve più un
+  // redirect dedicato a /admin/guida.
+  redirect("/admin");
 }
