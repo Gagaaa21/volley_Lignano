@@ -239,6 +239,7 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
       url: `/admin/allenamenti/scheda/${ruleId}/${date}`,
     },
     training?.team ?? "u14u15",
+    "allenamenti",
   );
 }
 

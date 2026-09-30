@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -103,6 +103,29 @@ export function PwaClient() {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+
+  // Riallinea silenziosamente l'iscrizione push allo staff/squadra corrente
+  // ogni volta che si entra nell'area riservata (o si cambia squadra lì
+  // dentro), quando il permesso è già "granted": subscribeToPush salva su
+  // staffId chi è loggato ADESSO. Senza questo, un account che ha concesso
+  // il permesso una volta sola (magari dal sito pubblico, prima di
+  // accedere come staff — il banner condivide lo stesso Notification.
+  // permission a livello di browser e non richiede mai il permesso una
+  // seconda volta) resterebbe per sempre associato a quel primo contesto:
+  // niente notifiche riservate allo staff finché non lo si nota e non si
+  // reimposta manualmente il permesso del browser. pushManager.subscribe()
+  // con permesso già concesso non mostra alcun prompt, quindi è sicuro
+  // farlo silenziosamente a ogni ingresso/cambio squadra.
+  const lastSyncedTeamRef = useRef<TrainingTeam | null>(null);
+  useEffect(() => {
+    if (!pathname?.startsWith("/admin")) return;
+    if (typeof window === "undefined") return;
+    const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+    if (!supported || Notification.permission !== "granted") return;
+    if (lastSyncedTeamRef.current === team) return;
+    lastSyncedTeamRef.current = team;
+    subscribeToPush(team).catch(() => {});
+  }, [pathname, team]);
 
   useEffect(() => {
     if (step !== "install") return;

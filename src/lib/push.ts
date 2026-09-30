@@ -2,7 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { getRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import type { PushSubscriptionRecord, TrainingTeam } from "@/lib/types";
+import type { AdminPage, PushSubscriptionRecord, TrainingTeam } from "@/lib/types";
 
 let configured = false;
 
@@ -97,20 +97,35 @@ export async function notifyCalendarChange(
  * pubblico iscritto al calendario. Filtrata per squadra come
  * notifyCalendarChange: una scheda U14/U15 non deve notificare un
  * dispositivo iscritto mentre si lavorava sul Minivolley (e viceversa).
+ *
+ * Filtrata anche per pagina: un Admin a cui il Developer ha tolto l'accesso
+ * a una sezione (es. Presenze, vedi Centro di controllo) non deve riceverne
+ * le notifiche nemmeno se il suo dispositivo resta iscritto alla squadra —
+ * stesso principio di requireStaffPage(), solo lato invio invece che lato
+ * accesso alla pagina. Un Developer vede/riceve sempre tutto.
  */
-export async function notifyStaffChange(payload: CalendarNotification, team: TrainingTeam): Promise<void> {
+export async function notifyStaffChange(
+  payload: CalendarNotification,
+  team: TrainingTeam,
+  page: AdminPage,
+): Promise<void> {
   try {
     if (!ensureConfigured()) return;
     if ((await getSession())?.testMode) return;
 
     const repo = await getRepo();
-    const subscriptions = (await repo.listPushSubscriptions()).filter(
-      (sub) => sub.staffId !== null && sub.team === team,
-    );
-    if (subscriptions.length === 0) return;
+    const [subscriptions, staff] = await Promise.all([repo.listPushSubscriptions(), repo.listStaff()]);
+    const staffById = new Map(staff.map((s) => [s.id, s] as const));
+    const targeted = subscriptions.filter((sub) => {
+      if (sub.staffId === null || sub.team !== team) return false;
+      const member = staffById.get(sub.staffId);
+      if (!member) return false;
+      return member.role === "dev" || member.allowedPages.includes(page);
+    });
+    if (targeted.length === 0) return;
 
     const icon = payload.icon ?? (team === "minivolley" ? "/icons-s3/icon-192.png" : undefined);
-    await sendToSubscriptions(subscriptions, { ...payload, icon });
+    await sendToSubscriptions(targeted, { ...payload, icon });
   } catch (err) {
     console.error("[push] notifyStaffChange fallito:", err);
   }
@@ -120,7 +135,10 @@ export async function notifyStaffChange(payload: CalendarNotification, team: Tra
  * Come notifyStaffChange, ma ristretta ai soli account con ruolo Admin
  * (esclude Developer e pubblico) — usata dallo strumento di invio manuale
  * nel Centro di controllo quando il Developer sceglie di avvisare solo lo
- * staff Admin invece di tutti.
+ * staff Admin invece di tutti. Un avviso manuale non riguarda una singola
+ * sezione, quindi non filtra per allowedPages (a differenza di
+ * notifyStaffChange): il Developer sta scegliendo esplicitamente
+ * l'audience "tutti gli Admin", non una sezione specifica.
  */
 export async function notifyAdmins(payload: CalendarNotification): Promise<void> {
   try {

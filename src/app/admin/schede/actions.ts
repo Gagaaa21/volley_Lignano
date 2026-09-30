@@ -116,6 +116,7 @@ export async function createPlanAction(
           url: `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`,
         },
         team,
+        "allenamenti",
       );
 
       redirectTo = `/admin/allenamenti/scheda/${occurrenceRuleId}/${occurrenceDate}`;
@@ -127,6 +128,7 @@ export async function createPlanAction(
           url: `/admin/schede/${plan.id}`,
         },
         team,
+        "schede",
       );
 
       redirectTo = `/admin/schede/${plan.id}`;
