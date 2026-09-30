@@ -6,7 +6,6 @@ import { getActiveRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
 import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import { normalizePersonName } from "@/lib/text";
 import type { AttendanceSession, AttendanceSessionInput, AttendanceStatus, TrainingTeam } from "@/lib/types";
 import type { SessionPayload } from "@/lib/auth/session";
 
@@ -101,13 +100,13 @@ export interface MiniAttendanceFormState {
   error?: string;
 }
 
-/** Registro presenze del Minivolley: nessuna anagrafica, niente elenco con
- * spunte — solo un elenco libero di nomi scritti a mano (vedi
- * MiniAttendanceForm). Salva comunque un AttendanceSession con lo stesso
- * identico modello dati: solo che la chiave di ogni voce del records è il
- * nome stesso (uniformato, non un id) e vale sempre "present" — le assenze
- * non vengono tracciate, solo il conteggio delle presenze (vedi
- * getPublicAttendanceTally). */
+/** Registro presenze del Minivolley: stessa anagrafica di U14/U15 (vedi
+ * MiniAttendanceForm), ma un elenco con spunte senza assenze — si tocca solo
+ * chi era presente. Salva comunque un AttendanceSession con lo stesso
+ * identico modello dati di saveAttendanceAction: solo che la chiave di ogni
+ * voce del records è l'id dell'atleta selezionata e vale sempre "present" —
+ * le assenze non vengono tracciate, nessuna voce per chi non è stata
+ * selezionata (vedi getPublicAttendanceTally). */
 export async function saveMiniAttendanceAction(
   _prevState: MiniAttendanceFormState,
   formData: FormData,
@@ -119,29 +118,16 @@ export async function saveMiniAttendanceAction(
   const sessionDate = formData.get("sessionDate")?.toString();
   const title = formData.get("title")?.toString().trim() || "Allenamento";
   const location = formData.get("location")?.toString().trim() || "";
-
-  let presentNamesRaw: string[] = [];
-  try {
-    presentNamesRaw = JSON.parse(formData.get("presentNames")?.toString() ?? "[]");
-  } catch {
-    presentNamesRaw = [];
-  }
+  const athleteIds = (formData.get("athleteIds")?.toString() ?? "").split(",").filter(Boolean);
 
   if (!sessionDate || !/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)) {
     return { error: "Data non valida." };
   }
 
-  const presentNames = [
-    ...new Set(
-      presentNamesRaw
-        .filter((name): name is string => typeof name === "string")
-        .map(normalizePersonName)
-        .filter(Boolean),
-    ),
-  ];
-
   const records: Record<string, AttendanceStatus> = {};
-  for (const name of presentNames) records[name] = "present";
+  for (const athleteId of athleteIds) {
+    if (formData.get(`present_${athleteId}`) === "on") records[athleteId] = "present";
+  }
 
   try {
     const repo = await getActiveRepo();

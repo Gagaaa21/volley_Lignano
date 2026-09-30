@@ -98,7 +98,7 @@ export const SECTION_PRESENZE_STEPS: BaseTourStep[] = [
     path: "/admin/presenze",
     target: "section-presenze-calendar",
     title: "Registra una giornata",
-    body: "Seleziona un giorno passato per aprire il registro: ogni atleta è \"Presente\" di default, con un tasto per segnarla assente.",
+    body: "Seleziona un giorno passato per aprire il registro e segnare le presenze di quel giorno.",
   },
 ];
 

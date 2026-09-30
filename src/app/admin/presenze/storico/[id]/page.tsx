@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
-import { collectKnownNames } from "@/lib/attendanceNames";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AttendanceForm } from "../../AttendanceForm";
@@ -24,28 +23,40 @@ export default async function AttendanceSessionDetailPage({
   const session = await repo.getAttendanceSession(id);
   if (!session) notFound();
   const isMini = session.team === "minivolley";
-  const athletes = isMini ? [] : await repo.listAthletes({ team: session.team });
-  const knownNames = isMini
-    ? collectKnownNames(await repo.listAttendanceSessions({ team: "minivolley" }))
-    : [];
-
+  const athletes = await repo.listAthletes({ team: session.team });
   const athleteMap = new Map(athletes.map((a) => [a.id, a]));
-  const recordedAthletes: Athlete[] = Object.keys(session.records)
-    .map(
-      (athleteId) =>
-        athleteMap.get(athleteId) ?? {
-          id: athleteId,
-          fullName: "Atleta rimossa",
-          team: session.team,
-          category: null,
-          isActive: false,
-          notes: null,
-          createdBy: null,
-          createdAt: "",
-          updatedAt: "",
-        },
-    )
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const recordedIds = Object.keys(session.records);
+
+  const missingRecorded = (missingIds: string[]): Athlete[] =>
+    missingIds
+      .filter((athleteId) => !athleteMap.has(athleteId))
+      .map((athleteId) => ({
+        id: athleteId,
+        fullName: "Atleta rimossa",
+        team: session.team,
+        category: null,
+        group: null,
+        isActive: false,
+        notes: null,
+        createdBy: null,
+        createdAt: "",
+        updatedAt: "",
+      }));
+
+  // Per u14u15 ogni atleta ha sempre una voce (presente o assente), quindi
+  // le chiavi del record sono già il roster completo di quel giorno. Per il
+  // Minivolley invece records contiene solo le presenti: il roster in
+  // modifica dev'essere l'anagrafica attiva corrente (così le assenti
+  // restano selezionabili), più un segnaposto per ogni atleta registrata
+  // ma nel frattempo eliminata (così i dati storici non spariscono al
+  // primo re-salvataggio).
+  const recordedAthletes: Athlete[] = isMini
+    ? [...athletes.filter((a) => a.isActive), ...missingRecorded(recordedIds)].sort((a, b) =>
+        a.fullName.localeCompare(b.fullName),
+      )
+    : [...recordedIds.map((id) => athleteMap.get(id)), ...missingRecorded(recordedIds)]
+        .filter((a): a is Athlete => Boolean(a))
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -70,8 +81,8 @@ export default async function AttendanceSessionDetailPage({
         <CardBody>
           {isMini ? (
             <MiniAttendanceForm
-              knownNames={knownNames}
-              initialPresentNames={Object.keys(session.records)}
+              athletes={recordedAthletes}
+              initialPresentIds={recordedIds}
               sessionId={session.id}
               trainingRuleId={session.trainingRuleId}
               sessionDate={session.sessionDate}

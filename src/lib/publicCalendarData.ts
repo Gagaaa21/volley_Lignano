@@ -1,7 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getRepo } from "@/lib/db";
-import type { AttendanceStatus, Category, TrainingTeam } from "@/lib/types";
+import type { AttendanceStatus, Category, MinivolleyGroup, TrainingTeam } from "@/lib/types";
 
 /** Tag usato per invalidare la cache da ogni azione admin che tocca il
  * calendario pubblico (allenamenti, partite, schede collegate a una data,
@@ -37,23 +37,20 @@ export const getPublicCalendarData = unstable_cache(
     // Il Minivolley non ha più la sezione Partite (solo tornei, già coperti
     // dagli allenamenti con isTournament): niente query né eventi partita
     // per questa squadra.
-    // Il Minivolley non ha anagrafica atlete (vedi MiniAttendanceForm):
-    // niente query inutile per questa squadra.
     const [trainings, matches, occurrencePlans, plans, athletes, attendanceSessions] =
       await Promise.all([
         repo.listTrainings({ team }),
         team === "minivolley" ? Promise.resolve([]) : repo.listMatches({ team, from, to, category }),
         repo.listTrainingOccurrencePlans(),
         repo.listTrainingPlans({ team }),
-        team === "minivolley" ? Promise.resolve([]) : repo.listAthletes({ team }),
+        repo.listAthletes({ team }),
         repo.listAttendanceSessions({ team }),
       ]);
 
     // Il registro presenze è pubblico su richiesta esplicita del club (atlete
     // e famiglie devono poter vedere chi era presente a un allenamento, senza
     // login). Espone solo nome e stato: mai note interne o altri campi
-    // dell'atleta, e solo per le sedute nel mese visibile. Per il Minivolley
-    // la chiave del record è già il nome (nessuna anagrafica da consultare).
+    // dell'atleta, e solo per le sedute nel mese visibile.
     const athleteNameById = new Map(athletes.map((a) => [a.id, a.fullName] as const));
     const attendance: PublicAttendanceSession[] = attendanceSessions
       .filter((s) => s.trainingRuleId && s.sessionDate >= from && s.sessionDate <= to)
@@ -61,7 +58,7 @@ export const getPublicCalendarData = unstable_cache(
         trainingRuleId: s.trainingRuleId as string,
         sessionDate: s.sessionDate,
         records: Object.entries(s.records)
-          .map(([key, status]) => ({ fullName: team === "minivolley" ? key : athleteNameById.get(key), status }))
+          .map(([athleteId, status]) => ({ fullName: athleteNameById.get(athleteId), status }))
           .filter((r): r is PublicAttendanceRecord => Boolean(r.fullName))
           .sort((a, b) => a.fullName.localeCompare(b.fullName)),
       }));
@@ -86,32 +83,38 @@ export const getPublicCalendarData = unstable_cache(
 export interface PublicAttendanceTallyRow {
   fullName: string;
   count: number;
+  group: MinivolleyGroup | null;
 }
 
 /**
- * Conteggio totale delle presenze per nome, per tutta la stagione (non
+ * Conteggio totale delle presenze per atleta, per tutta la stagione (non
  * limitato al mese visibile): usato dalla pagina pubblica delle presenze del
- * Minivolley. Questa squadra non ha anagrafica (vedi MiniAttendanceForm): il
- * nome scritto dallo staff è già la chiave del record, quindi basta
- * scorrere i registri, nessun collegamento a un'atleta registrata. Stessa
- * cache/tag di getPublicCalendarData, perché viene invalidata dagli stessi
- * salvataggi presenze.
+ * Minivolley, raggruppata per CDA. Stessa cache/tag di
+ * getPublicCalendarData, perché viene invalidata dagli stessi salvataggi
+ * presenze.
  */
 export const getPublicAttendanceTally = unstable_cache(
   async (team: TrainingTeam): Promise<PublicAttendanceTallyRow[]> => {
     const repo = await getRepo();
-    const attendanceSessions = await repo.listAttendanceSessions({ team });
+    const [attendanceSessions, athletes] = await Promise.all([
+      repo.listAttendanceSessions({ team }),
+      repo.listAthletes({ team }),
+    ]);
+    const athleteById = new Map(athletes.map((a) => [a.id, a] as const));
 
-    const countByName = new Map<string, number>();
+    const countByAthleteId = new Map<string, number>();
     for (const session of attendanceSessions) {
-      for (const [name, status] of Object.entries(session.records)) {
+      for (const [athleteId, status] of Object.entries(session.records)) {
         if (status !== "present") continue;
-        countByName.set(name, (countByName.get(name) ?? 0) + 1);
+        countByAthleteId.set(athleteId, (countByAthleteId.get(athleteId) ?? 0) + 1);
       }
     }
 
-    return [...countByName.entries()]
-      .map(([fullName, count]) => ({ fullName, count }))
+    return [...countByAthleteId.entries()]
+      .map(([athleteId, count]) => {
+        const athlete = athleteById.get(athleteId);
+        return { fullName: athlete?.fullName ?? "Atleta rimossa", group: athlete?.group ?? null, count };
+      })
       .sort((a, b) => b.count - a.count || a.fullName.localeCompare(b.fullName));
   },
   ["public-attendance-tally"],

@@ -1,8 +1,9 @@
-/** Uniforma un nome scritto a mano (spazi doppi, maiuscole/minuscole) così
- * che la stessa persona, segnata in allenamenti diversi, conti come la
- * stessa voce a prescindere da come è stata digitata quella volta. Usato dal
- * registro presenze del Minivolley, che non ha un'anagrafica: il nome
- * stesso è la chiave del record. */
+import type { MinivolleyGroup } from "@/lib/types";
+
+/** Uniforma un nome (spazi doppi, maiuscole/minuscole) così che la stessa
+ * persona, scritta in momenti diversi, conti come la stessa voce a
+ * prescindere da come è stata digitata quella volta. Usato dall'aggiunta in
+ * blocco delle atlete Minivolley per ripulire nome/cognome incollati. */
 export function normalizePersonName(raw: string): string {
   return raw
     .trim()
@@ -12,39 +13,29 @@ export function normalizePersonName(raw: string): string {
     .join(" ");
 }
 
-function levenshteinDistance(a: string, b: string): number {
-  const rows = a.length + 1;
-  const cols = b.length + 1;
-  const dp: number[][] = Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
-  for (let i = 0; i < rows; i++) dp[i][0] = i;
-  for (let j = 0; j < cols; j++) dp[0][j] = j;
-  for (let i = 1; i < rows; i++) {
-    for (let j = 1; j < cols; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
+/** Una riga dell'elenco incollato per l'aggiunta in blocco delle atlete
+ * Minivolley: "Gruppo<TAB>Nome<TAB>Cognome" (nome/cognome anche multi-
+ * parola). Tollerante come l'aggiunta in blocco U14/U15: una riga che non
+ * si divide in almeno 3 campi non tab-separati diventa comunque un nome
+ * valido, solo senza gruppo, invece di un errore bloccante. */
+export function parseMinivolleyBulkLine(line: string): { fullName: string; group: MinivolleyGroup | null } {
+  const fields = line
+    .split("\t")
+    .map((f) => f.trim())
+    .filter(Boolean);
+
+  if (fields.length < 3) {
+    return { fullName: normalizePersonName(line), group: null };
   }
-  return dp[rows - 1][cols - 1];
-}
 
-/** Nomi già usati in passato "simili" a quanto si sta digitando: prima i
- * contenimenti diretti (es. "sof" in "Sofia Rossi"), poi quelli a distanza
- * di modifica ridotta (per intercettare refusi tipo "Sofia Rosi"). */
-export function suggestSimilarNames(query: string, knownNames: string[], limit = 5): string[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
+  const [groupRaw, ...nameParts] = fields;
+  const fullName = normalizePersonName(nameParts.join(" "));
+  const groupLower = groupRaw.toLowerCase();
+  const group: MinivolleyGroup | null = groupLower.includes("lignano")
+    ? "lignano"
+    : groupLower.includes("san michele")
+      ? "san_michele"
+      : null;
 
-  const scored = knownNames
-    .map((name) => {
-      const normalized = name.toLowerCase();
-      if (normalized.includes(q)) return { name, score: 0 };
-      const distance = levenshteinDistance(q, normalized.slice(0, q.length + 3));
-      return { name, score: distance };
-    })
-    .filter((entry) => entry.score <= Math.max(2, Math.ceil(q.length * 0.4)));
-
-  scored.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
-  return scored.slice(0, limit).map((entry) => entry.name);
+  return { fullName, group };
 }

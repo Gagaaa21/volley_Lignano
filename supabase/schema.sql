@@ -230,6 +230,12 @@ create table if not exists athletes (
   -- il Minivolley resta sempre null.
   team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
   category text check (category in ('U14', 'U15')),
+  -- Gruppo di appartenenza dentro il Minivolley (due sedi: Lignano
+  -- Sabbiadoro e San Michele al Tagliamento), analogo di category ma un
+  -- campo distinto: category ha già un vincolo CHECK limitato a
+  -- 'U14'/'U15'. Sempre null per u14u15. "group" è parola riservata in
+  -- SQL, da cui il nome colonna athlete_group.
+  athlete_group text check (athlete_group in ('lignano', 'san_michele')),
   is_active boolean not null default true,
   notes text,
   created_by uuid references staff(id) on delete set null,
@@ -238,6 +244,7 @@ create table if not exists athletes (
 );
 
 create index if not exists athletes_category_idx on athletes (category);
+create index if not exists athletes_group_idx on athletes (athlete_group);
 create index if not exists athletes_team_idx on athletes (team);
 
 alter table athletes enable row level security;
@@ -408,6 +415,21 @@ do $$ begin
   alter table athletes add constraint athletes_team_check check (team in ('u14u15', 'minivolley'));
 exception when duplicate_object then null;
 end $$;
+
+-- Gruppo di appartenenza dentro il Minivolley (due sedi: Lignano
+-- Sabbiadoro e San Michele al Tagliamento), analogo di "category" per
+-- U14/U15 ma un campo distinto: category ha già un vincolo CHECK limitato
+-- a 'U14'/'U15'. Sempre null per u14u15, e opzionale anche dentro
+-- Minivolley (assegnabile anche in un secondo momento), come già avveniva
+-- per category. Colonna chiamata athlete_group (non "group", parola
+-- riservata in SQL).
+alter table athletes add column if not exists athlete_group text;
+do $$ begin
+  alter table athletes add constraint athletes_group_check
+    check (athlete_group in ('lignano', 'san_michele'));
+exception when duplicate_object then null;
+end $$;
+create index if not exists athletes_group_idx on athletes (athlete_group);
 
 alter table attendance_sessions add column if not exists team text not null default 'u14u15';
 do $$ begin

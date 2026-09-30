@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaffPage, requireU14U15Team, resolveActiveTeam } from "@/lib/auth/guard";
+import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
+import { parseMinivolleyBulkLine } from "@/lib/text";
 import type { AthleteInput } from "@/lib/types";
 
 const schema = z.object({
   fullName: z.string().min(1, "Inserisci nome e cognome."),
   category: z.union([z.enum(["U14", "U15"]), z.null()]),
+  group: z.union([z.enum(["lignano", "san_michele"]), z.null()]),
   notes: z.string().optional(),
   isActive: z.boolean(),
 });
@@ -23,11 +25,12 @@ export async function saveAthleteAction(
   formData: FormData,
 ): Promise<AthleteFormState> {
   const session = await requireStaffPage("presenze");
-  await requireU14U15Team(session);
   const rawCategory = formData.get("category")?.toString().trim();
+  const rawGroup = formData.get("group")?.toString().trim();
   const parsed = schema.safeParse({
     fullName: formData.get("fullName")?.toString().trim() ?? "",
     category: rawCategory ? rawCategory : null,
+    group: rawGroup ? rawGroup : null,
     notes: formData.get("notes")?.toString().trim() || undefined,
     isActive: formData.get("isActive") === "on",
   });
@@ -45,10 +48,15 @@ export async function saveAthleteAction(
     const repo = await getActiveRepo();
     // La squadra di un'atleta esistente non cambia mai in modifica.
     const existing = id ? await repo.getAthlete(id) : null;
+    const team = existing?.team ?? (await resolveActiveTeam(session));
+    // Il form mostra solo il campo giusto per la squadra (Categoria per
+    // u14u15, Gruppo per Minivolley), ma si persiste solo quello coerente
+    // anche qui come difesa in profondità.
     const input: AthleteInput = {
       fullName: parsed.data.fullName,
-      team: existing?.team ?? (await resolveActiveTeam(session)),
-      category: parsed.data.category,
+      team,
+      category: team === "u14u15" ? parsed.data.category : null,
+      group: team === "minivolley" ? parsed.data.group : null,
       notes: parsed.data.notes ?? null,
       isActive: parsed.data.isActive,
     };
@@ -84,7 +92,7 @@ export async function bulkCreateAthletesAction(
   formData: FormData,
 ): Promise<BulkAthleteFormState> {
   const session = await requireStaffPage("presenze");
-  await requireU14U15Team(session);
+  const team = await resolveActiveTeam(session);
 
   const rawCategory = formData.get("category")?.toString().trim();
   const parsed = bulkSchema.safeParse({
@@ -95,26 +103,47 @@ export async function bulkCreateAthletesAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
   }
 
-  const names = [
-    ...new Set(
-      parsed.data.names
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
-    ),
-  ];
-  if (names.length === 0) {
-    return { error: "Inserisci almeno un nominativo valido." };
-  }
+  const lines = parsed.data.names
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-  const team = await resolveActiveTeam(session);
-  const inputs: AthleteInput[] = names.map((fullName) => ({
-    fullName,
-    team,
-    category: parsed.data.category,
-    notes: null,
-    isActive: true,
-  }));
+  let inputs: AthleteInput[];
+  if (team === "minivolley") {
+    // Ogni riga è "Gruppo<TAB>Nome<TAB>Cognome": il gruppo arriva dalla riga
+    // stessa, niente selettore unico come per u14u15 (vedi
+    // parseMinivolleyBulkLine). Dedup sul nome normalizzato, non sulla riga
+    // grezza, per non creare falsi-unici per via di spazi residui nel testo
+    // incollato.
+    const seen = new Set<string>();
+    const rows = lines
+      .map(parseMinivolleyBulkLine)
+      .filter((row) => row.fullName && !seen.has(row.fullName) && seen.add(row.fullName));
+    if (rows.length === 0) {
+      return { error: "Inserisci almeno un nominativo valido." };
+    }
+    inputs = rows.map(({ fullName, group }) => ({
+      fullName,
+      team,
+      category: null,
+      group,
+      notes: null,
+      isActive: true,
+    }));
+  } else {
+    const names = [...new Set(lines)];
+    if (names.length === 0) {
+      return { error: "Inserisci almeno un nominativo valido." };
+    }
+    inputs = names.map((fullName) => ({
+      fullName,
+      team,
+      category: parsed.data.category,
+      group: null,
+      notes: null,
+      isActive: true,
+    }));
+  }
 
   try {
     const repo = await getActiveRepo();
@@ -127,12 +156,11 @@ export async function bulkCreateAthletesAction(
     return { error: "Non è stato possibile salvare l'elenco. Riprova." };
   }
 
-  return { created: names.length };
+  return { created: inputs.length };
 }
 
 export async function deleteAthleteAction(formData: FormData): Promise<void> {
-  const session = await requireStaffPage("presenze");
-  await requireU14U15Team(session);
+  await requireStaffPage("presenze");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();

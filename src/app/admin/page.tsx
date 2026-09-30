@@ -113,12 +113,10 @@ export default async function AdminDashboardPage({
     visibleSections = visibleSections.filter((section) => allowedPages.includes(section.page));
   }
 
-  // Il Minivolley non ha anagrafica atlete (vedi MiniAttendanceForm).
-  const isMini = team === "minivolley";
   const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
     repo.listTrainings({ team }),
     showMatches ? repo.listMatches({ team }) : Promise.resolve([]),
-    isMini ? Promise.resolve([]) : repo.listAthletes({ team }),
+    repo.listAthletes({ team }),
     showPresenze ? repo.listAttendanceSessions({ team }) : Promise.resolve([]),
   ]);
 
@@ -191,7 +189,7 @@ export default async function AdminDashboardPage({
             </CardBody>
           </div>
         )}
-        {!isMini && (
+        {showPresenze && (
           <div className="stat-card">
             <CardBody className="pt-5">
               <div className="flex items-center gap-3">

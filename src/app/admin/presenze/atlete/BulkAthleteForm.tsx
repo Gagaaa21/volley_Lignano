@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { bulkCreateAthletesAction, type BulkAthleteFormState } from "./actions";
+import type { TrainingTeam } from "@/lib/types";
 
 const initialState: BulkAthleteFormState = {};
 
@@ -20,9 +21,10 @@ function SubmitButton() {
   );
 }
 
-export function BulkAthleteForm() {
+export function BulkAthleteForm({ team }: { team: TrainingTeam }) {
   const [state, formAction] = useActionState(bulkCreateAthletesAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const isMini = team === "minivolley";
 
   useEffect(() => {
     if (state.created) {
@@ -38,23 +40,33 @@ export function BulkAthleteForm() {
           id="names"
           name="names"
           rows={8}
-          placeholder={"Giulia Bianchi\nSara Rossi\nMarta Verdi"}
+          placeholder={isMini ? "Lignano Sabbiadoro   Giulia   Bianchi" : "Giulia Bianchi\nSara Rossi\nMarta Verdi"}
           required
         />
-        <FieldHint>Un nome per riga. Verranno create tutte insieme.</FieldHint>
+        {isMini ? (
+          <FieldHint>
+            Un&apos;atleta per riga, tre campi separati da tabulazione (come quando si incolla da un foglio di
+            calcolo): gruppo, nome, cognome — es. &quot;Lignano Sabbiadoro&quot; o &quot;San Michele al
+            Tagliamento&quot; per il gruppo. Verranno create tutte insieme.
+          </FieldHint>
+        ) : (
+          <FieldHint>Un nome per riga. Verranno create tutte insieme.</FieldHint>
+        )}
       </div>
 
-      <div>
-        <Label htmlFor="bulk-category">Categoria (opzionale, per tutte)</Label>
-        <Select id="bulk-category" name="category" defaultValue="">
-          <option value="">Nessuna categoria</option>
-          <option value="U14">{CATEGORY_LABELS.U14}</option>
-          <option value="U15">{CATEGORY_LABELS.U15}</option>
-        </Select>
-        <FieldHint>
-          Potrai assegnare o correggere la categoria di ciascuna atleta in un secondo momento.
-        </FieldHint>
-      </div>
+      {!isMini && (
+        <div>
+          <Label htmlFor="bulk-category">Categoria (opzionale, per tutte)</Label>
+          <Select id="bulk-category" name="category" defaultValue="">
+            <option value="">Nessuna categoria</option>
+            <option value="U14">{CATEGORY_LABELS.U14}</option>
+            <option value="U15">{CATEGORY_LABELS.U15}</option>
+          </Select>
+          <FieldHint>
+            Potrai assegnare o correggere la categoria di ciascuna atleta in un secondo momento.
+          </FieldHint>
+        </div>
+      )}
 
       {state.error && (
         <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5">

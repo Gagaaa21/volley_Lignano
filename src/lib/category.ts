@@ -1,4 +1,4 @@
-import type { Category, TrainingColor } from "@/lib/types";
+import type { Category, MinivolleyGroup, TrainingColor } from "@/lib/types";
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   U14: "Under 14",
@@ -83,4 +83,39 @@ export function categoryBadgeClass(category: Category | null): string {
 
 export function categoryDotClass(category: Category | null): string {
   return category ? CATEGORY_DOT[category] : NO_CATEGORY_DOT;
+}
+
+export const MINIVOLLEY_GROUP_LABELS: Record<MinivolleyGroup, string> = {
+  lignano: "CDA Lignano",
+  san_michele: "CDA San Michele",
+};
+
+/** Riusa due tinte già esistenti in TRAINING_COLOR_BADGE/DOT invece di
+ * definirne di nuove: le due palette (categoria allenamenti, gruppo
+ * Minivolley) non compaiono mai nella stessa vista, niente rischio di
+ * confusione visiva. */
+export const MINIVOLLEY_GROUP_BADGE: Record<MinivolleyGroup, string> = {
+  lignano: TRAINING_COLOR_BADGE.blue,
+  san_michele: TRAINING_COLOR_BADGE.teal,
+};
+
+export const MINIVOLLEY_GROUP_DOT: Record<MinivolleyGroup, string> = {
+  lignano: TRAINING_COLOR_DOT.blue,
+  san_michele: TRAINING_COLOR_DOT.teal,
+};
+
+export const NO_GROUP_LABEL = "Senza gruppo";
+export const NO_GROUP_BADGE = "bg-foreground/8 text-foreground/50";
+export const NO_GROUP_DOT = "bg-foreground/25";
+
+export function groupLabel(group: MinivolleyGroup | null): string {
+  return group ? MINIVOLLEY_GROUP_LABELS[group] : NO_GROUP_LABEL;
+}
+
+export function groupBadgeClass(group: MinivolleyGroup | null): string {
+  return group ? MINIVOLLEY_GROUP_BADGE[group] : NO_GROUP_BADGE;
+}
+
+export function groupDotClass(group: MinivolleyGroup | null): string {
+  return group ? MINIVOLLEY_GROUP_DOT[group] : NO_GROUP_DOT;
 }

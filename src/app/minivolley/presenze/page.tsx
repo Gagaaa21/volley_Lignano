@@ -4,11 +4,41 @@ import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
-import { getPublicAttendanceTally } from "@/lib/publicCalendarData";
+import { getPublicAttendanceTally, type PublicAttendanceTallyRow } from "@/lib/publicCalendarData";
+import { groupLabel } from "@/lib/category";
+import { MINIVOLLEY_GROUPS } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Presenze Minivolley",
 };
+
+function TallyGroup({ label, rows }: { label: string; rows: PublicAttendanceTallyRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div>
+      <p className="eyebrow">{label}</p>
+      <Card className="mt-3">
+        <CardBody className="p-0">
+          <ul className="divide-y divide-border-subtle">
+            {rows.map((row) => (
+              <li key={row.fullName} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="icon-chip shrink-0">
+                    <Users className="h-4 w-4" />
+                  </span>
+                  <span className="truncate font-medium text-foreground">{row.fullName}</span>
+                </span>
+                <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                  {row.count} {row.count === 1 ? "presenza" : "presenze"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
 
 export default async function MinivolleyPresenzePage() {
   const rows = await getPublicAttendanceTally("minivolley");
@@ -45,25 +75,12 @@ export default async function MinivolleyPresenzePage() {
               Nessuna presenza registrata per ora.
             </div>
           ) : (
-            <Card>
-              <CardBody className="p-0">
-                <ul className="divide-y divide-border-subtle">
-                  {rows.map((row) => (
-                    <li key={row.fullName} className="flex items-center justify-between gap-3 px-5 py-3.5">
-                      <span className="flex min-w-0 items-center gap-2.5">
-                        <span className="icon-chip shrink-0">
-                          <Users className="h-4 w-4" />
-                        </span>
-                        <span className="truncate font-medium text-foreground">{row.fullName}</span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
-                        {row.count} {row.count === 1 ? "presenza" : "presenze"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
+            <div className="space-y-8">
+              {MINIVOLLEY_GROUPS.map((g) => (
+                <TallyGroup key={g} label={groupLabel(g)} rows={rows.filter((r) => r.group === g)} />
+              ))}
+              <TallyGroup label={groupLabel(null)} rows={rows.filter((r) => r.group === null)} />
+            </div>
           )}
         </div>
       </main>

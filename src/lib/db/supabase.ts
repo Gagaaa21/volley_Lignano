@@ -292,6 +292,7 @@ type AthleteRow = {
   full_name: string;
   team: Athlete["team"];
   category: Athlete["category"];
+  athlete_group: Athlete["group"];
   is_active: boolean;
   notes: string | null;
   created_by: string | null;
@@ -318,6 +319,7 @@ function athleteFromRow(row: AthleteRow): Athlete {
     fullName: row.full_name,
     team: row.team,
     category: row.category,
+    group: row.athlete_group,
     isActive: row.is_active,
     notes: row.notes,
     createdBy: row.created_by,
@@ -331,6 +333,7 @@ function athleteToRow(input: AthleteInput) {
     full_name: input.fullName,
     team: input.team,
     category: input.category,
+    athlete_group: input.group,
     is_active: input.isActive,
     notes: input.notes,
   };

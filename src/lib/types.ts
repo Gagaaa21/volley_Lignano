@@ -42,9 +42,10 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
  * risultato, solo tornei multi-club, già coperti da "Allenamenti"
  * (isTournament). "Pronostici" ne dipende (si pronostica il risultato di
  * una partita) e quindi segue la stessa esclusione. "Presenze" invece resta
- * disponibile per entrambe le squadre, ma con un flusso diverso per il
- * Minivolley (vedi MiniAttendanceForm): niente elenco con spunte, solo un
- * elenco libero di chi era presente, con conteggio pubblico per atleta. */
+ * disponibile per entrambe le squadre, con la stessa anagrafica di U14/U15
+ * (atlete raggruppate per CDA invece che per categoria) ma un flusso di
+ * registrazione diverso per il Minivolley (vedi MiniAttendanceForm): un
+ * elenco con spunte ma senza assenze tracciate, solo chi era presente. */
 const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici"];
 
 export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
@@ -86,6 +87,13 @@ export type PublicStaffMember = Omit<StaffMember, "passwordHash">;
 export type Category = "U14" | "U15";
 
 export const CATEGORIES: Category[] = ["U14", "U15"];
+
+/** Gruppo di appartenenza dentro il Minivolley: due sedi (CDA) distinte,
+ * analogo di Category ma per l'altro asse — si applica solo dentro
+ * "minivolley", resta sempre null per u14u15. */
+export type MinivolleyGroup = "lignano" | "san_michele";
+
+export const MINIVOLLEY_GROUPS: MinivolleyGroup[] = ["lignano", "san_michele"];
 
 /** Squadra a cui appartiene un allenamento, una partita, una scheda,
  * un'atleta o un registro presenze: "u14u15" è il gruppo agonistico di
@@ -365,6 +373,10 @@ export interface Athlete {
    * il Minivolley resta sempre null. */
   team: TrainingTeam;
   category: Category | null;
+  /** Speculare a category ma per il Minivolley: resta sempre null dentro
+   * "u14u15". Opzionale anche dentro Minivolley (assegnabile in un secondo
+   * momento), come già avviene per category. */
+  group: MinivolleyGroup | null;
   isActive: boolean;
   notes: string | null;
   createdBy: string | null;

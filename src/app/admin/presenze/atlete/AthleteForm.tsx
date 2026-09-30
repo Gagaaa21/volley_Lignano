@@ -5,9 +5,9 @@ import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea, FieldError } from "@/components/ui/Field";
-import { CATEGORY_LABELS } from "@/lib/category";
+import { CATEGORY_LABELS, MINIVOLLEY_GROUP_LABELS } from "@/lib/category";
 import { saveAthleteAction, type AthleteFormState } from "./actions";
-import type { Athlete } from "@/lib/types";
+import type { Athlete, TrainingTeam } from "@/lib/types";
 
 const initialState: AthleteFormState = {};
 
@@ -21,7 +21,7 @@ function SubmitButton() {
   );
 }
 
-export function AthleteForm({ athlete }: { athlete?: Athlete }) {
+export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: TrainingTeam }) {
   const [state, formAction] = useActionState(saveAthleteAction, initialState);
 
   return (
@@ -33,14 +33,25 @@ export function AthleteForm({ athlete }: { athlete?: Athlete }) {
         <Input id="fullName" name="fullName" defaultValue={athlete?.fullName} placeholder="Es. Giulia Bianchi" required />
       </div>
 
-      <div>
-        <Label htmlFor="category">Categoria (opzionale)</Label>
-        <Select id="category" name="category" defaultValue={athlete?.category ?? ""}>
-          <option value="">Nessuna categoria</option>
-          <option value="U14">{CATEGORY_LABELS.U14}</option>
-          <option value="U15">{CATEGORY_LABELS.U15}</option>
-        </Select>
-      </div>
+      {team === "u14u15" ? (
+        <div>
+          <Label htmlFor="category">Categoria (opzionale)</Label>
+          <Select id="category" name="category" defaultValue={athlete?.category ?? ""}>
+            <option value="">Nessuna categoria</option>
+            <option value="U14">{CATEGORY_LABELS.U14}</option>
+            <option value="U15">{CATEGORY_LABELS.U15}</option>
+          </Select>
+        </div>
+      ) : (
+        <div>
+          <Label htmlFor="group">Gruppo (opzionale)</Label>
+          <Select id="group" name="group" defaultValue={athlete?.group ?? ""}>
+            <option value="">Nessun gruppo</option>
+            <option value="lignano">{MINIVOLLEY_GROUP_LABELS.lignano}</option>
+            <option value="san_michele">{MINIVOLLEY_GROUP_LABELS.san_michele}</option>
+          </Select>
+        </div>
+      )}
 
       <div>
         <Label htmlFor="notes">Note (opzionale)</Label>

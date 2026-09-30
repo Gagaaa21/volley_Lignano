@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
-import { requireStaff, requireU14U15Team } from "@/lib/auth/guard";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { BulkAthleteForm } from "../BulkAthleteForm";
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BulkAthletesPage() {
-  await requireU14U15Team(await requireStaff());
+  const team = await resolveActiveTeam(await requireStaff());
   return (
     <div className="mx-auto max-w-xl">
       <LinkButton href="/admin/presenze/atlete" variant="ghost" size="sm" className="mb-4 -ml-3.5">
@@ -28,7 +28,7 @@ export default async function BulkAthletesPage() {
           <h2 className="font-display text-base font-semibold text-foreground">Elenco</h2>
         </CardHeader>
         <CardBody>
-          <BulkAthleteForm />
+          <BulkAthleteForm team={team} />
         </CardBody>
       </Card>
     </div>

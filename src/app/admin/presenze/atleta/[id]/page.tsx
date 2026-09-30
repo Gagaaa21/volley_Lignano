@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, Check, Clock, MapPin, ShieldAlert, ShieldQuestion } from "lucide-react";
+import { ArrowLeft, Check, Clock, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
-import { categoryBadgeClass, categoryLabel } from "@/lib/category";
+import { categoryBadgeClass, categoryLabel, groupBadgeClass, groupLabel } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -42,6 +42,32 @@ const STATUS_DOT: Record<AttendanceStatus, string> = {
   unexcused: "bg-destructive",
 };
 
+/** Il Minivolley non ha un concetto di assenza giustificata/non
+ * giustificata (vedi MiniAttendanceForm): solo presente/assente, dedotto
+ * da "il registro di quel giorno esiste e la contiene" — non dal solo
+ * valore del record, che per un'assenza non ha proprio una voce. */
+type MiniStatus = "present" | "absent";
+
+const MINI_STATUS_LABEL: Record<MiniStatus, string> = {
+  present: "Presente",
+  absent: "Assente",
+};
+
+const MINI_STATUS_BADGE: Record<MiniStatus, string> = {
+  present: STATUS_BADGE.present,
+  absent: "bg-foreground/8 text-foreground/50",
+};
+
+const MINI_STATUS_ICON: Record<MiniStatus, typeof Check> = {
+  present: Check,
+  absent: X,
+};
+
+const MINI_STATUS_DOT: Record<MiniStatus, string> = {
+  present: STATUS_DOT.present,
+  absent: "bg-foreground/25",
+};
+
 export default async function AthleteAttendancePage({
   params,
   searchParams,
@@ -57,23 +83,33 @@ export default async function AthleteAttendancePage({
   const repo = await getActiveRepo();
   const athlete = await repo.getAthlete(id);
   if (!athlete) notFound();
-  // Il Minivolley non ha anagrafica (vedi MiniAttendanceForm): questa
-  // pagina esiste solo per U14/U15.
-  if (athlete.team === "minivolley") redirect("/admin/presenze");
+  const isMini = athlete.team === "minivolley";
+
   const [sessions, trainings] = await Promise.all([
     repo.listAttendanceSessions({ team: athlete.team }),
     repo.listTrainings({ team: athlete.team }),
   ]);
 
-  const history = sessions
-    .filter((s) => id in s.records)
-    .map((s) => ({ session: s, status: s.records[id] }))
-    .sort((a, b) => b.session.sessionDate.localeCompare(a.session.sessionDate));
-
-  const total = history.length;
-  const present = history.filter((h) => h.status === "present").length;
-  const excused = history.filter((h) => h.status === "excused").length;
-  const unexcused = history.filter((h) => h.status === "unexcused").length;
+  // Per il Minivolley un'assenza non ha mai una voce nel record (vedi
+  // saveMiniAttendanceAction): "presente" non si può dedurre da
+  // s.records[id] da solo, serve sapere quanti allenamenti sono stati
+  // registrati in totale per questa squadra.
+  let total: number;
+  let present: number;
+  let excused: number;
+  let unexcused: number;
+  if (isMini) {
+    total = sessions.length;
+    present = sessions.filter((s) => id in s.records).length;
+    excused = 0;
+    unexcused = 0;
+  } else {
+    const statuses = sessions.filter((s) => id in s.records).map((s) => s.records[id]);
+    total = statuses.length;
+    present = statuses.filter((s) => s === "present").length;
+    excused = statuses.filter((s) => s === "excused").length;
+    unexcused = statuses.filter((s) => s === "unexcused").length;
+  }
   const presencePct = total > 0 ? Math.round((present / total) * 100) : null;
 
   const sessionByOccurrence = new Map(sessions.map((s) => [`${s.trainingRuleId}_${s.sessionDate}`, s]));
@@ -86,18 +122,39 @@ export default async function AthleteAttendancePage({
 
   for (const occ of occurrences) {
     const session = sessionByOccurrence.get(`${occ.ruleId}_${occ.date}`);
-    const status = session ? session.records[id] : undefined;
     const isUpcoming = occ.date > todayStr;
 
-    const colorClass = status
-      ? STATUS_DOT[status]
-      : isUpcoming
-        ? "bg-foreground/25"
-        : "bg-foreground/15";
-    const label = status ? STATUS_LABEL[status] : isUpcoming ? "Programmato" : "Non registrata";
+    let label: string;
+    let colorClass: string;
+    let badgeClass: string | null = null;
+    let StatusIcon: typeof Check | null = null;
+
+    if (isMini) {
+      const miniStatus: MiniStatus | null = session ? (id in session.records ? "present" : "absent") : null;
+      if (miniStatus) {
+        label = MINI_STATUS_LABEL[miniStatus];
+        colorClass = MINI_STATUS_DOT[miniStatus];
+        badgeClass = MINI_STATUS_BADGE[miniStatus];
+        StatusIcon = MINI_STATUS_ICON[miniStatus];
+      } else {
+        label = isUpcoming ? "Programmato" : "Non registrata";
+        colorClass = isUpcoming ? "bg-foreground/25" : "bg-foreground/15";
+      }
+    } else {
+      const status = session ? session.records[id] : undefined;
+      if (status) {
+        label = STATUS_LABEL[status];
+        colorClass = STATUS_DOT[status];
+        badgeClass = STATUS_BADGE[status];
+        StatusIcon = STATUS_ICON[status];
+      } else {
+        label = isUpcoming ? "Programmato" : "Non registrata";
+        colorClass = isUpcoming ? "bg-foreground/25" : "bg-foreground/15";
+      }
+    }
+
     (markersByDate[occ.date] ??= []).push({ colorClass, label });
 
-    const StatusIcon = status ? STATUS_ICON[status] : null;
     detailsByDate[occ.date] = (
       <Card>
         <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-5">
@@ -117,23 +174,19 @@ export default async function AthleteAttendancePage({
               </span>
             </p>
           </div>
-          {status && StatusIcon ? (
+          {badgeClass && StatusIcon ? (
             <span
               className={cn(
                 "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
-                STATUS_BADGE[status],
+                badgeClass,
               )}
             >
               <StatusIcon className="h-3.5 w-3.5" />
-              {STATUS_LABEL[status]}
-            </span>
-          ) : isUpcoming ? (
-            <span className="shrink-0 rounded-full bg-foreground/8 px-2.5 py-1 text-xs font-semibold text-foreground/50">
-              Programmato
+              {label}
             </span>
           ) : (
             <span className="shrink-0 rounded-full bg-foreground/8 px-2.5 py-1 text-xs font-semibold text-foreground/50">
-              Non registrata
+              {label}
             </span>
           )}
         </CardBody>
@@ -159,17 +212,17 @@ export default async function AthleteAttendancePage({
         <span
           className={cn(
             "rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
-            categoryBadgeClass(athlete.category),
+            isMini ? groupBadgeClass(athlete.group) : categoryBadgeClass(athlete.category),
           )}
         >
-          {categoryLabel(athlete.category)}
+          {isMini ? groupLabel(athlete.group) : categoryLabel(athlete.category)}
         </span>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Tutti gli impegni dell&apos;atleta, passati e futuri: seleziona un giorno per i dettagli.
       </p>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className={cn("mt-6 grid grid-cols-2 gap-3", !isMini && "sm:grid-cols-4")}>
         <div className="stat-card">
           <CardBody className="pt-5">
             <p className="text-2xl font-bold text-foreground">{presencePct ?? "–"}{presencePct !== null && "%"}</p>
@@ -182,18 +235,22 @@ export default async function AthleteAttendancePage({
             <p className="text-xs text-muted-foreground">Presenze</p>
           </CardBody>
         </div>
-        <div className="stat-card">
-          <CardBody className="pt-5">
-            <p className="text-2xl font-bold text-foreground">{excused}</p>
-            <p className="text-xs text-muted-foreground">Giustificate</p>
-          </CardBody>
-        </div>
-        <div className="stat-card">
-          <CardBody className="pt-5">
-            <p className="text-2xl font-bold text-foreground">{unexcused}</p>
-            <p className="text-xs text-muted-foreground">Non giustificate</p>
-          </CardBody>
-        </div>
+        {!isMini && (
+          <>
+            <div className="stat-card">
+              <CardBody className="pt-5">
+                <p className="text-2xl font-bold text-foreground">{excused}</p>
+                <p className="text-xs text-muted-foreground">Giustificate</p>
+              </CardBody>
+            </div>
+            <div className="stat-card">
+              <CardBody className="pt-5">
+                <p className="text-2xl font-bold text-foreground">{unexcused}</p>
+                <p className="text-xs text-muted-foreground">Non giustificate</p>
+              </CardBody>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mt-8">

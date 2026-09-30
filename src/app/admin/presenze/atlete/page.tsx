@@ -2,24 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ListPlus, Pencil, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, requireU14U15Team, resolveActiveTeam } from "@/lib/auth/guard";
-import { categoryLabel } from "@/lib/category";
+import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
+import { categoryLabel, groupLabel } from "@/lib/category";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
-import type { Athlete, Category } from "@/lib/types";
+import { MINIVOLLEY_GROUPS, type Athlete } from "@/lib/types";
 import { deleteAthleteAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Atlete",
 };
 
-function AthleteGroup({ category, athletes }: { category: Category | null; athletes: Athlete[] }) {
+function AthleteGroup({ label, athletes }: { label: string; athletes: Athlete[] }) {
   if (athletes.length === 0) return null;
   return (
     <div>
-      <p className="eyebrow">{categoryLabel(category)}</p>
+      <p className="eyebrow">{label}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {athletes.map((athlete) => (
           <Card key={athlete.id}>
@@ -71,9 +71,9 @@ function AthleteGroup({ category, athletes }: { category: Category | null; athle
 
 export default async function AthletesPage() {
   const session = await requireStaff();
-  await requireU14U15Team(session);
+  const team = await resolveActiveTeam(session);
   const repo = await getActiveRepo();
-  const athletes = await repo.listAthletes({ team: await resolveActiveTeam(session) });
+  const athletes = await repo.listAthletes({ team });
 
   return (
     <div>
@@ -110,9 +110,20 @@ export default async function AthletesPage() {
         </div>
       ) : (
         <div className="mt-6 space-y-8">
-          <AthleteGroup category="U14" athletes={athletes.filter((a) => a.category === "U14")} />
-          <AthleteGroup category="U15" athletes={athletes.filter((a) => a.category === "U15")} />
-          <AthleteGroup category={null} athletes={athletes.filter((a) => a.category === null)} />
+          {team === "u14u15" ? (
+            <>
+              <AthleteGroup label={categoryLabel("U14")} athletes={athletes.filter((a) => a.category === "U14")} />
+              <AthleteGroup label={categoryLabel("U15")} athletes={athletes.filter((a) => a.category === "U15")} />
+              <AthleteGroup label={categoryLabel(null)} athletes={athletes.filter((a) => a.category === null)} />
+            </>
+          ) : (
+            <>
+              {MINIVOLLEY_GROUPS.map((g) => (
+                <AthleteGroup key={g} label={groupLabel(g)} athletes={athletes.filter((a) => a.group === g)} />
+              ))}
+              <AthleteGroup label={groupLabel(null)} athletes={athletes.filter((a) => a.group === null)} />
+            </>
+          )}
         </div>
       )}
     </div>

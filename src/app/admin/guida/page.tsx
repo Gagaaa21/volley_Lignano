@@ -74,11 +74,11 @@ const SECTIONS: Section[] = [
     title: "Presenze",
     intro: "Registro presenze collegato agli allenamenti del calendario.",
     points: [
-      "In \"Atlete\" si gestisce l'anagrafica: si possono aggiungere una alla volta o incollando un elenco di nominativi insieme (categoria U14/U15 facoltativa, assegnabile anche dopo).",
-      "Dalla schermata principale si sceglie l'allenamento da registrare: ogni atleta è di default \"Presente\", con un tasto per segnarla \"Assente\" e, in quel caso, specificare se l'assenza è giustificata o no.",
+      "In \"Atlete\" si gestisce l'anagrafica: si possono aggiungere una alla volta o incollando un elenco insieme. Per U14/U15 c'è una categoria facoltativa (U14/U15, assegnabile anche dopo); per il Minivolley un gruppo facoltativo (CDA Lignano o CDA San Michele) — nell'elenco incollato il gruppo si scrive nella prima colonna di ogni riga, separata da una tabulazione da nome e cognome.",
+      "Per U14/U15, dalla schermata principale si sceglie l'allenamento da registrare: ogni atleta è di default \"Presente\", con un tasto per segnarla \"Assente\" e, in quel caso, specificare se l'assenza è giustificata o no.",
+      "Per il Minivolley invece si tocca solo chi era presente, raggruppate per CDA: nessuna assenza da segnare, chi non viene toccato resta semplicemente non registrato per quel giorno.",
       "Lo \"Storico\" mostra tutti i registri salvati (modificabili in ogni momento) e, per ogni atleta, la propria percentuale di presenza e la cronologia.",
-      "Appena salvi un registro, l'elenco nominativo con lo stato di ciascuna atleta compare anche nel dettaglio di quell'allenamento sul calendario pubblico, visibile a chiunque senza bisogno di accedere.",
-      "Il Minivolley non ha anagrafica atlete: nessuna \"Atlete\" da tenere aggiornata. A ogni allenamento si scrive a mano il nome di chi era presente; man mano che si scrive, i nomi già usati in registri precedenti vengono suggeriti, solo per evitare refusi che spezzerebbero il conteggio della stessa persona in due. Le assenze non si registrano: conta solo quante volte ciascun nome è comparso come presente, visibile alle famiglie in una pagina pubblica dedicata (\"Presenze\" nell'header del sito Minivolley).",
+      "Appena salvi un registro, l'elenco nominativo con lo stato di ciascuna atleta compare anche nel dettaglio di quell'allenamento sul calendario pubblico, visibile a chiunque senza bisogno di accedere. Per il Minivolley c'è anche una pagina pubblica dedicata (\"Presenze\" nell'header del sito Minivolley) con il conteggio delle presenze per atleta, raggruppato per CDA.",
     ],
   },
   {

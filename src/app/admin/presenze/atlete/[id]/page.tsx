@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaff, requireU14U15Team } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { AthleteForm } from "../AthleteForm";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function EditAthletePage({ params }: { params: Promise<{ id: string }> }) {
-  await requireU14U15Team(await requireStaff());
+  await requireStaff();
   const { id } = await params;
   const repo = await getActiveRepo();
   const athlete = await repo.getAthlete(id);
@@ -33,7 +33,7 @@ export default async function EditAthletePage({ params }: { params: Promise<{ id
           <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
         </CardHeader>
         <CardBody>
-          <AthleteForm athlete={athlete} />
+          <AthleteForm athlete={athlete} team={athlete.team} />
         </CardBody>
       </Card>
     </div>
