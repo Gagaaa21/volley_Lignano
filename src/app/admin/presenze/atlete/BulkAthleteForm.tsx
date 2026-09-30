@@ -77,7 +77,9 @@ export function BulkAthleteForm({ team }: { team: TrainingTeam }) {
       {state.created !== undefined && (
         <div className="flex items-center gap-2 rounded-xl border border-[var(--color-u14)]/30 bg-[var(--color-u14-soft)] px-4 py-3 text-sm font-medium text-[var(--color-u14-strong)]">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          {state.created} {state.created === 1 ? "atleta aggiunta" : "atlete aggiunte"}.
+          {state.created} {state.created === 1 ? "atleta aggiunta" : "atlete aggiunte"}
+          {!!state.skipped && `, ${state.skipped} già ${state.skipped === 1 ? "esistente" : "esistenti"} (${state.skipped === 1 ? "saltata" : "saltate"})`}
+          .
         </div>
       )}
 

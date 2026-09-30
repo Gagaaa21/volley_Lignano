@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getRepo } from "@/lib/db";
+import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import type { AttendanceStatus, Category, MinivolleyGroup, TrainingTeam } from "@/lib/types";
 
 /** Tag usato per invalidare la cache da ogni azione admin che tocca il
@@ -51,9 +52,16 @@ export const getPublicCalendarData = unstable_cache(
     // e famiglie devono poter vedere chi era presente a un allenamento, senza
     // login). Espone solo nome e stato: mai note interne o altri campi
     // dell'atleta, e solo per le sedute nel mese visibile.
+    const todayStr = new Date().toISOString().slice(0, 10);
     const athleteNameById = new Map(athletes.map((a) => [a.id, a.fullName] as const));
     const attendance: PublicAttendanceSession[] = attendanceSessions
-      .filter((s) => s.trainingRuleId && s.sessionDate >= from && s.sessionDate <= to)
+      .filter(
+        (s) =>
+          s.trainingRuleId &&
+          s.sessionDate >= from &&
+          s.sessionDate <= to &&
+          isMinivolleyDateRelevant(team, s.sessionDate, todayStr),
+      )
       .map((s) => ({
         trainingRuleId: s.trainingRuleId as string,
         sessionDate: s.sessionDate,
@@ -101,9 +109,11 @@ export const getPublicAttendanceTally = unstable_cache(
       repo.listAthletes({ team }),
     ]);
     const athleteById = new Map(athletes.map((a) => [a.id, a] as const));
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const relevantSessions = attendanceSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
 
     const countByAthleteId = new Map<string, number>();
-    for (const session of attendanceSessions) {
+    for (const session of relevantSessions) {
       for (const [athleteId, status] of Object.entries(session.records)) {
         if (status !== "present") continue;
         countByAthleteId.set(athleteId, (countByAthleteId.get(athleteId) ?? 0) + 1);

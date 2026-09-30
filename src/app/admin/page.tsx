@@ -27,6 +27,7 @@ import { CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import crest from "@/assets/lignano-crest.png";
 import { isPageAvailableForTeam, type AdminPage, type CalendarEvent } from "@/lib/types";
+import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -129,7 +130,10 @@ export default async function AdminDashboardPage({
   const recordedKeys = new Set(attendanceSessions.map((s) => `${s.trainingRuleId}_${s.sessionDate}`));
   const pendingOccurrences = showPresenze
     ? expandTrainings(trainings, subDays(today, 21), today).filter(
-        (o) => o.kind === "training" && !recordedKeys.has(`${o.ruleId}_${o.date}`),
+        (o) =>
+          o.kind === "training" &&
+          !recordedKeys.has(`${o.ruleId}_${o.date}`) &&
+          isMinivolleyDateRelevant(team, o.date, todayStr),
       )
     : [];
 

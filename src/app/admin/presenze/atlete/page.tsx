@@ -1,73 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, ListPlus, Pencil, Plus, Users } from "lucide-react";
+import { ArrowLeft, Download, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { categoryLabel, groupLabel } from "@/lib/category";
-import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { Badge } from "@/components/ui/Badge";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
-import { MINIVOLLEY_GROUPS, type Athlete } from "@/lib/types";
-import { deleteAthleteAction } from "./actions";
+import { AthleteList } from "./AthleteList";
 
 export const metadata: Metadata = {
   title: "Atlete",
 };
-
-function AthleteGroup({ label, athletes }: { label: string; athletes: Athlete[] }) {
-  if (athletes.length === 0) return null;
-  return (
-    <div>
-      <p className="eyebrow">{label}</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {athletes.map((athlete) => (
-          <Card key={athlete.id}>
-            <CardBody className="flex items-center justify-between gap-3 pt-5">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/admin/presenze/atleta/${athlete.id}`}
-                    className="truncate font-semibold text-foreground hover:text-primary hover:underline"
-                  >
-                    {athlete.fullName}
-                  </Link>
-                  {!athlete.isActive && (
-                    <Badge className="bg-foreground/10 text-foreground/50">Non attiva</Badge>
-                  )}
-                </div>
-                {athlete.notes && (
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{athlete.notes}</p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <LinkButton
-                  href={`/admin/presenze/atlete/${athlete.id}`}
-                  variant="outline"
-                  size="sm"
-                  aria-label="Modifica"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </LinkButton>
-                <form action={deleteAthleteAction}>
-                  <input type="hidden" name="id" value={athlete.id} />
-                  <ConfirmSubmitButton
-                    confirmMessage={`Eliminare definitivamente ${athlete.fullName}? Le presenze registrate resteranno ma senza nome collegato.`}
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/8"
-                  >
-                    Elimina
-                  </ConfirmSubmitButton>
-                </form>
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default async function AthletesPage() {
   const session = await requireStaff();
@@ -93,6 +33,10 @@ export default async function AthletesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <LinkButton href="/api/presenze/atlete/csv" variant="ghost" size="sm">
+            <Download className="h-4 w-4" />
+            Esporta CSV
+          </LinkButton>
           <LinkButton href="/admin/presenze/atlete/elenco" variant="outline">
             <ListPlus className="h-4 w-4" />
             Aggiungi in elenco
@@ -109,21 +53,8 @@ export default async function AthletesPage() {
           Nessuna atleta ancora. Aggiungi la prima per iniziare a registrare le presenze.
         </div>
       ) : (
-        <div className="mt-6 space-y-8">
-          {team === "u14u15" ? (
-            <>
-              <AthleteGroup label={categoryLabel("U14")} athletes={athletes.filter((a) => a.category === "U14")} />
-              <AthleteGroup label={categoryLabel("U15")} athletes={athletes.filter((a) => a.category === "U15")} />
-              <AthleteGroup label={categoryLabel(null)} athletes={athletes.filter((a) => a.category === null)} />
-            </>
-          ) : (
-            <>
-              {MINIVOLLEY_GROUPS.map((g) => (
-                <AthleteGroup key={g} label={groupLabel(g)} athletes={athletes.filter((a) => a.group === g)} />
-              ))}
-              <AthleteGroup label={groupLabel(null)} athletes={athletes.filter((a) => a.group === null)} />
-            </>
-          )}
+        <div className="mt-6">
+          <AthleteList athletes={athletes} team={team} />
         </div>
       )}
     </div>

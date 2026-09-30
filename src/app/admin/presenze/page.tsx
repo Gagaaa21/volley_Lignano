@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/Badge";
 import { MonthCalendarPicker, type DayMarker } from "@/components/presenze/MonthCalendarPicker";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_PRESENZE_STEPS } from "@/components/tour/sectionSteps";
+import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 
 export const metadata: Metadata = {
   title: "Presenze",
@@ -48,6 +49,7 @@ export default async function AttendanceHubPage({
   const occurrencesByDate = new Map<string, typeof occurrences>();
 
   for (const occ of occurrences) {
+    if (!isMinivolleyDateRelevant(team, occ.date, todayStr)) continue;
     const isRegistered = recordedKeys.has(`${occ.ruleId}_${occ.date}`);
     const status: "registered" | "pending" | "upcoming" = isRegistered
       ? "registered"

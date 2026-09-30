@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { ArrowLeft, Check, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
+import { ArrowLeft, Check, Download, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
+import { format } from "date-fns";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { formatDateLong } from "@/lib/format";
+import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
@@ -15,7 +17,10 @@ export const metadata: Metadata = {
 export default async function AttendanceHistoryPage() {
   const session = await requireStaff();
   const repo = await getActiveRepo();
-  const sessions = await repo.listAttendanceSessions({ team: await resolveActiveTeam(session) });
+  const team = await resolveActiveTeam(session);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const allSessions = await repo.listAttendanceSessions({ team });
+  const sessions = allSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
 
   return (
     <div>
@@ -24,10 +29,18 @@ export default async function AttendanceHistoryPage() {
         Torna alle presenze
       </LinkButton>
 
-      <h1 className="font-display text-2xl font-bold text-foreground">Storico presenze</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tutti i registri salvati, dal più recente.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Storico presenze</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tutti i registri salvati, dal più recente.
+          </p>
+        </div>
+        <LinkButton href="/api/presenze/storico/csv" variant="ghost" size="sm">
+          <Download className="h-4 w-4" />
+          Esporta CSV
+        </LinkButton>
+      </div>
 
       {sessions.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-muted-foreground">

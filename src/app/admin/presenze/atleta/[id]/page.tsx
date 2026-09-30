@@ -8,6 +8,7 @@ import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import { categoryBadgeClass, categoryLabel, groupBadgeClass, groupLabel } from "@/lib/category";
+import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -85,10 +86,12 @@ export default async function AthleteAttendancePage({
   if (!athlete) notFound();
   const isMini = athlete.team === "minivolley";
 
-  const [sessions, trainings] = await Promise.all([
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [allSessions, trainings] = await Promise.all([
     repo.listAttendanceSessions({ team: athlete.team }),
     repo.listTrainings({ team: athlete.team }),
   ]);
+  const sessions = allSessions.filter((s) => isMinivolleyDateRelevant(athlete.team, s.sessionDate, todayStr));
 
   // Per il Minivolley un'assenza non ha mai una voce nel record (vedi
   // saveMiniAttendanceAction): "presente" non si può dedurre da
@@ -115,7 +118,6 @@ export default async function AthleteAttendancePage({
   const sessionByOccurrence = new Map(sessions.map((s) => [`${s.trainingRuleId}_${s.sessionDate}`, s]));
   const { start, end } = getMonthGridRange(monthDate);
   const occurrences = expandTrainings(trainings, start, end).filter((o) => o.kind === "training");
-  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const markersByDate: Record<string, DayMarker[]> = {};
   const detailsByDate: Record<string, ReactNode> = {};

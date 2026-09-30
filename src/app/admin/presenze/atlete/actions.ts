@@ -85,6 +85,7 @@ const bulkSchema = z.object({
 export interface BulkAthleteFormState {
   error?: string;
   created?: number;
+  skipped?: number;
 }
 
 export async function bulkCreateAthletesAction(
@@ -147,16 +148,23 @@ export async function bulkCreateAthletesAction(
 
   try {
     const repo = await getActiveRepo();
-    await repo.createAthletesBulk(inputs, session.sub);
+    // Salta chi è già in anagrafica (stesso nome, senza distinguere
+    // maiuscole/minuscole): incollare due volte lo stesso elenco, o un
+    // nominativo già aggiunto singolarmente, non deve creare doppioni.
+    const existingNames = new Set((await repo.listAthletes({ team })).map((a) => a.fullName.trim().toLowerCase()));
+    const beforeCount = inputs.length;
+    inputs = inputs.filter((i) => !existingNames.has(i.fullName.trim().toLowerCase()));
+    const skipped = beforeCount - inputs.length;
+
+    if (inputs.length > 0) await repo.createAthletesBulk(inputs, session.sub);
 
     revalidatePath("/admin/presenze");
     revalidatePath("/admin/presenze/atlete");
+    return { created: inputs.length, skipped };
   } catch (err) {
     console.error("[bulkCreateAthletesAction]", err);
     return { error: "Non è stato possibile salvare l'elenco. Riprova." };
   }
-
-  return { created: inputs.length };
 }
 
 export async function deleteAthleteAction(formData: FormData): Promise<void> {
