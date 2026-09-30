@@ -3,13 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addDays, format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, CalendarDays, CalendarRange, ChevronRight, Globe, Puzzle } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarOff, CalendarRange, ChevronRight, Globe, Puzzle, RotateCcw } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, occurrenceKey } from "@/lib/calendar";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { cn } from "@/lib/cn";
 import { TrainingForm } from "../TrainingForm";
+import { restoreTrainingOccurrenceAction, skipTrainingOccurrenceAction } from "../actions";
 
 export const metadata: Metadata = {
   title: "Modifica allenamento",
@@ -29,11 +32,13 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
   ]);
 
   const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
   const rangeStart = training.repeat === "once" ? new Date(`${training.startDate}T00:00:00`) : today;
   const rangeEnd = training.repeat === "once" ? rangeStart : addDays(today, 90);
   const allOccurrences = expandTrainings([training], rangeStart, rangeEnd);
   const occurrences = allOccurrences.slice(0, MAX_OCCURRENCES_PREVIEW);
   const remainingCount = allOccurrences.length - occurrences.length;
+  const upcomingExcludedDates = training.excludedDates.filter((d) => d >= todayStr).sort();
 
   const occurrencePlanByKey = new Map(
     occurrencePlans
@@ -90,30 +95,47 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
             occurrences.map((occ) => {
               const occurrencePlan = occurrencePlanByKey.get(occurrenceKey(id, occ.date));
               const currentPlan = occurrencePlan ? planById.get(occurrencePlan.planId) : null;
+              const occDateLabel = format(new Date(`${occ.date}T00:00:00`), "EEEE d MMMM", { locale: it });
 
               return (
-                <Link
-                  key={occ.date}
-                  href={`/admin/allenamenti/scheda/${id}/${occ.date}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-3 transition-colors hover:border-primary/25 hover:bg-primary/5"
-                >
-                  <span className="min-w-[8rem] shrink-0 text-sm font-semibold capitalize text-foreground">
-                    {format(new Date(`${occ.date}T00:00:00`), "EEE d MMM", { locale: it })}
-                  </span>
-                  <span
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center justify-end gap-1.5 truncate text-sm font-medium",
-                      currentPlan ? "text-primary" : "text-foreground/40",
-                    )}
+                <div key={occ.date} className="flex items-center gap-2">
+                  <Link
+                    href={`/admin/allenamenti/scheda/${id}/${occ.date}`}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-3 transition-colors hover:border-primary/25 hover:bg-primary/5"
                   >
-                    {currentPlan && <Puzzle className="h-3.5 w-3.5 shrink-0" />}
-                    <span className="truncate">{currentPlan ? currentPlan.title : "Nessuna scheda"}</span>
-                    {currentPlan && occurrencePlan?.isPublic && (
-                      <Globe className="h-3.5 w-3.5 shrink-0 text-sea-700" aria-label="Visibile al pubblico" />
-                    )}
-                  </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-foreground/30" />
-                </Link>
+                    <span className="min-w-[8rem] shrink-0 text-sm font-semibold capitalize text-foreground">
+                      {format(new Date(`${occ.date}T00:00:00`), "EEE d MMM", { locale: it })}
+                    </span>
+                    <span
+                      className={cn(
+                        "flex min-w-0 flex-1 items-center justify-end gap-1.5 truncate text-sm font-medium",
+                        currentPlan ? "text-primary" : "text-foreground/40",
+                      )}
+                    >
+                      {currentPlan && <Puzzle className="h-3.5 w-3.5 shrink-0" />}
+                      <span className="truncate">{currentPlan ? currentPlan.title : "Nessuna scheda"}</span>
+                      {currentPlan && occurrencePlan?.isPublic && (
+                        <Globe className="h-3.5 w-3.5 shrink-0 text-sea-700" aria-label="Visibile al pubblico" />
+                      )}
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-foreground/30" />
+                  </Link>
+                  {training.repeat !== "once" && (
+                    <form action={skipTrainingOccurrenceAction}>
+                      <input type="hidden" name="ruleId" value={id} />
+                      <input type="hidden" name="date" value={occ.date} />
+                      <ConfirmSubmitButton
+                        confirmMessage={`Saltare l'allenamento di ${occDateLabel}? Le altre date della serie restano invariate; puoi ripristinarla in qualsiasi momento.`}
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Salta questa data"
+                        className="shrink-0 text-foreground/40 hover:bg-destructive/8 hover:text-destructive"
+                      >
+                        <CalendarOff className="h-3.5 w-3.5" />
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
+                </div>
               );
             })
           )}
@@ -127,6 +149,40 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           )}
         </CardBody>
       </Card>
+
+      {training.repeat !== "once" && upcomingExcludedDates.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
+              <CalendarOff className="h-4 w-4 text-foreground/40" />
+              Date saltate
+            </h2>
+            <p className="mt-1 text-sm text-foreground/60">
+              Non compaiono nel calendario né vanno registrate come presenze per questa serie.
+            </p>
+          </CardHeader>
+          <CardBody className="space-y-1.5">
+            {upcomingExcludedDates.map((date) => (
+              <div
+                key={date}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/50 px-4 py-3"
+              >
+                <span className="text-sm font-semibold capitalize text-foreground/60">
+                  {format(new Date(`${date}T00:00:00`), "EEEE d MMMM", { locale: it })}
+                </span>
+                <form action={restoreTrainingOccurrenceAction}>
+                  <input type="hidden" name="ruleId" value={id} />
+                  <input type="hidden" name="date" value={date} />
+                  <Button type="submit" variant="outline" size="sm">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Ripristina
+                  </Button>
+                </form>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
     </div>
   );
 }

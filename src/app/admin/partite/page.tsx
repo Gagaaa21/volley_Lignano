@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Home, MapPin, Pencil, Plane, Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { matchTitle } from "@/lib/calendar";
-import { formatDateLong } from "@/lib/format";
-import { CATEGORY_LABELS, categoryBadgeClass, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { CATEGORY_LABELS } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { Badge } from "@/components/ui/Badge";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
-import { deleteMatchAction } from "./actions";
+import { MatchList } from "./MatchList";
 
 export const metadata: Metadata = {
   title: "Partite",
@@ -36,7 +31,6 @@ export default async function MatchesListPage({
     team,
     category: activeCategory === "all" ? undefined : activeCategory,
   });
-  const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
     <div>
@@ -49,6 +43,10 @@ export default async function MatchesListPage({
         </div>
         <div className="flex items-center gap-2">
           <SectionTour steps={SECTION_PARTITE_STEPS} />
+          <LinkButton href="/api/partite/csv" variant="outline">
+            <Download className="h-4 w-4" />
+            Esporta CSV
+          </LinkButton>
           <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
             <Plus className="h-4 w-4" />
             Nuova partita
@@ -83,94 +81,7 @@ export default async function MatchesListPage({
           Nessuna partita in programma.
         </div>
       ) : (
-        <div className="mt-6 space-y-3" data-tour="section-partite-cards">
-          {matches.map((match) => {
-            const isPast = match.matchDate.slice(0, 10) < todayStr;
-            return (
-              <Card key={match.id} className={cn(isPast && "opacity-60")}>
-                <CardBody className="flex flex-wrap items-center justify-between gap-4 pt-5">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={categoryBadgeClass(match.category)}>
-                        {match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL}
-                      </Badge>
-                      {match.isFriendly && (
-                        <Badge className="bg-foreground/8 text-foreground/60">Amichevole</Badge>
-                      )}
-                      {match.isTournament && (
-                        <Badge className="bg-foreground/8 text-foreground/60">Torneo</Badge>
-                      )}
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/50">
-                        {match.isHome ? <Home className="h-3.5 w-3.5" /> : <Plane className="h-3.5 w-3.5" />}
-                        {match.isHome ? "Casa" : "Trasferta"}
-                      </span>
-                      {match.resultSetsWon !== null && match.resultSetsLost !== null ? (
-                        <Badge
-                          className={
-                            match.resultSetsWon > match.resultSetsLost
-                              ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
-                              : "bg-destructive/10 text-destructive"
-                          }
-                        >
-                          {match.resultSetsWon > match.resultSetsLost ? "Vinta" : "Persa"}{" "}
-                          {match.resultSetsWon}-{match.resultSetsLost}
-                        </Badge>
-                      ) : match.isTournament && match.tournamentGames?.some((g) => g.setScores.length > 0) ? (
-                        <Badge className="bg-foreground/10 text-foreground/60">Risultato registrato</Badge>
-                      ) : (
-                        isPast && <Badge className="bg-foreground/10 text-foreground/50">Disputata</Badge>
-                      )}
-                    </div>
-                    <p className="mt-1.5 font-display text-base font-bold text-foreground">
-                      {matchTitle(match)}
-                    </p>
-                    <p className="mt-1 text-sm text-foreground/60">
-                      {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-sm text-foreground/50">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{match.location}</span>
-                    </p>
-                    {match.isTournament
-                      ? match.tournamentGames &&
-                        match.tournamentGames.some((g) => g.setScores.length > 0) && (
-                          <p className="mt-1 text-xs text-foreground/45">
-                            {match.tournamentGames
-                              .filter((g) => g.setScores.length > 0)
-                              .map((g) => `vs ${g.opponent}: ${g.setScores.map((s) => `${s.us}-${s.them}`).join(", ")}`)
-                              .join(" · ")}
-                          </p>
-                        )
-                      : match.setScores &&
-                        match.setScores.length > 0 && (
-                          <p className="mt-1 text-xs text-foreground/45">
-                            {match.setScores.map((s) => `${s.us}-${s.them}`).join(", ")}
-                          </p>
-                        )}
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-2">
-                    <LinkButton href={`/admin/partite/${match.id}`} variant="outline" size="sm">
-                      <Pencil className="h-3.5 w-3.5" />
-                      Modifica
-                    </LinkButton>
-                    <form action={deleteMatchAction}>
-                      <input type="hidden" name="id" value={match.id} />
-                      <ConfirmSubmitButton
-                        confirmMessage={`Eliminare la partita ${matchTitle(match)}?`}
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/8"
-                      >
-                        Elimina
-                      </ConfirmSubmitButton>
-                    </form>
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
-        </div>
+        <MatchList matches={matches} />
       )}
     </div>
   );

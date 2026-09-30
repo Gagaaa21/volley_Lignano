@@ -493,6 +493,11 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
+-- Date (YYYY-MM-DD) saltate per una regola ricorrente, es. una festività:
+-- expandTrainings() non genera un'occorrenza per queste date pur lasciando
+-- intatta la regola per tutte le altre (vedi TrainingRule.excludedDates).
+alter table training_sessions add column if not exists excluded_dates date[] not null default '{}';
+
 -- =========================================================
 -- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare
 -- righe e spazio occupato da ogni tabella, così da capire dove intervenire

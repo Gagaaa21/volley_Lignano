@@ -41,6 +41,7 @@ type TrainingRow = {
   team: TrainingRule["team"];
   is_tournament: boolean;
   color: TrainingRule["color"];
+  excluded_dates: string[] | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -100,6 +101,7 @@ function trainingFromRow(row: TrainingRow): TrainingRule {
     team: row.team,
     isTournament: row.is_tournament,
     color: row.color,
+    excludedDates: row.excluded_dates ?? [],
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -121,6 +123,7 @@ function trainingToRow(input: TrainingRuleInput) {
     team: input.team,
     is_tournament: input.isTournament,
     color: input.color,
+    excluded_dates: input.excludedDates,
   };
 }
 

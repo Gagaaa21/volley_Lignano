@@ -35,7 +35,11 @@ export default async function AthletesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <LinkButton href="/api/presenze/atlete/csv" variant="ghost" size="sm">
             <Download className="h-4 w-4" />
-            Esporta CSV
+            Esporta anagrafica
+          </LinkButton>
+          <LinkButton href="/api/presenze/riepilogo/csv" variant="ghost" size="sm">
+            <Download className="h-4 w-4" />
+            Riepilogo presenze
           </LinkButton>
           <LinkButton href="/admin/presenze/atlete/elenco" variant="outline">
             <ListPlus className="h-4 w-4" />

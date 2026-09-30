@@ -163,6 +163,12 @@ export interface TrainingRule {
    * "Allenamento" ovunque nel calendario. */
   isTournament: boolean;
   color: TrainingColor;
+  /** Date (ISO "YYYY-MM-DD") saltate per una regola ricorrente (es. una
+   * festività): expandTrainings() non genera un'occorrenza per queste date,
+   * pur mantenendo intatta la regola per tutte le altre. Ignorato per
+   * repeat "once" (un'unica occorrenza si gestisce disattivando la regola
+   * stessa). */
+  excludedDates: string[];
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

@@ -73,6 +73,7 @@ export function expandTrainings(
 
     const ruleStart = parseISO(rule.startDate);
     const ruleEnd = rule.endDate ? parseISO(rule.endDate) : null;
+    const excludedDates = new Set(rule.excludedDates ?? []);
 
     let cursor = ruleStart > rangeStart ? ruleStart : rangeStart;
     const upperBound = ruleEnd && ruleEnd < rangeEnd ? ruleEnd : rangeEnd;
@@ -80,8 +81,8 @@ export function expandTrainings(
     let safety = 0;
     while (cursor <= upperBound && safety < 400) {
       safety += 1;
-      if (rule.weekdays.includes(cursor.getDay())) {
-        const dateStr = format(cursor, "yyyy-MM-dd");
+      const dateStr = format(cursor, "yyyy-MM-dd");
+      if (rule.weekdays.includes(cursor.getDay()) && !excludedDates.has(dateStr)) {
         events.push({
           kind: "training",
           id: `${rule.id}:${dateStr}`,

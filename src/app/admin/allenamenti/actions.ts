@@ -9,7 +9,30 @@ import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import { DEFAULT_TRAINING_COLOR, TRAINING_COLORS, type TrainingRuleInput } from "@/lib/types";
+import { DEFAULT_TRAINING_COLOR, TRAINING_COLORS, type TrainingRule, type TrainingRuleInput } from "@/lib/types";
+
+/** Campi modificabili di una regola già esistente, per costruire un
+ * TrainingRuleInput di partenza da passare a updateTraining() quando si
+ * cambia un solo campo (es. excludedDates) senza passare dal form
+ * principale, che invece li ricostruisce tutti da zero. */
+function trainingToInput(training: TrainingRule): TrainingRuleInput {
+  return {
+    title: training.title,
+    location: training.location,
+    repeat: training.repeat,
+    weekdays: training.weekdays,
+    startTime: training.startTime,
+    endTime: training.endTime,
+    startDate: training.startDate,
+    endDate: training.endDate,
+    notes: training.notes,
+    isActive: training.isActive,
+    team: training.team,
+    isTournament: training.isTournament,
+    color: training.color,
+    excludedDates: training.excludedDates,
+  };
+}
 
 const schema = z
   .object({
@@ -119,32 +142,38 @@ export async function saveTrainingAction(
   // giorno (es. submit rapido), qualunque cosa sia arrivata dal client.
   const isOnce = parsed.data.repeat === "once" || parsed.data.isTournament;
 
-  const input: TrainingRuleInput = {
-    title: parsed.data.title,
-    location: parsed.data.location,
-    repeat: isOnce ? "once" : parsed.data.repeat,
-    weekdays: isOnce ? [] : [...new Set(parsed.data.weekdays)].sort((a, b) => a - b),
-    startTime: parsed.data.startTime,
-    endTime: parsed.data.endTime,
-    startDate: parsed.data.startDate,
-    endDate: isOnce ? parsed.data.startDate : parsed.data.endDate || null,
-    notes: parsed.data.notes ?? null,
-    isActive: parsed.data.isActive,
-    team: parsed.data.team,
-    isTournament: parsed.data.isTournament,
-    color: parsed.data.color,
-  };
-
-  const scheduleLabel = isOnce
-    ? `il ${formatDateLong(input.startDate)}`
-    : `${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`;
-
   // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
   // quanto digitato: si torna al form con i valori originali invece di
   // lasciar risalire l'eccezione (che smonterebbe il form senza un
   // error.tsx dedicato).
   try {
     const repo = await getActiveRepo();
+    // Le date saltate (vedi skipTrainingOccurrenceAction) non passano da
+    // questo form: vanno preservate esplicitamente in modifica, altrimenti
+    // ogni salvataggio del form principale le azzererebbe silenziosamente.
+    const existing = id ? await repo.getTraining(id) : null;
+
+    const input: TrainingRuleInput = {
+      title: parsed.data.title,
+      location: parsed.data.location,
+      repeat: isOnce ? "once" : parsed.data.repeat,
+      weekdays: isOnce ? [] : [...new Set(parsed.data.weekdays)].sort((a, b) => a - b),
+      startTime: parsed.data.startTime,
+      endTime: parsed.data.endTime,
+      startDate: parsed.data.startDate,
+      endDate: isOnce ? parsed.data.startDate : parsed.data.endDate || null,
+      notes: parsed.data.notes ?? null,
+      isActive: parsed.data.isActive,
+      team: parsed.data.team,
+      isTournament: parsed.data.isTournament,
+      color: parsed.data.color,
+      excludedDates: isOnce ? [] : (existing?.excludedDates ?? []),
+    };
+
+    const scheduleLabel = isOnce
+      ? `il ${formatDateLong(input.startDate)}`
+      : `${formatWeekdays(input.weekdays)} ${input.startTime}–${input.endTime}`;
+
     if (id) {
       await repo.updateTraining(id, input);
       if (notify) {
@@ -248,6 +277,55 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
     },
     training.team,
   );
+  revalidatePath("/admin/allenamenti");
+  revalidatePath("/admin/allenamenti/elenco");
+  revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
+  updateTag(PUBLIC_CALENDAR_TAG);
+}
+
+/** Salta una singola data di una regola ricorrente (es. una festività) senza
+ * disattivare né spezzare la regola: expandTrainings() smette di generare
+ * un'occorrenza per quella data, tutte le altre restano invariate. */
+export async function skipTrainingOccurrenceAction(formData: FormData): Promise<void> {
+  await requireStaffPage("allenamenti");
+  const ruleId = formData.get("ruleId")?.toString();
+  const date = formData.get("date")?.toString();
+  if (!ruleId || !date) return;
+
+  const repo = await getActiveRepo();
+  const training = await repo.getTraining(ruleId);
+  if (!training || training.repeat === "once") return;
+  if (training.excludedDates.includes(date)) return;
+
+  await repo.updateTraining(ruleId, {
+    ...trainingToInput(training),
+    excludedDates: [...training.excludedDates, date].sort(),
+  });
+
+  revalidatePath(`/admin/allenamenti/${ruleId}`);
+  revalidatePath("/admin/allenamenti");
+  revalidatePath("/admin/allenamenti/elenco");
+  revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
+  updateTag(PUBLIC_CALENDAR_TAG);
+}
+
+/** Ripristina una data precedentemente saltata (vedi skipTrainingOccurrenceAction). */
+export async function restoreTrainingOccurrenceAction(formData: FormData): Promise<void> {
+  await requireStaffPage("allenamenti");
+  const ruleId = formData.get("ruleId")?.toString();
+  const date = formData.get("date")?.toString();
+  if (!ruleId || !date) return;
+
+  const repo = await getActiveRepo();
+  const training = await repo.getTraining(ruleId);
+  if (!training) return;
+
+  await repo.updateTraining(ruleId, {
+    ...trainingToInput(training),
+    excludedDates: training.excludedDates.filter((d) => d !== date),
+  });
+
+  revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
   revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
