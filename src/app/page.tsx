@@ -15,6 +15,7 @@ import { getPublicCalendarData, getPublicSeasonRecord } from "@/lib/publicCalend
 import {
   expandTrainings,
   getMonthGridRange,
+  getUpcomingAgendaRange,
   groupEventsByDate,
   matchesToEvents,
   occurrenceKey,
@@ -35,9 +36,17 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const activeCategory: "all" | Category =
     catParamRaw === "U14" || catParamRaw === "U15" ? catParamRaw : "all";
 
-  const { start, end } = getMonthGridRange(monthDate);
+  const { start: gridStart, end: gridEnd } = getMonthGridRange(monthDate);
+  const { start: agendaStart, end: agendaEnd } = getUpcomingAgendaRange();
+  // L'intervallo interrogato copre l'unione tra la griglia del mese navigato
+  // e la finestra fissa dei prossimi 30 giorni, così l'Agenda resta sempre
+  // ancorata a oggi anche quando si sfoglia un mese diverso da quello attuale.
+  const start = gridStart < agendaStart ? gridStart : agendaStart;
+  const end = gridEnd > agendaEnd ? gridEnd : agendaEnd;
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
+  const agendaStartStr = format(agendaStart, "yyyy-MM-dd");
+  const agendaEndStr = format(agendaEnd, "yyyy-MM-dd");
 
   const [
     { trainings, matches, occurrencePlans, plans, attendance, callUpsByMatchId },
@@ -56,6 +65,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const matchEvents = matchesToEvents(matches);
   const monthEvents = sortEvents([...trainingEvents, ...matchEvents]);
   const eventsByDate = groupEventsByDate(monthEvents);
+  const agendaEventsByDate = groupEventsByDate(
+    monthEvents.filter((event) => event.date >= agendaStartStr && event.date <= agendaEndStr),
+  );
 
   const planById = new Map(plans.map((p) => [p.id, p] as const));
   const plansByEventId: Record<string, EventPlan> = {};
@@ -161,6 +173,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           <CalendarSection
             monthDate={monthDate}
             eventsByDate={eventsByDate}
+            agendaEventsByDate={agendaEventsByDate}
             plansByEventId={plansByEventId}
             attendanceByEventId={attendanceByEventId}
             callUpsByEventId={callUpsByEventId}

@@ -10,7 +10,14 @@ import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
 import { getPublicCalendarData } from "@/lib/publicCalendarData";
-import { expandTrainings, getMonthGridRange, groupEventsByDate, occurrenceKey, sortEvents } from "@/lib/calendar";
+import {
+  expandTrainings,
+  getMonthGridRange,
+  getUpcomingAgendaRange,
+  groupEventsByDate,
+  occurrenceKey,
+  sortEvents,
+} from "@/lib/calendar";
 import { TRAINING_BADGE } from "@/lib/category";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { EventAttendance, EventPlan } from "@/components/calendar/EventDetailDialog";
@@ -28,9 +35,17 @@ export default async function MinivolleyPage({
   const monthDate = parseMonthParam(monthParamRaw);
   const monthParam = formatMonthParam(monthDate);
 
-  const { start, end } = getMonthGridRange(monthDate);
+  const { start: gridStart, end: gridEnd } = getMonthGridRange(monthDate);
+  const { start: agendaStart, end: agendaEnd } = getUpcomingAgendaRange();
+  // L'intervallo interrogato copre l'unione tra la griglia del mese navigato
+  // e la finestra fissa dei prossimi 30 giorni, così l'Agenda resta sempre
+  // ancorata a oggi anche quando si sfoglia un mese diverso da quello attuale.
+  const start = gridStart < agendaStart ? gridStart : agendaStart;
+  const end = gridEnd > agendaEnd ? gridEnd : agendaEnd;
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
+  const agendaStartStr = format(agendaStart, "yyyy-MM-dd");
+  const agendaEndStr = format(agendaEnd, "yyyy-MM-dd");
 
   // Niente sezione Partite per il Minivolley: solo tornei, già coperti
   // dagli allenamenti con isTournament (vedi getPublicCalendarData).
@@ -48,6 +63,9 @@ export default async function MinivolleyPage({
   );
   const monthEvents = sortEvents(expandTrainings(trainings, start, end, occurrencePlanIds));
   const eventsByDate = groupEventsByDate(monthEvents);
+  const agendaEventsByDate = groupEventsByDate(
+    monthEvents.filter((event) => event.date >= agendaStartStr && event.date <= agendaEndStr),
+  );
 
   const planById = new Map(plans.map((p) => [p.id, p] as const));
   const plansByEventId: Record<string, EventPlan> = {};
@@ -143,6 +161,7 @@ export default async function MinivolleyPage({
           <CalendarSection
             monthDate={monthDate}
             eventsByDate={eventsByDate}
+            agendaEventsByDate={agendaEventsByDate}
             plansByEventId={plansByEventId}
             attendanceByEventId={attendanceByEventId}
             callUpsByEventId={{}}

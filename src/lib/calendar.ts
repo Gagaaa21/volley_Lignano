@@ -7,6 +7,14 @@ export function getMonthGridRange(monthDate: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** Finestra fissa di 30 giorni da oggi (oggi incluso) per la sezione Agenda
+ * della home pubblica: indipendente dal mese eventualmente navigato nel
+ * calendario sopra, così l'elenco resta sempre ancorato a oggi invece che
+ * al mese in visualizzazione. */
+export function getUpcomingAgendaRange(today: Date = new Date()): { start: Date; end: Date } {
+  return { start: today, end: addDays(today, 29) };
+}
+
 export function groupEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
   const map = new Map<string, CalendarEvent[]>();
   for (const event of sortEvents(events)) {
