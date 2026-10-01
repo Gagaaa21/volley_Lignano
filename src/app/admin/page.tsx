@@ -4,6 +4,7 @@ import Image from "next/image";
 import { addDays, format, subDays } from "date-fns";
 import { it } from "date-fns/locale";
 import {
+  Activity,
   AlertCircle,
   BookOpen,
   CalendarClock,
@@ -61,6 +62,13 @@ const SECTIONS: { href: string; label: string; description: string; icon: typeof
     description: "Registro e anagrafica atlete",
     icon: ClipboardCheck,
     page: "presenze",
+  },
+  {
+    href: "/admin/test-fisici",
+    label: "Test fisici",
+    description: "Risultati dei test fisici per atleta",
+    icon: Activity,
+    page: "testfisici",
   },
   {
     href: "/admin/livescore",

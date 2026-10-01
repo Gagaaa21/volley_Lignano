@@ -283,6 +283,36 @@ alter table attendance_sessions enable row level security;
 -- Nessuna policy pubblica: stessa logica di athletes.
 
 -- =========================================================
+-- physical_tests — risultati dei test fisici per singola atleta
+-- (es. altezza di salto). Predisposizione volutamente libera: non è
+-- ancora definito quali test verranno effettuati, quindi sia il nome
+-- del test (test_name) che il valore restano testo libero invece di un
+-- elenco fisso o un numero con unità di misura imposta. athlete_id ha
+-- cascade a differenza di attendance_sessions/training_rule_id: un test
+-- fisico ha senso solo abbinato alla sua atleta, mentre una presenza
+-- resta un dato dell'allenamento anche senza più un'atleta collegata.
+-- =========================================================
+create table if not exists physical_tests (
+  id uuid primary key default gen_random_uuid(),
+  athlete_id uuid not null references athletes(id) on delete cascade,
+  team text not null default 'u14u15' check (team in ('u14u15', 'minivolley')),
+  test_name text not null,
+  value text not null,
+  test_date date not null,
+  notes text,
+  created_by uuid references staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists physical_tests_athlete_idx on physical_tests (athlete_id);
+create index if not exists physical_tests_team_idx on physical_tests (team);
+create index if not exists physical_tests_date_idx on physical_tests (test_date);
+
+alter table physical_tests enable row level security;
+-- Nessuna policy pubblica: stessa logica di athletes.
+
+-- =========================================================
 -- push_subscriptions — iscrizioni alle notifiche push della PWA
 -- (un dispositivo/browser per riga; il calendario è pubblico e
 -- chiunque installi l'app può iscriversi. staff_id è valorizzato solo
@@ -497,6 +527,13 @@ end $$;
 -- expandTrainings() non genera un'occorrenza per queste date pur lasciando
 -- intatta la regola per tutte le altre (vedi TrainingRule.excludedDates).
 alter table training_sessions add column if not exists excluded_dates date[] not null default '{}';
+
+-- Nuova sezione "Test fisici" (vedi tabella physical_tests sopra, già
+-- creata da questo file): gli account Admin già esistenti e con pagine
+-- ristrette non la vedono finché il Developer non spunta "Test fisici" per
+-- loro dal Centro di controllo — stesso comportamento già visto quando
+-- sono state aggiunte Live score/Pronostici, nessuna azione SQL richiesta
+-- qui.
 
 -- =========================================================
 -- table_sizes() — usata dalla pagina Manutenzione (solo dev) per mostrare

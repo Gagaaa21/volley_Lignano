@@ -13,6 +13,8 @@ import type {
   MatchLineupInput,
   MatchPrediction,
   MatchPredictionInput,
+  PhysicalTest,
+  PhysicalTestInput,
   PlanBlock,
   PushSubscriptionRecord,
   SetLineup,
@@ -338,6 +340,45 @@ function athleteToRow(input: AthleteInput) {
     category: input.category,
     athlete_group: input.group,
     is_active: input.isActive,
+    notes: input.notes,
+  };
+}
+
+type PhysicalTestRow = {
+  id: string;
+  athlete_id: string;
+  team: PhysicalTest["team"];
+  test_name: string;
+  value: string;
+  test_date: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function physicalTestFromRow(row: PhysicalTestRow): PhysicalTest {
+  return {
+    id: row.id,
+    athleteId: row.athlete_id,
+    team: row.team,
+    testName: row.test_name,
+    value: row.value,
+    date: row.test_date,
+    notes: row.notes,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function physicalTestToRow(input: PhysicalTestInput) {
+  return {
+    athlete_id: input.athleteId,
+    team: input.team,
+    test_name: input.testName,
+    value: input.value,
+    test_date: input.date,
     notes: input.notes,
   };
 }
@@ -810,6 +851,45 @@ export const supabaseRepo: Repo = {
   async deleteAttendanceSession(id) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("attendance_sessions").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listPhysicalTests(filter?: TeamFilter) {
+    const db = getSupabaseAdmin();
+    let query = db.from("physical_tests").select("*").order("test_date", { ascending: false });
+    if (filter?.team) query = query.eq("team", filter.team);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data as PhysicalTestRow[]).map(physicalTestFromRow);
+  },
+  async getPhysicalTest(id) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("physical_tests").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? physicalTestFromRow(data as PhysicalTestRow) : null;
+  },
+  async createPhysicalTest(input, createdBy) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("physical_tests")
+      .insert({ ...physicalTestToRow(input), created_by: createdBy })
+      .select("*")
+      .single();
+    return physicalTestFromRow(unwrap(result) as PhysicalTestRow);
+  },
+  async updatePhysicalTest(id, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("physical_tests")
+      .update({ ...physicalTestToRow(input), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return physicalTestFromRow(unwrap(result) as PhysicalTestRow);
+  },
+  async deletePhysicalTest(id) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("physical_tests").delete().eq("id", id);
     if (error) throw new Error(error.message);
   },
 

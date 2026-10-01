@@ -11,6 +11,8 @@ import type {
   MatchLineupInput,
   MatchPrediction,
   MatchPredictionInput,
+  PhysicalTest,
+  PhysicalTestInput,
   PushSubscriptionRecord,
   StaffMember,
   StaffRole,
@@ -146,6 +148,14 @@ export interface Repo {
   ): Promise<AttendanceSession>;
   updateAttendanceSession(id: string, input: AttendanceSessionInput): Promise<AttendanceSession>;
   deleteAttendanceSession(id: string): Promise<void>;
+
+  // Test fisici: predisposizione per registrare risultati di test fisici
+  // (es. altezza di salto) per singola atleta, da confrontare nel tempo.
+  listPhysicalTests(filter?: TeamFilter): Promise<PhysicalTest[]>;
+  getPhysicalTest(id: string): Promise<PhysicalTest | null>;
+  createPhysicalTest(input: PhysicalTestInput, createdBy: string | null): Promise<PhysicalTest>;
+  updatePhysicalTest(id: string, input: PhysicalTestInput): Promise<PhysicalTest>;
+  deletePhysicalTest(id: string): Promise<void>;
 
   // Iscrizioni notifiche push (PWA)
   listPushSubscriptions(): Promise<PushSubscriptionRecord[]>;

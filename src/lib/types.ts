@@ -9,6 +9,7 @@ export type AdminPage =
   | "partite"
   | "schede"
   | "presenze"
+  | "testfisici"
   | "livescore"
   | "pronostici"
   | "staff"
@@ -19,6 +20,7 @@ export const ADMIN_PAGES: AdminPage[] = [
   "partite",
   "schede",
   "presenze",
+  "testfisici",
   "livescore",
   "pronostici",
   "staff",
@@ -30,6 +32,7 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   partite: "Partite",
   schede: "Schede",
   presenze: "Presenze",
+  testfisici: "Test fisici",
   livescore: "Live score",
   pronostici: "Pronostici",
   staff: "Staff",
@@ -412,6 +415,37 @@ export interface AttendanceSession {
 
 export type AttendanceSessionInput = Omit<
   AttendanceSession,
+  "id" | "createdBy" | "createdAt" | "updatedAt"
+>;
+
+/** Risultato di un test fisico assegnato a una singola atleta (es. altezza
+ * di salto). Predisposizione volutamente libera: non è ancora definito
+ * quali test verranno effettuati, quindi sia il nome del test che il
+ * valore restano testo libero invece di un elenco fisso o un numero con
+ * unità di misura imposta. Il nome del test digitato viene riproposto come
+ * suggerimento per le prove successive (vedi PhysicalTestForm), così lo
+ * stesso test resta riconoscibile e confrontabile nel tempo per la stessa
+ * atleta, anche senza un catalogo rigido. */
+export interface PhysicalTest {
+  id: string;
+  athleteId: string;
+  /** Squadra dell'atleta al momento della registrazione: non cambia mai in
+   * modifica, derivata sempre da Athlete.team (vedi savePhysicalTestAction),
+   * mai scelta liberamente nel form. */
+  team: TrainingTeam;
+  testName: string;
+  value: string;
+  /** "YYYY-MM-DD": proposta come data odierna ma modificabile, per poter
+   * registrare un test effettuato in un giorno diverso da oggi. */
+  date: string;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PhysicalTestInput = Omit<
+  PhysicalTest,
   "id" | "createdBy" | "createdAt" | "updatedAt"
 >;
 

@@ -12,6 +12,8 @@ import type {
   MatchLineupInput,
   MatchPrediction,
   MatchPredictionInput,
+  PhysicalTest,
+  PhysicalTestInput,
   PushSubscriptionRecord,
   StaffMember,
   TrainingOccurrencePlan,
@@ -48,6 +50,7 @@ export interface MemoryStore {
   trainingOccurrencePlans: TrainingOccurrencePlan[];
   athletes: Athlete[];
   attendanceSessions: AttendanceSession[];
+  physicalTests: PhysicalTest[];
   pushSubscriptions: PushSubscriptionRecord[];
   staff: StaffMember[];
   staffSeeded: boolean;
@@ -64,6 +67,7 @@ export function createEmptyStore(): MemoryStore {
     trainingOccurrencePlans: [],
     athletes: [],
     attendanceSessions: [],
+    physicalTests: [],
     pushSubscriptions: [],
     staff: [],
     staffSeeded: false,
@@ -89,6 +93,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   const trainingOccurrencePlans = store.trainingOccurrencePlans;
   const athletes = store.athletes;
   const attendanceSessions = store.attendanceSessions;
+  const physicalTests = store.physicalTests;
   const pushSubscriptions = store.pushSubscriptions;
   const staff = store.staff;
 
@@ -384,6 +389,12 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     async deleteAthlete(id) {
       const idx = athletes.findIndex((a) => a.id === id);
       if (idx !== -1) athletes.splice(idx, 1);
+      // I test fisici hanno senso solo abbinati alla loro atleta (a
+      // differenza delle presenze, legate alla seduta di allenamento):
+      // eliminata l'atleta, vanno via anche loro.
+      for (let i = physicalTests.length - 1; i >= 0; i--) {
+        if (physicalTests[i].athleteId === id) physicalTests.splice(i, 1);
+      }
     },
 
     async listAttendanceSessions(filter?: TeamFilter) {
@@ -420,6 +431,31 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     async deleteAttendanceSession(id) {
       const idx = attendanceSessions.findIndex((s) => s.id === id);
       if (idx !== -1) attendanceSessions.splice(idx, 1);
+    },
+
+    async listPhysicalTests(filter?: TeamFilter) {
+      let result = [...physicalTests];
+      if (filter?.team) result = result.filter((t) => t.team === filter.team);
+      return result.sort((a, b) => b.date.localeCompare(a.date));
+    },
+    async getPhysicalTest(id) {
+      return physicalTests.find((t) => t.id === id) ?? null;
+    },
+    async createPhysicalTest(input: PhysicalTestInput, createdBy) {
+      const now = new Date().toISOString();
+      const row: PhysicalTest = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+      physicalTests.push(row);
+      return row;
+    },
+    async updatePhysicalTest(id, input: PhysicalTestInput) {
+      const idx = physicalTests.findIndex((t) => t.id === id);
+      if (idx === -1) throw new Error("Test non trovato");
+      physicalTests[idx] = { ...physicalTests[idx], ...input, updatedAt: new Date().toISOString() };
+      return physicalTests[idx];
+    },
+    async deletePhysicalTest(id) {
+      const idx = physicalTests.findIndex((t) => t.id === id);
+      if (idx !== -1) physicalTests.splice(idx, 1);
     },
 
     async listPushSubscriptions() {
@@ -481,6 +517,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "training_occurrence_plans", rows: trainingOccurrencePlans },
         { table: "athletes", rows: athletes },
         { table: "attendance_sessions", rows: attendanceSessions },
+        { table: "physical_tests", rows: physicalTests },
         { table: "push_subscriptions", rows: pushSubscriptions },
         { table: "staff", rows: staff },
         { table: "live_score_state", rows: store.liveScoreState ? [store.liveScoreState] : [] },
