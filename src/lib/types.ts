@@ -15,12 +15,18 @@ export type AdminPage =
   | "staff"
   | "guida";
 
+/** Pagine assegnabili a un Admin dal Centro di controllo (matrice permessi
+ * e default per un account nuovo). "testfisici" resta fuori di proposito:
+ * la sezione è ancora in costruzione (i dati da registrare non sono
+ * definiti), quindi per ora è visibile solo al Developer — nessun Admin può
+ * riceverne accesso, anche se il tipo AdminPage la include (serve a
+ * requireStaffPage/isPageAvailableForTeam, le stesse guardie di ogni altra
+ * pagina). Quando i campi saranno definiti basterà aggiungerla qui. */
 export const ADMIN_PAGES: AdminPage[] = [
   "allenamenti",
   "partite",
   "schede",
   "presenze",
-  "testfisici",
   "livescore",
   "pronostici",
   "staff",
@@ -44,12 +50,14 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
  * rimossa del tutto — la squadra non gioca partite di campionato con
  * risultato, solo tornei multi-club, già coperti da "Allenamenti"
  * (isTournament). "Pronostici" ne dipende (si pronostica il risultato di
- * una partita) e quindi segue la stessa esclusione. "Presenze" invece resta
- * disponibile per entrambe le squadre, con la stessa anagrafica di U14/U15
- * (atlete raggruppate per CDA invece che per categoria) ma un flusso di
- * registrazione diverso per il Minivolley (vedi MiniAttendanceForm): un
- * elenco con spunte ma senza assenze tracciate, solo chi era presente. */
-const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici"];
+ * una partita) e quindi segue la stessa esclusione. "Test fisici" non si
+ * applica a questa squadra (atlete troppo piccole per questo tipo di
+ * rilevazioni). "Presenze" invece resta disponibile per entrambe le
+ * squadre, con la stessa anagrafica di U14/U15 (atlete raggruppate per CDA
+ * invece che per categoria) ma un flusso di registrazione diverso per il
+ * Minivolley (vedi MiniAttendanceForm): un elenco con spunte ma senza
+ * assenze tracciate, solo chi era presente. */
+const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici", "testfisici"];
 
 export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
   return team !== "minivolley" || !PAGES_UNAVAILABLE_FOR_MINIVOLLEY.includes(page);
