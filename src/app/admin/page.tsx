@@ -165,7 +165,7 @@ export default async function AdminDashboardPage({
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4" data-tour="dashboard-stats">
-        <div className="stat-card">
+        <Link href="/admin/allenamenti" className="stat-card block">
           <CardBody className="pt-5">
             <div className="flex items-center gap-3">
               <span className="icon-chip">
@@ -177,9 +177,9 @@ export default async function AdminDashboardPage({
               </div>
             </div>
           </CardBody>
-        </div>
+        </Link>
         {showMatches && (
-          <div className="stat-card">
+          <Link href="/admin/partite" className="stat-card block">
             <CardBody className="pt-5">
               <div className="flex items-center gap-3">
                 <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u15),var(--color-u15-strong))]">
@@ -191,10 +191,10 @@ export default async function AdminDashboardPage({
                 </div>
               </div>
             </CardBody>
-          </div>
+          </Link>
         )}
         {showPresenze && (
-          <div className="stat-card">
+          <Link href="/admin/presenze/atlete" className="stat-card block">
             <CardBody className="pt-5">
               <div className="flex items-center gap-3">
                 <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]">
@@ -206,7 +206,7 @@ export default async function AdminDashboardPage({
                 </div>
               </div>
             </CardBody>
-          </div>
+          </Link>
         )}
         {showPresenze && (
           <Link href="/admin/presenze" className="stat-card block">
