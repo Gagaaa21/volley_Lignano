@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { BODY_MEASURE_FIELDS, isBodyMeasureField, isSquatJumpField } from "@/lib/physicalTestFields";
 import { AthleteAvatar } from "../../AthleteAvatar";
 import { TestBatchForm } from "./TestBatchForm";
@@ -61,18 +60,13 @@ export default async function NewPhysicalTestForAthletePage({
         </div>
       </div>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">Dati della sessione</h2>
-        </CardHeader>
-        <CardBody>
-          <TestBatchForm
-            athleteId={athlete.id}
-            testNameSuggestions={testNameSuggestions}
-            bodyMeasurePrefill={bodyMeasurePrefill}
-          />
-        </CardBody>
-      </Card>
+      <div className="mt-7">
+        <TestBatchForm
+          athleteId={athlete.id}
+          testNameSuggestions={testNameSuggestions}
+          bodyMeasurePrefill={bodyMeasurePrefill}
+        />
+      </div>
     </div>
   );
 }
