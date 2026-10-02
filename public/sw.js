@@ -7,7 +7,17 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+  // Nessuna cache offline qui: è solo un passthrough (serve a far risultare
+  // l'app installabile). Senza il catch, un fetch fallito per un intoppo di
+  // rete (schermo appena riacceso, passaggio tra reti) rigetta la promise
+  // passata a respondWith, e Safari mostra al suo posto una pagina di
+  // errore nativa fuorviante ("FetchEvent.respondWith received an error")
+  // invece del sito.
+  event.respondWith(
+    fetch(event.request).catch(
+      () => new Response("Connessione assente. Riprova.", { status: 503, statusText: "Rete non disponibile" }),
+    ),
+  );
 });
 
 self.addEventListener("push", (event) => {
