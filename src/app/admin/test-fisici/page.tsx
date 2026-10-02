@@ -5,6 +5,8 @@ import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { GemTour } from "@/components/tour/clash/GemTour";
+import { getTestFisiciTourSteps } from "@/components/tour/sectionSteps";
 import { TestFisiciHome, type AthleteTestSummary } from "./TestFisiciHome";
 
 export const metadata: Metadata = {
@@ -45,9 +47,14 @@ export default async function PhysicalTestsPage() {
       <PageHeader
         title="Test fisici"
         description="Squat Jump, misure corporee e altri test per atleta, da confrontare nel tempo."
+        help={
+          <GemTour
+            steps={getTestFisiciTourSteps({ hasAthletes: athletes.length > 0, hasSearch: athletes.length > 5 })}
+          />
+        }
         actions={
           athletes.length > 0 ? (
-            <LinkButton href="/admin/test-fisici/nuovo">
+            <LinkButton href="/admin/test-fisici/nuovo" data-tour="test-fisici-new">
               <Plus className="h-4 w-4" />
               Nuovo test
             </LinkButton>

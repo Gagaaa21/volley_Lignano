@@ -480,3 +480,141 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Tour "videogioco" di Gem, il boia (src/components/tour/clash/, pagina
+   Test fisici): il personaggio sbuca dal basso, ondeggia, sbatte le palpebre e
+   muove la bocca finché il testo del fumetto sta comparendo. Stessa
+   convenzione delle animazioni sopra; con prefers-reduced-motion resta
+   tutto fermo (motion-safe: nei componenti, media query qui sotto). */
+@keyframes gem-enter {
+  0% {
+    transform: translateY(110%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes gem-idle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-1.5%) rotate(-0.8deg);
+  }
+}
+@keyframes gem-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96.5% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes gem-talk {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.5);
+  }
+}
+@keyframes clash-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes clash-arrow-down {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes clash-arrow-up {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(12px);
+  }
+}
+/* L'alone giallo pulsante include anche l'oscuramento del resto della
+   pagina: un'animazione di box-shadow sostituisce quello inline. */
+@keyframes clash-ring {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(255, 210, 63, 0.75),
+      0 0 0 9999px rgba(12, 10, 24, 0.62);
+  }
+  100% {
+    box-shadow:
+      0 0 0 16px rgba(255, 210, 63, 0),
+      0 0 0 9999px rgba(12, 10, 24, 0.62);
+  }
+}
+
+/* Easter egg GemPeek: dondola mentre spia dal bordo, il fumetto "salta". */
+@keyframes gem-peek-wiggle {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes gem-bubble-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.gem-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gem-blink 4.2s ease-in-out infinite;
+}
+.gem-mouth {
+  transform-box: fill-box;
+  transform-origin: 50% 15%;
+}
+[data-talking] .gem-mouth {
+  animation: gem-talk 0.24s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gem-eye,
+  [data-talking] .gem-mouth {
+    animation: none;
+  }
+}
+
+/* Testo bianco con contorno scuro e ombra sotto, da titolo di videogioco. */
+@utility clash-outline {
+  text-shadow:
+    2px 0 0 #1f1a24,
+    -2px 0 0 #1f1a24,
+    0 2px 0 #1f1a24,
+    0 -2px 0 #1f1a24,
+    1.5px 1.5px 0 #1f1a24,
+    -1.5px 1.5px 0 #1f1a24,
+    1.5px -1.5px 0 #1f1a24,
+    -1.5px -1.5px 0 #1f1a24,
+    0 3.5px 0 #1f1a24;
+}

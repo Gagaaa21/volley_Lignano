@@ -31,7 +31,13 @@ export function TestFisiciHome({ athletes }: { athletes: AthleteTestSummary[] })
   return (
     <div>
       {athletes.length > 5 && (
-        <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cerca per nome…" className="mb-5" />
+        <SearchInput
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Cerca per nome…"
+          className="mb-5"
+          data-tour="test-fisici-search"
+        />
       )}
 
       {filtered.length === 0 ? (
@@ -40,10 +46,11 @@ export function TestFisiciHome({ athletes }: { athletes: AthleteTestSummary[] })
         </div>
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-          {filtered.map((athlete) => (
+          {filtered.map((athlete, index) => (
             <Link
               key={athlete.id}
               href={`/admin/test-fisici/atleta/${athlete.id}`}
+              data-tour={index === 0 ? "test-fisici-athlete" : undefined}
               className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"
             >
               <Avatar name={athlete.fullName} tone={athlete.sessionCount > 0 ? "primary" : "neutral"} />

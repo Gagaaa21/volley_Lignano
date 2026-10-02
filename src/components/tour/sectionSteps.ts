@@ -228,3 +228,63 @@ export const SECTION_CENTRO_CONTROLLO_STEPS: BaseTourStep[] = [
     body: "Le creazioni e modifiche più recenti su tutto il sito, con chi le ha fatte quando è noto.",
   },
 ];
+
+/** Passi di Test fisici, raccontati da Gem, il boia (vedi tour/clash/GemTour.tsx,
+ * l'unico mini-tour che parte anche da solo alla prima visita). Un passo
+ * esiste solo se il suo elemento è davvero in pagina — senza atlete non ci
+ * sono né "Nuovo test" né l'elenco, la ricerca compare oltre 5 atlete —
+ * così nessuno resta ad aspettare il timeout di locateTarget. */
+export function getTestFisiciTourSteps({
+  hasAthletes,
+  hasSearch,
+}: {
+  hasAthletes: boolean;
+  hasSearch: boolean;
+}): BaseTourStep[] {
+  const path = "/admin/test-fisici";
+  const steps: (BaseTourStep | false)[] = [
+    {
+      id: "test-fisici-intro",
+      path,
+      target: null,
+      title: "Ehilà, Capo!",
+      body: "Sono Gem, il boia dei Test fisici. Niente paura: qui non salta nessuna testa, saltano solo le atlete… e io misuro quanto in alto. Ti faccio fare un giro veloce del mio regno.",
+    },
+    hasAthletes && {
+      id: "test-fisici-new",
+      path,
+      target: "test-fisici-new",
+      title: "Si comincia da qui",
+      body: "Con «Nuovo test» scegli l'atleta e registri tutto in un colpo solo: misure corporee (già precompilate dall'ultima volta), i 3 Squat Jump e ogni altro test che ti inventi.",
+    },
+    hasSearch && {
+      id: "test-fisici-search",
+      path,
+      target: "test-fisici-search",
+      title: "Caccia all'atleta",
+      body: "Scrivi un nome invece di scorrere tutto l'elenco: con tante atlete si fa prima. Nessuna sfugge a Gem.",
+    },
+    hasAthletes && {
+      id: "test-fisici-athlete",
+      path,
+      target: "test-fisici-athlete",
+      title: "Il fascicolo segreto",
+      body: "Tocca un'atleta per vedere tutte le sue sessioni e come cambiano salto, peso e misure nel tempo. Chi migliora mi fa sorridere, chi peggiora… affilo la scure. Scherzo! Forse.",
+    },
+    {
+      id: "test-fisici-help",
+      path,
+      target: "test-fisici-help",
+      title: "Ci rivedremo",
+      body: "Se ti manco, tocca il punto interrogativo accanto al titolo: torno subito, scure compresa.",
+    },
+    {
+      id: "test-fisici-outro",
+      path,
+      target: null,
+      title: "Al lavoro, Capo!",
+      body: "Più in alto saltano, meno affilo la scure. Buoni test e buoni salti!",
+    },
+  ];
+  return steps.filter((step): step is BaseTourStep => Boolean(step));
+}
