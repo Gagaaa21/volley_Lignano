@@ -26,9 +26,9 @@ export default async function EditPhysicalTestPage({ params }: { params: Promise
 
   return (
     <div className="mx-auto max-w-xl">
-      <LinkButton href="/admin/test-fisici" variant="ghost" size="sm" className="mb-4 -ml-3.5">
+      <LinkButton href={`/admin/test-fisici/atleta/${test.athleteId}`} variant="ghost" size="sm" className="mb-4 -ml-3.5">
         <ArrowLeft className="h-4 w-4" />
-        Torna ai test fisici
+        Torna ai test di {athlete?.fullName ?? "questa atleta"}
       </LinkButton>
 
       <h1 className="font-display text-2xl font-bold text-foreground">Modifica test fisico</h1>

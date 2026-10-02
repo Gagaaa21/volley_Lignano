@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Minus, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft, Minus, Pencil, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
+import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import {
   getBodyMeasureHistory,
   groupSquatJumpSessions,
   isBodyMeasureField,
   isSquatJumpField,
 } from "@/lib/physicalTestFields";
+import { deletePhysicalTestAction, deleteSquatJumpSessionAction } from "../../actions";
 
 export const metadata: Metadata = {
   title: "Test fisici atleta",
@@ -109,9 +112,18 @@ export default async function AthletePhysicalTestsPage({
                   .map((measure) => (
                     <Card key={measure.key}>
                       <CardBody className="pt-5">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
-                          {measure.label}
-                        </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+                            {measure.label}
+                          </p>
+                          <Link
+                            href={`/admin/test-fisici/${measure.latest!.id}`}
+                            aria-label={`Modifica ${measure.label}`}
+                            className="-mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
                         <p className="mt-1 font-display text-2xl font-bold text-foreground">
                           {measure.latest!.value}
                           <span className="ml-1 text-sm font-normal text-foreground/50">{measure.unit}</span>
@@ -148,9 +160,24 @@ export default async function AthletePhysicalTestsPage({
                           <span className="text-sm font-semibold text-foreground">
                             {formatDateShort(session.date)}
                           </span>
-                          {previous?.meanAltezza != null && session.meanAltezza != null && (
-                            <Delta current={session.meanAltezza} previous={previous.meanAltezza} unit="cm" />
-                          )}
+                          <div className="flex items-center gap-3">
+                            {previous?.meanAltezza != null && session.meanAltezza != null && (
+                              <Delta current={session.meanAltezza} previous={previous.meanAltezza} unit="cm" />
+                            )}
+                            <form action={deleteSquatJumpSessionAction}>
+                              <input type="hidden" name="athleteId" value={athleteId} />
+                              <input type="hidden" name="date" value={session.date} />
+                              <ConfirmSubmitButton
+                                confirmMessage={`Eliminare la sessione Squat Jump del ${formatDateShort(session.date)}?`}
+                                variant="ghost"
+                                size="sm"
+                                aria-label="Elimina sessione"
+                                className="-mr-2 aspect-square !px-0 text-destructive hover:bg-destructive/8"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </ConfirmSubmitButton>
+                            </form>
+                          </div>
                         </div>
                         <div className="mt-3 grid grid-cols-[auto_1fr_1fr_1fr] gap-x-3 gap-y-1.5 text-sm">
                           <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
@@ -204,12 +231,37 @@ export default async function AthletePhysicalTestsPage({
               <div className="mt-3 space-y-2">
                 {entries.map((test) => (
                   <Card key={test.id}>
-                    <CardBody className="pt-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm font-medium text-foreground/60">{formatDateShort(test.date)}</span>
-                        <span className="font-semibold text-foreground">{test.value}</span>
+                    <CardBody className="flex items-center justify-between gap-3 pt-5">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-foreground/60">
+                            {formatDateShort(test.date)}
+                          </span>
+                          <span className="font-semibold text-foreground">{test.value}</span>
+                        </div>
+                        {test.notes && <p className="mt-1.5 text-sm text-muted-foreground">{test.notes}</p>}
                       </div>
-                      {test.notes && <p className="mt-1.5 text-sm text-muted-foreground">{test.notes}</p>}
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Link
+                          href={`/admin/test-fisici/${test.id}`}
+                          aria-label="Modifica"
+                          className="rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Link>
+                        <form action={deletePhysicalTestAction}>
+                          <input type="hidden" name="id" value={test.id} />
+                          <ConfirmSubmitButton
+                            confirmMessage={`Eliminare "${test.testName}" del ${formatDateShort(test.date)}?`}
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Elimina"
+                            className="aspect-square !px-0 text-destructive hover:bg-destructive/8"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </ConfirmSubmitButton>
+                        </form>
+                      </div>
                     </CardBody>
                   </Card>
                 ))}

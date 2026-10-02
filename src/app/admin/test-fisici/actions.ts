@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
-import { BODY_MEASURE_FIELDS, SQUAT_JUMP_TRIALS, squatJumpFieldName } from "@/lib/physicalTestFields";
+import { BODY_MEASURE_FIELDS, SQUAT_JUMP_TRIALS, isSquatJumpField, squatJumpFieldName } from "@/lib/physicalTestFields";
 import type { PhysicalTestInput } from "@/lib/types";
 
 const schema = z.object({
@@ -173,4 +173,26 @@ export async function deletePhysicalTestAction(formData: FormData): Promise<void
   const repo = await getActiveRepo();
   await repo.deletePhysicalTest(id);
   revalidatePath("/admin/test-fisici");
+}
+
+/** Una sessione Squat Jump è fino a 9 righe PhysicalTest (3 salti × tempo/
+ * altezza/forza) create insieme dallo stesso batch: elimina tutte quelle di
+ * un'atleta per una data, così uno sbaglio si corregge rifacendo la
+ * sessione invece di editare 9 righe separate una per una. */
+export async function deleteSquatJumpSessionAction(formData: FormData): Promise<void> {
+  await requireStaffPage("testfisici");
+  const athleteId = formData.get("athleteId")?.toString();
+  const date = formData.get("date")?.toString();
+  if (!athleteId || !date) return;
+
+  const repo = await getActiveRepo();
+  const athlete = await repo.getAthlete(athleteId);
+  if (!athlete) return;
+
+  const tests = await repo.listPhysicalTests({ team: athlete.team });
+  const toDelete = tests.filter((t) => t.athleteId === athleteId && t.date === date && isSquatJumpField(t.testName));
+  await Promise.all(toDelete.map((t) => repo.deletePhysicalTest(t.id)));
+
+  revalidatePath("/admin/test-fisici");
+  revalidatePath(`/admin/test-fisici/atleta/${athleteId}`);
 }
