@@ -482,8 +482,8 @@
 }
 
 /* Tour "videogioco" di Gem, il boia (src/components/tour/clash/, pagina
-   Test fisici): il personaggio sbuca dal basso, ondeggia, sbatte le palpebre e
-   muove la bocca finché il testo del fumetto sta comparendo. Stessa
+   Test fisici): il personaggio sbuca dal basso, ondeggia e fa cenni con la
+   testa finché il testo del fumetto sta comparendo. Stessa
    convenzione delle animazioni sopra; con prefers-reduced-motion resta
    tutto fermo (motion-safe: nei componenti, media query qui sotto). */
 @keyframes gem-enter {
@@ -503,23 +503,13 @@
     transform: translateY(-1.5%) rotate(-0.8deg);
   }
 }
-@keyframes gem-blink {
-  0%,
-  93%,
-  100% {
-    transform: scaleY(1);
-  }
-  96.5% {
-    transform: scaleY(0.08);
-  }
-}
-@keyframes gem-talk {
+@keyframes gem-nod {
   0%,
   100% {
-    transform: scaleY(1);
+    transform: rotate(0deg) translateY(0);
   }
   50% {
-    transform: scaleY(0.5);
+    transform: rotate(-2.5deg) translateY(-1%);
   }
 }
 @keyframes clash-pop {
@@ -586,21 +576,15 @@
   }
 }
 
-.gem-eye {
+.gem-head {
   transform-box: fill-box;
-  transform-origin: center;
-  animation: gem-blink 4.2s ease-in-out infinite;
+  transform-origin: 50% 90%;
 }
-.gem-mouth {
-  transform-box: fill-box;
-  transform-origin: 50% 15%;
-}
-[data-talking] .gem-mouth {
-  animation: gem-talk 0.24s ease-in-out infinite;
+[data-talking] .gem-head {
+  animation: gem-nod 0.5s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .gem-eye,
-  [data-talking] .gem-mouth {
+  [data-talking] .gem-head {
     animation: none;
   }
 }

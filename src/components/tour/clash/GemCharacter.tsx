@@ -4,11 +4,12 @@ const FACE_SRC = "/tour/gem-viso.webp";
 
 /** Gem, il boia dei Test fisici: caricatura in stile "Clash" di un
  * allenatore vestito da boia — cappuccio abbassato, imbracatura di cuoio,
- * scure a doppia lama e fischietto. Il viso è un'immagine a ombre piatte
- * ricavata da una foto (public/tour/gem-viso.webp); capelli, orecchie,
- * occhi, bocca e costume sono vettoriali, così occhi e bocca si possono
- * animare (vedi .gem-* in globals.css). Gli id interni passano da useId:
- * due istanze nella stessa pagina non si rubano clipPath e maschere. */
+ * scure a doppia lama e fischietto. Il viso, con i suoi lineamenti veri, è
+ * un'immagine a ombre piatte e tratti a inchiostro ricavata da una foto
+ * (public/tour/gem-viso.webp); capelli e costume sono vettoriali. Mentre
+ * "parla" la testa fa un cenno (vedi .gem-head in globals.css). Gli id
+ * interni passano da useId: due istanze nella stessa pagina non si rubano
+ * clipPath e maschere. */
 export function GemCharacter({ className, talking = false }: { className?: string; talking?: boolean }) {
   const uid = useSvgUid();
 
@@ -247,188 +248,68 @@ function useSvgUid() {
   return useId().replace(/[^a-zA-Z0-9_-]/g, "");
 }
 
-/** Capelli, viso, orecchie e lineamenti, nelle coordinate della testa. */
+/** Viso e capelli, nelle coordinate della testa. */
 function GemHeadArt({ uid }: { uid: string }) {
   return (
     <>
-      {/* orecchie (dietro al viso) */}
-      <g stroke="#28191D" strokeWidth="10" strokeLinejoin="round">
-        <path d="M138 408 C112 392 92 404 94 432 C96 462 116 482 146 480 Z" fill="#F1A58C" />
-        <path d="M492 414 C518 398 538 410 536 438 C534 466 514 486 486 484 Z" fill="#F1A58C" />
-      </g>
-      <path
-        d="M126 418 C112 418 108 436 114 452 C118 462 126 466 134 464"
-        fill="none"
-        stroke="#C9776A"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M504 424 C518 424 522 442 516 458 C512 468 504 472 496 470"
-        fill="none"
-        stroke="#C9776A"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <image href={FACE_SRC} x="0" y="0" width="605" height="740" />
-      <mask id={`${uid}faceAlpha`} style={{ maskType: "alpha" }}>
+      <g className="gem-head">
         <image href={FACE_SRC} x="0" y="0" width="605" height="740" />
-      </mask>
-      {/* capelli */}
-      <defs>
-        <clipPath id={`${uid}hairClip`}>
-          <path d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 378 522 404 Q514 372 486 348 Q480 387 462 398 Q456 366 430 342 Q421 380 400 390 Q396 360 372 338 Q361 382 338 398 Q312 365 306 340 Q280 379 266 390 Q241 360 236 338 Q207 380 190 394 Q165 365 160 344 Q138 361 128 350 Q114 334 127 318 Z" />
-        </clipPath>
-      </defs>
-      <path
-        mask={`url(#${uid}faceAlpha)`}
-        transform="translate(0 14)"
-        d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 378 522 404 Q514 372 486 348 Q480 387 462 398 Q456 366 430 342 Q421 380 400 390 Q396 360 372 338 Q361 382 338 398 Q312 365 306 340 Q280 379 266 390 Q241 360 236 338 Q207 380 190 394 Q165 365 160 344 Q138 361 128 350 Q114 334 127 318 Z"
-        fill="#E0977B"
-      />
-      <path
-        d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 378 522 404 Q514 372 486 348 Q480 387 462 398 Q456 366 430 342 Q421 380 400 390 Q396 360 372 338 Q361 382 338 398 Q312 365 306 340 Q280 379 266 390 Q241 360 236 338 Q207 380 190 394 Q165 365 160 344 Q138 361 128 350 Q114 334 127 318 Z"
-        fill="#F2EFEB"
-      />
-      <g clipPath={`url(#${uid}hairClip)`}>
+        <mask id={`${uid}faceAlpha`} style={{ maskType: "alpha" }}>
+          <image href={FACE_SRC} x="0" y="0" width="605" height="740" />
+        </mask>
+        {/* capelli */}
+        <defs>
+          <clipPath id={`${uid}hairClip`}>
+            <path d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 376 522 400 Q514 368 486 344 Q478 370 458 368 Q454 349 430 338 Q422 364 402 362 Q397 344 372 334 Q361 364 338 366 Q312 347 306 336 Q282 362 270 360 Q244 343 238 334 Q211 365 196 368 Q168 350 160 340 Q138 358 128 348 Q114 333 127 318 Z" />
+          </clipPath>
+        </defs>
         <path
-          d="M60 300 C160 262 300 280 420 250 C480 236 520 200 560 150 L640 150 L640 460 L40 460 Z"
-          fill="#DAD3D0"
+          mask={`url(#${uid}faceAlpha)`}
+          transform="translate(0 14)"
+          d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 376 522 400 Q514 368 486 344 Q478 370 458 368 Q454 349 430 338 Q422 364 402 362 Q397 344 372 334 Q361 364 338 366 Q312 347 306 336 Q282 362 270 360 Q244 343 238 334 Q211 365 196 368 Q168 350 160 340 Q138 358 128 348 Q114 333 127 318 Z"
+          fill="#E0977B"
         />
-        <path d="M120 352 C220 320 420 318 560 350 L560 460 L120 460 Z" fill="#C4BAB8" />
-        <path d="M229 235 Q154 263 89 310 Q158 272 236 249 Z" fill="#CCC3C0" />
-        <path d="M212 208 Q123 214 38 243 Q125 224 214 224 Z" fill="#CCC3C0" />
-        <path d="M202 175 Q106 152 7 154 Q105 162 200 191 Z" fill="#CCC3C0" />
-        <path d="M228 148 Q153 106 69 83 Q149 114 221 163 Z" fill="#CCC3C0" />
-        <path d="M262 137 Q213 86 152 49 Q207 93 251 149 Z" fill="#CCC3C0" />
-        <path d="M294 127 Q270 69 232 18 Q262 73 279 134 Z" fill="#CCC3C0" />
-        <path d="M335 135 Q345 82 340 27 Q335 81 319 133 Z" fill="#CCC3C0" />
-        <path d="M366 139 Q401 89 423 30 Q393 84 352 131 Z" fill="#CCC3C0" />
-        <path d="M391 163 Q448 132 496 86 Q443 124 382 150 Z" fill="#CCC3C0" />
-        <path d="M415 171 Q492 148 562 105 Q489 139 409 156 Z" fill="#CCC3C0" />
-        <path d="M423 208 Q507 215 591 200 Q507 205 423 192 Z" fill="#CCC3C0" />
-        <path d="M415 238 Q493 270 577 281 Q496 261 420 223 Z" fill="#CCC3C0" />
-        <path d="M398 267 Q462 322 538 360 Q467 315 408 254 Z" fill="#CCC3C0" />
-        <path d="M432 320 Q442 360 462 398 Q450 358 445 316 Z" fill="#B3A8A6" />
-        <path d="M380 311 Q386 351 400 390 Q394 350 394 309 Z" fill="#B3A8A6" />
-        <path d="M330 318 Q329 358 338 398 Q337 358 344 318 Z" fill="#B3A8A6" />
-        <path d="M271 309 Q264 349 266 390 Q272 350 284 311 Z" fill="#B3A8A6" />
-        <path d="M209 312 Q195 351 190 394 Q203 354 222 316 Z" fill="#B3A8A6" />
-        <path d="M303 139 Q233 101 150 110 Q229 114 297 161 Z" fill="#FFFFFF" />
-        <path d="M340 140 Q328 100 330 60 Q316 100 320 140 Z" fill="#FFFFFF" />
-        <path d="M353 158 Q406 116 470 100 Q402 106 347 142 Z" fill="#FFFFFF" />
-        <path d="M279 181 Q198 170 120 200 Q199 181 281 199 Z" fill="#FFFFFF" />
-      </g>
-      <path
-        d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 378 522 404 Q514 372 486 348 Q480 387 462 398 Q456 366 430 342 Q421 380 400 390 Q396 360 372 338 Q361 382 338 398 Q312 365 306 340 Q280 379 266 390 Q241 360 236 338 Q207 380 190 394 Q165 365 160 344 Q138 361 128 350 Q114 334 127 318 Z"
-        fill="none"
-        stroke="#28191D"
-        strokeWidth="13"
-        strokeLinejoin="round"
-      />
-      <defs>
-        <clipPath id={`${uid}eyeL`}>
-          <path
-            id={`${uid}eyeLShape`}
-            d="M212 404 C224 391 252 389 284 398 C279 412 265 420 249 420 C233 420 219 414 212 404 Z"
-          />
-        </clipPath>
-        <clipPath id={`${uid}eyeR`}>
-          <path
-            id={`${uid}eyeRShape`}
-            d="M429 403 C417 390 391 388 357 397 C362 411 376 419 392 419 C408 419 422 413 429 403 Z"
-          />
-        </clipPath>
-        <clipPath id={`${uid}mouthClip`}>
-          <path
-            id={`${uid}mouthShape`}
-            d="M276 560 C306 570 348 565 386 542 C382 575 358 592 330 592 C302 592 284 580 276 560 Z"
-          />
-        </clipPath>
-      </defs>
-      {/* guance rosate */}
-      <ellipse cx="216" cy="474" rx="36" ry="19" fill="#F27D7D" opacity="0.32" />
-      <ellipse cx="436" cy="470" rx="32" ry="17" fill="#F27D7D" opacity="0.32" />
-      {/* sopracciglia: il sinistro alzato, sguardo furbo */}
-      <path
-        d="M198 366 C228 344 264 346 296 364 L293 377 C263 362 232 362 204 378 Z"
-        fill="#7A6153"
-        stroke="#28191D"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M444 376 C414 364 382 364 348 374 L350 387 C382 378 412 378 440 388 Z"
-        fill="#7A6153"
-        stroke="#28191D"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      {/* occhi: palpebre pesanti, sguardo di lato */}
-      <g className="gem-eye">
-        <use href={`#${uid}eyeLShape`} fill="#FFFFFF" />
-        <g clipPath={`url(#${uid}eyeL)`}>
-          <circle cx="257" cy="409" r="13" fill="#6F8C86" />
-          <circle cx="259" cy="409" r="6.5" fill="#1C1719" />
-          <circle cx="262" cy="404" r="3.5" fill="#fff" />
-        </g>
-        <use href={`#${uid}eyeLShape`} fill="none" stroke="#28191D" strokeWidth="5" strokeLinejoin="round" />
         <path
-          d="M207 405 C221 388 252 385 288 398"
+          d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 376 522 400 Q514 368 486 344 Q478 370 458 368 Q454 349 430 338 Q422 364 402 362 Q397 344 372 334 Q361 364 338 366 Q312 347 306 336 Q282 362 270 360 Q244 343 238 334 Q211 365 196 368 Q168 350 160 340 Q138 358 128 348 Q114 333 127 318 Z"
+          fill="#F2EFEB"
+        />
+        <g clipPath={`url(#${uid}hairClip)`}>
+          <path
+            d="M60 300 C160 262 300 280 420 250 C480 236 520 200 560 150 L640 150 L640 460 L40 460 Z"
+            fill="#DAD3D0"
+          />
+          <path d="M120 352 C220 320 420 318 560 350 L560 460 L120 460 Z" fill="#C4BAB8" />
+          <path d="M229 235 Q154 263 89 310 Q158 272 236 249 Z" fill="#CCC3C0" />
+          <path d="M212 208 Q123 214 38 243 Q125 224 214 224 Z" fill="#CCC3C0" />
+          <path d="M202 175 Q106 152 7 154 Q105 162 200 191 Z" fill="#CCC3C0" />
+          <path d="M228 148 Q153 106 69 83 Q149 114 221 163 Z" fill="#CCC3C0" />
+          <path d="M262 137 Q213 86 152 49 Q207 93 251 149 Z" fill="#CCC3C0" />
+          <path d="M294 127 Q270 69 232 18 Q262 73 279 134 Z" fill="#CCC3C0" />
+          <path d="M335 135 Q345 82 340 27 Q335 81 319 133 Z" fill="#CCC3C0" />
+          <path d="M366 139 Q401 89 423 30 Q393 84 352 131 Z" fill="#CCC3C0" />
+          <path d="M391 163 Q448 132 496 86 Q443 124 382 150 Z" fill="#CCC3C0" />
+          <path d="M415 171 Q492 148 562 105 Q489 139 409 156 Z" fill="#CCC3C0" />
+          <path d="M423 208 Q507 215 591 200 Q507 205 423 192 Z" fill="#CCC3C0" />
+          <path d="M415 238 Q493 270 577 281 Q496 261 420 223 Z" fill="#CCC3C0" />
+          <path d="M398 267 Q462 322 538 360 Q467 315 408 254 Z" fill="#CCC3C0" />
+          <path d="M428 290 Q438 330 458 368 Q447 328 442 286 Z" fill="#B3A8A6" />
+          <path d="M382 283 Q387 323 402 362 Q396 322 396 281 Z" fill="#B3A8A6" />
+          <path d="M330 286 Q329 326 338 366 Q337 326 344 286 Z" fill="#B3A8A6" />
+          <path d="M274 279 Q267 319 270 360 Q276 320 288 281 Z" fill="#B3A8A6" />
+          <path d="M213 286 Q200 326 196 368 Q208 328 227 290 Z" fill="#B3A8A6" />
+          <path d="M303 139 Q233 101 150 110 Q229 114 297 161 Z" fill="#FFFFFF" />
+          <path d="M340 140 Q328 100 330 60 Q316 100 320 140 Z" fill="#FFFFFF" />
+          <path d="M353 158 Q406 116 470 100 Q402 106 347 142 Z" fill="#FFFFFF" />
+          <path d="M279 181 Q198 170 120 200 Q199 181 281 199 Z" fill="#FFFFFF" />
+        </g>
+        <path
+          d="M127 318 Q100 319 89 310 Q86 280 82 252 Q51 252 38 243 Q42 211 45 182 Q12 164 7 154 Q40 133 69 112 Q63 86 69 83 Q105 79 138 73 Q143 52 152 49 Q184 52 214 53 Q223 24 232 18 Q262 38 290 55 Q312 29 340 27 Q349 34 360 39 Q395 25 423 30 Q426 50 432 68 Q472 66 496 86 Q494 99 495 111 Q533 99 562 105 Q559 125 559 144 Q586 173 591 200 Q570 208 553 218 Q577 251 577 281 Q558 287 543 296 Q550 335 538 360 Q520 354 503 352 Q531 376 522 400 Q514 368 486 344 Q478 370 458 368 Q454 349 430 338 Q422 364 402 362 Q397 344 372 334 Q361 364 338 366 Q312 347 306 336 Q282 362 270 360 Q244 343 238 334 Q211 365 196 368 Q168 350 160 340 Q138 358 128 348 Q114 333 127 318 Z"
           fill="none"
           stroke="#28191D"
-          strokeWidth="9"
-          strokeLinecap="round"
-        />
-        <path
-          d="M220 386 C236 378 258 377 278 383"
-          fill="none"
-          stroke="#C47866"
-          strokeWidth="4"
-          strokeLinecap="round"
+          strokeWidth="13"
+          strokeLinejoin="round"
         />
       </g>
-      <g className="gem-eye">
-        <use href={`#${uid}eyeRShape`} fill="#FFFFFF" />
-        <g clipPath={`url(#${uid}eyeR)`}>
-          <circle cx="399" cy="408" r="13" fill="#6F8C86" />
-          <circle cx="401" cy="408" r="6.5" fill="#1C1719" />
-          <circle cx="404" cy="403" r="3.5" fill="#fff" />
-        </g>
-        <use href={`#${uid}eyeRShape`} fill="none" stroke="#28191D" strokeWidth="5" strokeLinejoin="round" />
-        <path
-          d="M434 404 C420 387 390 384 353 397"
-          fill="none"
-          stroke="#28191D"
-          strokeWidth="9"
-          strokeLinecap="round"
-        />
-        <path
-          d="M420 386 C404 378 384 377 364 383"
-          fill="none"
-          stroke="#C47866"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-      </g>
-      {/* bocca: ghigno storto */}
-      <g className="gem-mouth">
-        <use href={`#${uid}mouthShape`} fill="#6A1F2A" />
-        <g clipPath={`url(#${uid}mouthClip)`}>
-          <path d="M260 550 C302 574 350 568 402 536 L402 566 C350 582 302 584 260 572 Z" fill="#FFFFFF" />
-          <path d="M306 586 C320 578 342 578 356 586 C346 598 314 600 306 586 Z" fill="#D9606A" />
-          <path d="M312 568 V590 M338 566 V590 M362 556 V584" stroke="#E2DAD3" strokeWidth="2.5" />
-        </g>
-        <use href={`#${uid}mouthShape`} fill="none" stroke="#28191D" strokeWidth="6" strokeLinejoin="round" />
-        <path
-          d="M266 552 C270 559 274 562 282 563 M396 530 C394 539 390 544 382 547"
-          fill="none"
-          stroke="#28191D"
-          strokeWidth="5"
-          strokeLinecap="round"
-        />
-      </g>
-      <path d="M308 610 C322 615 340 615 352 608" fill="none" stroke="#D08470" strokeWidth="5" strokeLinecap="round" />
     </>
   );
 }
