@@ -269,21 +269,21 @@ export function getTestFisiciTourSteps({
       path,
       target: "test-fisici-athlete",
       title: "Il fascicolo segreto",
-      body: "Tocca un'atleta per vedere tutte le sue sessioni e come cambiano salto, peso e misure nel tempo. Chi migliora mi fa sorridere, chi peggiora… affilo la scure. Scherzo! Forse.",
+      body: "Tocca un'atleta per vedere tutte le sue sessioni e come cambiano salto, peso e misure nel tempo. Chi migliora mi fa sorridere, chi peggiora… altri dieci squat jump. Scherzo! Forse.",
     },
     {
       id: "test-fisici-help",
       path,
       target: "test-fisici-help",
       title: "Ci rivedremo",
-      body: "Se ti manco, tocca il punto interrogativo accanto al titolo: torno subito, scure compresa.",
+      body: "Se ti manco, tocca il punto interrogativo accanto al titolo: torno subito, cappuccio compreso.",
     },
     {
       id: "test-fisici-outro",
       path,
       target: null,
       title: "Al lavoro, Capo!",
-      body: "Più in alto saltano, meno affilo la scure. Buoni test e buoni salti!",
+      body: "Più in alto saltano, più sono di buon umore. Buoni test e buoni salti!",
     },
   ];
   return steps.filter((step): step is BaseTourStep => Boolean(step));

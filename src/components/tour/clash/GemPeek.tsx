@@ -27,7 +27,7 @@ const LINES = [
   "Mi hai beccato! Venti squat jump di punizione.",
   "Shh… sto controllando chi salta il riscaldamento.",
   "Non sono qui. Stai lavorando troppo, Capo.",
-  "Hai visto la mia scure? L'avevo appoggiata in palestra…",
+  "Hai visto il mio cappuccio? Ah no, ce l'ho addosso.",
   "Il fischietto l'ho nascosto io. Non dirlo a nessuno.",
   "Ancora tu? Ti tengo d'occhio.",
   "Gem vede tutto. Anche le schede non collegate.",
