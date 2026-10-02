@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { AthleteAvatar } from "../../AthleteAvatar";
 import {
   getBodyMeasureHistory,
   groupSquatJumpSessions,
@@ -87,9 +88,12 @@ export default async function AthletePhysicalTestsPage({
       </LinkButton>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{athlete.fullName}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Storico dei test fisici registrati.</p>
+        <div className="flex items-center gap-3">
+          <AthleteAvatar fullName={athlete.fullName} />
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">{athlete.fullName}</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">Storico dei test fisici registrati.</p>
+          </div>
         </div>
         <LinkButton href={`/admin/test-fisici/nuovo/${athlete.id}`}>
           <Plus className="h-4 w-4" />

@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { BODY_MEASURE_FIELDS, isBodyMeasureField, isSquatJumpField } from "@/lib/physicalTestFields";
+import { AthleteAvatar } from "../../AthleteAvatar";
 import { TestBatchForm } from "./TestBatchForm";
 
 export const metadata: Metadata = {
@@ -52,8 +53,13 @@ export default async function NewPhysicalTestForAthletePage({
         Cambia atleta
       </LinkButton>
 
-      <h1 className="font-display text-2xl font-bold text-foreground">Nuovo test fisico</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{athlete.fullName}</p>
+      <div className="flex items-center gap-3">
+        <AthleteAvatar fullName={athlete.fullName} />
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Nuovo test fisico</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{athlete.fullName}</p>
+        </div>
+      </div>
 
       <Card className="mt-6">
         <CardHeader>
