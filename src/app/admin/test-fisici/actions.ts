@@ -70,7 +70,7 @@ export async function savePhysicalTestAction(
     return { error: "Non è stato possibile salvare il test. Riprova." };
   }
 
-  redirect("/admin/test-fisici");
+  redirect(`/admin/test-fisici/atleta/${parsed.data.athleteId}`);
 }
 
 export async function deletePhysicalTestAction(formData: FormData): Promise<void> {

@@ -49,7 +49,7 @@ export default async function AthletePhysicalTestsPage({
           <h1 className="font-display text-2xl font-bold text-foreground">{athlete.fullName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Storico dei test fisici registrati.</p>
         </div>
-        <LinkButton href={`/admin/test-fisici/nuovo?athleteId=${athlete.id}`}>
+        <LinkButton href={`/admin/test-fisici/nuovo/${athlete.id}`}>
           <Plus className="h-4 w-4" />
           Nuovo test
         </LinkButton>

@@ -4,9 +4,9 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { savePhysicalTestAction, type PhysicalTestFormState } from "./actions";
-import type { Athlete, PhysicalTest } from "@/lib/types";
+import type { PhysicalTest } from "@/lib/types";
 
 const initialState: PhysicalTestFormState = {};
 
@@ -21,15 +21,13 @@ function SubmitButton() {
 }
 
 export function PhysicalTestForm({
-  athletes,
+  athleteId,
   testNameSuggestions,
   test,
-  defaultAthleteId,
 }: {
-  athletes: Athlete[];
+  athleteId: string;
   testNameSuggestions: string[];
   test?: PhysicalTest;
-  defaultAthleteId?: string;
 }) {
   const [state, formAction] = useActionState(savePhysicalTestAction, initialState);
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -37,25 +35,7 @@ export function PhysicalTestForm({
   return (
     <form action={formAction} className="space-y-6" noValidate>
       {test && <input type="hidden" name="id" value={test.id} />}
-
-      <div>
-        <Label htmlFor="athleteId">Atleta</Label>
-        <Select
-          id="athleteId"
-          name="athleteId"
-          defaultValue={test?.athleteId ?? defaultAthleteId ?? ""}
-          required
-        >
-          <option value="" disabled>
-            Seleziona un&apos;atleta
-          </option>
-          {athletes.map((athlete) => (
-            <option key={athlete.id} value={athlete.id}>
-              {athlete.fullName}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <input type="hidden" name="athleteId" value={athleteId} />
 
       <div>
         <Label htmlFor="testName">Nome del test</Label>
