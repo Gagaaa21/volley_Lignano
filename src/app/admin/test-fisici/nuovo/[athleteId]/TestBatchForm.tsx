@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { Fragment, useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -54,31 +54,40 @@ export function TestBatchForm({
         <p className="mt-0.5 text-xs text-muted-foreground">
           Fino a {SQUAT_JUMP_TRIALS} salti: lascia vuoto un salto non eseguito.
         </p>
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 gap-y-2 sm:gap-x-3">
+          <span />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
+            Tempo (ms)
+          </span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
+            Altezza (cm)
+          </span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Forza (N)</span>
           {Array.from({ length: SQUAT_JUMP_TRIALS }, (_, i) => i + 1).map((trial) => (
-            <div key={trial} className="grid grid-cols-[auto_1fr_1fr] items-center gap-2.5 sm:gap-3">
-              <span className="text-sm font-semibold text-foreground/70">Salto {trial}</span>
-              <div>
-                <Input
-                  name={`squatJump_${trial}_tempo`}
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  placeholder="Tempo (s)"
-                  aria-label={`Salto ${trial}, tempo di volo in secondi`}
-                />
-              </div>
-              <div>
-                <Input
-                  name={`squatJump_${trial}_altezza`}
-                  type="number"
-                  step="any"
-                  inputMode="decimal"
-                  placeholder="Altezza (cm)"
-                  aria-label={`Salto ${trial}, altezza in centimetri`}
-                />
-              </div>
-            </div>
+            <Fragment key={trial}>
+              <span className="self-center text-sm font-semibold text-foreground/70">Salto {trial}</span>
+              <Input
+                name={`squatJump_${trial}_tempo`}
+                type="number"
+                step="any"
+                inputMode="decimal"
+                aria-label={`Salto ${trial}, tempo di volo in millisecondi`}
+              />
+              <Input
+                name={`squatJump_${trial}_altezza`}
+                type="number"
+                step="any"
+                inputMode="decimal"
+                aria-label={`Salto ${trial}, altezza in centimetri`}
+              />
+              <Input
+                name={`squatJump_${trial}_forza`}
+                type="number"
+                step="any"
+                inputMode="decimal"
+                aria-label={`Salto ${trial}, forza in newton`}
+              />
+            </Fragment>
           ))}
         </div>
       </div>

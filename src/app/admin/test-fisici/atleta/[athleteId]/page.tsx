@@ -152,7 +152,7 @@ export default async function AthletePhysicalTestsPage({
                             <Delta current={session.meanAltezza} previous={previous.meanAltezza} unit="cm" />
                           )}
                         </div>
-                        <div className="mt-3 grid grid-cols-[auto_1fr_1fr] gap-x-3 gap-y-1.5 text-sm">
+                        <div className="mt-3 grid grid-cols-[auto_1fr_1fr_1fr] gap-x-3 gap-y-1.5 text-sm">
                           <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
                             Salto
                           </span>
@@ -162,23 +162,32 @@ export default async function AthletePhysicalTestsPage({
                           <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
                             Altezza
                           </span>
+                          <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                            Forza
+                          </span>
                           {session.trials.map((trial) => (
                             <Fragment key={trial.trial}>
                               <span className="text-foreground/60">{trial.trial}</span>
                               <span className="font-medium text-foreground">
-                                {trial.tempo ? `${trial.tempo} s` : "—"}
+                                {trial.tempo ? `${trial.tempo} ms` : "—"}
                               </span>
                               <span className="font-medium text-foreground">
                                 {trial.altezza ? `${trial.altezza} cm` : "—"}
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {trial.forza ? `${trial.forza} N` : "—"}
                               </span>
                             </Fragment>
                           ))}
                           <span className="font-semibold text-primary">Media</span>
                           <span className="font-semibold text-primary">
-                            {session.meanTempo != null ? `${session.meanTempo.toFixed(3)} s` : "—"}
+                            {session.meanTempo != null ? `${session.meanTempo.toFixed(2)} ms` : "—"}
                           </span>
                           <span className="font-semibold text-primary">
                             {session.meanAltezza != null ? `${session.meanAltezza.toFixed(2)} cm` : "—"}
+                          </span>
+                          <span className="font-semibold text-primary">
+                            {session.meanForza != null ? `${session.meanForza.toFixed(2)} N` : "—"}
                           </span>
                         </div>
                       </CardBody>

@@ -113,6 +113,8 @@ export async function saveTestBatchAction(
     if (tempo) entries.push({ testName: squatJumpFieldName(trial, "tempo"), value: tempo });
     const altezza = formData.get(`squatJump_${trial}_altezza`)?.toString().trim();
     if (altezza) entries.push({ testName: squatJumpFieldName(trial, "altezza"), value: altezza });
+    const forza = formData.get(`squatJump_${trial}_forza`)?.toString().trim();
+    if (forza) entries.push({ testName: squatJumpFieldName(trial, "forza"), value: forza });
   }
 
   for (const field of BODY_MEASURE_FIELDS) {

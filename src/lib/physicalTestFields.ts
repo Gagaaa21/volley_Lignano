@@ -14,11 +14,12 @@ import type { PhysicalTest } from "@/lib/types";
 export const SQUAT_JUMP_LABEL = "Squat Jump";
 export const SQUAT_JUMP_TRIALS = 3;
 
-export type SquatJumpMetric = "tempo" | "altezza";
+export type SquatJumpMetric = "tempo" | "altezza" | "forza";
 
 const SQUAT_JUMP_METRIC_LABELS: Record<SquatJumpMetric, string> = {
-  tempo: "Tempo di volo (s)",
+  tempo: "Tempo di volo (ms)",
   altezza: "Altezza (cm)",
+  forza: "Forza (N)",
 };
 
 /** Nome canonico di un singolo salto, es. "Squat Jump · Salto 2 · Altezza (cm)". */
@@ -58,6 +59,7 @@ export interface SquatJumpTrial {
   trial: number;
   tempo: string | null;
   altezza: string | null;
+  forza: string | null;
 }
 
 export interface SquatJumpSession {
@@ -65,6 +67,7 @@ export interface SquatJumpSession {
   trials: SquatJumpTrial[];
   meanTempo: number | null;
   meanAltezza: number | null;
+  meanForza: number | null;
 }
 
 function mean(values: number[]): number | null {
@@ -80,17 +83,18 @@ export function groupSquatJumpSessions(tests: PhysicalTest[]): SquatJumpSession[
   const byDate = new Map<string, Map<number, SquatJumpTrial>>();
   for (const test of tests) {
     if (!isSquatJumpField(test.testName)) continue;
-    const match = test.testName.match(/Salto (\d+) · (Tempo di volo|Altezza)/);
+    const match = test.testName.match(/Salto (\d+) · (Tempo di volo|Altezza|Forza)/);
     if (!match) continue;
     const trial = Number(match[1]);
-    const metric: SquatJumpMetric = match[2] === "Tempo di volo" ? "tempo" : "altezza";
+    const metric: SquatJumpMetric =
+      match[2] === "Tempo di volo" ? "tempo" : match[2] === "Altezza" ? "altezza" : "forza";
 
     let trials = byDate.get(test.date);
     if (!trials) {
       trials = new Map();
       byDate.set(test.date, trials);
     }
-    const existing = trials.get(trial) ?? { trial, tempo: null, altezza: null };
+    const existing = trials.get(trial) ?? { trial, tempo: null, altezza: null, forza: null };
     existing[metric] = test.value;
     trials.set(trial, existing);
   }
@@ -99,7 +103,8 @@ export function groupSquatJumpSessions(tests: PhysicalTest[]): SquatJumpSession[
     const trials = [...trialsMap.values()].sort((a, b) => a.trial - b.trial);
     const meanTempo = mean(trials.map((t) => Number(t.tempo)).filter((n) => Number.isFinite(n)));
     const meanAltezza = mean(trials.map((t) => Number(t.altezza)).filter((n) => Number.isFinite(n)));
-    return { date, trials, meanTempo, meanAltezza };
+    const meanForza = mean(trials.map((t) => Number(t.forza)).filter((n) => Number.isFinite(n)));
+    return { date, trials, meanTempo, meanAltezza, meanForza };
   });
 
   return sessions.sort((a, b) => b.date.localeCompare(a.date));
