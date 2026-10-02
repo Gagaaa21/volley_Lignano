@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireDev, requireStaffPage } from "@/lib/auth/guard";
 import { hashPassword } from "@/lib/auth/password";
-import { ADMIN_PAGES, TEAMS } from "@/lib/types";
+import { DEFAULT_NEW_ADMIN_PAGES, TEAMS } from "@/lib/types";
 
 const schema = z.object({
   username: z
@@ -50,7 +50,7 @@ export async function createStaffAction(
       passwordHash,
       role: "admin",
       mustChangePassword: true,
-      allowedPages: ADMIN_PAGES,
+      allowedPages: DEFAULT_NEW_ADMIN_PAGES,
       allowedTeams: TEAMS,
       createdBy: session.sub,
     }); // hiddenFromAdmins: false di default — si nasconde dopo, dalla pagina di modifica.

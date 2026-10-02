@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Bell, Clock, Eye, KeyRound, ListChecks, Shield } from "lucide-react";
+import { Bell, Clock, KeyRound, ListChecks, Shield } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { OccurrenceVisibilityToggle } from "./OccurrenceVisibilityToggle";
 import { NotificationForm } from "./NotificationForm";
 import { PermissionsMatrix } from "./PermissionsMatrix";
 import { SectionTour } from "@/components/tour/SectionTour";
@@ -27,14 +26,13 @@ export default async function CentroControlloPage() {
   await requireDev();
   const repo = await getRepo();
 
-  const [staff, athletes, matches, trainings, plans, occurrencePlans, attendanceSessions, lineups, pushSubscriptions] =
+  const [staff, athletes, matches, trainings, plans, attendanceSessions, lineups, pushSubscriptions] =
     await Promise.all([
       repo.listStaff(),
       repo.listAthletes(),
       repo.listMatches(),
       repo.listTrainings(),
       repo.listTrainingPlans(),
-      repo.listTrainingOccurrencePlans(),
       repo.listAttendanceSessions(),
       repo.listMatchLineups(),
       repo.listPushSubscriptions(),
@@ -98,11 +96,6 @@ export default async function CentroControlloPage() {
   activity.sort((a, b) => (a.at < b.at ? 1 : -1));
   const recentActivity = activity.slice(0, 20);
 
-  // ---- Schede: visibilità pubblica centralizzata ----
-  const trainingById = new Map(trainings.map((t) => [t.id, t] as const));
-  const planById = new Map(plans.map((p) => [p.id, p] as const));
-  const occurrenceRows = [...occurrencePlans].sort((a, b) => (a.occurrenceDate < b.occurrenceDate ? 1 : -1));
-
   // ---- Permessi pagine: un account Admin per riga ----
   const adminRows = staff
     .filter((s) => s.role === "admin")
@@ -124,8 +117,8 @@ export default async function CentroControlloPage() {
           </p>
           <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Centro di controllo</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Notifiche manuali, visibilità pubblica delle schede e attività recenti, riservato al
-            Developer. Per gli account staff vai alla sezione &quot;Staff&quot;.
+            Notifiche manuali, permessi pagine e attività recenti, riservato al Developer. Per gli
+            account staff vai alla sezione &quot;Staff&quot;.
           </p>
         </div>
         <SectionTour steps={SECTION_CENTRO_CONTROLLO_STEPS} />
@@ -170,55 +163,6 @@ export default async function CentroControlloPage() {
         </CardHeader>
         <CardBody className="pt-0">
           <PermissionsMatrix admins={adminRows} />
-        </CardBody>
-      </Card>
-
-      {/* Visibilità pubblica delle schede */}
-      <Card className="mt-4" data-tour="section-cc-visibility">
-        <CardHeader className="flex flex-row items-center gap-3">
-          <span className="icon-chip shrink-0">
-            <Eye className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="font-display text-base font-semibold text-foreground">
-              Visibilità pubblica delle schede
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Tutte le schede collegate a un allenamento, in un unico elenco: cambia la visibilità
-              senza aprire ogni singolo allenamento.
-            </p>
-          </div>
-        </CardHeader>
-        <CardBody className="pt-0">
-          {occurrenceRows.length === 0 ? (
-            <p className="text-sm text-foreground/50">Nessuna scheda collegata a un allenamento al momento.</p>
-          ) : (
-            <div className="space-y-2">
-              {occurrenceRows.map((o) => {
-                const training = trainingById.get(o.trainingRuleId);
-                const plan = planById.get(o.planId);
-                return (
-                  <div
-                    key={o.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle px-3.5 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{plan?.title ?? "Scheda"}</p>
-                      <p className="truncate text-xs text-foreground/50">
-                        {training?.title ?? "Allenamento"} · {formatDateShort(o.occurrenceDate)}
-                      </p>
-                    </div>
-                    <OccurrenceVisibilityToggle
-                      ruleId={o.trainingRuleId}
-                      date={o.occurrenceDate}
-                      planId={o.planId}
-                      isPublic={o.isPublic}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </CardBody>
       </Card>
 

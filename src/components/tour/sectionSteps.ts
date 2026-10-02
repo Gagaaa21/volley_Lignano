@@ -221,13 +221,6 @@ export const SECTION_CENTRO_CONTROLLO_STEPS: BaseTourStep[] = [
     body: "Per ogni account Admin scegli quali sezioni e quali squadre può gestire: la modifica ha effetto immediato.",
   },
   {
-    id: "section-cc-visibility",
-    path: "/admin/centro-controllo",
-    target: "section-cc-visibility",
-    title: "Visibilità pubblica delle schede",
-    body: "Tutte le schede collegate a un allenamento, in un unico elenco: cambia la visibilità sul calendario pubblico senza aprire ogni singolo allenamento.",
-  },
-  {
     id: "section-cc-activity",
     path: "/admin/centro-controllo",
     target: "section-cc-activity",

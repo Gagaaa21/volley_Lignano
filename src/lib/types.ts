@@ -15,23 +15,29 @@ export type AdminPage =
   | "staff"
   | "guida";
 
-/** Pagine assegnabili a un Admin dal Centro di controllo (matrice permessi
- * e default per un account nuovo). "testfisici" resta fuori di proposito:
- * la sezione è ancora in costruzione (i dati da registrare non sono
- * definiti), quindi per ora è visibile solo al Developer — nessun Admin può
- * riceverne accesso, anche se il tipo AdminPage la include (serve a
- * requireStaffPage/isPageAvailableForTeam, le stesse guardie di ogni altra
- * pagina). Quando i campi saranno definiti basterà aggiungerla qui. */
+/** Pagine assegnabili a un Admin dal Centro di controllo (quelle che
+ * compaiono come casella nella matrice permessi): un Admin può ricevere
+ * accesso a "testfisici" come a qualunque altra, il Developer decide caso
+ * per caso. Per il default di un account nuovo vedi
+ * DEFAULT_NEW_ADMIN_PAGES, leggermente diverso. */
 export const ADMIN_PAGES: AdminPage[] = [
   "allenamenti",
   "partite",
   "schede",
   "presenze",
+  "testfisici",
   "livescore",
   "pronostici",
   "staff",
   "guida",
 ];
+
+/** Pagine assegnate di default quando un Developer crea un nuovo account
+ * Admin: uguale a ADMIN_PAGES tranne "testfisici", la cui sezione è ancora
+ * in costruzione (i dati da registrare non sono definiti) — un nuovo
+ * Admin parte senza, il Developer la spunta per un account specifico dalla
+ * matrice permessi quando lo ritiene pronto. */
+export const DEFAULT_NEW_ADMIN_PAGES: AdminPage[] = ADMIN_PAGES.filter((page) => page !== "testfisici");
 
 export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   allenamenti: "Allenamenti",
