@@ -212,7 +212,7 @@ export function GemCharacter({ className, talking = false }: { className?: strin
 }
 
 /** Solo la testa di Gem con il colletto del cappuccio, per l'easter egg
- * che sbuca dai bordi dell'area tecnici (vedi GemPeek.tsx). */
+ * che sbuca dai bordi nella sezione Test fisici (vedi GemPeek.tsx). */
 export function GemHead({ className, talking = false }: { className?: string; talking?: boolean }) {
   const uid = useSvgUid();
 

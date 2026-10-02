@@ -36,17 +36,12 @@ const LINES = [
   "Più veloce di un tempo di volo, eh?",
 ];
 
-// Battute legate alla sezione aperta: la prima che combacia vince, quindi
-// la dashboard ("/admin" esatto) è gestita a parte in pageLine().
+// Battute legate alla pagina di Test fisici aperta: la prima che combacia
+// vince, quindi i percorsi più specifici vanno prima.
 const PAGE_LINES: [prefix: string, line: string][] = [
+  ["/admin/test-fisici/nuovo", "Nuovo test? Io tengo il cronometro, tu la penna."],
+  ["/admin/test-fisici/atleta", "Questo fascicolo l'ho già letto. Due volte."],
   ["/admin/test-fisici", "Ehi, questa è casa mia!"],
-  ["/admin/presenze", "Sto contando chi manca. Tu ci sei, bravo."],
-  ["/admin/partite", "Vinciamo, vero? Altrimenti affilo la scure."],
-  ["/admin/allenamenti", "Allenamento? Io porto la scure, tu i palloni."],
-  ["/admin/schede", "Una scheda senza burpees non è una scheda."],
-  ["/admin/livescore", "Il punteggio lo tengo io. A colpi di scure."],
-  ["/admin/pronostici", "Il mio pronostico? Tre a zero. Per Gem."],
-  ["/admin/staff", "Nuovo allenatore? Lo metto subito alla prova."],
 ];
 
 const MILESTONES: Record<number, string> = {
@@ -60,7 +55,6 @@ const MILESTONES: Record<number, string> = {
 const SUMMON_LINE = "Mi hai chiamato, Capo?";
 
 function pageLine(pathname: string) {
-  if (pathname === "/admin") return "Bella dashboard. L'ho spolverata io.";
   return PAGE_LINES.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? null;
 }
 
@@ -112,11 +106,12 @@ function writeNumber(storage: Storage, key: string, value: number) {
   }
 }
 
-/** Easter egg dell'area tecnici: ogni tanto, cambiando pagina, Gem sbuca
- * da un bordo dello schermo (mai più di una volta ogni minuto e mezzo per
+/** Easter egg della sola sezione Test fisici (montato nel suo layout, quindi
+ * assente dal resto dell'area tecnici): ogni tanto, cambiando pagina, Gem
+ * sbuca da un bordo dello schermo (mai più di una volta ogni minuto e mezzo per
  * scheda del browser) e dopo qualche secondo si rinasconde. Chi lo tocca
  * in tempo lo "trova": salta fuori con una battuta — a volte legata alla
- * sezione aperta — e il conteggio dei ritrovamenti resta sul dispositivo.
+ * pagina aperta — e il conteggio dei ritrovamenti resta sul dispositivo.
  * Scrivere "gem" sulla tastiera, fuori dai campi di testo, lo chiama. Sta
  * sotto finestre di dialogo e tour (z-40) e non parte mai mentre uno è
  * aperto. */

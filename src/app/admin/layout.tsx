@@ -3,7 +3,6 @@ import { FlaskConical, LogOut } from "lucide-react";
 import { requireStaff, activeTeam, getOwnStaff } from "@/lib/auth/guard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { Tour } from "@/components/tour/Tour";
-import { GemPeek } from "@/components/tour/clash/GemPeek";
 import { isDemoMode } from "@/lib/db";
 import { exitTestModeAction } from "@/app/admin/test-mode/actions";
 import { ADMIN_PAGES, TEAMS } from "@/lib/types";
@@ -54,7 +53,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
       )}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-9">{children}</main>
-      <GemPeek />
     </div>
   );
 }
