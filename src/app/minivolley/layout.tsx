@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 // blu del sito principale (vedi manifest-s3.webmanifest per la stessa
 // coerenza da app installata).
 export const viewport: Viewport = {
-  themeColor: "#ac3212",
+  themeColor: "#d34117",
 };
 
 export default function MinivolleyLayout({ children }: { children: ReactNode }) {

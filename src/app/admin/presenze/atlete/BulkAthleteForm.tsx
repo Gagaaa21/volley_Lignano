@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Label, Select, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
+import { Label, Select, Textarea, FieldError, FieldHint, FormActions } from "@/components/ui/Field";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { bulkCreateAthletesAction, type BulkAthleteFormState } from "./actions";
 import type { TrainingTeam } from "@/lib/types";
@@ -14,7 +14,7 @@ const initialState: BulkAthleteFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" size="lg" disabled={pending}>
       <ListPlus className="h-4 w-4" />
       {pending ? "Creazione…" : "Aggiungi elenco"}
     </Button>
@@ -40,6 +40,7 @@ export function BulkAthleteForm({ team }: { team: TrainingTeam }) {
           id="names"
           name="names"
           rows={8}
+          className="bg-surface-muted font-mono text-[13px] leading-relaxed sm:text-xs"
           placeholder={isMini ? "Lignano Sabbiadoro   Giulia   Bianchi" : "Giulia Bianchi\nSara Rossi\nMarta Verdi"}
           required
         />
@@ -55,7 +56,7 @@ export function BulkAthleteForm({ team }: { team: TrainingTeam }) {
       </div>
 
       {!isMini && (
-        <div>
+        <div className="sm:max-w-xs">
           <Label htmlFor="bulk-category">Categoria (opzionale, per tutte)</Label>
           <Select id="bulk-category" name="category" defaultValue="">
             <option value="">Nessuna categoria</option>
@@ -75,7 +76,7 @@ export function BulkAthleteForm({ team }: { team: TrainingTeam }) {
       )}
 
       {state.created !== undefined && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--color-u14)]/30 bg-[var(--color-u14-soft)] px-4 py-3 text-sm font-medium text-[var(--color-u14-strong)]">
+        <div className="flex items-center gap-2 rounded-xl border border-success/20 bg-success-soft px-4 py-3 text-sm font-medium text-success">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {state.created} {state.created === 1 ? "atleta aggiunta" : "atlete aggiunte"}
           {!!state.skipped && `, ${state.skipped} già ${state.skipped === 1 ? "esistente" : "esistenti"} (${state.skipped === 1 ? "saltata" : "saltate"})`}
@@ -83,7 +84,9 @@ export function BulkAthleteForm({ team }: { team: TrainingTeam }) {
         </div>
       )}
 
-      <SubmitButton />
+      <FormActions>
+        <SubmitButton />
+      </FormActions>
     </form>
   );
 }

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { MatchForm } from "../MatchForm";
 
 export const metadata: Metadata = {
@@ -14,20 +13,14 @@ export default async function NewMatchPage() {
   const team = await resolveActiveTeam(session);
 
   return (
-    <div className="mx-auto max-w-xl">
-      <LinkButton href="/admin/partite" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle partite
-      </LinkButton>
-
-      <h1 className="font-display text-2xl font-bold text-foreground">Nuova partita</h1>
-      <p className="mt-1 text-sm text-foreground/60">Aggiungi una partita al calendario pubblico.</p>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
-        </CardHeader>
-        <CardBody>
+    <div className="mx-auto max-w-3xl">
+      <PageHeader
+        back={{ href: "/admin/partite", label: "Partite" }}
+        title="Nuova partita"
+        description="Aggiungi una partita al calendario pubblico."
+      />
+      <Card>
+        <CardBody className="pt-6 sm:pt-7">
           <MatchForm team={team} />
         </CardBody>
       </Card>

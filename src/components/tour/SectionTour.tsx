@@ -12,19 +12,21 @@ import { useTourEngine } from "./engine/useTourEngine";
  * requireStaffPage/requireDev: chi non ha accesso alla sezione non riceve
  * mai il markup o il JS di questo componente, quindi non può né aprirlo né
  * sapere che esiste. */
-export function SectionTour({ steps, label = "Guida" }: { steps: BaseTourStep[]; label?: string }) {
+export function SectionTour({ steps, label }: { steps: BaseTourStep[]; label?: string }) {
   const engine = useTourEngine(steps);
 
   return (
     <>
       <Button
         type="button"
-        variant="ghost"
-        size="sm"
+        variant="quiet"
+        size={label ? "sm" : "icon-sm"}
         onClick={engine.start}
         aria-label="Guida di questa sezione"
+        title="Guida di questa sezione"
+        className={label ? undefined : "rounded-full"}
       >
-        <CircleHelp className="h-4 w-4" />
+        <CircleHelp className="h-[18px] w-[18px]" />
         {label}
       </Button>
       {engine.active && <TourOverlay {...engine} />}

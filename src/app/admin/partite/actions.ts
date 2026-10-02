@@ -215,6 +215,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/partite");
   revalidatePath(match?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
+  redirect("/admin/partite");
 }
 
 const positionSchema = z.union([

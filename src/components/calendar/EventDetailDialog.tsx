@@ -1,27 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
+import type { ReactNode } from "react";
 import {
   Calendar,
   CalendarPlus,
   Check,
   Clock,
-  Dumbbell,
   ExternalLink,
   Home,
   MapPin,
   Plane,
-  Puzzle,
   Share2,
-  Swords,
-  Trophy,
   Users,
   X,
 } from "lucide-react";
-import { CATEGORY_LABELS, categoryBadgeClass, MATCH_NO_CATEGORY_LABEL, trainingBadgeClass } from "@/lib/category";
+import { CATEGORY_LABELS, categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { buildICSSingleEvent, eventTitle } from "@/lib/ics";
 import type { CalendarEvent } from "@/lib/types";
@@ -47,7 +46,7 @@ const ATTENDANCE_LABEL: Record<PublicAttendanceRecord["status"], string> = {
 };
 
 const ATTENDANCE_CLASS: Record<PublicAttendanceRecord["status"], string> = {
-  present: "bg-[var(--color-training-soft)] text-[var(--color-training-strong)]",
+  present: "bg-success-soft text-success",
   excused: "bg-sand-100 text-sand-800",
   unexcused: "bg-destructive/10 text-destructive",
 };
@@ -93,19 +92,61 @@ function EventActions({ event }: { event: CalendarEvent }) {
     }
   }
 
-  const actionClass =
-    "flex flex-1 items-center justify-center gap-2 rounded-xl border border-border-subtle bg-surface px-3.5 py-2.5 text-sm font-semibold text-foreground/75 transition-colors hover:border-primary/25 hover:bg-primary/[0.03] hover:text-foreground";
-
   return (
-    <div className="mt-4 flex gap-2 border-t border-border-subtle pt-4">
-      <button type="button" onClick={() => downloadICS(event)} className={actionClass}>
+    <div className="sticky bottom-0 flex gap-2 border-t border-border bg-card/95 px-5 py-4 backdrop-blur sm:px-6">
+      <button
+        type="button"
+        onClick={() => downloadICS(event)}
+        className={buttonVariants({ variant: "outline", className: "flex-1" })}
+      >
         <CalendarPlus className="h-4 w-4" />
-        Calendario
+        Aggiungi al calendario
       </button>
-      <button type="button" onClick={handleShare} className={actionClass}>
-        {copied ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
+      <button type="button" onClick={handleShare} className={buttonVariants({ variant: "outline", className: "flex-1" })}>
+        {copied ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
         {copied ? "Copiato" : "Condividi"}
       </button>
+    </div>
+  );
+}
+
+function Fact({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground [&_svg]:h-[18px] [&_svg]:w-[18px]">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1 text-[15px] text-foreground">{children}</div>
+    </div>
+  );
+}
+
+function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="border-t border-border px-5 py-5 sm:px-6">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted-foreground">{title}</h3>
+        {aside && <span className="text-[13px] font-semibold text-foreground/70">{aside}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SetScores({ scores }: { scores: { us: number; them: number }[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {scores.map((s, i) => (
+        <span
+          key={i}
+          className={cn(
+            "tabular rounded-lg px-2 py-1 text-xs font-semibold",
+            s.us > s.them ? "bg-success-soft text-success" : "bg-muted text-foreground/70",
+          )}
+        >
+          {s.us}–{s.them}
+        </span>
+      ))}
     </div>
   );
 }
@@ -141,299 +182,222 @@ export function EventDetailDialog({
 
   const isTraining = event.kind === "training";
   const dateObj = parseISO(event.date);
-  const badgeClass = isTraining ? trainingBadgeClass(event.color) : categoryBadgeClass(event.category);
+  const dotClass = isTraining ? trainingDotClass(event.color) : categoryDotClass(event.category);
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
+  const kind = isTraining
+    ? event.isTournament
+      ? "Torneo"
+      : "Allenamento"
+    : event.isTournament
+      ? "Torneo"
+      : "Partita";
+  const hasResult = !isTraining && !event.isTournament && event.resultSetsWon !== null && event.resultSetsLost !== null;
+  const won = hasResult && event.resultSetsWon! > event.resultSetsLost!;
 
-  return (
+  // Portale su <body>: il dialog può essere aperto da dentro contenitori
+  // con un proprio contesto di sovrapposizione (es. l'hero, z-10), che
+  // altrimenti lo lascerebbero sotto l'header sticky.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-sea-950/50 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(12,29,54,0.45)] backdrop-blur-[3px] sm:items-center sm:p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-5 shadow-[0_-20px_50px_-20px_rgba(9,27,38,0.35)] sm:rounded-2xl sm:p-6 sm:shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)]"
+        className="flex max-h-[90vh] w-full max-w-lg animate-[pop-in_180ms_ease-out] flex-col overflow-hidden rounded-t-3xl bg-card shadow-pop sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Dettagli evento"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", badgeClass)}>
-              {isTraining ? (
-                event.isTournament ? <Trophy className="h-5 w-5" /> : <Dumbbell className="h-5 w-5" />
-              ) : (
-                <Swords className="h-5 w-5" />
-              )}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate font-display text-lg font-bold text-foreground">
-                {eventTitle(event)}
+        <div className="overflow-y-auto">
+          <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-border-strong sm:hidden" aria-hidden />
+
+          <div className="px-5 pb-5 pt-4 sm:px-6 sm:pt-6">
+            <div className="flex items-start justify-between gap-3">
+              <p className="flex items-center gap-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted-foreground">
+                <span className={cn("h-2.5 w-2.5 rounded-full", dotClass)} aria-hidden />
+                {kind}
+                {!isTraining && <> · {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}</>}
               </p>
-              <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                {isTraining && event.team === "u14u15" && (
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                      badgeClass,
-                    )}
-                  >
-                    U14 · U15
-                  </span>
-                )}
-                {!isTraining && (
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                      badgeClass,
-                    )}
-                  >
-                    {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}
-                  </span>
-                )}
-                {!isTraining && event.isFriendly && (
-                  <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
-                    Amichevole
-                  </span>
-                )}
-                {event.isTournament && (
-                  <span className="inline-flex rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
-                    Torneo
-                  </span>
-                )}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Chiudi"
+                className="-mr-1.5 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <h2 className="display-wide mt-1 text-[1.625rem] leading-tight text-foreground">{eventTitle(event)}</h2>
+            {!isTraining && event.isFriendly && (
+              <span className="mt-2.5 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                Amichevole
               </span>
+            )}
+
+            <div className="mt-5 space-y-3">
+              <Fact icon={<Calendar />}>
+                <span className="block font-semibold first-letter:uppercase">{format(dateObj, "EEEE d MMMM yyyy", { locale: it })}</span>
+              </Fact>
+              <Fact icon={<Clock />}>
+                <span className="tabular">{isTraining ? `${event.startTime}–${event.endTime}` : event.time}</span>
+                {!isTraining && (event.meetingTime || event.meetingLocation) && (
+                  <span className="block text-[13px] text-muted-foreground">
+                    Ritrovo{event.meetingTime ? ` alle ${event.meetingTime}` : ""}
+                    {event.meetingLocation ? ` · ${event.meetingLocation}` : ""}
+                  </span>
+                )}
+              </Fact>
+              {!isTraining && (
+                <Fact icon={event.isHome ? <Home /> : <Plane />}>
+                  {event.isHome ? "Partita in casa" : "Partita in trasferta"}
+                </Fact>
+              )}
+              <Fact icon={<MapPin />}>
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex max-w-full items-center gap-1.5 font-medium text-primary"
+                >
+                  <span className="truncate group-hover:underline">{event.location}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                </a>
+              </Fact>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Chiudi"
-            className="shrink-0 rounded-full p-1.5 text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
 
-        <div className="mt-4 space-y-2.5 rounded-2xl border border-border-subtle bg-surface-muted/50 p-4 text-sm">
-          <p className="flex items-center gap-2.5 font-medium capitalize text-foreground">
-            <Calendar className="h-4 w-4 shrink-0 text-foreground/45" />
-            {format(dateObj, "EEEE d MMMM yyyy", { locale: it })}
-          </p>
-          <p className="flex items-center gap-2.5 text-foreground/75">
-            <Clock className="h-4 w-4 shrink-0 text-foreground/45" />
-            {isTraining ? `${event.startTime}–${event.endTime}` : event.time}
-          </p>
-          {!isTraining && (
-            <p className="flex items-center gap-2.5 text-foreground/75">
-              {event.isHome ? (
-                <Home className="h-4 w-4 shrink-0 text-foreground/45" />
-              ) : (
-                <Plane className="h-4 w-4 shrink-0 text-foreground/45" />
-              )}
-              {event.isHome ? "Partita in casa" : "Partita in trasferta"}
-            </p>
-          )}
-          <a
-            href={mapsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2.5 text-primary hover:underline"
-          >
-            <MapPin className="h-4 w-4 shrink-0" />
-            <span className="flex-1 truncate">{event.location}</span>
-            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-          </a>
-          {!isTraining && (event.meetingTime || event.meetingLocation) && (
-            <p className="flex items-start gap-2.5 border-t border-border-subtle pt-2.5 text-foreground/75">
-              <Users className="mt-0.5 h-4 w-4 shrink-0 text-foreground/45" />
-              <span>
-                Ritrovo{event.meetingTime ? ` alle ${event.meetingTime}` : ""}
-                {event.meetingLocation ? ` · ${event.meetingLocation}` : ""}
-              </span>
-            </p>
-          )}
-        </div>
-
-        {!isTraining && !event.isTournament && event.resultSetsWon !== null && event.resultSetsLost !== null && (
-          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
-            <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  "icon-chip",
-                  event.resultSetsWon > event.resultSetsLost
-                    ? "bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]"
-                    : "bg-[linear-gradient(135deg,var(--destructive),var(--destructive-strong))]",
-                )}
-              >
-                <Trophy className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Risultato finale</p>
-                <p className="text-sm font-bold text-foreground">
-                  {event.resultSetsWon > event.resultSetsLost ? "Vittoria" : "Sconfitta"}{" "}
-                  {event.resultSetsWon}-{event.resultSetsLost}
+          {hasResult && (
+            <Section title="Risultato finale">
+              <div className="flex items-center gap-4">
+                <p
+                  className={cn(
+                    "display-wide tabular text-[2.5rem] leading-none",
+                    won ? "text-success" : "text-foreground/80",
+                  )}
+                >
+                  {event.resultSetsWon}–{event.resultSetsLost}
                 </p>
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-xs font-bold",
+                    won ? "bg-success-soft text-success" : "bg-destructive/10 text-destructive",
+                  )}
+                >
+                  {won ? "Vittoria" : "Sconfitta"}
+                </span>
               </div>
-            </div>
-            {event.setScores && event.setScores.length > 0 && (
-              <p className="mt-3 flex flex-wrap gap-1.5">
-                {event.setScores.map((s, i) => (
-                  <span
-                    key={i}
-                    className="rounded-lg bg-surface-muted px-2 py-1 text-xs font-semibold text-foreground/70"
-                  >
-                    {s.us}-{s.them}
+              {event.setScores && event.setScores.length > 0 && (
+                <div className="mt-3">
+                  <SetScores scores={event.setScores} />
+                </div>
+              )}
+            </Section>
+          )}
+
+          {!isTraining &&
+            event.isTournament &&
+            event.tournamentGames &&
+            event.tournamentGames.some((g) => g.setScores.length > 0) && (
+              <Section title="Risultati del torneo">
+                <div className="space-y-3">
+                  {event.tournamentGames
+                    .filter((g) => g.setScores.length > 0)
+                    .map((g) => (
+                      <div key={g.id} className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground">vs {g.opponent}</p>
+                        <SetScores scores={g.setScores} />
+                      </div>
+                    ))}
+                </div>
+              </Section>
+            )}
+
+          {!isTraining && callUps && callUps.names.length > 0 && (
+            <Section title="Convocate" aside={callUps.names.length}>
+              <div className="flex flex-wrap gap-1.5">
+                {callUps.names.map((name) => (
+                  <span key={name} className="rounded-full bg-muted px-3 py-1 text-[13px] font-medium text-foreground/80">
+                    {name}
                   </span>
                 ))}
-              </p>
-            )}
-          </div>
-        )}
-
-        {!isTraining &&
-          event.isTournament &&
-          event.tournamentGames &&
-          event.tournamentGames.some((g) => g.setScores.length > 0) && (
-            <div className="mt-4 rounded-2xl border border-border-subtle p-4">
-              <div className="flex items-center gap-3">
-                <span className="icon-chip bg-[linear-gradient(135deg,var(--color-u14),var(--color-u14-strong))]">
-                  <Trophy className="h-4 w-4" />
-                </span>
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Risultati del torneo</p>
               </div>
-              <div className="mt-3.5 space-y-3">
-                {event.tournamentGames
-                  .filter((g) => g.setScores.length > 0)
-                  .map((g) => (
-                    <div key={g.id}>
-                      <p className="text-sm font-bold text-foreground">vs {g.opponent}</p>
-                      <p className="mt-1.5 flex flex-wrap gap-1.5">
-                        {g.setScores.map((s, i) => (
-                          <span
-                            key={i}
-                            className="rounded-lg bg-surface-muted px-2 py-1 text-xs font-semibold text-foreground/70"
-                          >
-                            {s.us}-{s.them}
-                          </span>
-                        ))}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            </div>
+            </Section>
           )}
 
-        {!isTraining && callUps && callUps.names.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
-            <div className="flex items-center gap-3">
-              <span className="icon-chip">
-                <Users className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Convocate</p>
-                <p className="text-sm font-bold text-foreground">{callUps.names.length} convocate</p>
-              </div>
-            </div>
-            <div className="mt-3.5 flex flex-wrap gap-1.5">
-              {callUps.names.map((name) => (
-                <span
-                  key={name}
-                  className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-foreground/75"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+          {event.notes && (
+            <Section title="Note">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/80">{event.notes}</p>
+            </Section>
+          )}
 
-        {event.notes && (
-          <p className="mt-3 whitespace-pre-line rounded-2xl bg-surface-muted px-4 py-3 text-sm text-foreground/70">
-            {event.notes}
-          </p>
-        )}
-
-        {isTraining && plan && (
-          <div className="mt-4 rounded-2xl border border-border-subtle p-4">
-            <div className="flex items-center gap-3">
-              <span className="icon-chip">
-                <Puzzle className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Cosa si fa</p>
-                <p className="truncate text-sm font-bold text-foreground">{plan.title}</p>
-              </div>
-            </div>
-            <ol className="mt-3.5 space-y-3">
-              {plan.blocks.map((block, index) => (
-                <li key={block.id} className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold text-foreground">
-                      {index + 1}. {block.title}
-                    </p>
-                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-training-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-training-strong)]">
-                      <Clock className="h-2.5 w-2.5" />
-                      {block.durationMinutes}&apos;
-                    </span>
-                  </div>
-                  <BlockContent content={block.content} className="mt-2" />
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-
-        {isTraining && attendance && attendance.records.length > 0 && (() => {
-          // Il Minivolley non registra le assenze (vedi MiniAttendanceForm),
-          // quindi ogni voce è per forza presente: qui non si distingue dal
-          // caso (raro) in cui, in U14/U15, erano davvero presenti tutte —
-          // in entrambi i casi il testo "N/N presenti" e il badge ripetuto
-          // su ogni riga sarebbero solo rumore.
-          const allPresent = attendance.records.every((r) => r.status === "present");
-          return (
-            <div className="mt-4 rounded-2xl border border-border-subtle p-4">
-              <div className="flex items-center gap-3">
-                <span className="icon-chip">
-                  <Users className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">Presenze</p>
-                  <p className="text-sm font-bold text-foreground">
-                    {allPresent
-                      ? `${attendance.records.length} presenti`
-                      : `${attendance.records.filter((r) => r.status === "present").length}/${attendance.records.length} presenti`}
-                  </p>
-                </div>
-              </div>
-              <ul className="mt-3.5 space-y-1.5">
-                {attendance.records.map((record) => (
-                  <li
-                    key={record.fullName}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-2.5"
-                  >
-                    <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                      {record.fullName}
-                    </span>
-                    {!allPresent && (
-                      <span
-                        className={cn(
-                          "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                          ATTENDANCE_CLASS[record.status],
-                        )}
-                      >
-                        {record.status === "present" && <Check className="h-2.5 w-2.5" />}
-                        {ATTENDANCE_LABEL[record.status]}
+          {isTraining && plan && (
+            <Section title="Cosa si fa" aside={plan.title}>
+              <ol className="space-y-2.5">
+                {plan.blocks.map((block, index) => (
+                  <li key={block.id} className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">
+                        <span className="tabular mr-1.5 text-muted-foreground">{index + 1}.</span>
+                        {block.title}
+                      </p>
+                      <span className="tabular flex shrink-0 items-center gap-1 rounded-full bg-card px-2 py-0.5 text-[11px] font-bold text-foreground/70 ring-1 ring-border">
+                        <Clock className="h-3 w-3" />
+                        {block.durationMinutes}&apos;
                       </span>
-                    )}
+                    </div>
+                    <BlockContent content={block.content} className="mt-2" />
                   </li>
                 ))}
-              </ul>
-            </div>
-          );
-        })()}
+              </ol>
+            </Section>
+          )}
+
+          {isTraining && attendance && attendance.records.length > 0 && (() => {
+            // Il Minivolley non registra le assenze (vedi MiniAttendanceForm),
+            // quindi ogni voce è per forza presente: qui non si distingue dal
+            // caso (raro) in cui, in U14/U15, erano davvero presenti tutte —
+            // in entrambi i casi il testo "N/N presenti" e il badge ripetuto
+            // su ogni riga sarebbero solo rumore.
+            const allPresent = attendance.records.every((r) => r.status === "present");
+            const presentCount = attendance.records.filter((r) => r.status === "present").length;
+            return (
+              <Section
+                title="Presenze"
+                aside={
+                  <span className="inline-flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" />
+                    {allPresent ? `${attendance.records.length} presenti` : `${presentCount}/${attendance.records.length} presenti`}
+                  </span>
+                }
+              >
+                <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
+                  {attendance.records.map((record) => (
+                    <li key={record.fullName} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      <span className="min-w-0 truncate text-sm font-medium text-foreground">{record.fullName}</span>
+                      {!allPresent && (
+                        <span
+                          className={cn(
+                            "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                            ATTENDANCE_CLASS[record.status],
+                          )}
+                        >
+                          {record.status === "present" && <Check className="h-3 w-3" />}
+                          {ATTENDANCE_LABEL[record.status]}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            );
+          })()}
+        </div>
 
         <EventActions event={event} />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

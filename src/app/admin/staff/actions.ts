@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
@@ -74,6 +75,7 @@ export async function deleteStaffAction(formData: FormData): Promise<void> {
 
   await repo.deleteStaff(id);
   revalidatePath("/admin/staff");
+  redirect("/admin/staff");
 }
 
 const updateSchema = z.object({

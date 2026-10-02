@@ -18,6 +18,7 @@ import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
 import { isPageAvailableForTeam, type AdminPage } from "@/lib/types";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
   title: "Guida",
@@ -141,38 +142,35 @@ export default async function GuidaPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Guida al sito</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Come funzionano le sezioni dell&apos;area tecnici di Volley Lignano. Questa pagina resta
-            sempre consultabile dal menu.
-          </p>
-        </div>
-        <LinkButton href="/admin?tour=restart" variant="outline" size="sm">
-          <Compass className="h-3.5 w-3.5" />
-          Rivedi il tour guidato
-        </LinkButton>
-      </div>
+      <PageHeader
+        title="Guida al sito"
+        description="Come funzionano le sezioni dell'area tecnici. Questa pagina resta sempre consultabile dal menu."
+        actions={
+          <LinkButton href="/admin?tour=restart" variant="outline">
+            <Compass className="h-4 w-4" />
+            Rivedi il tour guidato
+          </LinkButton>
+        }
+      />
 
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4">
         {visibleSections.map((section) => {
           const Icon = section.icon;
           return (
             <Card key={section.title}>
-              <CardHeader className="flex flex-row items-center gap-3">
+              <CardHeader className="flex flex-row items-center gap-3.5">
                 <span className="icon-chip shrink-0">
                   <Icon className="h-4 w-4" />
                 </span>
                 <div>
-                  <h2 className="font-display text-base font-semibold text-foreground">
+                  <h2 className="font-display text-base font-bold text-foreground">
                     {section.title}
                   </h2>
                   <p className="text-sm text-muted-foreground">{section.intro}</p>
                 </div>
               </CardHeader>
               <CardBody className="pt-0">
-                <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
+                <ul className="space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']">
                   {section.points.map((point) => (
                     <li key={point}>{point}</li>
                   ))}
@@ -184,12 +182,12 @@ export default async function GuidaPage() {
 
         {session.role === "dev" && (
           <Card>
-            <CardHeader className="flex flex-row items-center gap-3">
+            <CardHeader className="flex flex-row items-center gap-3.5">
               <span className="icon-chip shrink-0">
                 <Gauge className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="font-display text-base font-semibold text-foreground">
+                <h2 className="font-display text-base font-bold text-foreground">
                   Manutenzione
                 </h2>
                 <p className="text-sm text-muted-foreground">Solo Developer.</p>
@@ -210,21 +208,21 @@ export default async function GuidaPage() {
 
         {session.role === "dev" && (
           <Card>
-            <CardHeader className="flex flex-row items-center gap-3">
+            <CardHeader className="flex flex-row items-center gap-3.5">
               <span className="icon-chip shrink-0">
                 <FlaskConical className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="font-display text-base font-semibold text-foreground">
+                <h2 className="font-display text-base font-bold text-foreground">
                   Modalità prova
                 </h2>
                 <p className="text-sm text-muted-foreground">Solo Developer.</p>
               </div>
             </CardHeader>
             <CardBody className="pt-0">
-              <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
+              <ul className="space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']">
                 <li>
-                  Il pulsante &quot;Modalità prova&quot; accanto al tuo nome apre una copia separata
+                  La voce &quot;Modalità prova&quot; nel menu del tuo account (in alto a destra) apre una copia separata
                   dei dati (allenamenti, partite, formazioni, schede, presenze, atlete): puoi creare,
                   modificare o eliminare qualsiasi cosa per provare lo strumento senza rischi.
                 </li>
@@ -243,12 +241,12 @@ export default async function GuidaPage() {
         )}
 
         <Card>
-          <CardHeader className="flex flex-row items-center gap-3">
+          <CardHeader className="flex flex-row items-center gap-3.5">
             <span className="icon-chip shrink-0">
               <KeyRound className="h-4 w-4" />
             </span>
             <div>
-              <h2 className="font-display text-base font-semibold text-foreground">Il tuo account</h2>
+              <h2 className="font-display text-base font-bold text-foreground">Il tuo account</h2>
               <p className="text-sm text-muted-foreground">Password e accesso.</p>
             </div>
           </CardHeader>

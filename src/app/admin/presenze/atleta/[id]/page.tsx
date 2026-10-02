@@ -3,15 +3,16 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ArrowLeft, Check, Clock, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
+import { Check, Clock, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import { categoryBadgeClass, categoryLabel, groupBadgeClass, groupLabel } from "@/lib/category";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { cn } from "@/lib/cn";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatTile } from "@/components/ui/StatTile";
+import { Avatar } from "@/components/ui/Avatar";
 import { MonthCalendarPicker, type DayMarker } from "@/components/presenze/MonthCalendarPicker";
 import type { AttendanceStatus } from "@/lib/types";
 
@@ -26,7 +27,7 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
 };
 
 const STATUS_BADGE: Record<AttendanceStatus, string> = {
-  present: "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]",
+  present: "bg-success-soft text-success",
   excused: "bg-sand-100 text-sand-800",
   unexcused: "bg-destructive/10 text-destructive",
 };
@@ -38,8 +39,8 @@ const STATUS_ICON: Record<AttendanceStatus, typeof Check> = {
 };
 
 const STATUS_DOT: Record<AttendanceStatus, string> = {
-  present: "bg-[var(--color-u14-strong)]",
-  excused: "bg-[var(--color-sand-600)]",
+  present: "bg-success",
+  excused: "bg-warning",
   unexcused: "bg-destructive",
 };
 
@@ -158,117 +159,110 @@ export default async function AthleteAttendancePage({
     (markersByDate[occ.date] ??= []).push({ colorClass, label });
 
     detailsByDate[occ.date] = (
-      <Card>
-        <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-5">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="capitalize font-semibold text-foreground">
+            <p className="font-display text-base font-bold text-foreground first-letter:uppercase">
               {format(new Date(occ.date), "EEEE d MMMM", { locale: it })}
             </p>
             <p className="mt-0.5 truncate text-sm text-muted-foreground">{occ.title}</p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                {occ.startTime}–{occ.endTime}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
-                {occ.location}
-              </span>
-            </p>
           </div>
           {badgeClass && StatusIcon ? (
-            <span
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
-                badgeClass,
-              )}
-            >
+            <span className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", badgeClass)}>
               <StatusIcon className="h-3.5 w-3.5" />
               {label}
             </span>
           ) : (
-            <span className="shrink-0 rounded-full bg-foreground/8 px-2.5 py-1 text-xs font-semibold text-foreground/50">
+            <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
               {label}
             </span>
           )}
-        </CardBody>
-      </Card>
+        </div>
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="tabular">
+              {occ.startTime}–{occ.endTime}
+            </span>
+          </span>
+          <span className="inline-flex min-w-0 items-center gap-1">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{occ.location}</span>
+          </span>
+        </p>
+      </div>
     );
   }
 
   const emptyDetail = (
-    <div className="rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-10 text-center text-sm text-muted-foreground">
+    <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-10 text-center text-sm text-muted-foreground">
       Nessun allenamento in programma per questo giorno.
     </div>
   );
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <LinkButton href="/admin/presenze/atlete" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle atlete
-      </LinkButton>
+    <div>
+      <PageHeader
+        back={{ href: "/admin/presenze/atlete", label: "Atlete" }}
+        title={
+          <span className="flex items-center gap-3">
+            <Avatar name={athlete.fullName} size="lg" />
+            <span className="min-w-0">{athlete.fullName}</span>
+          </span>
+        }
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                isMini ? groupBadgeClass(athlete.group) : categoryBadgeClass(athlete.category),
+              )}
+            >
+              {isMini ? groupLabel(athlete.group) : categoryLabel(athlete.category)}
+            </span>
+            <span>Presenze agli allenamenti, passati e futuri.</span>
+          </span>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2.5">
-        <h1 className="font-display text-2xl font-bold text-foreground">{athlete.fullName}</h1>
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
-            isMini ? groupBadgeClass(athlete.group) : categoryBadgeClass(athlete.category),
-          )}
-        >
-          {isMini ? groupLabel(athlete.group) : categoryLabel(athlete.category)}
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tutti gli impegni dell&apos;atleta, passati e futuri: seleziona un giorno per i dettagli.
-      </p>
-
-      <div className={cn("mt-6 grid grid-cols-2 gap-3", !isMini && "sm:grid-cols-4")}>
-        <div className="stat-card">
-          <CardBody className="pt-5">
-            <p className="text-2xl font-bold text-foreground">{presencePct ?? "–"}{presencePct !== null && "%"}</p>
-            <p className="text-xs text-muted-foreground">Presenza</p>
-          </CardBody>
-        </div>
-        <div className="stat-card">
-          <CardBody className="pt-5">
-            <p className="text-2xl font-bold text-foreground">{present}</p>
-            <p className="text-xs text-muted-foreground">Presenze</p>
-          </CardBody>
-        </div>
+      <div className={cn("grid grid-cols-2 gap-3 sm:gap-4", !isMini && "lg:grid-cols-4")}>
+        <StatTile
+          label="Presenza"
+          value={presencePct !== null ? `${presencePct}%` : "–"}
+          hint={total > 0 ? `su ${total} allenament${total === 1 ? "o" : "i"} registrat${total === 1 ? "o" : "i"}` : undefined}
+          tone="primary"
+        />
+        <StatTile label="Presenze" value={present} tone="success" />
         {!isMini && (
           <>
-            <div className="stat-card">
-              <CardBody className="pt-5">
-                <p className="text-2xl font-bold text-foreground">{excused}</p>
-                <p className="text-xs text-muted-foreground">Giustificate</p>
-              </CardBody>
-            </div>
-            <div className="stat-card">
-              <CardBody className="pt-5">
-                <p className="text-2xl font-bold text-foreground">{unexcused}</p>
-                <p className="text-xs text-muted-foreground">Non giustificate</p>
-              </CardBody>
-            </div>
+            <StatTile label="Assenze giustificate" value={excused} tone="warning" />
+            <StatTile label="Assenze non giustificate" value={unexcused} />
           </>
         )}
       </div>
 
-      <div className="mt-8">
-        <p className="eyebrow">Calendario impegni</p>
-        <div className="mt-4">
-          <MonthCalendarPicker
-            monthDate={monthDate}
-            basePath={`/admin/presenze/atleta/${id}`}
-            markersByDate={markersByDate}
-            detailsByDate={detailsByDate}
-            emptyDetail={emptyDetail}
-            initialSelectedDate={
-              monthParam === formatMonthParam(new Date()) ? todayStr : `${monthParam}-01`
-            }
-          />
-        </div>
+      <div className="mt-9">
+        <MonthCalendarPicker
+          monthDate={monthDate}
+          basePath={`/admin/presenze/atleta/${id}`}
+          markersByDate={markersByDate}
+          detailsByDate={detailsByDate}
+          emptyDetail={emptyDetail}
+          initialSelectedDate={monthParam === formatMonthParam(new Date()) ? todayStr : `${monthParam}-01`}
+          legend={
+            isMini
+              ? [
+                  { colorClass: "bg-success", label: "Presente" },
+                  { colorClass: "bg-foreground/25", label: "Assente / programmato" },
+                ]
+              : [
+                  { colorClass: "bg-success", label: "Presente" },
+                  { colorClass: "bg-warning", label: "Giustificata" },
+                  { colorClass: "bg-destructive", label: "Non giustificata" },
+                  { colorClass: "bg-foreground/25", label: "Programmato" },
+                ]
+          }
+        />
       </div>
     </div>
   );

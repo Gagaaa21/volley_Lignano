@@ -17,7 +17,7 @@ interface LogoProps {
 
 const CHIP_SIZES = {
   sm: "h-9 w-9 p-1.5",
-  md: "h-11 w-11 p-2",
+  md: "h-10 w-10 p-1.5",
   lg: "h-16 w-16 p-3",
 };
 
@@ -50,7 +50,7 @@ export function Logo({
   const secondaryText = isMinivolley ? "Volley Lignano" : subtitle;
   return (
     <Link href={href} className={cn("group flex items-center gap-3", className)}>
-      <span className={cn("brand-chip shrink-0 transition-transform group-hover:scale-105", CHIP_SIZES[size])}>
+      <span className={cn("brand-chip shrink-0 transition-transform duration-200 group-hover:-rotate-3", CHIP_SIZES[size])}>
         <Image
           src={CREST_BY_TEAM[team]}
           alt={CREST_ALT_BY_TEAM[team]}
@@ -59,10 +59,10 @@ export function Logo({
         />
       </span>
       {showWordmark && (
-        <span className="flex flex-col leading-tight">
+        <span className="flex flex-col gap-1">
           <span
             className={cn(
-              "font-display text-base font-bold tracking-tight",
+              "font-display text-[17px] font-bold leading-none",
               inverted ? "text-white" : "text-foreground",
             )}
           >
@@ -70,7 +70,7 @@ export function Logo({
           </span>
           <span
             className={cn(
-              "text-[11px] font-semibold uppercase tracking-[0.16em]",
+              "text-[10.5px] font-semibold uppercase leading-none tracking-[0.14em]",
               inverted ? "text-sand-200" : "text-sand-600",
             )}
           >

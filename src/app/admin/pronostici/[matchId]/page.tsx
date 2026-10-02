@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarClock, Lock, MapPin } from "lucide-react";
+import { CalendarClock, Lock, MapPin } from "lucide-react";
 import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
@@ -13,7 +13,7 @@ import {
   matchHasResult,
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { PredictionForm } from "../PredictionForm";
 import { SetRankingBadges } from "../PredictionRankings";
 import type { Match, MatchPrediction } from "@/lib/types";
@@ -37,21 +37,22 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
 
   return (
     <div className="mx-auto max-w-2xl">
-      <LinkButton href="/admin/pronostici" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna ai pronostici
-      </LinkButton>
+      <PageHeader
+        back={{ href: "/admin/pronostici", label: "Pronostici" }}
+        eyebrow={<span>{formatDateLong(match.matchDate.slice(0, 10))}</span>}
+        title={matchTitle(match)}
+        description={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="tabular font-semibold text-foreground/80">{match.matchDate.slice(11, 16)}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 shrink-0" />
+              {match.location}
+            </span>
+          </span>
+        }
+      />
 
-      <h1 className="font-display text-2xl font-bold text-foreground">{matchTitle(match)}</h1>
-      <p className="mt-1 text-sm text-foreground/60">
-        {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
-      </p>
-      <p className="mt-0.5 flex items-center gap-1.5 text-sm text-foreground/50">
-        <MapPin className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">{match.location}</span>
-      </p>
-
-      <Card className="mt-6">
+      <Card>
         {locked ? (
           <CardBody className="pt-5">
             <LockedPredictions matchId={matchId} hasResult={hasResult} />

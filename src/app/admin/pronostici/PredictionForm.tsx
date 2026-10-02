@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save, Target } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, FieldError, FieldHint, FormActions } from "@/components/ui/Field";
 import {
   TournamentGamesEditor,
   tournamentGamesToFormState,
@@ -19,7 +19,7 @@ const MAX_SETS = 5;
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" size="lg" disabled={pending}>
       <Save className="h-4 w-4" />
       {pending ? "Salvataggio…" : "Salva pronostico"}
     </Button>
@@ -43,7 +43,7 @@ export function PredictionForm({
   );
 
   return (
-    <form action={formAction} className="space-y-3.5" noValidate>
+    <form action={formAction} className="space-y-4" noValidate>
       <input type="hidden" name="matchId" value={matchId} />
 
       {isTournament ? (
@@ -65,36 +65,43 @@ export function PredictionForm({
             squadra deve arrivare a 3 set vinti.
           </FieldHint>
 
-          <div className="flex items-center gap-3 pl-14 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
-            <span className="w-14 text-center">Lignano</span>
-            <span className="w-3" />
-            <span className="w-14 text-center">Avv.</span>
-          </div>
-          <div className="space-y-2">
-            {Array.from({ length: MAX_SETS }, (_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="w-14 shrink-0 text-sm font-medium text-foreground/60">Set {i + 1}</span>
+          <div className="overflow-x-auto rounded-2xl border border-border bg-surface-muted p-3 sm:p-4">
+            <div className="grid min-w-[19rem] grid-cols-[5.5rem_repeat(5,minmax(0,1fr))] items-center gap-1.5">
+              <span />
+              {Array.from({ length: MAX_SETS }, (_, i) => (
+                <span key={i} className="text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  Set {i + 1}
+                </span>
+              ))}
+              <span className="text-sm font-semibold text-foreground">Lignano</span>
+              {Array.from({ length: MAX_SETS }, (_, i) => (
                 <Input
+                  key={`us-${i}`}
                   type="number"
                   name="setUs"
                   min={0}
                   max={99}
+                  inputMode="numeric"
                   defaultValue={existingSetScores?.[i]?.us ?? ""}
-                  className="w-14 px-2 text-center"
+                  className="tabular px-1 text-center font-semibold"
                   aria-label={`Punti Lignano, set ${i + 1}`}
                 />
-                <span className="text-foreground/40">–</span>
+              ))}
+              <span className="text-sm font-semibold text-muted-foreground">Avversaria</span>
+              {Array.from({ length: MAX_SETS }, (_, i) => (
                 <Input
+                  key={`them-${i}`}
                   type="number"
                   name="setThem"
                   min={0}
                   max={99}
+                  inputMode="numeric"
                   defaultValue={existingSetScores?.[i]?.them ?? ""}
-                  className="w-14 px-2 text-center"
+                  className="tabular px-1 text-center"
                   aria-label={`Punti avversario, set ${i + 1}`}
                 />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </>
       )}
@@ -105,7 +112,9 @@ export function PredictionForm({
         </div>
       )}
 
-      <SubmitButton />
+      <FormActions>
+        <SubmitButton />
+      </FormActions>
     </form>
   );
 }

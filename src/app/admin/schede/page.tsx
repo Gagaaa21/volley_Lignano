@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { format } from "date-fns";
-import { Plus } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { it } from "date-fns/locale";
+import { ClipboardList, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_SCHEDE_STEPS } from "@/components/tour/sectionSteps";
 import { SchedeLibrary, type SchedeCardData } from "./SchedeLibrary";
@@ -41,7 +43,7 @@ export default async function TrainingPlansPage() {
       blockCount: plan.blocks.length,
       totalMinutes,
       upcomingCount: upcomingDates.length,
-      nearestDateLabel: upcomingDates[0] ? formatDateLong(upcomingDates[0]) : null,
+      nearestDateLabel: upcomingDates[0] ? format(parseISO(upcomingDates[0]), "EEE d MMM", { locale: it }) : null,
     };
   });
 
@@ -56,27 +58,24 @@ export default async function TrainingPlansPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Schede allenamento</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Visibili solo a Developer e Admin. Incolla il testo di un allenamento: viene diviso
-            automaticamente in blocchi.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SectionTour steps={SECTION_SCHEDE_STEPS} />
+      <PageHeader
+        title="Schede allenamento"
+        description="Visibili solo allo staff. Incolla il testo di un allenamento: viene diviso automaticamente in blocchi."
+        help={<SectionTour steps={SECTION_SCHEDE_STEPS} />}
+        actions={
           <LinkButton href="/admin/schede/nuova" data-tour="section-schede-new">
             <Plus className="h-4 w-4" />
             Nuova scheda
           </LinkButton>
-        </div>
-      </div>
+        }
+      />
 
       {cards.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
-          Nessuna scheda ancora. Crea la prima incollando il testo di un allenamento.
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          title="Nessuna scheda ancora"
+          description="Crea la prima incollando il testo di un allenamento."
+        />
       ) : (
         <SchedeLibrary plans={cards} />
       )}

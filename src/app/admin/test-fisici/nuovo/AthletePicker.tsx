@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Search } from "lucide-react";
-import { Card, CardBody } from "@/components/ui/Card";
+import { ChevronRight } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
+import { SearchInput } from "@/components/ui/SearchInput";
 import type { Athlete } from "@/lib/types";
 
 /** Elenco atlete da scegliere per registrare un nuovo test, con ricerca
@@ -22,32 +23,26 @@ export function AthletePicker({ athletes }: { athletes: Athlete[] }) {
   return (
     <div>
       {athletes.length > 5 && (
-        <div className="relative mb-6 max-w-sm">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca per nome…"
-            className="w-full rounded-full border border-border-subtle bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-foreground/35 focus:border-primary/40 focus:outline-none"
-          />
-        </div>
+        <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cerca per nome…" className="mb-5" />
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Nessuna atleta trovata per &quot;{query}&quot;.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
           {filtered.map((athlete) => (
-            <Link key={athlete.id} href={`/admin/test-fisici/nuovo/${athlete.id}`} className="block">
-              <Card className="transition-colors hover:border-primary/30">
-                <CardBody className="flex items-center justify-between gap-3 pt-5">
-                  <span className="font-semibold text-foreground">{athlete.fullName}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-foreground/30" />
-                </CardBody>
-              </Card>
+            <Link
+              key={athlete.id}
+              href={`/admin/test-fisici/nuovo/${athlete.id}`}
+              className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"
+            >
+              <Avatar name={athlete.fullName} />
+              <span className="min-w-0 flex-1 truncate font-semibold text-foreground group-hover:text-primary">
+                {athlete.fullName}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
             </Link>
           ))}
         </div>

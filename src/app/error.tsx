@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import Image from "next/image";
-import { RotateCcw, Waves } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { Button } from "@/components/ui/Button";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -21,20 +20,20 @@ export default function ErrorPage({
       <Image src={crest} alt="" aria-hidden className="auth-stage-logo" />
 
       <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-[25rem]">
+        <div className="w-full max-w-[24rem]">
           <div className="auth-card p-6 text-center sm:p-8">
-            <span className="brand-chip mx-auto h-16 w-16">
+            <span className="brand-chip mx-auto h-16 w-16 rounded-2xl p-2">
               <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
             </span>
-            <p className="eyebrow mt-5 justify-center">Volley Lignano · Lignano Sabbiadoro</p>
-            <h1 className="mt-2.5 font-display text-[1.7rem] leading-tight tracking-tight sm:text-3xl">
+            <p className="eyebrow mt-5 justify-center">Volley Lignano</p>
+            <h1 className="display-wide mt-2 text-[1.75rem] leading-tight text-foreground">
               Qualcosa è andato storto
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Probabilmente un problema di connessione temporaneo. Riprova tra qualche istante.
             </p>
 
-            <div className="my-6 h-px bg-border/70" />
+            <div className="mt-7" />
 
             <div className="flex flex-col gap-2.5">
               <Button type="button" onClick={() => retry()} className="w-full justify-center">
@@ -46,11 +45,6 @@ export default function ErrorPage({
               </LinkButton>
             </div>
           </div>
-
-          <p className="mt-8 flex items-center justify-center gap-2 text-xs text-foreground/35">
-            <Waves className="h-3.5 w-3.5" />
-            Lignano Sabbiadoro
-          </p>
         </div>
       </main>
     </div>

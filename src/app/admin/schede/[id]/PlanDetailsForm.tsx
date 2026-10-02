@@ -13,7 +13,7 @@ const initialState: PlanFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="outline" size="sm" disabled={pending}>
+    <Button type="submit" variant="outline" size="sm" className="w-full" disabled={pending}>
       <Save className="h-3.5 w-3.5" />
       {pending ? "Salvataggio…" : "Salva dettagli"}
     </Button>

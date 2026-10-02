@@ -71,16 +71,16 @@ export function TournamentGamesEditor({
   }
 
   return (
-    <div className="rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3.5">
-      <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
+    <div>
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
         <Trophy className="h-4 w-4 text-sand-600" />
         {title}
       </p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>
 
       <div className="mt-3 space-y-3">
         {games.map((game, gi) => (
-          <div key={game.key} className="rounded-lg border border-border-subtle bg-surface p-3">
+          <div key={game.key} className="rounded-2xl border border-border bg-surface-muted p-3 sm:p-4">
             <div className="flex items-center gap-2">
               <Input
                 value={game.opponent}
@@ -93,41 +93,51 @@ export function TournamentGamesEditor({
                 type="button"
                 onClick={() => removeGame(gi)}
                 aria-label={`Rimuovi partita ${gi + 1}`}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground/40 transition-colors hover:bg-destructive/8 hover:text-destructive"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive/8 hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-3 flex items-center gap-3 pl-14 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">
-              <span className="w-14 text-center">Lignano</span>
-              <span className="w-3" />
-              <span className="w-14 text-center">Avv.</span>
-            </div>
-            <div className="mt-1.5 space-y-2">
-              {Array.from({ length: TOURNAMENT_GAME_MAX_SETS }, (_, si) => (
-                <div key={si} className="flex items-center gap-3">
-                  <span className="w-14 shrink-0 text-sm font-medium text-foreground/60">Set {si + 1}</span>
+            <div className="mt-3 overflow-x-auto">
+              <div className="grid min-w-[19rem] grid-cols-[5.5rem_repeat(5,minmax(0,1fr))] items-center gap-1.5">
+                <span />
+                {Array.from({ length: TOURNAMENT_GAME_MAX_SETS }, (_, si) => (
+                  <span
+                    key={si}
+                    className="text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                  >
+                    Set {si + 1}
+                  </span>
+                ))}
+                <span className="text-sm font-semibold text-foreground">Lignano</span>
+                {Array.from({ length: TOURNAMENT_GAME_MAX_SETS }, (_, si) => (
                   <Input
+                    key={`us-${si}`}
                     type="number"
                     min={0}
                     max={99}
+                    inputMode="numeric"
                     value={game.setUs[si]}
                     onChange={(e) => updateSet(gi, si, "setUs", e.target.value)}
-                    className="w-14 px-2 text-center"
+                    className="tabular px-1 text-center font-semibold"
                     aria-label={`Punti Lignano, partita ${gi + 1}, set ${si + 1}`}
                   />
-                  <span className="text-foreground/40">–</span>
+                ))}
+                <span className="text-sm font-semibold text-muted-foreground">Avversaria</span>
+                {Array.from({ length: TOURNAMENT_GAME_MAX_SETS }, (_, si) => (
                   <Input
+                    key={`them-${si}`}
                     type="number"
                     min={0}
                     max={99}
+                    inputMode="numeric"
                     value={game.setThem[si]}
                     onChange={(e) => updateSet(gi, si, "setThem", e.target.value)}
-                    className="w-14 px-2 text-center"
+                    className="tabular px-1 text-center"
                     aria-label={`Punti avversario, partita ${gi + 1}, set ${si + 1}`}
                   />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         ))}

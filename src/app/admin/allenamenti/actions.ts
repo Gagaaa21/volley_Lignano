@@ -266,6 +266,7 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   const repo = await getActiveRepo();
   const training = await repo.getTraining(id);
   if (!training) return;
+  await repo.deleteTraining(id);
   const scheduleLabel =
     training.repeat === "once"
       ? `il ${formatDateLong(training.startDate)}`
@@ -282,6 +283,7 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/allenamenti/elenco");
   revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
+  redirect("/admin/allenamenti/elenco");
 }
 
 /** Salta una singola data di una regola ricorrente (es. una festività) senza

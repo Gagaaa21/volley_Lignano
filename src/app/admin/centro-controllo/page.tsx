@@ -5,6 +5,7 @@ import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { NotificationForm } from "./NotificationForm";
 import { PermissionsMatrix } from "./PermissionsMatrix";
 import { SectionTour } from "@/components/tour/SectionTour";
@@ -109,29 +110,26 @@ export default async function CentroControlloPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow">
+      <PageHeader
+        eyebrow={
+          <>
             <Shield className="h-3 w-3" />
             Solo Developer
-          </p>
-          <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Centro di controllo</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Notifiche manuali, permessi pagine e attività recenti, riservato al Developer. Per gli
-            account staff vai alla sezione &quot;Staff&quot;.
-          </p>
-        </div>
-        <SectionTour steps={SECTION_CENTRO_CONTROLLO_STEPS} />
-      </div>
+          </>
+        }
+        title="Centro di controllo"
+        description="Notifiche manuali, permessi e attività recenti. Gli account staff si gestiscono dalla sezione Staff."
+        help={<SectionTour steps={SECTION_CENTRO_CONTROLLO_STEPS} />}
+      />
 
       {/* Notifica manuale */}
-      <Card className="mt-6" data-tour="section-cc-notification">
-        <CardHeader className="flex flex-row items-center gap-3">
+      <Card data-tour="section-cc-notification">
+        <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <Bell className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Invia notifica manuale</h2>
+            <h2 className="font-display text-base font-bold text-foreground">Invia notifica manuale</h2>
             <p className="text-sm text-muted-foreground">
               Per avvisi occasionali che non corrispondono a una modifica del calendario, es.
               &quot;le convocazioni sono disponibili&quot;.
@@ -148,13 +146,13 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Permessi pagine */}
-      <Card className="mt-4" data-tour="section-cc-permissions">
-        <CardHeader className="flex flex-row items-center gap-3">
+      <Card className="mt-5" data-tour="section-cc-permissions">
+        <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <KeyRound className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Permessi pagine</h2>
+            <h2 className="font-display text-base font-bold text-foreground">Permessi pagine</h2>
             <p className="text-sm text-muted-foreground">
               Scegli quali sezioni dell&apos;area tecnici e quali squadre (U14/U15, Minivolley) può
               gestire ogni account Admin. Un Developer vede sempre tutto.
@@ -167,13 +165,13 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Attività recenti */}
-      <Card className="mt-4" data-tour="section-cc-activity">
-        <CardHeader className="flex flex-row items-center gap-3">
+      <Card className="mt-5" data-tour="section-cc-activity">
+        <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <ListChecks className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Attività recenti</h2>
+            <h2 className="font-display text-base font-bold text-foreground">Attività recenti</h2>
             <p className="text-sm text-muted-foreground">
               Le {recentActivity.length} creazioni/modifiche più recenti su tutto il sito. Per le
               modifiche non è sempre noto chi le ha fatte: solo la creazione tiene traccia
@@ -185,14 +183,14 @@ export default async function CentroControlloPage() {
           {recentActivity.length === 0 ? (
             <p className="text-sm text-foreground/50">Nessuna attività registrata.</p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
               {recentActivity.map((entry, i) => (
                 <li
                   key={i}
-                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle/60 pb-1.5 text-sm last:border-0"
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3.5 py-2.5 text-sm"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground/55">
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                       {entry.type}
                     </span>
                     <span className="truncate text-foreground/85">

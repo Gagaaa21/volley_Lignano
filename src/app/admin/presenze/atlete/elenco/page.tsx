@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { BulkAthleteForm } from "../BulkAthleteForm";
 
 export const metadata: Metadata = {
@@ -13,21 +12,13 @@ export default async function BulkAthletesPage() {
   const team = await resolveActiveTeam(await requireStaff());
   return (
     <div className="mx-auto max-w-xl">
-      <LinkButton href="/admin/presenze/atlete" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle atlete
-      </LinkButton>
-
-      <h1 className="font-display text-2xl font-bold text-foreground">Aggiungi atlete in elenco</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Incolla più nominativi insieme, uno per riga, invece di aggiungerli uno alla volta.
-      </p>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">Elenco</h2>
-        </CardHeader>
-        <CardBody>
+      <PageHeader
+        back={{ href: "/admin/presenze/atlete", label: "Atlete" }}
+        title="Aggiungi atlete in elenco"
+        description="Incolla più nominativi insieme, uno per riga, invece di aggiungerli uno alla volta."
+      />
+      <Card>
+        <CardBody className="pt-6">
           <BulkAthleteForm team={team} />
         </CardBody>
       </Card>

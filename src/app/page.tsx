@@ -1,16 +1,16 @@
 import { format } from "date-fns";
 import Image from "next/image";
-import { CalendarDays, CalendarPlus, Dumbbell, Swords, Volleyball, Waves } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicTour } from "@/components/tour/PublicTour";
-import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
-import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
+import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getPublicCalendarData, getPublicSeasonRecord } from "@/lib/publicCalendarData";
 import {
   expandTrainings,
@@ -21,7 +21,6 @@ import {
   occurrenceKey,
   sortEvents,
 } from "@/lib/calendar";
-import { CATEGORY_BADGE, TRAINING_BADGE } from "@/lib/category";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { Category } from "@/lib/types";
 import type { EventAttendance, EventCallUps, EventPlan } from "@/components/calendar/EventDetailDialog";
@@ -65,9 +64,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const matchEvents = matchesToEvents(matches);
   const monthEvents = sortEvents([...trainingEvents, ...matchEvents]);
   const eventsByDate = groupEventsByDate(monthEvents);
-  const agendaEventsByDate = groupEventsByDate(
-    monthEvents.filter((event) => event.date >= agendaStartStr && event.date <= agendaEndStr),
-  );
 
   const planById = new Map(plans.map((p) => [p.id, p] as const));
   const plansByEventId: Record<string, EventPlan> = {};
@@ -95,100 +91,68 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     if (names && names.length > 0) callUpsByEventId[event.id] = { names };
   }
 
-  const isCurrentMonthView = monthParam === formatMonthParam(new Date());
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const upcoming = isCurrentMonthView
-    ? monthEvents.filter((event) => event.date >= todayStr).slice(0, 4)
-    : [];
+  // "Prossimo appuntamento" sempre ancorato a oggi (finestra fissa di 30
+  // giorni), qualunque sia il mese sfogliato nel calendario sotto.
+  const upcoming = monthEvents
+    .filter((event) => event.date >= agendaStartStr && event.date <= agendaEndStr)
+    .slice(0, 4);
 
   return (
     <div className="flex min-h-screen flex-col">
       <PublicHeader />
       <PublicTour team="u14u15" />
 
-      <section className="auth-stage relative overflow-hidden">
+      <section className="auth-stage relative overflow-hidden border-b border-border">
         <Image
           src={crest}
           alt=""
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 z-0 h-[26rem] w-[26rem] select-none object-contain opacity-[0.1] sm:-right-16 sm:-top-20 sm:h-[34rem] sm:w-[34rem]"
+          className="pointer-events-none absolute -left-28 -top-16 z-0 h-[24rem] w-[24rem] select-none object-contain opacity-[0.06] sm:-left-24 sm:h-[30rem] sm:w-[30rem]"
         />
 
-        <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
-          <div className="max-w-xl">
-            <p className="eyebrow">
-              <Volleyball className="h-3 w-3" />
-              Settore giovanile femminile
-            </p>
-            <h1 className="mt-4 font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl">
+        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-14 lg:px-8">
+          <div>
+            <p className="eyebrow">Settore giovanile femminile</p>
+            <h1 className="display-wide mt-3 text-[2.375rem] leading-[1.02] text-foreground sm:text-[3.25rem]">
               Calendario allenamenti &amp; partite
             </h1>
-            <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground sm:text-base">
-              <Waves className="h-4 w-4 shrink-0" />
-              Under 14 e Under 15 · Lignano Sabbiadoro
+            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground sm:text-base">
+              Under 14 e Under 15 di Lignano Sabbiadoro: orari, luoghi, convocazioni e risultati, sempre
+              aggiornati dallo staff.
             </p>
-            <a
-              href="/calendario.ics"
-              data-tour="public-ics-button"
-              className="mt-5 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-muted"
-            >
-              <CalendarPlus className="h-4 w-4" />
-              Aggiungi al calendario
-            </a>
-          </div>
-
-          {upcoming.length > 0 && (
-            <div className="mt-9">
-              <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">
-                <CalendarDays className="h-3.5 w-3.5" />
-                Prossimi impegni
-              </p>
-              <UpcomingStrip
-                events={upcoming}
-                plansByEventId={plansByEventId}
-                attendanceByEventId={attendanceByEventId}
-                callUpsByEventId={callUpsByEventId}
-              />
+            <div className="mt-6">
+              <a
+                href="/calendario.ics"
+                data-tour="public-ics-button"
+                className={buttonVariants({ variant: "primary", size: "lg" })}
+              >
+                <CalendarPlus className="h-[18px] w-[18px]" />
+                Aggiungi al tuo calendario
+              </a>
             </div>
-          )}
-        </div>
-
-        <svg
-          aria-hidden
-          viewBox="0 0 1440 74"
-          preserveAspectRatio="none"
-          className="absolute inset-x-0 -bottom-px z-0 h-10 w-full text-background sm:h-14"
-        >
-          <path fill="currentColor" d="M0,74 L0,42 C240,10 480,10 720,30 C960,50 1200,50 1440,20 L1440,74 Z" />
-        </svg>
-      </section>
-
-      <main className="app-surface w-full flex-1">
-        <div className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <MonthNav monthDate={monthDate} cat={activeCategory === "all" ? undefined : activeCategory} />
-            <CategoryFilter active={activeCategory} month={monthParam} />
           </div>
 
-          <CalendarSection
-            monthDate={monthDate}
-            eventsByDate={eventsByDate}
-            agendaEventsByDate={agendaEventsByDate}
+          <UpcomingPanel
+            events={upcoming}
             plansByEventId={plansByEventId}
             attendanceByEventId={attendanceByEventId}
             callUpsByEventId={callUpsByEventId}
           />
-
-          <SeasonRecordSection records={seasonRecord} />
-
-          <CalendarLegend
-            items={[
-              { icon: Dumbbell, label: "Allenamento (U14 e U15 insieme)", badgeClass: TRAINING_BADGE },
-              { icon: Swords, label: "Partita Under 14", badgeClass: CATEGORY_BADGE.U14 },
-              { icon: Swords, label: "Partita Under 15", badgeClass: CATEGORY_BADGE.U15 },
-            ]}
-          />
         </div>
+      </section>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-14 pt-8 sm:px-6 sm:pt-10 lg:px-8">
+        <CalendarSection
+          monthDate={monthDate}
+          eventsByDate={eventsByDate}
+          plansByEventId={plansByEventId}
+          attendanceByEventId={attendanceByEventId}
+          callUpsByEventId={callUpsByEventId}
+          monthNav={<MonthNav monthDate={monthDate} cat={activeCategory === "all" ? undefined : activeCategory} />}
+          filters={<CategoryFilter active={activeCategory} month={monthParam} />}
+        />
+
+        <SeasonRecordSection records={seasonRecord} />
       </main>
 
       <PublicFooter />

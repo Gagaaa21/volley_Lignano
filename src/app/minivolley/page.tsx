@@ -1,14 +1,15 @@
 import { format } from "date-fns";
 import Image from "next/image";
-import { CalendarDays, CalendarPlus, Dumbbell, Trophy, Volleyball, Waves } from "lucide-react";
+import { CalendarPlus, ClipboardCheck } from "lucide-react";
 import crest from "@/assets/minivolley-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicTour } from "@/components/tour/PublicTour";
-import { CalendarLegend } from "@/components/calendar/CalendarLegend";
 import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { MonthNav } from "@/components/calendar/MonthNav";
-import { UpcomingStrip } from "@/components/calendar/UpcomingStrip";
+import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
+import { LinkButton } from "@/components/ui/LinkButton";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getPublicCalendarData } from "@/lib/publicCalendarData";
 import {
   expandTrainings,
@@ -18,11 +19,8 @@ import {
   occurrenceKey,
   sortEvents,
 } from "@/lib/calendar";
-import { TRAINING_BADGE } from "@/lib/category";
-import { formatMonthParam, parseMonthParam } from "@/lib/month";
+import { parseMonthParam } from "@/lib/month";
 import type { EventAttendance, EventPlan } from "@/components/calendar/EventDetailDialog";
-
-const TORNEO_BADGE = "bg-foreground/8 text-foreground/60";
 
 export default async function MinivolleyPage({
   searchParams,
@@ -33,7 +31,6 @@ export default async function MinivolleyPage({
   const monthParamRaw = typeof params.month === "string" ? params.month : undefined;
 
   const monthDate = parseMonthParam(monthParamRaw);
-  const monthParam = formatMonthParam(monthDate);
 
   const { start: gridStart, end: gridEnd } = getMonthGridRange(monthDate);
   const { start: agendaStart, end: agendaEnd } = getUpcomingAgendaRange();
@@ -63,9 +60,6 @@ export default async function MinivolleyPage({
   );
   const monthEvents = sortEvents(expandTrainings(trainings, start, end, occurrencePlanIds));
   const eventsByDate = groupEventsByDate(monthEvents);
-  const agendaEventsByDate = groupEventsByDate(
-    monthEvents.filter((event) => event.date >= agendaStartStr && event.date <= agendaEndStr),
-  );
 
   const planById = new Map(plans.map((p) => [p.id, p] as const));
   const plansByEventId: Record<string, EventPlan> = {};
@@ -86,97 +80,71 @@ export default async function MinivolleyPage({
     if (records) attendanceByEventId[event.id] = { records };
   }
 
-  const isCurrentMonthView = monthParam === formatMonthParam(new Date());
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const upcoming = isCurrentMonthView
-    ? monthEvents.filter((event) => event.date >= todayStr).slice(0, 4)
-    : [];
+  // "Prossimo appuntamento" sempre ancorato a oggi (finestra fissa di 30
+  // giorni), qualunque sia il mese sfogliato nel calendario sotto.
+  const upcoming = monthEvents
+    .filter((event) => event.date >= agendaStartStr && event.date <= agendaEndStr)
+    .slice(0, 4);
 
   return (
     <div className="flex min-h-screen flex-col">
       <PublicHeader team="minivolley" />
       <PublicTour team="minivolley" />
 
-      <section className="auth-stage relative overflow-hidden">
+      <section className="auth-stage relative overflow-hidden border-b border-border">
         <Image
           src={crest}
           alt=""
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 z-0 h-[26rem] w-[26rem] select-none object-contain opacity-[0.1] sm:-right-16 sm:-top-20 sm:h-[34rem] sm:w-[34rem]"
+          className="pointer-events-none absolute -left-28 -top-16 z-0 h-[24rem] w-[24rem] select-none object-contain opacity-[0.07] sm:-left-24 sm:h-[30rem] sm:w-[30rem]"
         />
 
-        <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
-          <div className="max-w-xl">
-            <p className="eyebrow">
-              <Volleyball className="h-3 w-3" />
-              Minivolley
-            </p>
-            <h1 className="mt-4 font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl">
+        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-14 lg:px-8">
+          <div>
+            <p className="eyebrow">Minivolley · Lignano Sabbiadoro</p>
+            <h1 className="display-wide mt-3 text-[2.375rem] leading-[1.02] text-foreground sm:text-[3.25rem]">
               Calendario allenamenti
             </h1>
-            <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground sm:text-base">
-              <Waves className="h-4 w-4 shrink-0" />
-              Minivolley · Lignano Sabbiadoro
+            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground sm:text-base">
+              Orari, palestre e tornei del Minivolley, sempre aggiornati dallo staff.
             </p>
-            <a
-              href="/minivolley/calendario.ics"
-              data-tour="public-ics-button"
-              className="mt-5 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-muted"
-            >
-              <CalendarPlus className="h-4 w-4" />
-              Aggiungi al calendario
-            </a>
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              <a
+                href="/minivolley/calendario.ics"
+                data-tour="public-ics-button"
+                className={buttonVariants({ variant: "primary", size: "lg" })}
+              >
+                <CalendarPlus className="h-[18px] w-[18px]" />
+                Aggiungi al tuo calendario
+              </a>
+              <LinkButton href="/minivolley/presenze" variant="outline" size="lg">
+                <ClipboardCheck className="h-[18px] w-[18px]" />
+                Presenze
+              </LinkButton>
+            </div>
           </div>
 
-          {upcoming.length > 0 && (
-            <div className="mt-9">
-              <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-foreground/45">
-                <CalendarDays className="h-3.5 w-3.5" />
-                Prossimi impegni
-              </p>
-              <UpcomingStrip
-                events={upcoming}
-                plansByEventId={plansByEventId}
-                attendanceByEventId={attendanceByEventId}
-                callUpsByEventId={{}}
-              />
-            </div>
-          )}
-        </div>
-
-        <svg
-          aria-hidden
-          viewBox="0 0 1440 74"
-          preserveAspectRatio="none"
-          className="absolute inset-x-0 -bottom-px z-0 h-10 w-full text-background sm:h-14"
-        >
-          <path fill="currentColor" d="M0,74 L0,42 C240,10 480,10 720,30 C960,50 1200,50 1440,20 L1440,74 Z" />
-        </svg>
-      </section>
-
-      <main className="app-surface w-full flex-1">
-        <div className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8">
-          <MonthNav monthDate={monthDate} basePath="/minivolley" />
-
-          <CalendarSection
-            monthDate={monthDate}
-            eventsByDate={eventsByDate}
-            agendaEventsByDate={agendaEventsByDate}
+          <UpcomingPanel
+            events={upcoming}
             plansByEventId={plansByEventId}
             attendanceByEventId={attendanceByEventId}
             callUpsByEventId={{}}
           />
-
-          <CalendarLegend
-            items={[
-              { icon: Dumbbell, label: "Allenamento", badgeClass: TRAINING_BADGE },
-              { icon: Trophy, label: "Torneo", badgeClass: TORNEO_BADGE },
-            ]}
-          />
         </div>
+      </section>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-14 pt-8 sm:px-6 sm:pt-10 lg:px-8">
+        <CalendarSection
+          monthDate={monthDate}
+          eventsByDate={eventsByDate}
+          plansByEventId={plansByEventId}
+          attendanceByEventId={attendanceByEventId}
+          callUpsByEventId={{}}
+          monthNav={<MonthNav monthDate={monthDate} basePath="/minivolley" />}
+        />
       </main>
 
-      <PublicFooter tagline="Minivolley · Lignano Sabbiadoro" />
+      <PublicFooter tagline="Minivolley · Lignano Sabbiadoro" team="minivolley" />
     </div>
   );
 }

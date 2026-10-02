@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { ArrowLeft, Check, Download, MapPin, ShieldAlert, ShieldQuestion, X } from "lucide-react";
-import { format } from "date-fns";
+import { ChevronRight, Download, History } from "lucide-react";
+import Link from "next/link";
+import { it } from "date-fns/locale";
+import { format, parseISO } from "date-fns";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { formatDateLong } from "@/lib/format";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
-import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
-import { deleteAttendanceSessionAction } from "../actions";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata: Metadata = {
   title: "Storico presenze",
@@ -24,86 +24,80 @@ export default async function AttendanceHistoryPage() {
 
   return (
     <div>
-      <LinkButton href="/admin/presenze" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle presenze
-      </LinkButton>
-
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Storico presenze</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Tutti i registri salvati, dal più recente.
-          </p>
-        </div>
-        <LinkButton href="/api/presenze/storico/csv" variant="ghost" size="sm">
-          <Download className="h-4 w-4" />
-          Esporta CSV
-        </LinkButton>
-      </div>
+      <PageHeader
+        back={{ href: "/admin/presenze", label: "Presenze" }}
+        title="Storico presenze"
+        description="Tutti i registri salvati, dal più recente. Apri un registro per modificarlo."
+        actions={
+          <LinkButton href="/api/presenze/storico/csv" variant="outline">
+            <Download className="h-4 w-4" />
+            Esporta CSV
+          </LinkButton>
+        }
+      />
 
       {sessions.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-muted-foreground">
-          Nessun registro ancora. Registra le presenze di un allenamento dalla schermata principale.
-        </div>
+        <EmptyState
+          icon={History}
+          title="Nessun registro ancora"
+          description="Registra le presenze di un allenamento dal calendario delle presenze."
+        />
       ) : (
-        <div className="mt-6 space-y-3">
+        <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
           {sessions.map((s) => {
             const statuses = Object.values(s.records);
             const present = statuses.filter((v) => v === "present").length;
             const excused = statuses.filter((v) => v === "excused").length;
             const unexcused = statuses.filter((v) => v === "unexcused").length;
+            const total = statuses.length;
             const isMini = s.team === "minivolley";
+            const date = parseISO(s.sessionDate);
             return (
-              <Card key={s.id}>
-                <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-5">
-                  <div className="min-w-0">
-                    <p className="font-semibold capitalize text-foreground">
-                      {formatDateLong(s.sessionDate)}
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">
-                        {s.title} · {s.location}
-                      </span>
-                    </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
-                      <span className="flex items-center gap-1 text-[var(--color-u14-strong)]">
-                        <Check className="h-3.5 w-3.5" />
-                        {present} presenti
-                      </span>
-                      {!isMini && (
-                        <>
-                          <span className="flex items-center gap-1 text-[var(--color-sand-700)]">
-                            <ShieldQuestion className="h-3.5 w-3.5" />
-                            {excused} giustificate
-                          </span>
-                          <span className="flex items-center gap-1 text-destructive">
-                            <ShieldAlert className="h-3.5 w-3.5" />
-                            {unexcused} non giustificate
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <LinkButton href={`/admin/presenze/storico/${s.id}`} variant="outline" size="sm">
-                      Apri
-                    </LinkButton>
-                    <form action={deleteAttendanceSessionAction}>
-                      <input type="hidden" name="id" value={s.id} />
-                      <ConfirmSubmitButton
-                        confirmMessage={`Eliminare il registro di "${s.title}" del ${formatDateLong(s.sessionDate)}?`}
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/8"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </ConfirmSubmitButton>
-                    </form>
-                  </div>
-                </CardBody>
-              </Card>
+              <Link
+                key={s.id}
+                href={`/admin/presenze/storico/${s.id}`}
+                className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-muted sm:px-5"
+              >
+                <span className="w-11 shrink-0 text-center">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    {format(date, "EEE", { locale: it })}
+                  </span>
+                  <span className="display-wide tabular block text-[1.375rem] leading-7 text-foreground">
+                    {format(date, "d")}
+                  </span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    {format(date, "MMM", { locale: it })}
+                  </span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-foreground group-hover:text-primary">{s.title}</span>
+                  <span className="block truncate text-[13px] text-muted-foreground">{s.location}</span>
+                  {!isMini && total > 0 && (
+                    <span className="mt-2 flex h-1.5 max-w-xs overflow-hidden rounded-full bg-muted">
+                      <span className="bg-success" style={{ width: `${(present / total) * 100}%` }} />
+                      <span className="bg-warning" style={{ width: `${(excused / total) * 100}%` }} />
+                      <span className="bg-destructive" style={{ width: `${(unexcused / total) * 100}%` }} />
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="tabular block font-display text-lg font-bold leading-tight text-foreground">
+                    {present}
+                    {!isMini && <span className="text-sm font-semibold text-muted-foreground">/{total}</span>}
+                  </span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    presenti
+                  </span>
+                  {!isMini && (excused > 0 || unexcused > 0) && (
+                    <span className="tabular mt-0.5 block text-[11px] font-semibold">
+                      {excused > 0 && <span className="text-warning">{excused} giust.</span>}
+                      {excused > 0 && unexcused > 0 && <span className="text-muted-foreground"> · </span>}
+                      {unexcused > 0 && <span className="text-destructive">{unexcused} non giust.</span>}
+                    </span>
+                  )}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+              </Link>
             );
           })}
         </div>

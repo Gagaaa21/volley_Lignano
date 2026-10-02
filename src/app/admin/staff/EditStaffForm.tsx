@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, KeyRound, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, Label, FieldError, FieldHint, Toggle, FormActions } from "@/components/ui/Field";
 import { updateStaffAction, type UpdateStaffFormState } from "./actions";
 import type { StaffMember } from "@/lib/types";
 
@@ -13,7 +13,7 @@ const initialState: UpdateStaffFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" size="lg" disabled={pending}>
       <Save className="h-4 w-4" />
       {pending ? "Salvataggio…" : "Salva modifiche"}
     </Button>
@@ -46,20 +46,12 @@ export function EditStaffForm({ member }: { member: StaffMember }) {
         </FieldHint>
       </div>
 
-      <label className="flex items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm">
-        <input
-          type="checkbox"
-          name="hiddenFromAdmins"
-          defaultChecked={member.hiddenFromAdmins}
-          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-subtle text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <span>
-          <span className="block font-medium text-foreground">Nascondi questo admin agli altri admin</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            Sparisce dall&apos;elenco Staff visto da altri account Admin. Tu (Developer) lo vedi comunque sempre.
-          </span>
-        </span>
-      </label>
+      <Toggle
+        name="hiddenFromAdmins"
+        defaultChecked={member.hiddenFromAdmins}
+        label="Nascondi agli altri admin"
+        description="Sparisce dall'elenco Staff visto da altri account Admin. Tu (Developer) lo vedi comunque sempre."
+      />
 
       {state.error && (
         <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5">
@@ -68,7 +60,7 @@ export function EditStaffForm({ member }: { member: StaffMember }) {
       )}
 
       {state.saved && (
-        <div className="rounded-xl border border-[var(--color-u14)]/30 bg-[var(--color-u14-soft)] px-4 py-3 text-sm text-[var(--color-u14-strong)]">
+        <div className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 text-sm text-success">
           <p className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             Modifiche salvate
@@ -83,7 +75,9 @@ export function EditStaffForm({ member }: { member: StaffMember }) {
         </div>
       )}
 
-      <SubmitButton />
+      <FormActions>
+        <SubmitButton />
+      </FormActions>
     </form>
   );
 }

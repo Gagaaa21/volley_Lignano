@@ -2,9 +2,9 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Puzzle } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, Label, Textarea, FieldError, FieldHint, FormActions, Toggle } from "@/components/ui/Field";
 import { createPlanAction, type PlanFormState } from "./actions";
 
 const initialState: PlanFormState = {};
@@ -23,8 +23,8 @@ Lavoro a coppie con:
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
-      <Puzzle className="h-4 w-4" />
+    <Button type="submit" size="lg" disabled={pending}>
+      <ClipboardList className="h-4 w-4" />
       {pending ? "Creazione…" : label}
     </Button>
   );
@@ -43,19 +43,16 @@ export function PlanCreateForm({
   const isForOccurrence = Boolean(occurrenceRuleId && occurrenceDate);
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form action={formAction} className="space-y-5" noValidate>
       {isForOccurrence && (
         <>
           <input type="hidden" name="occurrenceRuleId" value={occurrenceRuleId} />
           <input type="hidden" name="occurrenceDate" value={occurrenceDate} />
-          <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-muted/60 px-3.5 py-3 text-sm font-medium text-foreground/85">
-            <input
-              type="checkbox"
-              name="isPublic"
-              className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
-            />
-            Visibile sul calendario pubblico (genitori e atlete)
-          </label>
+          <Toggle
+            name="isPublic"
+            label="Visibile sul calendario pubblico"
+            description="Genitori e atlete la vedono nei dettagli dell'allenamento."
+          />
         </>
       )}
 
@@ -72,29 +69,25 @@ export function PlanCreateForm({
 
       <div>
         <Label htmlFor="pastedText">Incolla il contenuto dell&apos;allenamento (opzionale)</Label>
-        <Textarea id="pastedText" name="pastedText" rows={12} placeholder={EXAMPLE} className="font-mono text-xs" />
+        <Textarea
+          id="pastedText"
+          name="pastedText"
+          rows={12}
+          placeholder={EXAMPLE}
+          className="bg-surface-muted font-mono text-[13px] leading-relaxed sm:text-xs"
+        />
         <FieldHint>
-          Ogni blocco deve iniziare con una riga tipo &quot;1. TITOLO – 10&apos;&quot;. Il testo
-          viene diviso automaticamente in blocchi, uno per intestazione: il contenuto resta
-          esattamente come scritto, senza modifiche. Lascia vuoto per creare una scheda senza
-          blocchi.
-        </FieldHint>
-        <label className="mt-2.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5">
-          <input
-            type="checkbox"
-            name="useAi"
-            className="h-4 w-4 shrink-0 rounded border-border-subtle accent-sea-700 focus:ring-sea-500"
-          />
-          <span className="text-sm font-medium text-foreground/85">
-            Dividi con l&apos;aiuto dell&apos;IA
-          </span>
-        </label>
-        <FieldHint>
-          Consigliato per testi con formattazione irregolare. Se non selezionato, l&apos;IA viene
-          comunque usata automaticamente come ripiego solo se il riconoscimento automatico non
-          trova nessun blocco.
+          Ogni blocco inizia con una riga tipo &quot;1. TITOLO – 10&apos;&quot;: il testo viene diviso in
+          blocchi, uno per intestazione, senza modificarne il contenuto. Lascia vuoto per una scheda
+          senza blocchi.
         </FieldHint>
       </div>
+
+      <Toggle
+        name="useAi"
+        label="Dividi con l'aiuto dell'IA"
+        description="Consigliato per testi con formattazione irregolare. Senza questa opzione l'IA interviene solo se non viene riconosciuto nessun blocco."
+      />
 
       <div>
         <Label htmlFor="notes">Note (opzionale)</Label>
@@ -107,7 +100,9 @@ export function PlanCreateForm({
         </div>
       )}
 
-      <SubmitButton label={isForOccurrence ? "Crea e collega" : "Crea scheda"} />
+      <FormActions>
+        <SubmitButton label={isForOccurrence ? "Crea e collega" : "Crea scheda"} />
+      </FormActions>
     </form>
   );
 }

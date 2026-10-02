@@ -1,22 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Clock,
-  Globe,
-  Lock,
-  Puzzle,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Clock, Globe, Layers, Lock, Trash2, X } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader, SectionHeading } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { cn } from "@/lib/cn";
@@ -26,14 +16,6 @@ import { PlanDetailsForm } from "./PlanDetailsForm";
 export const metadata: Metadata = {
   title: "Scheda allenamento",
 };
-
-const ACCENTS = [
-  "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]",
-  "bg-[var(--color-u15-soft)] text-[var(--color-u15-strong)]",
-  "bg-[var(--color-training-soft)] text-[var(--color-training-strong)]",
-  "bg-sea-100 text-sea-700",
-  "bg-sand-200 text-sand-800",
-];
 
 export default async function TrainingPlanDetailPage({
   params,
@@ -58,156 +40,167 @@ export default async function TrainingPlanDetailPage({
     .filter((o) => o.planId === plan.id)
     .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
 
+  const iconButton =
+    "grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-25";
+  // Minuto d'inizio di ogni blocco (somma delle durate precedenti).
+  const blockStarts = planBlocks.map((_, i) =>
+    planBlocks.slice(0, i).reduce((sum, b) => sum + b.durationMinutes, 0),
+  );
+
   return (
-    <div className="mx-auto max-w-3xl">
-      <LinkButton href="/admin/schede" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle schede
-      </LinkButton>
+    <div>
+      <PageHeader
+        back={{ href: "/admin/schede", label: "Schede" }}
+        eyebrow="Scheda allenamento"
+        title={plan.title}
+        description={
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <Layers className="h-4 w-4" />
+              {planBlocks.length} blocch{planBlocks.length === 1 ? "o" : "i"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              <span className="tabular">{totalMinutes}&apos;</span> totali
+            </span>
+          </span>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">Dettagli scheda</h2>
-        </CardHeader>
-        <CardBody>
-          <PlanDetailsForm plan={plan} />
-        </CardBody>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
-            <CalendarDays className="h-4 w-4 text-sea-700" />
-            Programmata per
-          </h2>
-        </CardHeader>
-        <CardBody>
-          {occurrences.length === 0 ? (
-            <p className="text-sm text-foreground/50">
-              Non ancora collegata a nessuna data. Collegala da un allenamento nel calendario.
-            </p>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10">
+        <section className="min-w-0">
+          <SectionHeading title="Blocchi" />
+          {planBlocks.length === 0 ? (
+            <EmptyState icon={Layers} title="Nessun blocco" description="Questa scheda non ha ancora blocchi." />
           ) : (
-            <ul className="space-y-1.5">
-              {occurrences.map((o) => {
-                const isPast = o.occurrenceDate < todayStr;
+            <ol className="space-y-3">
+              {planBlocks.map((block, index) => {
+                const from = blockStarts[index];
+                const to = from + block.durationMinutes;
                 return (
-                  <li key={o.id}>
-                    <Link
-                      href={`/admin/allenamenti/scheda/${o.trainingRuleId}/${o.occurrenceDate}`}
-                      className={cn(
-                        "flex items-center justify-between gap-3 rounded-xl border border-border-subtle px-3.5 py-2.5 text-sm transition-colors hover:border-primary/25 hover:bg-primary/5",
-                        isPast && "opacity-55",
-                      )}
-                    >
-                      <span className="min-w-0 truncate font-medium text-foreground">
-                        {trainingTitleById.get(o.trainingRuleId) ?? "Allenamento"} ·{" "}
-                        {formatDateLong(o.occurrenceDate)}
+                  <li key={block.id} className="flex gap-3 sm:gap-4">
+                    <div className="flex flex-col items-center">
+                      <span className="tabular grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                        {index + 1}
                       </span>
-                      <span className="flex shrink-0 items-center gap-1.5 text-foreground/45">
-                        {o.isPublic ? (
-                          <Globe className="h-3.5 w-3.5 text-sea-700" aria-label="Visibile al pubblico" />
-                        ) : (
-                          <Lock className="h-3.5 w-3.5" aria-label="Non pubblica" />
-                        )}
-                        <ChevronRight className="h-4 w-4" />
-                      </span>
-                    </Link>
+                      {index < planBlocks.length - 1 && <span className="mt-1.5 w-px flex-1 bg-border-strong" />}
+                    </div>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-display text-base font-bold leading-snug text-foreground">{block.title}</h3>
+                          <p className="tabular mt-1 text-xs font-semibold text-muted-foreground">
+                            {block.durationMinutes}&apos; · dal minuto {from} al {to}
+                          </p>
+                        </div>
+                        <div className="-mr-1.5 -mt-1 flex shrink-0 items-center">
+                          <form action={reorderPlanBlockAction}>
+                            <input type="hidden" name="planId" value={plan.id} />
+                            <input type="hidden" name="blockId" value={block.id} />
+                            <input type="hidden" name="direction" value="up" />
+                            <button type="submit" disabled={index === 0} aria-label="Sposta su" className={iconButton}>
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                          </form>
+                          <form action={reorderPlanBlockAction}>
+                            <input type="hidden" name="planId" value={plan.id} />
+                            <input type="hidden" name="blockId" value={block.id} />
+                            <input type="hidden" name="direction" value="down" />
+                            <button
+                              type="submit"
+                              disabled={index === planBlocks.length - 1}
+                              aria-label="Sposta giù"
+                              className={iconButton}
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </form>
+                          <form action={removeBlockFromPlanAction}>
+                            <input type="hidden" name="planId" value={plan.id} />
+                            <input type="hidden" name="blockId" value={block.id} />
+                            <button
+                              type="submit"
+                              aria-label="Rimuovi dalla scheda"
+                              className={cn(iconButton, "hover:bg-destructive/8 hover:text-destructive")}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                      <BlockContent content={block.content} className="mt-3" />
+                    </div>
                   </li>
                 );
               })}
-            </ul>
+            </ol>
           )}
-        </CardBody>
-      </Card>
+        </section>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4 text-sm font-medium text-foreground/60">
-          <span className="flex items-center gap-1.5">
-            <Puzzle className="h-4 w-4 text-sea-700" />
-            {planBlocks.length} blocch{planBlocks.length === 1 ? "o" : "i"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4 text-sea-700" />
-            {totalMinutes}&apos; totali
-          </span>
-        </div>
-        <form action={deletePlanAction}>
-          <input type="hidden" name="id" value={plan.id} />
-          <ConfirmSubmitButton
-            confirmMessage={`Eliminare la scheda "${plan.title}"?`}
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:bg-destructive/8"
-          >
-            Elimina scheda
-          </ConfirmSubmitButton>
-        </form>
-      </div>
+        <aside className="space-y-8">
+          <section>
+            <SectionHeading title="Programmata per" />
+            {occurrences.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-border-strong px-4 py-4 text-sm text-muted-foreground">
+                Non ancora collegata a nessuna data. Collegala da un allenamento nel calendario.
+              </p>
+            ) : (
+              <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                {occurrences.map((o) => {
+                  const isPast = o.occurrenceDate < todayStr;
+                  return (
+                    <Link
+                      key={o.id}
+                      href={`/admin/allenamenti/scheda/${o.trainingRuleId}/${o.occurrenceDate}`}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-surface-muted",
+                        isPast && "opacity-55",
+                      )}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-foreground">
+                          {formatDateLong(o.occurrenceDate)}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {trainingTitleById.get(o.trainingRuleId) ?? "Allenamento"}
+                        </span>
+                      </span>
+                      {o.isPublic ? (
+                        <Globe className="h-4 w-4 shrink-0 text-primary" aria-label="Visibile al pubblico" />
+                      ) : (
+                        <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Non pubblica" />
+                      )}
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-      <ol className="relative mt-6 space-y-4 border-l-2 border-dashed border-border-subtle pl-6">
-        {planBlocks.map((block, index) => (
-          <li key={block.id} className="relative">
-            <span
-              className={`absolute -left-[calc(1.5rem+11px)] top-5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${ACCENTS[index % ACCENTS.length]}`}
-            >
-              {index + 1}
-            </span>
+          <section>
+            <SectionHeading title="Dettagli" />
             <Card>
               <CardBody className="pt-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-display text-base font-bold text-foreground">{block.title}</h3>
-                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-foreground/50">
-                      <Clock className="h-3 w-3" />
-                      {block.durationMinutes}&apos;
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <form action={reorderPlanBlockAction}>
-                      <input type="hidden" name="planId" value={plan.id} />
-                      <input type="hidden" name="blockId" value={block.id} />
-                      <input type="hidden" name="direction" value="up" />
-                      <button
-                        type="submit"
-                        disabled={index === 0}
-                        aria-label="Sposta su"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-surface-muted disabled:opacity-25"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </button>
-                    </form>
-                    <form action={reorderPlanBlockAction}>
-                      <input type="hidden" name="planId" value={plan.id} />
-                      <input type="hidden" name="blockId" value={block.id} />
-                      <input type="hidden" name="direction" value="down" />
-                      <button
-                        type="submit"
-                        disabled={index === planBlocks.length - 1}
-                        aria-label="Sposta giù"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-surface-muted disabled:opacity-25"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </button>
-                    </form>
-                    <form action={removeBlockFromPlanAction}>
-                      <input type="hidden" name="planId" value={plan.id} />
-                      <input type="hidden" name="blockId" value={block.id} />
-                      <button
-                        type="submit"
-                        aria-label="Rimuovi dalla scheda"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground/50 transition-colors hover:bg-destructive/8 hover:text-destructive"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </form>
-                  </div>
-                </div>
-                <BlockContent content={block.content} className="mt-3" />
+                <PlanDetailsForm plan={plan} />
               </CardBody>
             </Card>
-          </li>
-        ))}
-      </ol>
+          </section>
+
+          <form action={deletePlanAction}>
+            <input type="hidden" name="id" value={plan.id} />
+            <ConfirmSubmitButton
+              confirmMessage={`Eliminare la scheda "${plan.title}"?`}
+              variant="danger-ghost"
+              size="sm"
+              className="-ml-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Elimina scheda
+            </ConfirmSubmitButton>
+          </form>
+        </aside>
+      </div>
     </div>
   );
 }

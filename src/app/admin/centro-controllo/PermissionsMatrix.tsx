@@ -1,6 +1,7 @@
 "use client";
 
 import { ADMIN_PAGES, ADMIN_PAGE_LABELS, TEAMS, TEAM_LABELS, type AdminPage, type TrainingTeam } from "@/lib/types";
+import { Avatar } from "@/components/ui/Avatar";
 import { updateStaffPermissionsAction } from "./actions";
 
 interface AdminRow {
@@ -15,19 +16,22 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
   return (
     <form
       action={updateStaffPermissionsAction}
-      className="rounded-xl border border-border-subtle px-3.5 py-3"
+      className="rounded-xl border border-border bg-surface px-4 py-3.5"
     >
       <input type="hidden" name="staffId" value={admin.id} />
-      <div className="min-w-0">
-        <p className="truncate font-medium text-foreground">{admin.fullName}</p>
-        <p className="truncate text-xs text-foreground/50">@{admin.username}</p>
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar name={admin.fullName} size="sm" />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-foreground">{admin.fullName}</p>
+          <p className="truncate text-xs text-muted-foreground">@{admin.username}</p>
+        </div>
       </div>
-      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Pagine</p>
+      <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Pagine</p>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {ADMIN_PAGES.map((page) => (
           <label
             key={page}
-            className="cursor-pointer rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-input bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
           >
             <input
               type="checkbox"
@@ -41,12 +45,12 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
           </label>
         ))}
       </div>
-      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Squadre</p>
+      <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Squadre</p>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {TEAMS.map((team) => (
           <label
             key={team}
-            className="cursor-pointer rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-input bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
           >
             <input
               type="checkbox"

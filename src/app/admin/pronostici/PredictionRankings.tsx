@@ -19,9 +19,7 @@ export function SetRankingBadges({
           key={entry.staffId}
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
-            entry.isWinner
-              ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
-              : "bg-surface-muted text-foreground/60",
+            entry.isWinner ? "bg-sand-400 text-sea-950" : "bg-card text-foreground/70 ring-1 ring-border",
           )}
         >
           {entry.isWinner && <Trophy className="h-3 w-3" />}

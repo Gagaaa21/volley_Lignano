@@ -1,27 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Baloo_2, IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
+import { Archivo, Baloo_2, Inter } from "next/font/google";
 import { PwaClient } from "@/components/pwa/PwaClient";
 import { PwaInstallProvider } from "@/components/pwa/PwaInstallContext";
 import "./globals.css";
 
-const body = IBM_Plex_Sans({
-  variable: "--font-body",
+const body = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
-const display = Libre_Baskerville({
-  variable: "--font-display",
+// Titoli e numeri: grottesco sportivo con asse di larghezza (usato in
+// versione leggermente "espansa", vedi font-stretch in globals.css).
+const display = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
-  weight: ["400", "700"],
+  axes: ["wdth"],
 });
 
-// Titoli del sito Minivolley: un carattere rotondo e giocoso al posto del
-// serif elegante del sito U14/U15 principale, applicato solo dentro
+// Titoli del sito Minivolley: un carattere rotondo e giocoso al posto di
+// quello del sito U14/U15 principale, applicato solo dentro
 // [data-theme="minivolley"] (vedi globals.css) — un segnale immediato, a
 // colpo d'occhio, che non si tratta della stessa pagina.
 const displayMinivolley = Baloo_2({
-  variable: "--font-display-minivolley",
+  variable: "--font-baloo",
   subsets: ["latin"],
   weight: ["600", "700", "800"],
 });
@@ -63,7 +64,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1f5084",
+  themeColor: "#1c5bae",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

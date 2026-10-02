@@ -49,16 +49,16 @@ export function NotificationForm({
 
       <div>
         <Label>Destinatari</Label>
-        <div className="flex flex-wrap gap-2">
-          <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
+        <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1">
+          <label className="flex-1 cursor-pointer whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
             <input type="radio" name="audience" value="all-u14u15" defaultChecked className="sr-only" />
             Tutti U14/U15 ({u14u15Subscribers})
           </label>
-          <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
+          <label className="flex-1 cursor-pointer whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
             <input type="radio" name="audience" value="all-minivolley" className="sr-only" />
             Tutti Minivolley ({minivolleySubscribers})
           </label>
-          <label className="flex-1 cursor-pointer rounded-xl border border-border-subtle bg-surface px-4 py-2.5 text-center text-sm font-semibold text-foreground/70 transition-colors has-[:checked]:border-sea-700 has-[:checked]:bg-sea-700 has-[:checked]:text-white">
+          <label className="flex-1 cursor-pointer whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
             <input type="radio" name="audience" value="admins" className="sr-only" />
             Solo Admin ({adminSubscribers})
           </label>

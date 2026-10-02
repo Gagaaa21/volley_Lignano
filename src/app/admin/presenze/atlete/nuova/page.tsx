@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AthleteForm } from "../AthleteForm";
 
 export const metadata: Metadata = {
@@ -13,21 +12,13 @@ export default async function NewAthletePage() {
   const team = await resolveActiveTeam(await requireStaff());
   return (
     <div className="mx-auto max-w-xl">
-      <LinkButton href="/admin/presenze/atlete" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle atlete
-      </LinkButton>
-
-      <h1 className="font-display text-2xl font-bold text-foreground">Nuova atleta</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Entra nell&apos;anagrafica usata per il registro presenze.
-      </p>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
-        </CardHeader>
-        <CardBody>
+      <PageHeader
+        back={{ href: "/admin/presenze/atlete", label: "Atlete" }}
+        title="Nuova atleta"
+        description="Entra nell'anagrafica usata per il registro presenze."
+      />
+      <Card>
+        <CardBody className="pt-6">
           <AthleteForm team={team} />
         </CardBody>
       </Card>

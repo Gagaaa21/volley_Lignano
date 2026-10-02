@@ -175,4 +175,5 @@ export async function deleteAthleteAction(formData: FormData): Promise<void> {
   await repo.deleteAthlete(id);
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/atlete");
+  redirect("/admin/presenze/atlete");
 }

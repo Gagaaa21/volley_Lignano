@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { MapPin, Target, Trophy } from "lucide-react";
+import type { ReactNode } from "react";
+import { format, parseISO } from "date-fns";
+import { it } from "date-fns/locale";
+import { Lock, MapPin, Target, Trophy } from "lucide-react";
 import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
@@ -13,6 +16,9 @@ import {
   matchHasResult,
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { PageHeader, SectionHeading } from "@/components/ui/PageHeader";
+import { Avatar } from "@/components/ui/Avatar";
+import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_PRONOSTICI_STEPS } from "@/components/tour/sectionSteps";
@@ -51,141 +57,175 @@ export default async function PronosticiPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Pronostici</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Pronostica il punteggio di ogni set prima che si giochi: chi si avvicina di più vince il set. A fine
-            stagione vince chi ha totalizzato più punti.
-          </p>
-        </div>
-        <SectionTour steps={SECTION_PRONOSTICI_STEPS} />
-      </div>
+      <PageHeader
+        title="Pronostici"
+        description="Pronostica il punteggio di ogni set: chi si avvicina di più vince il set. A fine stagione vince chi ha più punti."
+        help={<SectionTour steps={SECTION_PRONOSTICI_STEPS} />}
+      />
 
-      <Card className="mt-6" data-tour="section-pronostici-leaderboard">
-        <CardHeader>
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
-            <Trophy className="h-4 w-4 text-sand-600" />
-            Classifica
-          </h2>
-        </CardHeader>
-        <CardBody>
-          {leaderboard.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nessun set ancora giudicato: la classifica si popola man mano che arrivano i risultati.
-            </p>
-          ) : (
-            <ol className="space-y-1.5">
-              {leaderboard.map((entry, i) => (
-                <li
-                  key={entry.staffId}
-                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 odd:bg-surface-muted/60"
-                >
-                  <span className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sea-100 text-xs font-bold text-sea-800">
-                      {i + 1}
-                    </span>
-                    <span className="truncate font-medium text-foreground">
-                      {nameById.get(entry.staffId) ?? "Utente rimosso"}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-foreground/70">
-                    {entry.points} {entry.points === 1 ? "punto" : "punti"}
-                  </span>
-                </li>
-              ))}
-            </ol>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10">
+        <div className="min-w-0 space-y-9">
+          <section data-tour="section-pronostici-open">
+            <SectionHeading title="Da pronosticare" />
+            {upcoming.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-10 text-center text-sm text-muted-foreground">
+                Nessuna partita in programma al momento.
+              </div>
+            ) : (
+              <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                {upcoming.map((match) => {
+                  const matchPredictions = predictionsByMatch.get(match.id) ?? [];
+                  const mine = matchPredictions.find((p) => p.staffId === session.sub);
+                  const count = matchPredictions.length;
+                  const openToday = isMatchDayToday(match.matchDate);
+                  return (
+                    <MatchRow
+                      key={match.id}
+                      match={match}
+                      status={
+                        <p className={cn("mt-1 text-xs font-semibold", openToday ? "text-success" : "text-muted-foreground")}>
+                          {openToday ? (
+                            count === 0 ? (
+                              "Aperto oggi · nessun pronostico ancora"
+                            ) : (
+                              `Aperto oggi · ${count} pronostic${count === 1 ? "o" : "i"}`
+                            )
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <Lock className="h-3 w-3" />
+                              Si apre il giorno della partita
+                            </span>
+                          )}
+                        </p>
+                      }
+                      action={
+                        <LinkButton
+                          href={`/admin/pronostici/${match.id}`}
+                          variant={openToday && !mine ? "primary" : "outline"}
+                          size="sm"
+                        >
+                          <Target className="h-3.5 w-3.5" />
+                          {openToday ? (mine ? "Modifica" : "Pronostica") : "Dettagli"}
+                        </LinkButton>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {lockedNoResult.length > 0 && (
+            <section>
+              <SectionHeading title="In attesa del risultato" />
+              <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                {lockedNoResult.map((match) => (
+                  <MatchRow
+                    key={match.id}
+                    match={match}
+                    action={
+                      <LinkButton href={`/admin/pronostici/${match.id}`} variant="outline" size="sm">
+                        Vedi pronostici
+                      </LinkButton>
+                    }
+                  />
+                ))}
+              </div>
+            </section>
           )}
-        </CardBody>
-      </Card>
 
-      <div className="mt-8" data-tour="section-pronostici-open">
-        <h2 className="font-display text-lg font-bold text-foreground">Da pronosticare</h2>
-        {upcoming.length === 0 ? (
-          <div className="mt-3 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-10 text-center text-sm text-foreground/50">
-            Nessuna partita in programma al momento.
+          {withResult.length > 0 && (
+            <section data-tour="section-pronostici-results">
+              <SectionHeading title="Risultati" />
+              <div className="space-y-4">
+                {withResult.map((match) => (
+                  <MatchResultCard
+                    key={match.id}
+                    match={match}
+                    predictions={predictionsByMatch.get(match.id) ?? []}
+                    nameById={nameById}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <aside data-tour="section-pronostici-leaderboard">
+          <SectionHeading title="Classifica" />
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+            {leaderboard.length === 0 ? (
+              <div className="flex flex-col items-center px-6 py-8 text-center">
+                <span className="mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-sand-100 text-sand-700">
+                  <Trophy className="h-5 w-5" />
+                </span>
+                <p className="text-sm text-muted-foreground">
+                  Nessun set ancora giudicato: la classifica si popola man mano che arrivano i risultati.
+                </p>
+              </div>
+            ) : (
+              <ol className="divide-y divide-border">
+                {leaderboard.map((entry, i) => {
+                  const name = nameById.get(entry.staffId) ?? "Utente rimosso";
+                  return (
+                    <li key={entry.staffId} className={cn("flex items-center gap-3 px-4 py-3", i === 0 && "bg-sand-50")}>
+                      <span
+                        className={cn(
+                          "tabular grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold",
+                          i === 0
+                            ? "bg-sand-400 text-sea-950"
+                            : i === 1
+                              ? "bg-muted text-foreground/80 ring-1 ring-border-strong"
+                              : i === 2
+                                ? "bg-sand-100 text-sand-800"
+                                : "text-muted-foreground",
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                      <Avatar name={name} size="sm" tone={i === 0 ? "gold" : "neutral"} />
+                      <span className="min-w-0 flex-1 truncate font-semibold text-foreground">{name}</span>
+                      <span className="tabular shrink-0 text-right">
+                        <span className="font-display text-lg font-bold text-foreground">{entry.points}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">pt</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
           </div>
-        ) : (
-          <div className="mt-3 space-y-3">
-            {upcoming.map((match) => {
-              const matchPredictions = predictionsByMatch.get(match.id) ?? [];
-              const mine = matchPredictions.find((p) => p.staffId === session.sub);
-              const count = matchPredictions.length;
-              const openToday = isMatchDayToday(match.matchDate);
-              return (
-                <Card key={match.id}>
-                  <CardBody className="flex flex-wrap items-center justify-between gap-4 pt-5">
-                    <div className="min-w-0">
-                      <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
-                      <p className="mt-1 text-sm text-foreground/60">
-                        {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
-                      </p>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm text-foreground/50">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{match.location}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-foreground/45">
-                        {openToday
-                          ? count === 0
-                            ? "Nessun pronostico ancora"
-                            : `${count} pronostic${count === 1 ? "o" : "i"}`
-                          : "Si apre il giorno della partita"}
-                      </p>
-                    </div>
-                    <LinkButton
-                      href={`/admin/pronostici/${match.id}`}
-                      variant={openToday && mine ? "outline" : openToday ? "primary" : "outline"}
-                      size="sm"
-                    >
-                      <Target className="h-3.5 w-3.5" />
-                      {openToday ? (mine ? "Modifica pronostico" : "Pronostica") : "Dettagli"}
-                    </LinkButton>
-                  </CardBody>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        </aside>
       </div>
+    </div>
+  );
+}
 
-      {lockedNoResult.length > 0 && (
-        <div className="mt-8">
-          <h2 className="font-display text-lg font-bold text-foreground">In attesa del risultato</h2>
-          <div className="mt-3 space-y-3">
-            {lockedNoResult.map((match) => (
-              <Card key={match.id}>
-                <CardBody className="flex flex-wrap items-center justify-between gap-4 pt-5">
-                  <div className="min-w-0">
-                    <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
-                    <p className="mt-1 text-sm text-foreground/60">
-                      {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
-                    </p>
-                  </div>
-                  <LinkButton href={`/admin/pronostici/${match.id}`} variant="outline" size="sm">
-                    Vedi pronostici
-                  </LinkButton>
-                </CardBody>
-              </Card>
-            ))}
-          </div>
+function MatchRow({ match, status, action }: { match: Match; status?: ReactNode; action: ReactNode }) {
+  const date = parseISO(match.matchDate.slice(0, 10));
+  return (
+    <div className="flex flex-col px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="w-11 shrink-0 text-center">
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            {format(date, "EEE", { locale: it })}
+          </span>
+          <span className="display-wide tabular block text-[1.375rem] leading-7 text-foreground">{format(date, "d")}</span>
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            {format(date, "MMM", { locale: it })}
+          </span>
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-foreground">{matchTitle(match)}</p>
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+            <span className="tabular shrink-0 font-semibold text-foreground/75">{match.matchDate.slice(11, 16)}</span>
+            <MapPin className="ml-1 h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{match.location}</span>
+          </p>
+          {status}
         </div>
-      )}
-
-      {withResult.length > 0 && (
-        <div className="mt-8" data-tour="section-pronostici-results">
-          <h2 className="font-display text-lg font-bold text-foreground">Risultati</h2>
-          <div className="mt-3 space-y-3">
-            {withResult.map((match) => (
-              <MatchResultCard
-                key={match.id}
-                match={match}
-                predictions={predictionsByMatch.get(match.id) ?? []}
-                nameById={nameById}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
+      <div className="mt-2.5 pl-[3.75rem] sm:mt-0 sm:pl-0">{action}</div>
     </div>
   );
 }
@@ -201,9 +241,11 @@ function MatchResultCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
-        <p className="mt-1 text-sm text-foreground/60">{formatDateLong(match.matchDate.slice(0, 10))}</p>
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
+          <p className="text-[13px] text-muted-foreground">{formatDateLong(match.matchDate.slice(0, 10))}</p>
+        </div>
       </CardHeader>
       <CardBody>
         {match.isTournament ? (
@@ -235,9 +277,9 @@ function MatchResultBlock({
       {results
         .filter((r) => r.rankings.length > 0)
         .map((r) => (
-          <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
-              Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
+          <div key={r.setIndex} className="rounded-xl bg-surface-muted px-3.5 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Set {r.setIndex + 1} · <span className="tabular text-foreground">{r.actual.us}–{r.actual.them}</span>
             </p>
             <SetRankingBadges rankings={r.rankings} nameById={nameById} />
           </div>
@@ -269,9 +311,9 @@ function TournamentResultBlock({
             {game.sets
               .filter((r) => r.rankings.length > 0)
               .map((r) => (
-                <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
-                    Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
+                <div key={r.setIndex} className="rounded-xl bg-surface-muted px-3.5 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Set {r.setIndex + 1} · <span className="tabular text-foreground">{r.actual.us}–{r.actual.them}</span>
                   </p>
                   <SetRankingBadges rankings={r.rankings} nameById={nameById} />
                 </div>

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Plus, Trophy } from "lucide-react";
+import { CalendarX2, Plus, Trophy } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SegmentedLinks } from "@/components/ui/Segmented";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TrainingList } from "./TrainingList";
 
 export const metadata: Metadata = {
@@ -45,60 +46,44 @@ export default async function TrainingsListPage({
 
   return (
     <div>
-      <LinkButton href="/admin/allenamenti" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna al calendario
-      </LinkButton>
-
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Elenco regole</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Orari ricorrenti e singoli giorni: giorni della settimana, orario e luogo di ogni allenamento.
-          </p>
-        </div>
-        {isMinivolley ? (
-          <div className="flex shrink-0 flex-wrap gap-2">
+      <PageHeader
+        back={{ href: "/admin/allenamenti", label: "Calendario" }}
+        title="Elenco regole"
+        description="Orari ricorrenti e singoli giorni: giorni della settimana, orario e luogo di ogni allenamento."
+        actions={
+          <>
+            {isMinivolley && (
+              <LinkButton href="/admin/allenamenti/nuovo?type=torneo" variant="outline">
+                <Trophy className="h-4 w-4" />
+                Nuovo torneo
+              </LinkButton>
+            )}
             <LinkButton href="/admin/allenamenti/nuovo">
               <Plus className="h-4 w-4" />
               Nuovo allenamento
             </LinkButton>
-            <LinkButton href="/admin/allenamenti/nuovo?type=torneo" variant="outline">
-              <Trophy className="h-4 w-4" />
-              Nuovo torneo
-            </LinkButton>
-          </div>
-        ) : (
-          <LinkButton href="/admin/allenamenti/nuovo">
-            <Plus className="h-4 w-4" />
-            Nuovo allenamento
-          </LinkButton>
-        )}
-      </div>
+          </>
+        }
+      />
 
       {isMinivolley && (
-        <div className="mt-5 inline-flex items-center gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm shadow-sea-950/5">
-          {(["all", "allenamenti", "tornei"] as const).map((value) => (
-            <Link
-              key={value}
-              href={value === "all" ? "/admin/allenamenti/elenco" : `/admin/allenamenti/elenco?type=${value}`}
-              className={cn(
-                "rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors",
-                activeType === value
-                  ? "bg-sea-700 text-white shadow-sm"
-                  : "text-foreground/60 hover:bg-surface-muted",
-              )}
-            >
-              {value === "all" ? "Tutti" : value === "allenamenti" ? "Allenamenti" : "Tornei"}
-            </Link>
-          ))}
-        </div>
+        <SegmentedLinks
+          className="mb-4"
+          ariaLabel="Filtra per tipo"
+          items={(["all", "allenamenti", "tornei"] as const).map((value) => ({
+            href: value === "all" ? "/admin/allenamenti/elenco" : `/admin/allenamenti/elenco?type=${value}`,
+            label: value === "all" ? "Tutti" : value === "allenamenti" ? "Allenamenti" : "Tornei",
+            active: activeType === value,
+          }))}
+        />
       )}
 
       {trainings.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
-          Nessun allenamento configurato. Creane uno per farlo comparire nel calendario pubblico.
-        </div>
+        <EmptyState
+          icon={CalendarX2}
+          title="Nessun allenamento configurato"
+          description="Creane uno per farlo comparire nel calendario pubblico."
+        />
       ) : (
         <TrainingList trainings={trainings} upcomingLinkedCountByRule={upcomingLinkedCountByRule} />
       )}

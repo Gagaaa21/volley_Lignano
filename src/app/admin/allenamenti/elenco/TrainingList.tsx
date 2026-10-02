@@ -1,19 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, Clock, MapPin, Pencil, Puzzle, Search } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, ClipboardList, Clock, MapPin } from "lucide-react";
 import { formatDateShort, formatWeekdays } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { trainingDotClass } from "@/lib/category";
-import { Card, CardBody } from "@/components/ui/Card";
-import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { SearchInput } from "@/components/ui/SearchInput";
 import type { TrainingRule } from "@/lib/types";
-import { deleteTrainingAction } from "../actions";
 
 /** Elenco regole allenamento con ricerca (mostrata solo oltre 5 regole,
- * stesso limite già usato per le atlete e le schede). */
+ * stesso limite già usato per le atlete e le schede). Ogni riga apre la
+ * pagina di modifica, dove si trova anche l'eliminazione. */
 export function TrainingList({
   trainings,
   upcomingLinkedCountByRule,
@@ -34,119 +33,73 @@ export function TrainingList({
   return (
     <div>
       {trainings.length > 5 && (
-        <div className="relative mt-5 max-w-sm">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca per titolo o luogo…"
-            className="w-full rounded-full border border-border-subtle bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-foreground/35 focus:border-primary/40 focus:outline-none"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Cerca per titolo o luogo…"
+          className="mb-4"
+        />
       )}
 
       {filtered.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Nessun allenamento trovato per &quot;{query}&quot;.
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {filtered.map((training) => (
-            <Card key={training.id}>
-              <CardBody className="pt-5">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="flex min-w-0 items-center gap-2 font-display text-base font-bold text-foreground">
-                    <span
-                      className={cn("h-2.5 w-2.5 shrink-0 rounded-full", trainingDotClass(training.color))}
-                      aria-hidden
-                    />
-                    <span className="truncate">{training.title}</span>
-                  </h2>
-                  <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    {training.isTournament && (
-                      <Badge className="bg-foreground/8 text-foreground/60">Torneo</Badge>
-                    )}
-                    <Badge
-                      className={
-                        training.isActive
-                          ? "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]"
-                          : "bg-foreground/10 text-foreground/50"
-                      }
-                    >
-                      {training.isActive ? "Attivo" : "Non attivo"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-sea-700">
-                  {training.repeat === "once" ? (
-                    <>
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      Singolo giorno
-                    </>
-                  ) : (
-                    formatWeekdays(training.weekdays)
-                  )}
-                </p>
-
-                <div className="mt-2 space-y-1.5 text-sm text-foreground/65">
-                  <p className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 shrink-0" />
-                    {training.startTime}–{training.endTime}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{training.location}</span>
-                  </p>
-                </div>
-
-                <p className="mt-3 text-xs text-foreground/45">
-                  {training.repeat === "once"
-                    ? `Il ${formatDateShort(training.startDate)}`
-                    : `Dal ${formatDateShort(training.startDate)}${
-                        training.endDate ? ` al ${formatDateShort(training.endDate)}` : " · senza scadenza"
-                      }`}
-                </p>
-
-                {(upcomingLinkedCountByRule[training.id] ?? 0) > 0 && (
-                  <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
-                    <Puzzle className="h-3.5 w-3.5" />
-                    {upcomingLinkedCountByRule[training.id] === 1
-                      ? "1 prossima data con scheda collegata"
-                      : `${upcomingLinkedCountByRule[training.id]} prossime date con scheda collegata`}
-                  </p>
+        <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+          {filtered.map((training) => {
+            const linked = upcomingLinkedCountByRule[training.id] ?? 0;
+            return (
+              <Link
+                key={training.id}
+                href={`/admin/allenamenti/${training.id}`}
+                className={cn(
+                  "group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-surface-muted sm:px-5",
+                  !training.isActive && "opacity-60",
                 )}
-
-                <div className="mt-4 flex items-center gap-2 border-t border-border-subtle pt-4">
-                  <LinkButton
-                    href={`/admin/allenamenti/${training.id}`}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Modifica
-                  </LinkButton>
-                  <form action={deleteTrainingAction}>
-                    <input type="hidden" name="id" value={training.id} />
-                    <ConfirmSubmitButton
-                      confirmMessage={`Eliminare l'allenamento "${training.title}" (${
-                        training.repeat === "once"
-                          ? formatDateShort(training.startDate)
-                          : formatWeekdays(training.weekdays)
-                      })?`}
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/8"
-                    >
-                      Elimina
-                    </ConfirmSubmitButton>
-                  </form>
+              >
+                <span className={cn("w-1 self-stretch rounded-full", trainingDotClass(training.color))} aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="font-semibold text-foreground group-hover:text-primary">{training.title}</p>
+                    {training.isTournament && <Badge tone="gold">Torneo</Badge>}
+                    {!training.isActive && <Badge>Non attivo</Badge>}
+                  </div>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">
+                      {training.repeat === "once" ? formatDateShort(training.startDate) : formatWeekdays(training.weekdays)}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="tabular">
+                        {training.startTime}–{training.endTime}
+                      </span>
+                    </span>
+                    <span className="inline-flex min-w-0 items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{training.location}</span>
+                    </span>
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                    <span>
+                      {training.repeat === "once"
+                        ? "Singolo giorno"
+                        : `Dal ${formatDateShort(training.startDate)}${
+                            training.endDate ? ` al ${formatDateShort(training.endDate)}` : " · senza scadenza"
+                          }`}
+                    </span>
+                    {linked > 0 && (
+                      <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                        <ClipboardList className="h-3.5 w-3.5" />
+                        {linked === 1 ? "1 data con scheda" : `${linked} date con scheda`}
+                      </span>
+                    )}
+                  </p>
                 </div>
-              </CardBody>
-            </Card>
-          ))}
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

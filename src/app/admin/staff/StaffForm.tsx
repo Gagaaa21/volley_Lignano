@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, FieldError, FieldHint } from "@/components/ui/Field";
+import { Input, Label, FieldError, FieldHint, FormActions } from "@/components/ui/Field";
 import { createStaffAction, type StaffFormState } from "./actions";
 
 const initialState: StaffFormState = {};
@@ -12,7 +12,7 @@ const initialState: StaffFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} className="w-full">
       <UserPlus className="h-4 w-4" />
       {pending ? "Creazione…" : "Crea account admin"}
     </Button>
@@ -54,7 +54,7 @@ export function StaffForm() {
       )}
 
       {state.created && (
-        <div className="rounded-xl border border-[var(--color-u14)]/30 bg-[var(--color-u14-soft)] px-4 py-3 text-sm text-[var(--color-u14-strong)]">
+        <div className="rounded-xl border border-success/20 bg-success-soft px-4 py-3 text-sm text-success">
           <p className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             Account creato
@@ -62,7 +62,7 @@ export function StaffForm() {
           <p className="mt-1.5">
             Comunica queste credenziali al nuovo admin, dovrà cambiare la password al primo accesso.
           </p>
-          <p className="mt-2 rounded-lg bg-white/60 px-3 py-2 font-mono text-xs">
+          <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 font-mono text-xs text-foreground">
             Utente: <strong>{state.created.username}</strong>
             <br />
             Password: <strong>{state.created.password}</strong>
@@ -70,7 +70,9 @@ export function StaffForm() {
         </div>
       )}
 
-      <SubmitButton />
+      <FormActions className="sm:[&>*]:w-full">
+        <SubmitButton />
+      </FormActions>
     </form>
   );
 }

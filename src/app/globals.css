@@ -3,21 +3,21 @@
 :root {
   color-scheme: light;
 
-  /* Sea — identità del club (azzurro acceso dello stemma, campionato da
-     lignano-crest.png: #3978bc) */
-  --color-sea-50: #f3f7fc;
-  --color-sea-100: #e2edf8;
-  --color-sea-200: #c0d8f2;
-  --color-sea-300: #94bbe6;
-  --color-sea-400: #629ad5;
-  --color-sea-500: #3a78bb;
-  --color-sea-600: #2b64a1;
-  --color-sea-700: #1f5084;
-  --color-sea-800: #193e66;
-  --color-sea-900: #152d47;
-  --color-sea-950: #0d1926;
+  /* Sea — azzurro dello stemma (#3a78bb), in una scala più viva e
+     leggibile: 600 è il colore d'azione (testo bianco AA), 500 l'accento. */
+  --color-sea-50: #eef5fc;
+  --color-sea-100: #d9e8f8;
+  --color-sea-200: #b5d2f2;
+  --color-sea-300: #84b3e8;
+  --color-sea-400: #4e8ed9;
+  --color-sea-500: #2a70c9;
+  --color-sea-600: #1c5bae;
+  --color-sea-700: #194a8e;
+  --color-sea-800: #183e73;
+  --color-sea-900: #16335c;
+  --color-sea-950: #0c1d36;
 
-  /* Sand — identità del club (stemma oro) */
+  /* Sand — oro dello stemma (accento: "oggi", vittorie, evidenze) */
   --color-sand-50: #fdf8ee;
   --color-sand-100: #f9ecd0;
   --color-sand-200: #f2d89f;
@@ -31,10 +31,10 @@
 
   /* Categoria / tipo evento */
   --color-u14: #0d9488;
-  --color-u14-soft: #ccfbf1;
+  --color-u14-soft: #d5f5ef;
   --color-u14-strong: #0f766e;
   --color-u15: #7c3aed;
-  --color-u15-soft: #ede9fe;
+  --color-u15-soft: #ece6fd;
   --color-u15-strong: #6d28d9;
   --color-training: var(--color-sand-500);
   --color-training-soft: var(--color-sand-100);
@@ -69,38 +69,52 @@
   --color-training-slate-strong: #334155;
 
   /* Token semantici */
-  --background: #f5f8fa;
-  --foreground: #0c1e2a;
+  --background: #f3f5f8;
+  --foreground: #0e1b2b;
   --card: #ffffff;
   --card-foreground: var(--foreground);
   --popover: #ffffff;
   --popover-foreground: var(--foreground);
-  --primary: var(--color-sea-700);
-  --primary-foreground: #f5f9fb;
-  --secondary: #eef3f6;
+  --primary: var(--color-sea-600);
+  --primary-hover: var(--color-sea-700);
+  --primary-soft: var(--color-sea-50);
+  --primary-foreground: #ffffff;
+  --secondary: #edf1f5;
   --secondary-foreground: var(--foreground);
-  --muted: #eef1f4;
-  --muted-foreground: #596975;
+  --muted: #edf1f5;
+  --muted-foreground: #5a6a7b;
   --accent: var(--color-sand-100);
   --accent-foreground: var(--color-sand-800);
-  --destructive: #b3261e;
-  --destructive-strong: #8c1d17;
-  --destructive-foreground: #fff5f4;
-  --border: #dbe3e8;
-  --input: #dbe3e8;
-  --ring: var(--primary);
+  --destructive: #c8312b;
+  --destructive-strong: #9f2620;
+  --destructive-foreground: #ffffff;
+  --success: #15803d;
+  --success-soft: #dcf5e4;
+  --warning: #b45309;
+  --warning-soft: #fdf1d8;
+  --border: #e2e8ef;
+  --border-strong: #cdd6e0;
+  --input: #d5dde6;
+  --ring: var(--color-sea-500);
 
   --surface: var(--card);
-  --surface-muted: var(--muted);
+  --surface-muted: #f7f9fb;
   --border-subtle: var(--border);
 
-  --gradient-primary: linear-gradient(135deg, var(--color-sea-400), var(--color-sea-700));
-  --shadow-elegant: 0 24px 48px -22px color-mix(in oklab, var(--foreground) 34%, transparent);
-  --shadow-card: 0 1px 2px rgba(9, 27, 38, 0.05), 0 14px 30px -20px rgba(9, 27, 38, 0.16);
-  --shadow-hover: 0 24px 48px -20px color-mix(in oklab, var(--primary) 38%, transparent);
+  --gradient-primary: linear-gradient(135deg, var(--color-sea-500), var(--color-sea-700));
+  --shadow-xs: 0 1px 2px rgba(15, 30, 50, 0.05);
+  --shadow-card: 0 1px 2px rgba(15, 30, 50, 0.04), 0 2px 8px -3px rgba(15, 30, 50, 0.07);
+  --shadow-raised: 0 1px 2px rgba(15, 30, 50, 0.05), 0 10px 28px -10px rgba(15, 30, 50, 0.18);
+  --shadow-pop: 0 2px 6px rgba(15, 30, 50, 0.06), 0 18px 40px -12px rgba(15, 30, 50, 0.26);
+  /* Compatibilità con classi esistenti che li citano direttamente. */
+  --shadow-elegant: var(--shadow-raised);
+  --shadow-hover: var(--shadow-raised);
 
-  --font-display: "Libre Baskerville", "IBM Plex Serif", Georgia, serif;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Le variabili --font-inter / --font-archivo / --font-baloo arrivano da
+     next/font (src/app/layout.tsx); qui solo le pile con i fallback. */
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display-minivolley: var(--font-baloo), var(--font-inter), ui-rounded, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -111,6 +125,8 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -121,7 +137,12 @@
   --color-destructive: var(--destructive);
   --color-destructive-strong: var(--destructive-strong);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
@@ -162,6 +183,11 @@
   --color-training-soft: var(--color-training-soft);
   --color-training-strong: var(--color-training-strong);
 
+  --shadow-xs: var(--shadow-xs);
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-pop: var(--shadow-pop);
+
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 }
@@ -174,7 +200,9 @@
    + turchese, dal logo Volley S3, al posto di blu + oro) e un carattere dei
    titoli diverso — senza toccare i singoli componenti, e senza alcun
    effetto sul sito U14/U15 o sull'area riservata, che restano fuori da
-   questo scope. */
+   questo scope. I token derivati (--primary, --ring…) vanno ridichiarati
+   qui: una variabile che ne cita un'altra viene risolta dove è dichiarata
+   (:root), non dove è usata. */
 :root[data-theme="minivolley"],
 [data-theme="minivolley"] {
   --color-sea-50: #fff4f1;
@@ -200,12 +228,14 @@
   --color-sand-800: #14514c;
   --color-sand-900: #12413d;
 
-  --primary: var(--color-sea-700);
-  --primary-foreground: #fff8f6;
+  --primary: var(--color-sea-600);
+  --primary-hover: var(--color-sea-700);
+  --primary-soft: var(--color-sea-50);
+  --primary-foreground: #ffffff;
   --accent: var(--color-sand-100);
   --accent-foreground: var(--color-sand-800);
-  --ring: var(--primary);
-  --gradient-primary: linear-gradient(135deg, var(--color-sea-400), var(--color-sea-700));
+  --ring: var(--color-sea-500);
+  --gradient-primary: linear-gradient(135deg, var(--color-sea-500), var(--color-sea-700));
 
   --font-display: var(--font-display-minivolley);
 }
@@ -218,12 +248,18 @@
     border-color: var(--border);
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
+    font-family: var(--font-body);
+    font-feature-settings: "cv11", "ss03";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -231,53 +267,35 @@
   h3,
   .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.014em;
+    font-stretch: 108%;
+    letter-spacing: -0.018em;
     font-weight: 700;
   }
 
   ::selection {
-    background: var(--color-sand-300);
+    background: var(--color-sea-100);
     color: var(--color-sea-950);
   }
 
   :where(button, a, [role="button"], input, select, textarea):focus-visible {
-    outline: 2px solid color-mix(in oklab, var(--primary) 55%, transparent);
+    outline: 2px solid color-mix(in oklab, var(--ring) 70%, transparent);
     outline-offset: 2px;
-    border-radius: 0.5rem;
   }
-}
 
-/* Eyebrow / kicker con trattino */
-/* Nota sui layer: le regole in questo file che devono poter essere
-   sovrascritte da varianti responsive di Tailwind (es. sm:hidden) sui
-   medesimi elementi vanno dichiarate con @utility oppure dentro
-   @layer base — CSS "non layerizzato" vince sempre sulle utility di
-   Tailwind (che vivono nei layer theme/base/components/utilities),
-   indipendentemente dall'ordine nel file. */
-@layer base {
+  /* Etichetta piccola in maiuscoletto sopra titoli e sezioni. */
   .eyebrow {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-sans);
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.2em;
+    gap: 0.45rem;
+    font-family: var(--font-body);
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: color-mix(in oklab, var(--primary) 82%, var(--foreground));
-  }
-  .eyebrow::before {
-    content: "";
-    height: 1px;
-    width: 1.5rem;
-    background: color-mix(in oklab, var(--primary) 55%, transparent);
-    display: inline-block;
+    color: color-mix(in oklab, var(--primary) 78%, var(--foreground));
   }
   .eyebrow.eyebrow-inverted {
     color: color-mix(in oklab, white 85%, var(--color-sand-300));
-  }
-  .eyebrow.eyebrow-inverted::before {
-    background: color-mix(in oklab, white 55%, transparent);
   }
 
   /* Divider centrato con etichetta (il colore del testo si eredita: imposta
@@ -287,8 +305,8 @@
     align-items: center;
     gap: 0.75rem;
     color: inherit;
-    font-size: 0.68rem;
-    letter-spacing: 0.2em;
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   .rule-center::before,
@@ -296,24 +314,25 @@
     content: "";
     flex: 1;
     height: 1px;
-    background: color-mix(in oklab, var(--border) 90%, transparent);
+    background: var(--border);
   }
 }
 
-/* Sfondo decorativo: bagliori radiali + trama a puntini */
+/* Titoli grandi (pagina, hero) e numeri "da tabellone": più larghi e pieni. */
+@utility display-wide {
+  font-family: var(--font-display);
+  font-stretch: 118%;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sfondo applicazione: piatto e pulito (niente più trama a puntini). */
 @utility app-surface {
   background-color: var(--background);
-  background-image:
-    radial-gradient(ellipse 80% 50% at 12% -10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 110% 0%, color-mix(in oklab, var(--color-sand-400) 12%, transparent), transparent 65%),
-    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 7%, transparent) 1px, transparent 0);
-  background-size: auto, auto, 22px 22px;
-  background-attachment: fixed, fixed, fixed;
-}
-@media (max-width: 640px) {
-  .app-surface {
-    background-attachment: scroll, scroll, scroll;
-  }
 }
 
 /* Header di pagina: pannello sticky traslucido */
@@ -321,192 +340,71 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
-  background: linear-gradient(180deg, color-mix(in oklab, var(--card) 96%, transparent), color-mix(in oklab, var(--card) 84%, transparent));
-  backdrop-filter: blur(14px) saturate(1.1);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
 }
 
 /* Indizio visivo permanente che una striscia orizzontale si può scorrere
    oltre il bordo destro: innocuo quando il contenuto entra tutto (la
    sfumatura ricade nel padding finale ed è invisibile), utile quando non
-   entra (capita sia sul nav-rail admin con troppe voci, sia su strisce di
-   card come "Prossimi impegni"). */
+   entra (nav dell'area tecnici su schermi stretti, strisce di card come
+   "Prossimi impegni"). */
 @utility scroll-fade-x {
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - 18px), transparent);
-  mask-image: linear-gradient(to right, black calc(100% - 18px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
 }
 
-/* Rail di navigazione a pillole. */
-@utility nav-rail {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-  overflow-x: auto;
+@utility no-scrollbar {
   scrollbar-width: none;
-  padding: 0.25rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--muted) 65%, transparent);
-  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-}
-.nav-rail::-webkit-scrollbar {
-  display: none;
-}
-.nav-rail[data-mobile="true"] {
-  flex-direction: column;
-  align-items: stretch;
-  overflow: visible;
-  /* La pillola a 999px va bene per la fila orizzontale desktop, ma su una
-     colonna alta di più voci crea un rigonfiamento circolare che taglia il
-     testo: qui serve un raggio moderato, da card. */
-  border-radius: 1.25rem;
-  /* Colonna verticale: niente sfumatura a destra, non scorre in orizzontale. */
-  -webkit-mask-image: none;
-  mask-image: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-@utility nav-tile {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 999px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: color-mix(in oklab, var(--foreground) 68%, transparent);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-  white-space: nowrap;
-}
-.nav-tile:hover {
-  background: color-mix(in oklab, var(--card) 92%, transparent);
-  color: var(--foreground);
-}
-.nav-tile[data-active="true"] {
-  background: var(--card);
-  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
-  color: var(--primary);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(12, 30, 42, 0.06);
-}
-.nav-rail[data-mobile="true"] .nav-tile {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-@utility nav-cluster {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--card) 85%, transparent);
-  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-}
-
-/* Pastiglia icona con gradiente */
+/* Pastiglia icona: quadrato tenue con l'icona nel colore primario. */
 @utility icon-chip {
   display: grid;
   place-items: center;
   height: 2.5rem;
   width: 2.5rem;
   flex-shrink: 0;
-  border-radius: 0.85rem;
-  background: var(--gradient-primary);
-  color: var(--primary-foreground);
-  box-shadow: var(--shadow-elegant);
+  border-radius: 0.8rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 12%, transparent);
 }
 
-/* Card con barra superiore sfumata */
-@utility section-card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 1.15rem;
-  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-  background: var(--card);
-  box-shadow: 0 1px 0 color-mix(in oklab, white 55%, transparent) inset, var(--shadow-card);
-  transition: box-shadow 220ms ease, transform 220ms ease, border-color 220ms ease;
-}
-.section-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: var(--gradient-primary);
-  opacity: 0.9;
-}
-.section-card:hover {
-  box-shadow: 0 1px 0 color-mix(in oklab, white 60%, transparent) inset, var(--shadow-hover);
-}
-
-/* Stat card con barra laterale */
+/* Riquadro statistica: stessa superficie delle card. */
 @utility stat-card {
   position: relative;
   overflow: hidden;
   border-radius: 1rem;
-  background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--primary) 4%, var(--card)));
-  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: var(--card);
+  border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  transition: transform 200ms ease, box-shadow 200ms ease;
-}
-.stat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--gradient-primary);
-  opacity: 0.9;
-}
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-elegant);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
-/* Ritorno contestuale */
-@utility back-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.35rem 0.9rem 0.35rem 0.35rem;
-  border-radius: 999px;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--card) 96%, transparent), color-mix(in oklab, var(--primary) 8%, var(--card)));
-  border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border));
-  color: var(--foreground);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  box-shadow: 0 1px 0 color-mix(in oklab, white 60%, transparent) inset, 0 8px 20px -14px color-mix(in oklab, var(--primary) 55%, transparent);
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
-}
-.back-pill:hover {
-  transform: translateY(-1px);
-  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
-}
-
-/* Pastiglia bianca per lo stemma — unica in tutto il sito */
+/* Pastiglia bianca per lo stemma */
 @utility brand-chip {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 0.9rem;
+  border-radius: 0.8rem;
   background: #ffffff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 26px -16px rgba(9, 27, 38, 0.5);
-  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
 }
 
-/* Scena di accesso: sfondo chiaro con lo stemma del club in trasparenza
-   (non più lo sfondo scuro delle prime versioni). */
+/* Scena di accesso e hero pubblico: chiara, con un velo di colore del club
+   in alto (niente fondi scuri: scelta esplicita del club). */
 @utility auth-stage {
-  background-color: var(--card);
+  background-color: var(--background);
   background-image:
-    radial-gradient(ellipse 70% 55% at 12% -15%, color-mix(in oklab, var(--color-sea-200) 75%, transparent), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 100% 10%, color-mix(in oklab, var(--color-sand-200) 60%, transparent), transparent 65%),
-    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--color-sea-950) 6%, transparent) 1px, transparent 0);
-  background-size: auto, auto, 22px 22px;
+    radial-gradient(ellipse 70% 60% at 0% 0%, color-mix(in oklab, var(--color-sea-100) 85%, transparent), transparent 62%),
+    radial-gradient(ellipse 55% 50% at 100% 0%, color-mix(in oklab, var(--color-sand-100) 80%, transparent), transparent 64%);
 }
 @utility auth-stage-logo {
   position: absolute;
@@ -515,19 +413,19 @@
   translate: -50% -50%;
   width: min(120vw, 900px);
   max-width: none;
-  opacity: 0.12;
-  filter: blur(14px) saturate(0.9);
+  opacity: 0.08;
+  filter: blur(18px) saturate(0.9);
   pointer-events: none;
   user-select: none;
   z-index: 0;
 }
 @utility auth-card {
-  border-radius: 1.4rem;
-  border: 1px solid color-mix(in oklab, white 14%, transparent);
-  background: color-mix(in oklab, var(--card) 94%, transparent);
+  border-radius: 1.5rem;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 96%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 1px 0 color-mix(in oklab, white 65%, transparent) inset, 0 40px 70px -30px rgba(2, 10, 16, 0.65);
+  box-shadow: var(--shadow-pop);
 }
 
 /* Live score: micro-animazioni. Definite come @keyframes semplici (non
@@ -568,5 +466,17 @@
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Comparsa morbida di menu e pannelli a tendina. */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

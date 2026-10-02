@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <AdminHeader session={session} allowedPages={allowedPages} allowedTeams={allowedTeams} activeTeam={team} />
       <Tour session={session} allowedPages={allowedPages} allowedTeams={allowedTeams} activeTeam={team} />
       {session.testMode && (
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 bg-[var(--color-u15)] px-4 py-2 text-center text-xs font-semibold text-white sm:text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 bg-[var(--color-u15)] px-4 py-2 text-center text-xs font-semibold text-white sm:text-[13px]">
           <span className="flex items-center gap-1.5">
             <FlaskConical className="h-3.5 w-3.5 shrink-0" />
             Modalità prova: stai lavorando su una copia dei dati. Niente notifiche, nessuna modifica
@@ -39,7 +39,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <form action={exitTestModeAction}>
             <button
               type="submit"
-              className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold transition-colors hover:bg-white/25"
+              className="inline-flex items-center gap-1 rounded-full bg-white/18 px-2.5 py-1 text-xs font-bold transition-colors hover:bg-white/28"
             >
               <LogOut className="h-3 w-3" />
               Esci dalla modalità prova
@@ -48,11 +48,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
       )}
       {demo && (
-        <div className="bg-sand-400/90 px-4 py-2 text-center text-xs font-semibold text-sea-950 sm:text-sm">
+        <div className="border-b border-sand-300/60 bg-sand-100 px-4 py-1.5 text-center text-xs font-medium text-sand-800">
           Modalità demo: dati salvati solo in memoria. Configura Supabase per l&apos;uso reale.
         </div>
       )}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-10">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:pt-9">{children}</main>
     </div>
   );
 }

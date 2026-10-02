@@ -1,31 +1,39 @@
-import { Dumbbell, Home, Plane, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { categoryBadgeClass, categoryLabel, trainingBadgeClass } from "@/lib/category";
+import { categoryBadgeClass, categoryDotClass, categoryLabel, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import type { CalendarEvent } from "@/lib/types";
 
+/**
+ * Evento dentro una cella del calendario mensile. Gerarchia voluta: gli
+ * allenamenti (la routine) sono una riga leggera — pallino colorato, ora,
+ * titolo — mentre partite e tornei (gli eventi speciali) sono una pastiglia
+ * piena nel colore della categoria, così saltano all'occhio.
+ */
 export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?: () => void }) {
-  const pillClass = cn(
-    "flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[10px] font-semibold transition-opacity sm:text-[11px]",
-    onSelect && "cursor-pointer hover:opacity-80",
-  );
+  const base =
+    "group flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-[3px] text-left text-[11.5px] leading-4 transition-colors";
 
   if (event.kind === "training") {
     return (
       <button
         type="button"
         onClick={onSelect}
-        className={cn(pillClass, trainingBadgeClass(event.color))}
+        className={cn(
+          base,
+          event.isTournament
+            ? "bg-sand-100 font-semibold text-sand-800 hover:bg-sand-200/70"
+            : "text-foreground/85 hover:bg-muted",
+        )}
         title={`${event.startTime}–${event.endTime} · ${event.title} · ${event.location}`}
       >
         {event.isTournament ? (
-          <Trophy className="h-2.5 w-2.5 shrink-0" />
+          <Trophy className="h-3 w-3 shrink-0" />
         ) : (
-          <Dumbbell className="h-2.5 w-2.5 shrink-0" />
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", trainingDotClass(event.color))} aria-hidden />
         )}
-        <span className="truncate">
-          {event.startTime} {event.isTournament ? "Torneo" : "Allenamento"}
-        </span>
+        <span className="tabular shrink-0 font-semibold text-foreground">{event.startTime}</span>
+        <span className="truncate">{event.title}</span>
       </button>
     );
   }
@@ -34,17 +42,16 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
     <button
       type="button"
       onClick={onSelect}
-      className={cn(pillClass, categoryBadgeClass(event.category))}
+      className={cn(base, "font-semibold hover:brightness-[0.97]", categoryBadgeClass(event.category))}
       title={`${event.time} · ${categoryLabel(event.category)} ${event.isHome ? "in casa" : "in trasferta"} · ${matchTitle(event)} · ${event.location}`}
     >
-      {event.isHome ? (
-        <Home className="h-2.5 w-2.5 shrink-0" />
+      {event.isTournament ? (
+        <Trophy className="h-3 w-3 shrink-0" />
       ) : (
-        <Plane className="h-2.5 w-2.5 shrink-0" />
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", categoryDotClass(event.category))} aria-hidden />
       )}
-      <span className="truncate">
-        {event.time} {event.category ? `${event.category} · ` : ""}{event.opponent}
-      </span>
+      <span className="tabular shrink-0">{event.time}</span>
+      <span className="truncate">{event.opponent}</span>
     </button>
   );
 }

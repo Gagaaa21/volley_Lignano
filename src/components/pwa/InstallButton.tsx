@@ -46,7 +46,7 @@ export function InstallButton({ className }: { className?: string }) {
         onClick={handleClick}
         title="Installa l'app"
         aria-label="Installa l'app"
-        className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/35 transition-colors hover:bg-muted hover:text-foreground"
+        className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Download className="h-4 w-4" />
       </button>
@@ -55,7 +55,7 @@ export function InstallButton({ className }: { className?: string }) {
         <div
           role="dialog"
           aria-label="Come installare su iPhone"
-          className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-border-subtle bg-surface p-4 text-sm shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)]"
+          className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-border bg-card p-4 text-sm shadow-pop"
         >
           <button
             type="button"
@@ -81,7 +81,7 @@ export function InstallButton({ className }: { className?: string }) {
         <div
           role="dialog"
           aria-label="Come installare su Android"
-          className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border-subtle bg-surface p-4 text-sm shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)]"
+          className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-border bg-card p-4 text-sm shadow-pop"
         >
           <button
             type="button"

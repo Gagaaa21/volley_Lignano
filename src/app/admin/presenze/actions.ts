@@ -166,4 +166,5 @@ export async function deleteAttendanceSessionAction(formData: FormData): Promise
   revalidatePath("/admin/presenze/storico");
   revalidatePath(attendanceSession?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
+  redirect("/admin/presenze/storico");
 }

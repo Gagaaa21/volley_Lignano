@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Minus, Pencil, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
+import { Minus, Pencil, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { AthleteAvatar } from "../../AthleteAvatar";
@@ -82,31 +83,29 @@ export default async function AthletePhysicalTestsPage({
 
   return (
     <div>
-      <LinkButton href="/admin/test-fisici" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna ai test fisici
-      </LinkButton>
-
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <AthleteAvatar fullName={athlete.fullName} />
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">{athlete.fullName}</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">Storico dei test fisici registrati.</p>
-          </div>
-        </div>
-        <LinkButton href={`/admin/test-fisici/nuovo/${athlete.id}`}>
-          <Plus className="h-4 w-4" />
-          Nuovo test
-        </LinkButton>
-      </div>
+      <PageHeader
+        back={{ href: "/admin/test-fisici", label: "Test fisici" }}
+        title={
+          <span className="flex items-center gap-3">
+            <AthleteAvatar fullName={athlete.fullName} />
+            <span className="min-w-0">{athlete.fullName}</span>
+          </span>
+        }
+        description="Storico dei test fisici registrati."
+        actions={
+          <LinkButton href={`/admin/test-fisici/nuovo/${athlete.id}`}>
+            <Plus className="h-4 w-4" />
+            Nuovo test
+          </LinkButton>
+        }
+      />
 
       {!hasAnyData ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Nessun test registrato ancora per {athlete.fullName}.
         </div>
       ) : (
-        <div className="mt-6 space-y-8">
+        <div className="space-y-9">
           {bodyMeasures.some((m) => m.latest) && (
             <div>
               <p className="eyebrow">Misure corporee</p>

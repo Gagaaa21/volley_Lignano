@@ -12,17 +12,17 @@ export function PublicHeader({ team = "u14u15" }: { team?: TrainingTeam } = {}) 
   const isMinivolley = team === "minivolley";
   return (
     <header className="page-header">
-      <div className="mx-auto flex h-[4.25rem] max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Logo team={team} href={isMinivolley ? "/minivolley" : "/"} />
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {isMinivolley && (
-            <LinkButton href="/minivolley/presenze" variant="ghost" size="sm" data-tour="public-nav-presenze">
+            <LinkButton href="/minivolley/presenze" variant="quiet" size="sm" data-tour="public-nav-presenze">
               <ClipboardCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Presenze</span>
             </LinkButton>
           )}
           <InstallButton />
-          <LinkButton href="/login" variant="ghost" size="sm" data-tour="public-nav-area-tecnici">
+          <LinkButton href="/login" variant="outline" size="sm" data-tour="public-nav-area-tecnici">
             <LogIn className="h-4 w-4" />
             <span className="hidden sm:inline">Area tecnici</span>
           </LinkButton>

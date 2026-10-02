@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, MapPin } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceForm } from "../../../AttendanceForm";
 import { MiniAttendanceForm } from "../../../MiniAttendanceForm";
 
@@ -33,39 +34,37 @@ export default async function RecordAttendancePage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <LinkButton href="/admin/presenze" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna alle presenze
-      </LinkButton>
-
-      <h1 className="font-display text-2xl font-bold text-foreground">
-        {existingSession ? "Modifica presenze" : "Registra presenze"}
-      </h1>
-      <p className="mt-1 capitalize text-sm text-muted-foreground">{formatDateLong(date)}</p>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">
-            {training.title}
-          </h2>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              {training.startTime}–{training.endTime}
+      <PageHeader
+        back={{ href: "/admin/presenze", label: "Presenze" }}
+        eyebrow={formatDateLong(date)}
+        title={existingSession ? "Modifica presenze" : "Registra presenze"}
+        description={
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="font-semibold text-foreground/80">{training.title}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              <span className="tabular">
+                {training.startTime}–{training.endTime}
+              </span>
             </span>
-            <span className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" />
               {training.location}
             </span>
-          </div>
-        </CardHeader>
-        <CardBody>
+          </span>
+        }
+      />
+
+      <Card>
+        <CardBody className="pb-0 pt-5 sm:pb-0 sm:pt-6">
           {activeAthletes.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-muted-foreground">
-              Nessuna atleta attiva in anagrafica.{" "}
-              <LinkButton href="/admin/presenze/atlete/nuova" variant="ghost" size="sm" className="mt-2">
-                Aggiungine una
-              </LinkButton>
+            <div className="mb-5 rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-muted-foreground">
+              Nessuna atleta attiva in anagrafica.
+              <div className="mt-3">
+                <LinkButton href="/admin/presenze/atlete/nuova" variant="soft" size="sm">
+                  Aggiungine una
+                </LinkButton>
+              </div>
             </div>
           ) : isMini ? (
             <MiniAttendanceForm

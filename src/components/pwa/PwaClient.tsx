@@ -170,7 +170,7 @@ export function PwaClient() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 sm:px-6">
-      <div className="auth-card w-full max-w-md rounded-2xl border border-border-subtle bg-surface p-4 shadow-[0_20px_50px_-20px_rgba(9,27,38,0.35)] sm:p-5">
+      <div className="w-full max-w-md animate-[pop-in_220ms_ease-out] rounded-2xl border border-border bg-card p-4 shadow-pop sm:p-5">
         {showInstallBanner && (
           <div className="flex items-start gap-3">
             <span className="icon-chip shrink-0">
@@ -187,7 +187,7 @@ export function PwaClient() {
                 <Button size="sm" onClick={() => handleInstall(true)}>
                   {isAndroidNonChrome ? "Apri in Chrome" : "Installa"}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => handleInstall(false)}>
+                <Button size="sm" variant="quiet" onClick={() => handleInstall(false)}>
                   No grazie
                 </Button>
               </div>
@@ -196,7 +196,7 @@ export function PwaClient() {
               type="button"
               aria-label="Chiudi"
               onClick={() => handleInstall(false)}
-              className="shrink-0 rounded-full p-1 text-foreground/40 hover:bg-muted hover:text-foreground"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -219,7 +219,7 @@ export function PwaClient() {
                 <Button size="sm" onClick={() => handleNotify(true)}>
                   Attiva
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => handleNotify(false)}>
+                <Button size="sm" variant="quiet" onClick={() => handleNotify(false)}>
                   No grazie
                 </Button>
               </div>
@@ -228,7 +228,7 @@ export function PwaClient() {
               type="button"
               aria-label="Chiudi"
               onClick={() => handleNotify(false)}
-              className="shrink-0 rounded-full p-1 text-foreground/40 hover:bg-muted hover:text-foreground"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>

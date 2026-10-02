@@ -73,25 +73,25 @@ export function CallUpsAndLineupsDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-sea-950/60 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-[rgba(12,29,54,0.45)] backdrop-blur-[3px] sm:items-center sm:p-6"
       role="presentation"
     >
       <div
-        className="flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface shadow-2xl sm:h-[92vh] sm:rounded-2xl"
+        className="flex h-full w-full max-w-5xl animate-[pop-in_180ms_ease-out] flex-col overflow-hidden bg-card shadow-pop sm:h-[92vh] sm:rounded-3xl"
         role="dialog"
         aria-modal="true"
         aria-label="Convocazioni e formazioni"
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
           <div className="min-w-0">
-            <p className="font-display text-lg font-bold text-foreground">Convocazioni e formazioni</p>
-            <p className="truncate text-sm text-foreground/55">{title}</p>
+            <p className="display-wide text-xl text-foreground">Convocazioni e formazioni</p>
+            <p className="truncate text-sm text-muted-foreground">{title}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Chiudi"
-            className="shrink-0 rounded-full p-2 text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
@@ -104,10 +104,10 @@ export function CallUpsAndLineupsDialog({
             <input key={athleteId} type="hidden" name="calledUpAthleteIds" value={athleteId} />
           ))}
 
-          <div className="flex-1 space-y-8 overflow-y-auto px-5 py-5">
+          <div className="flex-1 space-y-8 overflow-y-auto px-5 py-5 sm:px-6">
             <section>
-              <h3 className="font-display text-base font-semibold text-foreground">Convocazioni</h3>
-              <p className="mt-0.5 mb-3 text-sm text-foreground/55">
+              <h3 className="font-display text-base font-bold text-foreground">Convocazioni</h3>
+              <p className="mt-0.5 mb-3 text-sm text-muted-foreground">
                 Chi convochi qui diventa selezionabile nelle formazioni per set, qui sotto.
               </p>
               <CallUpsSection
@@ -119,9 +119,9 @@ export function CallUpsAndLineupsDialog({
               />
             </section>
 
-            <section className="border-t border-border-subtle pt-6">
-              <h3 className="font-display text-base font-semibold text-foreground">Formazioni per set</h3>
-              <p className="mt-0.5 mb-3 text-sm text-foreground/55">
+            <section className="border-t border-border pt-6">
+              <h3 className="font-display text-base font-bold text-foreground">Formazioni per set</h3>
+              <p className="mt-0.5 mb-3 text-sm text-muted-foreground">
                 Visibili solo allo staff dell&apos;area tecnici: mai sul sito pubblico.
               </p>
               {calledUpAthletes.length === 0 ? (
@@ -140,14 +140,14 @@ export function CallUpsAndLineupsDialog({
             </section>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border-subtle px-5 py-4">
+          <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-surface-muted px-5 py-3.5 sm:px-6">
             <SubmitButton />
             <LinkButton href={`/api/partite/${matchId}/formazioni/pdf`} variant="outline" target="_blank">
               <Download className="h-4 w-4" />
               Esporta PDF
             </LinkButton>
             {state.error && <FieldError>{state.error}</FieldError>}
-            {state.success && <span className="text-sm font-medium text-primary">Salvato.</span>}
+            {state.success && <span className="text-sm font-semibold text-success">Salvato.</span>}
           </div>
         </form>
       </div>

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { PhysicalTestForm } from "../PhysicalTestForm";
 
 export const metadata: Metadata = {
@@ -26,21 +25,14 @@ export default async function EditPhysicalTestPage({ params }: { params: Promise
 
   return (
     <div className="mx-auto max-w-xl">
-      <LinkButton href={`/admin/test-fisici/atleta/${test.athleteId}`} variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna ai test di {athlete?.fullName ?? "questa atleta"}
-      </LinkButton>
-
-      <h1 className="font-display text-2xl font-bold text-foreground">Modifica test fisico</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {test.testName} · {athlete?.fullName ?? "Atleta eliminata"}
-      </p>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">Dettagli</h2>
-        </CardHeader>
-        <CardBody>
+      <PageHeader
+        back={{ href: `/admin/test-fisici/atleta/${test.athleteId}`, label: athlete?.fullName ?? "Atleta" }}
+        eyebrow={test.testName}
+        title="Modifica test"
+        description={athlete?.fullName ?? "Atleta eliminata"}
+      />
+      <Card>
+        <CardBody className="pt-6">
           <PhysicalTestForm athleteId={test.athleteId} testNameSuggestions={testNameSuggestions} test={test} />
         </CardBody>
       </Card>

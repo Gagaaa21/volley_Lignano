@@ -1,17 +1,8 @@
-function initials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
-}
+import { Avatar } from "@/components/ui/Avatar";
 
 /** Cerchio con le iniziali dell'atleta, stesso ruolo visivo dell'avatar
- * circolare nelle schermate dell'app di riferimento (lì un'icona
- * generica su sfondo grigio; qui le iniziali sui colori del sito). */
+ * circolare nelle schermate dell'app di riferimento: ora un alias
+ * dell'Avatar condiviso, per avere ovunque lo stesso aspetto. */
 export function AthleteAvatar({ fullName, className }: { fullName: string; className?: string }) {
-  return (
-    <span
-      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-base font-bold text-primary ${className ?? ""}`}
-    >
-      {initials(fullName)}
-    </span>
-  );
+  return <Avatar name={fullName} size="lg" className={className} />;
 }

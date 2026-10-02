@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { format } from "date-fns";
-import { List, Plus, Puzzle } from "lucide-react";
+import { List, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { expandTrainings, getMonthGridRange, groupEventsByDate, occurrenceKey } from "@/lib/calendar";
 import { parseMonthParam } from "@/lib/month";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { AdminTrainingCalendar } from "@/components/calendar/AdminTrainingCalendar";
 import { SectionTour } from "@/components/tour/SectionTour";
@@ -48,47 +49,42 @@ export default async function TrainingsCalendarPage({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Allenamenti</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Un colpo d&apos;occhio su cosa si allena ogni giorno. Tocca una data per collegare o
-            cambiare la scheda: vale solo per quel giorno.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2" data-tour="section-allenamenti-toolbar">
-          <SectionTour steps={SECTION_ALLENAMENTI_STEPS} />
-          <LinkButton href="/admin/allenamenti/elenco" variant="outline">
-            <List className="h-4 w-4" />
-            Elenco regole
-          </LinkButton>
-          <LinkButton href="/admin/allenamenti/nuovo">
-            <Plus className="h-4 w-4" />
-            Nuovo allenamento
-          </LinkButton>
-        </div>
-      </div>
+      <PageHeader
+        title="Allenamenti"
+        description="Tocca un allenamento per collegare o cambiare la scheda di quel giorno."
+        help={<SectionTour steps={SECTION_ALLENAMENTI_STEPS} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2" data-tour="section-allenamenti-toolbar">
+            <LinkButton href="/admin/allenamenti/elenco" variant="outline">
+              <List className="h-4 w-4" />
+              Elenco regole
+            </LinkButton>
+            <LinkButton href="/admin/allenamenti/nuovo">
+              <Plus className="h-4 w-4" />
+              Nuovo allenamento
+            </LinkButton>
+          </div>
+        }
+      />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <MonthNav monthDate={monthDate} basePath="/admin/allenamenti" />
         <div
-          className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-muted-foreground"
+          className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-muted-foreground"
           data-tour="section-allenamenti-legend"
         >
-          <span className="flex items-center gap-1.5">
-            <span className="flex h-4 w-4 items-center justify-center rounded bg-[var(--color-training-soft)] text-[var(--color-training-strong)]">
-              <Puzzle className="h-2.5 w-2.5" />
-            </span>
-            Scheda collegata ({monthEventsWithPlan})
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden />
+            Con scheda <span className="tabular font-semibold text-foreground">{monthEventsWithPlan}</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-4 w-4 rounded border border-dashed border-foreground/30" />
-            Da assegnare {monthEventsWithoutPlan > 0 && `(${monthEventsWithoutPlan})`}
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full border-[1.5px] border-muted-foreground" aria-hidden />
+            Da assegnare <span className="tabular font-semibold text-foreground">{monthEventsWithoutPlan}</span>
           </span>
         </div>
       </div>
 
-      <div className="mt-4" data-tour="section-allenamenti-calendar">
+      <div data-tour="section-allenamenti-calendar">
         <AdminTrainingCalendar monthDate={monthDate} eventsByDate={eventsByDate} planById={planById} />
       </div>
     </div>

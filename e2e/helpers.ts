@@ -53,7 +53,9 @@ export async function loginAsDev(page: Page) {
  * page.goto("/login") atterra silenziosamente su /admin invece di mostrare
  * il form. */
 export async function logout(page: Page) {
-  await page.getByRole("button", { name: "Esci" }).click();
+  // "Esci" vive nel menu account dell'header: va aperto prima.
+  await page.getByRole("button", { name: "Menu account" }).click();
+  await page.getByRole("menuitem", { name: "Esci" }).click();
   await page.waitForURL(/\/login/, { timeout: 20_000 });
 }
 

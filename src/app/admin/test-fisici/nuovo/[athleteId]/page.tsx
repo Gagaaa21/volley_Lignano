@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { BODY_MEASURE_FIELDS, isBodyMeasureField, isSquatJumpField } from "@/lib/physicalTestFields";
 import { AthleteAvatar } from "../../AthleteAvatar";
 import { TestBatchForm } from "./TestBatchForm";
@@ -47,20 +46,18 @@ export default async function NewPhysicalTestForAthletePage({
 
   return (
     <div className="mx-auto max-w-xl">
-      <LinkButton href="/admin/test-fisici/nuovo" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Cambia atleta
-      </LinkButton>
+      <PageHeader
+        back={{ href: "/admin/test-fisici/nuovo", label: "Cambia atleta" }}
+        eyebrow="Nuovo test"
+        title={
+          <span className="flex items-center gap-3">
+            <AthleteAvatar fullName={athlete.fullName} />
+            <span className="min-w-0">{athlete.fullName}</span>
+          </span>
+        }
+      />
 
-      <div className="flex items-center gap-3">
-        <AthleteAvatar fullName={athlete.fullName} />
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Nuovo test fisico</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{athlete.fullName}</p>
-        </div>
-      </div>
-
-      <div className="mt-7">
+      <div>
         <TestBatchForm
           athleteId={athlete.id}
           testNameSuggestions={testNameSuggestions}

@@ -21,7 +21,7 @@ export default function AdminErrorPage({
     <div className="mx-auto max-w-md py-10">
       <Card>
         <CardBody className="flex flex-col items-center gap-3 pt-8 text-center">
-          <span className="icon-chip bg-destructive/10 text-destructive">
+          <span className="icon-chip bg-destructive/10 text-destructive shadow-none">
             <AlertTriangle className="h-5 w-5" />
           </span>
           <h1 className="font-display text-lg font-bold text-foreground">Qualcosa è andato storto</h1>

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Select, Textarea, FieldError } from "@/components/ui/Field";
+import { Input, Label, Select, Textarea, FieldError, FormActions, Toggle } from "@/components/ui/Field";
 import { CATEGORY_LABELS, MINIVOLLEY_GROUP_LABELS } from "@/lib/category";
 import { saveAthleteAction, type AthleteFormState } from "./actions";
 import type { Athlete, TrainingTeam } from "@/lib/types";
@@ -14,7 +14,7 @@ const initialState: AthleteFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" size="lg" disabled={pending}>
       <Save className="h-4 w-4" />
       {pending ? "Salvataggio…" : "Salva atleta"}
     </Button>
@@ -25,7 +25,7 @@ export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: Traini
   const [state, formAction] = useActionState(saveAthleteAction, initialState);
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form action={formAction} className="space-y-5" noValidate>
       {athlete && <input type="hidden" name="id" value={athlete.id} />}
 
       <div>
@@ -34,7 +34,7 @@ export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: Traini
       </div>
 
       {team === "u14u15" ? (
-        <div>
+        <div className="sm:max-w-xs">
           <Label htmlFor="category">Categoria (opzionale)</Label>
           <Select id="category" name="category" defaultValue={athlete?.category ?? ""}>
             <option value="">Nessuna categoria</option>
@@ -43,7 +43,7 @@ export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: Traini
           </Select>
         </div>
       ) : (
-        <div>
+        <div className="sm:max-w-xs">
           <Label htmlFor="group">Gruppo (opzionale)</Label>
           <Select id="group" name="group" defaultValue={athlete?.group ?? ""}>
             <option value="">Nessun gruppo</option>
@@ -58,15 +58,12 @@ export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: Traini
         <Textarea id="notes" name="notes" defaultValue={athlete?.notes ?? ""} rows={3} />
       </div>
 
-      <label className="flex items-center gap-2.5 text-sm font-medium text-foreground/80">
-        <input
-          type="checkbox"
-          name="isActive"
-          defaultChecked={athlete?.isActive ?? true}
-          className="h-4 w-4 rounded border-border-subtle accent-primary focus:ring-primary"
-        />
-        Atleta attiva (compare nella lista presenze)
-      </label>
+      <Toggle
+        name="isActive"
+        label="Atleta attiva"
+        description="Compare nel registro presenze."
+        defaultChecked={athlete?.isActive ?? true}
+      />
 
       {state.error && (
         <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5">
@@ -74,7 +71,9 @@ export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: Traini
         </div>
       )}
 
-      <SubmitButton />
+      <FormActions>
+        <SubmitButton />
+      </FormActions>
     </form>
   );
 }

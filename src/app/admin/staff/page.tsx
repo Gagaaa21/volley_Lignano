@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { UserCog } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader, SectionHeading } from "@/components/ui/PageHeader";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_STAFF_STEPS } from "@/components/tour/sectionSteps";
 import { StaffForm } from "./StaffForm";
@@ -37,31 +37,29 @@ export default async function StaffPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Staff</h1>
-          <p className="mt-1 text-sm text-foreground/60">
-            Crea nuovi account amministratore. Ogni admin riceve un nome utente e una password
-            temporanea da cambiare al primo accesso.
-          </p>
-        </div>
-        <SectionTour steps={SECTION_STAFF_STEPS} />
-      </div>
+      <PageHeader
+        title="Staff"
+        description="Gli account che accedono all'area tecnici. Ogni nuovo admin riceve una password temporanea da cambiare al primo accesso."
+        help={<SectionTour steps={SECTION_STAFF_STEPS} />}
+      />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card className="h-fit" data-tour="section-staff-form">
-          <CardHeader>
-            <h2 className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
-              <UserCog className="h-4 w-4 text-sea-700" />
-              Nuovo account admin
-            </h2>
-          </CardHeader>
-          <CardBody>
-            <StaffForm />
-          </CardBody>
-        </Card>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
+        <section className="min-w-0">
+          <SectionHeading
+            title="Account"
+            action={<span className="text-[13px] text-muted-foreground">{publicStaff.length}</span>}
+          />
+          <StaffMemberList staff={publicStaff} currentUserId={session.sub} isDev={session.role === "dev"} />
+        </section>
 
-        <StaffMemberList staff={publicStaff} currentUserId={session.sub} isDev={session.role === "dev"} />
+        <section data-tour="section-staff-form">
+          <SectionHeading title="Nuovo account admin" />
+          <Card>
+            <CardBody className="pt-5 sm:pt-6">
+              <StaffForm />
+            </CardBody>
+          </Card>
+        </section>
       </div>
     </div>
   );

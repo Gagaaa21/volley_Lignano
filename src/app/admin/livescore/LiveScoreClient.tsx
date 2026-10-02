@@ -916,37 +916,36 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             isFullscreen && "mx-auto flex h-full max-w-[1700px] flex-col gap-2.5",
           )}
         >
-          {!match.started && (
-            <div className="flex shrink-0 items-center justify-end gap-2">
-              <SectionTour steps={LIVESCORE_SETUP_TOUR_STEPS} />
-              <Button variant="outline" size="sm" onClick={toggleFullscreen}>
-                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
-              </Button>
-            </div>
-          )}
-
           {!match.started ? (
           <div className="space-y-5">
-            <div>
-              <p className="eyebrow">
-                <Volleyball className="h-3 w-3" />
-                Live score
-              </p>
-              <h1 className="mt-1.5 font-[family-name:var(--font-display-minivolley)] text-2xl font-extrabold text-foreground">
-                Imposta le due squadre
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {match.mode === "match"
-                  ? "Scegli i numeri di maglia nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le libero (se le usi)."
-                  : "Scegli i nomi nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le libero (se le usi)."}
-              </p>
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+              <div className="min-w-0 flex-1">
+                <p className="eyebrow mb-2">
+                  <Volleyball className="h-3 w-3" />
+                  Live score
+                </p>
+                <div className="flex items-center gap-2">
+                  <h1 className="display-wide text-[1.75rem] leading-[1.1] text-foreground sm:text-[2.125rem]">
+                    Imposta le due squadre
+                  </h1>
+                  <SectionTour steps={LIVESCORE_SETUP_TOUR_STEPS} />
+                </div>
+                <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+                  {match.mode === "match"
+                    ? "Scegli i numeri di maglia nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le libero (se le usi)."
+                    : "Scegli i nomi nelle 6 posizioni di ciascuna squadra come sono disposte in campo, poi indica le libero (se le usi)."}
+                </p>
+              </div>
+              <Button variant="outline" onClick={toggleFullscreen}>
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                {isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
+              </Button>
             </div>
 
             {/* Allenamento (nomi) o Partita (numeri di maglia, avversaria
              * col suo nome invece di "Squadra B"): scelta fatta qui, prima
              * di iniziare — cambia come si compilano le posizioni sotto. */}
-            <div className="inline-flex rounded-xl border border-border-subtle bg-surface p-1" data-tour="section-livescore-mode">
+            <div className="inline-flex gap-0.5 rounded-xl bg-muted p-1" data-tour="section-livescore-mode">
               {(
                 [
                   { mode: "training" as const, label: "Allenamento" },
@@ -959,7 +958,9 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
                   onClick={() => dispatch({ type: "setMode", mode })}
                   className={cn(
                     "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
-                    match.mode === mode ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/60 hover:text-foreground",
+                    match.mode === mode
+                      ? "bg-surface text-foreground shadow-[0_1px_2px_rgba(15,30,50,0.08),0_0_0_1px_rgba(15,30,50,0.04)]"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {label}
@@ -1082,7 +1083,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1
                 className={cn(
-                  "shrink-0 font-[family-name:var(--font-display-minivolley)] font-extrabold text-foreground",
+                  "display-wide shrink-0 text-foreground",
                   isFullscreen ? "text-sm" : "text-2xl",
                 )}
               >

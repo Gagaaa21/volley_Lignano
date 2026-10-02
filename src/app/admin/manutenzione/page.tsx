@@ -3,6 +3,7 @@ import { Database, Gauge, HardDrive, RefreshCw } from "lucide-react";
 import { getRepo, isDemoMode } from "@/lib/db";
 import { requireDev } from "@/lib/auth/guard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
   title: "Manutenzione",
@@ -34,23 +35,24 @@ export default async function ManutenzionePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <p className="eyebrow">
-        <Gauge className="h-3 w-3" />
-        Solo Developer
-      </p>
-      <h1 className="mt-1.5 font-display text-2xl font-bold text-foreground">Manutenzione</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Panoramica dello spazio occupato su Supabase e delle ottimizzazioni in atto per restare
-        entro i limiti mensili del piano gratuito.
-      </p>
+      <PageHeader
+        eyebrow={
+          <>
+            <Gauge className="h-3 w-3" />
+            Solo Developer
+          </>
+        }
+        title="Manutenzione"
+        description="Spazio occupato su Supabase e ottimizzazioni in atto per restare entro i limiti mensili del piano gratuito."
+      />
 
-      <Card className="mt-6">
-        <CardHeader className="flex flex-row items-center gap-3">
+      <Card>
+        <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <RefreshCw className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">
+            <h2 className="font-display text-base font-bold text-foreground">
               Cache del calendario pubblico
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -78,12 +80,12 @@ export default async function ManutenzionePage() {
       </Card>
 
       <Card className="mt-4">
-        <CardHeader className="flex flex-row items-center gap-3">
+        <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <Database className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">
+            <h2 className="font-display text-base font-bold text-foreground">
               Spazio occupato per tabella
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -132,12 +134,12 @@ export default async function ManutenzionePage() {
       </Card>
 
       <Card className="mt-4">
-        <CardHeader className="flex flex-row items-center gap-3">
+        <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <HardDrive className="h-4 w-4" />
           </span>
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">
+            <h2 className="font-display text-base font-bold text-foreground">
               Nessun dato viene mai cancellato
             </h2>
           </div>

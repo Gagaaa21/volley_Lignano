@@ -13,17 +13,15 @@ import {
   FlaskConical,
   Gauge,
   Globe,
+  KeyRound,
   LayoutDashboard,
   LogOut,
-  Menu,
   Puzzle,
   Shield,
-  ShieldCheck,
   Swords,
   Target,
   Users,
   Volleyball,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { logoutAction } from "@/lib/auth/actions";
@@ -32,6 +30,7 @@ import { setActiveTeamAction } from "@/app/admin/actions";
 import type { SessionPayload } from "@/lib/auth/session";
 import { isPageAvailableForTeam, type AdminPage, type TrainingTeam } from "@/lib/types";
 import { InstallButton } from "@/components/pwa/InstallButton";
+import { Avatar } from "@/components/ui/Avatar";
 import crest from "@/assets/lignano-crest.png";
 
 const NAV_ITEMS: {
@@ -54,10 +53,19 @@ const NAV_ITEMS: {
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida", tourId: "nav-guida" },
 ];
 
+const DEV_NAV_ITEMS = [
+  { href: "/admin/centro-controllo", label: "Centro di controllo", icon: Shield, tourId: "nav-centro-controllo" },
+  { href: "/admin/manutenzione", label: "Manutenzione", icon: Gauge, tourId: "nav-manutenzione" },
+];
+
 const TEAM_OPTIONS: { value: TrainingTeam; label: string }[] = [
   { value: "u14u15", label: "U14/U15" },
   { value: "minivolley", label: "Minivolley" },
 ];
+
+function isActive(pathname: string, href: string, exact: boolean) {
+  return exact ? pathname === href : pathname.startsWith(href);
+}
 
 /** Sceglie la squadra attiva per tutta la sessione: Allenamenti, Partite,
  * Schede e Presenze mostrano da qui in poi i dati della squadra scelta.
@@ -79,70 +87,46 @@ function TeamSwitcher({
 
   return (
     <div
-      className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface p-0.5 shadow-sm shadow-sea-950/5"
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-xl bg-muted p-1"
       role="group"
       aria-label="Squadra attiva"
       data-tour="team-switcher"
     >
-      {options.map((option) => (
-        <form key={option.value} action={setActiveTeamAction}>
-          <input type="hidden" name="team" value={option.value} />
-          <input type="hidden" name="redirectTo" value={pathname} />
-          <button
-            type="submit"
-            disabled={activeTeam === option.value}
-            className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors",
-              activeTeam === option.value
-                ? "bg-sea-700 text-white"
-                : "text-foreground/55 hover:bg-surface-muted",
-            )}
-          >
-            {option.label}
-          </button>
-        </form>
-      ))}
+      {options.map((option) => {
+        const active = activeTeam === option.value;
+        return (
+          <form key={option.value} action={setActiveTeamAction}>
+            <input type="hidden" name="team" value={option.value} />
+            <input type="hidden" name="redirectTo" value={pathname} />
+            <button
+              type="submit"
+              disabled={active}
+              className={cn(
+                "rounded-lg px-2.5 py-1.5 text-xs font-bold tracking-[0.01em] transition-colors sm:px-3",
+                active
+                  ? "bg-surface text-primary shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)]"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {option.label}
+            </button>
+          </form>
+        );
+      })}
     </div>
   );
 }
 
-const DEV_NAV_ITEMS = [
-  { href: "/admin/centro-controllo", label: "Centro di controllo", icon: Shield, exact: false, tourId: "nav-centro-controllo" },
-  { href: "/admin/manutenzione", label: "Manutenzione", icon: Gauge, exact: false, tourId: "nav-manutenzione" },
-];
-
-function isActive(pathname: string, href: string, exact: boolean) {
-  return exact ? pathname === href : pathname.startsWith(href);
-}
-
-function NavLink({
-  item,
-  active,
-  onClick,
-}: {
-  item: { href: string; label: string; icon: typeof LayoutDashboard; tourId?: string };
-  active: boolean;
-  onClick: () => void;
-}) {
-  const Icon = item.icon;
-  return (
-    <Link
-      href={item.href}
-      data-active={active ? "true" : undefined}
-      data-tour={item.tourId}
-      onClick={onClick}
-      className="nav-tile"
-    >
-      <Icon className="h-4 w-4" />
-      {item.label}
-    </Link>
-  );
-}
-
-function DevMenu({ pathname }: { pathname: string }) {
+/** Menu dell'account: identità e ruolo, strumenti Developer, modalità prova,
+ * sito pubblico, password ed uscita — tutto ciò che prima affollava l'header
+ * in pillole separate. Marcato `dev-menu-toggle` per il tour guidato, che lo
+ * apre da solo quando deve evidenziare una voce al suo interno. */
+function UserMenu({ session, activeTeam }: { session: SessionPayload; activeTeam: TrainingTeam }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const devActive = DEV_NAV_ITEMS.some((item) => isActive(pathname, item.href, item.exact));
+  const pathname = usePathname();
+  const isDev = session.role === "dev";
+  const devActive = DEV_NAV_ITEMS.some((item) => pathname.startsWith(item.href));
 
   useEffect(() => {
     if (!open) return;
@@ -160,47 +144,100 @@ function DevMenu({ pathname }: { pathname: string }) {
     };
   }, [open]);
 
+  const itemClass =
+    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground";
+
   return (
-    <div ref={ref} className="relative hidden shrink-0 sm:block">
+    <div ref={ref} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        data-active={devActive ? "true" : undefined}
+        aria-label="Menu account"
         data-tour="dev-menu-toggle"
-        className="nav-tile"
+        className={cn(
+          "flex items-center gap-2 rounded-full py-1 pl-1 pr-1 transition-colors hover:bg-muted sm:pr-2.5",
+          (open || devActive) && "bg-muted",
+        )}
       >
-        <Shield className="h-4 w-4" />
-        Developer
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+        <Avatar name={session.fullName} size="sm" tone={isDev ? "gold" : "primary"} />
+        <span className="hidden max-w-[9rem] truncate text-sm font-semibold text-foreground sm:block">
+          {session.fullName}
+        </span>
+        <ChevronDown
+          className={cn("hidden h-4 w-4 text-muted-foreground transition-transform sm:block", open && "rotate-180")}
+        />
       </button>
+
       {open && (
         <div
           role="menu"
-          aria-label="Strumenti Developer"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-60 rounded-xl border border-border-subtle bg-card p-1.5 shadow-[0_20px_40px_-20px_rgba(9,27,38,0.4)]"
+          aria-label="Account"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 origin-top-right animate-[pop-in_140ms_ease-out] rounded-2xl border border-border bg-popover p-1.5 shadow-pop"
         >
-          {DEV_NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(pathname, item.href, item.exact);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                role="menuitem"
-                data-tour={item.tourId}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground/75 transition-colors hover:bg-muted hover:text-foreground",
-                  active && "bg-muted font-semibold text-primary",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+          <div className="flex items-center gap-3 px-2.5 pb-3 pt-2">
+            <Avatar name={session.fullName} size="md" tone={isDev ? "gold" : "primary"} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-foreground">{session.fullName}</p>
+              <p className="text-xs font-medium text-muted-foreground">{isDev ? "Developer" : "Admin"}</p>
+            </div>
+          </div>
+
+          {isDev && (
+            <div className="border-t border-border py-1.5">
+              <p className="px-2.5 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Developer
+              </p>
+              {DEV_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    data-tour={item.tourId}
+                    onClick={() => setOpen(false)}
+                    className={cn(itemClass, active && "bg-primary-soft text-primary")}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+              {!session.testMode && (
+                <form action={enterTestModeAction}>
+                  <button type="submit" role="menuitem" data-tour="test-mode-toggle" className={itemClass}>
+                    <FlaskConical className="h-4 w-4 text-[var(--color-u15)]" />
+                    Modalità prova
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          <div className="border-t border-border pt-1.5">
+            <Link
+              href={activeTeam === "minivolley" ? "/minivolley" : "/"}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={itemClass}
+            >
+              <Globe className="h-4 w-4" />
+              Sito pubblico
+            </Link>
+            <Link href="/admin/cambia-password" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
+              <KeyRound className="h-4 w-4" />
+              Cambia password
+            </Link>
+            <form action={logoutAction}>
+              <button type="submit" role="menuitem" className={cn(itemClass, "text-destructive hover:bg-destructive/8 hover:text-destructive")}>
+                <LogOut className="h-4 w-4" />
+                Esci
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
@@ -219,134 +256,78 @@ export function AdminHeader({
   activeTeam: TrainingTeam;
 }) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (item.page && !isPageAvailableForTeam(item.page, activeTeam)) return false;
     if (session.role === "dev") return true;
     return !item.page || allowedPages.includes(item.page);
   });
 
+  // Su schermi stretti la barra delle sezioni scorre in orizzontale: porta
+  // in vista la sezione attiva invece di lasciarla eventualmente nascosta
+  // oltre il bordo destro.
+  useEffect(() => {
+    const active = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    active?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
+
   return (
     <header className="page-header">
-      <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:space-y-4 sm:px-6 sm:py-4">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-          <Link href="/admin" className="brand-chip h-11 w-11 shrink-0 sm:h-12 sm:w-12">
-            <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
-          </Link>
-          <div className="min-w-0">
-            <p className="eyebrow truncate">Area tecnici</p>
-            <h1 className="truncate font-display text-lg leading-tight tracking-tight sm:text-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <Link href="/admin" className="flex min-w-0 items-center gap-3">
+          <span className="brand-chip h-10 w-10 shrink-0">
+            <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain p-0.5" priority />
+          </span>
+          <span className="hidden min-w-0 leading-tight min-[480px]:block">
+            <span className="block truncate font-display text-[15px] font-extrabold tracking-[-0.01em] text-foreground">
               Volley Lignano
-            </h1>
-            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
-              <span className="max-w-full truncate font-medium text-foreground/80">{session.fullName}</span>
-              <span
+            </span>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Area tecnici
+            </span>
+          </span>
+        </Link>
+
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
+          <TeamSwitcher activeTeam={activeTeam} allowedTeams={allowedTeams} pathname={pathname} />
+          <InstallButton />
+          <UserMenu session={session} activeTeam={activeTeam} />
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-2 sm:px-4">
+        <nav
+          ref={navRef}
+          aria-label="Sezioni area tecnici"
+          className="no-scrollbar scroll-fade-x flex items-stretch gap-0.5 overflow-x-auto pr-6"
+        >
+          {visibleNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, item.href, item.exact);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                data-tour={item.tourId}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1",
-                  session.role === "dev"
-                    ? "bg-sand-100 text-sand-800 ring-sand-300"
-                    : "bg-primary/10 text-primary ring-primary/25",
+                  "group relative flex shrink-0 items-center gap-2 px-3 pb-3 pt-1.5 text-sm font-semibold transition-colors",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <ShieldCheck className="h-2.5 w-2.5" />
-                {session.role === "dev" ? "Developer" : "Admin"}
-              </span>
-              {session.role === "dev" && !session.testMode && (
-                <form action={enterTestModeAction}>
-                  <button
-                    type="submit"
-                    data-tour="test-mode-toggle"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-u15-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-u15-strong)] transition-opacity hover:opacity-80"
-                  >
-                    <FlaskConical className="h-2.5 w-2.5" />
-                    Modalità prova
-                  </button>
-                </form>
-              )}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <div className="hidden sm:block">
-              <TeamSwitcher activeTeam={activeTeam} allowedTeams={allowedTeams} pathname={pathname} />
-            </div>
-            <InstallButton />
-            <button
-              type="button"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-expanded={mobileOpen}
-              aria-label={mobileOpen ? "Chiudi menu" : "Apri menu"}
-              data-tour="mobile-menu-toggle"
-              className="nav-tile shrink-0 sm:hidden"
-            >
-              {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-              {mobileOpen ? "Chiudi" : "Menu"}
-            </button>
-          </div>
-        </div>
-
-        <div className="sm:hidden">
-          <TeamSwitcher activeTeam={activeTeam} allowedTeams={allowedTeams} pathname={pathname} />
-        </div>
-
-        <div
-          className={cn(
-            "w-full items-center gap-2 sm:flex",
-            mobileOpen ? "flex flex-col" : "hidden sm:flex",
-          )}
-        >
-          <nav
-            className="nav-rail scroll-fade-x w-full min-w-0 flex-1"
-            data-mobile={mobileOpen ? "true" : undefined}
-            aria-label="Sezioni area tecnici"
-          >
-            {visibleNavItems.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                active={isActive(pathname, item.href, item.exact)}
-                onClick={() => setMobileOpen(false)}
-              />
-            ))}
-          </nav>
-
-          {session.role === "dev" && (
-            <>
-              <nav
-                className="nav-rail w-full shrink-0 sm:hidden"
-                data-mobile={mobileOpen ? "true" : undefined}
-                aria-label="Strumenti Developer"
-              >
-                {DEV_NAV_ITEMS.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    item={item}
-                    active={isActive(pathname, item.href, item.exact)}
-                    onClick={() => setMobileOpen(false)}
-                  />
-                ))}
-              </nav>
-              <DevMenu pathname={pathname} />
-            </>
-          )}
-
-          <div className="nav-cluster w-full shrink-0 sm:w-auto">
-            <Link
-              href={activeTeam === "minivolley" ? "/minivolley" : "/"}
-              onClick={() => setMobileOpen(false)}
-              className="nav-tile w-full sm:w-auto"
-              aria-label="Vai al sito pubblico"
-            >
-              <Globe className="h-4 w-4" />
-              Sito pubblico
-            </Link>
-            <form action={logoutAction} className="w-full sm:w-auto">
-              <button type="submit" className="nav-tile w-full sm:w-auto" aria-label="Esci">
-                <LogOut className="h-4 w-4" />
-                Esci
-              </button>
-            </form>
-          </div>
-        </div>
+                <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-foreground/40 group-hover:text-foreground/70")} />
+                {item.label}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-x-2 bottom-0 h-[3px] rounded-t-full transition-colors",
+                    active ? "bg-primary" : "bg-transparent group-hover:bg-border-strong",
+                  )}
+                />
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );

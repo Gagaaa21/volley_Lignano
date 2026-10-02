@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { TestFisiciHome, type AthleteTestSummary } from "./TestFisiciHome";
 
 export const metadata: Metadata = {
@@ -41,26 +42,21 @@ export default async function PhysicalTestsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-foreground">
-            <Activity className="h-6 w-6 text-primary" />
-            Test fisici
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Risultati dei test fisici (es. Squat Jump, misure corporee) per atleta, per confrontarli nel tempo.
-          </p>
-        </div>
-        {athletes.length > 0 && (
-          <LinkButton href="/admin/test-fisici/nuovo">
-            <Plus className="h-4 w-4" />
-            Nuovo test
-          </LinkButton>
-        )}
-      </div>
+      <PageHeader
+        title="Test fisici"
+        description="Squat Jump, misure corporee e altri test per atleta, da confrontare nel tempo."
+        actions={
+          athletes.length > 0 ? (
+            <LinkButton href="/admin/test-fisici/nuovo">
+              <Plus className="h-4 w-4" />
+              Nuovo test
+            </LinkButton>
+          ) : undefined
+        }
+      />
 
       {athletes.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Serve prima un&apos;atleta in anagrafica.{" "}
           <Link href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
             Aggiungine una
@@ -68,9 +64,7 @@ export default async function PhysicalTestsPage() {
           , poi torna qui per registrare il primo test.
         </div>
       ) : (
-        <div className="mt-6">
-          <TestFisiciHome athletes={summaries} />
-        </div>
+        <TestFisiciHome athletes={summaries} />
       )}
     </div>
   );

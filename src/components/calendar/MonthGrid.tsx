@@ -21,10 +21,13 @@ export function MonthGrid({
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   return (
-    <div className="hidden overflow-hidden rounded-2xl border border-border-subtle bg-surface shadow-sm shadow-sea-950/5 md:block">
-      <div className="grid grid-cols-7 border-b border-border-subtle bg-surface-muted text-center text-xs font-semibold uppercase tracking-wide text-foreground/50">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      <div className="grid grid-cols-7 border-b border-border">
         {WEEKDAY_HEADERS.map((label) => (
-          <div key={label} className="py-2.5">
+          <div
+            key={label}
+            className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+          >
             {label}
           </div>
         ))}
@@ -36,34 +39,32 @@ export function MonthGrid({
           const events = eventsByDate.get(dateStr) ?? [];
           const isCurrentDay = dateStr === todayStr;
           const isPast = dateStr < todayStr;
-          const dayOfWeek = day.getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
           return (
             <div
               key={dateStr}
               className={cn(
-                "min-h-28 border-b border-r border-border-subtle p-1.5 [&:nth-of-type(7n)]:border-r-0",
-                !inMonth ? "bg-surface-muted/50" : isWeekend && "bg-sand-50/50",
+                "min-h-[7.5rem] border-b border-r border-border p-1.5 [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0",
+                !inMonth && "bg-surface-muted",
               )}
             >
-              <div className="flex justify-end">
+              <div className="mb-1 flex h-6 items-center px-1">
                 <span
                   className={cn(
-                    "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+                    "tabular grid h-6 min-w-6 place-items-center rounded-full px-1 text-[13px] font-semibold",
                     isCurrentDay
-                      ? "bg-sea-700 text-white shadow-sm shadow-sea-700/40 ring-2 ring-sea-700/20 ring-offset-1 ring-offset-surface"
-                      : inMonth
-                        ? isPast
-                          ? "text-foreground/35"
-                          : "text-foreground"
-                        : "text-foreground/30",
+                      ? "bg-primary text-primary-foreground shadow-[0_2px_6px_-1px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
+                      : !inMonth
+                        ? "text-muted-foreground/45"
+                        : isPast
+                          ? "text-muted-foreground"
+                          : "text-foreground",
                   )}
                 >
                   {format(day, "d")}
                 </span>
               </div>
-              <div className={cn("mt-1 flex flex-col gap-1", isPast && "opacity-50 grayscale")}>
+              <div className={cn("flex flex-col gap-0.5", (isPast || !inMonth) && "opacity-55")}>
                 {events.slice(0, MAX_VISIBLE_PER_DAY).map((event) => (
                   <EventPill
                     key={event.id}
@@ -72,7 +73,7 @@ export function MonthGrid({
                   />
                 ))}
                 {events.length > MAX_VISIBLE_PER_DAY && (
-                  <span className="px-1.5 text-[10px] font-medium text-foreground/50">
+                  <span className="px-1.5 text-[11px] font-semibold text-muted-foreground">
                     +{events.length - MAX_VISIBLE_PER_DAY} altri
                   </span>
                 )}

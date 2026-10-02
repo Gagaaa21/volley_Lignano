@@ -2,73 +2,73 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Pencil, Search } from "lucide-react";
-import { categoryLabel, groupLabel } from "@/lib/category";
-import { Card, CardBody } from "@/components/ui/Card";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { ChevronRight, Pencil } from "lucide-react";
+import { categoryDotClass, categoryLabel, groupDotClass, groupLabel } from "@/lib/category";
+import { cn } from "@/lib/cn";
+import { Avatar, type AvatarTone } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { MINIVOLLEY_GROUPS, type Athlete, type TrainingTeam } from "@/lib/types";
-import { deleteAthleteAction } from "./actions";
 
-function AthleteGroup({ label, athletes }: { label: string; athletes: Athlete[] }) {
+function AthleteGroup({
+  label,
+  dotClass,
+  tone,
+  athletes,
+}: {
+  label: string;
+  dotClass: string;
+  tone: AvatarTone;
+  athletes: Athlete[];
+}) {
   if (athletes.length === 0) return null;
   return (
-    <div>
-      <p className="eyebrow">{label}</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+    <section>
+      <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-foreground">
+          <span className={cn("h-2.5 w-2.5 rounded-full", dotClass)} aria-hidden />
+          {label}
+        </h2>
+        <span className="text-[13px] text-muted-foreground">{athletes.length}</span>
+      </div>
+      <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
         {athletes.map((athlete) => (
-          <Card key={athlete.id}>
-            <CardBody className="flex items-center justify-between gap-3 pt-5">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/admin/presenze/atleta/${athlete.id}`}
-                    className="truncate font-semibold text-foreground hover:text-primary hover:underline"
-                  >
-                    {athlete.fullName}
-                  </Link>
-                  {!athlete.isActive && (
-                    <Badge className="bg-foreground/10 text-foreground/50">Non attiva</Badge>
-                  )}
-                </div>
-                {athlete.notes && (
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{athlete.notes}</p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <LinkButton
-                  href={`/admin/presenze/atlete/${athlete.id}`}
-                  variant="outline"
-                  size="sm"
-                  aria-label="Modifica"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </LinkButton>
-                <form action={deleteAthleteAction}>
-                  <input type="hidden" name="id" value={athlete.id} />
-                  <ConfirmSubmitButton
-                    confirmMessage={`Eliminare definitivamente ${athlete.fullName}? Le presenze registrate resteranno ma senza nome collegato.`}
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/8"
-                  >
-                    Elimina
-                  </ConfirmSubmitButton>
-                </form>
-              </div>
-            </CardBody>
-          </Card>
+          <div key={athlete.id} className={cn("flex items-center gap-1 pr-2", !athlete.isActive && "opacity-60")}>
+            <Link
+              href={`/admin/presenze/atleta/${athlete.id}`}
+              className="group flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"
+            >
+              <Avatar name={athlete.fullName} tone={tone} />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="truncate font-semibold text-foreground group-hover:text-primary">{athlete.fullName}</span>
+                  {!athlete.isActive && <Badge>Non attiva</Badge>}
+                </span>
+                {athlete.notes && <span className="block truncate text-[13px] text-muted-foreground">{athlete.notes}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            </Link>
+            <Link
+              href={`/admin/presenze/atlete/${athlete.id}`}
+              aria-label={`Modifica ${athlete.fullName}`}
+              title="Modifica"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Pencil className="h-4 w-4" />
+            </Link>
+          </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
 /** Elenco atlete con ricerca (mostrata solo oltre 5 nominativi, stesso
  * limite già usato in SchedeLibrary) e raggruppamento per categoria
  * (u14u15) o gruppo CDA (Minivolley), filtro applicato prima del
- * raggruppamento così ogni sezione mostra solo i risultati pertinenti. */
+ * raggruppamento così ogni sezione mostra solo i risultati pertinenti.
+ * Ogni riga apre le presenze dell'atleta; la matita apre la modifica
+ * (dove si trova anche l'eliminazione). */
 export function AthleteList({ athletes, team }: { athletes: Athlete[]; team: TrainingTeam }) {
   const [query, setQuery] = useState("");
 
@@ -81,36 +81,53 @@ export function AthleteList({ athletes, team }: { athletes: Athlete[]; team: Tra
   return (
     <div>
       {athletes.length > 5 && (
-        <div className="relative mb-6 max-w-sm">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca per nome…"
-            className="w-full rounded-full border border-border-subtle bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-foreground/35 focus:border-primary/40 focus:outline-none"
-          />
-        </div>
+        <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cerca per nome…" className="mb-6" />
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center text-sm text-foreground/50">
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Nessuna atleta trovata per &quot;{query}&quot;.
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-9">
           {team === "u14u15" ? (
             <>
-              <AthleteGroup label={categoryLabel("U14")} athletes={filtered.filter((a) => a.category === "U14")} />
-              <AthleteGroup label={categoryLabel("U15")} athletes={filtered.filter((a) => a.category === "U15")} />
-              <AthleteGroup label={categoryLabel(null)} athletes={filtered.filter((a) => a.category === null)} />
+              <AthleteGroup
+                label={categoryLabel("U14")}
+                dotClass={categoryDotClass("U14")}
+                tone="u14"
+                athletes={filtered.filter((a) => a.category === "U14")}
+              />
+              <AthleteGroup
+                label={categoryLabel("U15")}
+                dotClass={categoryDotClass("U15")}
+                tone="u15"
+                athletes={filtered.filter((a) => a.category === "U15")}
+              />
+              <AthleteGroup
+                label={categoryLabel(null)}
+                dotClass={categoryDotClass(null)}
+                tone="neutral"
+                athletes={filtered.filter((a) => a.category === null)}
+              />
             </>
           ) : (
             <>
               {MINIVOLLEY_GROUPS.map((g) => (
-                <AthleteGroup key={g} label={groupLabel(g)} athletes={filtered.filter((a) => a.group === g)} />
+                <AthleteGroup
+                  key={g}
+                  label={groupLabel(g)}
+                  dotClass={groupDotClass(g)}
+                  tone="primary"
+                  athletes={filtered.filter((a) => a.group === g)}
+                />
               ))}
-              <AthleteGroup label={groupLabel(null)} athletes={filtered.filter((a) => a.group === null)} />
+              <AthleteGroup
+                label={groupLabel(null)}
+                dotClass={groupDotClass(null)}
+                tone="neutral"
+                athletes={filtered.filter((a) => a.group === null)}
+              />
             </>
           )}
         </div>

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { deleteAttendanceSessionAction } from "../../actions";
 import { AttendanceForm } from "../../AttendanceForm";
 import { MiniAttendanceForm } from "../../MiniAttendanceForm";
 import type { Athlete } from "@/lib/types";
@@ -60,25 +62,23 @@ export default async function AttendanceSessionDetailPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <LinkButton href="/admin/presenze/storico" variant="ghost" size="sm" className="mb-4 -ml-3.5">
-        <ArrowLeft className="h-4 w-4" />
-        Torna allo storico
-      </LinkButton>
+      <PageHeader
+        back={{ href: "/admin/presenze/storico", label: "Storico" }}
+        eyebrow={formatDateLong(session.sessionDate)}
+        title="Registro presenze"
+        description={
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="font-semibold text-foreground/80">{session.title}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" />
+              {session.location}
+            </span>
+          </span>
+        }
+      />
 
-      <h1 className="font-display text-2xl font-bold text-foreground">Registro presenze</h1>
-      <p className="mt-1 capitalize text-sm text-muted-foreground">
-        {formatDateLong(session.sessionDate)}
-      </p>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <h2 className="font-display text-base font-semibold text-foreground">{session.title}</h2>
-          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5" />
-            {session.location}
-          </p>
-        </CardHeader>
-        <CardBody>
+      <Card>
+        <CardBody className="pb-0 pt-5 sm:pb-0 sm:pt-6">
           {isMini ? (
             <MiniAttendanceForm
               athletes={recordedAthletes}
@@ -102,6 +102,19 @@ export default async function AttendanceSessionDetailPage({
           )}
         </CardBody>
       </Card>
+
+      <form action={deleteAttendanceSessionAction} className="mt-6">
+        <input type="hidden" name="id" value={session.id} />
+        <ConfirmSubmitButton
+          confirmMessage={`Eliminare il registro di "${session.title}" del ${formatDateLong(session.sessionDate)}?`}
+          variant="danger-ghost"
+          size="sm"
+          className="-ml-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Elimina questo registro
+        </ConfirmSubmitButton>
+      </form>
     </div>
   );
 }

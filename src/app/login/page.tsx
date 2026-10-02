@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { Waves } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { LoginForm } from "./LoginForm";
 
@@ -15,46 +15,35 @@ export default function LoginPage() {
       <Image src={crest} alt="" aria-hidden className="auth-stage-logo" />
 
       <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-[25rem]">
+        <div className="w-full max-w-[24rem]">
           <div className="auth-card p-6 sm:p-8">
             <div className="flex flex-col items-center text-center">
-              <span className="brand-chip h-16 w-16">
+              <span className="brand-chip h-16 w-16 rounded-2xl p-2">
                 <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
               </span>
-              <p className="eyebrow mt-5">Volley Lignano · Lignano Sabbiadoro</p>
-              <p className="mt-1 text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
-                Area tecnici
-              </p>
-              <h1 className="mt-2.5 font-display text-[1.7rem] leading-tight tracking-tight sm:text-3xl">
-                Bentornato
-              </h1>
-              <p className="mt-2 max-w-[20rem] text-sm leading-relaxed text-muted-foreground">
-                Accesso riservato a Developer e Admin. Inserisci le tue credenziali per continuare.
+              <p className="eyebrow mt-5">Volley Lignano</p>
+              <h1 className="display-wide mt-2 text-[2rem] leading-none text-foreground">Area tecnici</h1>
+              <p className="mt-3 max-w-[18rem] text-sm leading-relaxed text-muted-foreground">
+                Accedi per gestire allenamenti, partite e presenze.
               </p>
             </div>
 
-            <div className="my-6 h-px bg-border/70" />
+            <div className="mt-7">
+              <LoginForm />
+            </div>
 
-            <LoginForm />
-          </div>
-
-          <div className="mt-7 space-y-2 text-center text-foreground/50">
-            <p className="rule-center">Assistenza</p>
-            <p className="text-xs leading-relaxed text-foreground/45">
-              Credenziali dimenticate? Contatta un amministratore del club.
-            </p>
-            <p className="pt-2 text-sm text-foreground/60">
-              Sei un genitore o un&apos;atleta?{" "}
-              <Link href="/" className="font-semibold text-primary hover:underline">
-                Vai al calendario pubblico
-              </Link>
+            <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
+              Credenziali dimenticate? Chiedi a un amministratore del club.
             </p>
           </div>
 
-          <p className="mt-8 flex items-center justify-center gap-2 text-xs text-foreground/35">
-            <Waves className="h-3.5 w-3.5" />
-            Lignano Sabbiadoro
-          </p>
+          <Link
+            href="/"
+            className="mx-auto mt-6 flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Calendario pubblico
+          </Link>
         </div>
       </main>
     </div>

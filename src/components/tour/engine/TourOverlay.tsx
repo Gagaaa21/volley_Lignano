@@ -41,7 +41,7 @@ export function TourOverlay({
 
   return (
     <div className="fixed inset-0 z-[60]">
-      {isCentered && <div className="fixed inset-0 bg-sea-950/55" />}
+      {isCentered && <div className="fixed inset-0 bg-[rgba(12,29,54,0.45)] backdrop-blur-[2px]" />}
       {!isCentered && rect && (
         <div
           className={cn(
@@ -100,7 +100,7 @@ function TourCard({
       role="dialog"
       aria-modal="true"
       aria-label="Tour guidato"
-      className="fixed z-[61] w-[min(20rem,calc(100vw-2rem))] animate-[tour-fade-in_200ms_ease-out] rounded-2xl border border-border-subtle bg-surface p-4 shadow-[0_20px_50px_-20px_rgba(9,27,38,0.45)]"
+      className="fixed z-[61] w-[min(20rem,calc(100vw-2rem))] animate-[tour-fade-in_200ms_ease-out] rounded-2xl border border-border bg-card p-4 shadow-pop"
       style={style}
     >
       <div className="flex items-start justify-between gap-2">
@@ -119,7 +119,7 @@ function TourCard({
       <p className="mt-2.5 font-display text-sm font-bold text-foreground">{step.title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
       <div className="mt-3.5 flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-foreground/40">
+        <span className="tabular text-xs font-medium text-muted-foreground">
           {stepNumber} di {totalSteps}
         </span>
         <div className="flex items-center gap-1.5">
@@ -138,7 +138,7 @@ function TourCard({
       <button
         type="button"
         onClick={onSkip}
-        className="mt-2.5 w-full text-center text-xs font-medium text-foreground/45 transition-colors hover:text-foreground/70"
+        className="mt-2.5 w-full text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         Salta il tour
       </button>
