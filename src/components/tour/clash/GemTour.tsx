@@ -7,14 +7,18 @@ import type { BaseTourStep } from "../engine/types";
 import { useTourEngine } from "../engine/useTourEngine";
 import { ClashTourOverlay } from "./ClashTourOverlay";
 
-const SEEN_KEY = "vl-gem-tour-seen";
+// Il suffisso è la "edizione" del tour: cambiarlo lo ripropone da solo a
+// tutti, anche a chi l'aveva già visto e chiuso. Il valore senza suffisso
+// ("vl-gem-tour-seen") è quello della prima edizione, ormai ignorato.
+const SEEN_KEY = "vl-gem-tour-seen-2";
 const AUTO_START_DELAY_MS = 700;
 
 /** Mini-tour della sezione Test fisici, guidato da Gem (il boia) in stile
  * videogioco. Come SectionTour si riapre dal "?" accanto al titolo, ma la
  * prima visita da ogni dispositivo lo fa partire da solo (dopo un attimo,
  * per lasciar vedere la pagina prima che Gem salti fuori), ricordato
- * in localStorage come il tour pubblico. */
+ * in localStorage come il tour pubblico. Chi aveva già aperto la sezione
+ * prima dell'ultima edizione (SEEN_KEY) lo rivede una volta. */
 export function GemTour({ steps }: { steps: BaseTourStep[] }) {
   const engine = useTourEngine(steps, {
     onFinish: () => {

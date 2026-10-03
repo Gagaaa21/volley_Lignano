@@ -15,7 +15,18 @@ export default async function globalSetup(config: FullConfig) {
   const browser = await chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
   });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  // I banner fissi "Installa l'app" / "Attiva le notifiche" possono coprire il
+  // pulsante "Aggiorna password": qui risultano già mostrati.
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem("vl-pwa-install-prompted", "1");
+      localStorage.setItem("vl-pwa-notify-last-prompted-at", String(Date.now()));
+    } catch {
+      // localStorage non disponibile: si prosegue senza.
+    }
+  });
+  const page = await context.newPage();
 
   let reachedAdmin = false;
   for (const candidate of ["Gaga211", DEV_PASSWORD]) {
