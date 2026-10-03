@@ -133,6 +133,7 @@ export function GemCharacter({ className, talking = false }: { className?: strin
         <circle cx="846" cy="794" r="7" />
       </g>
       <g transform="translate(190 0)">
+        <GemNeck />
         <GemHeadArt uid={uid} />
       </g>
       {/* mantello sulle spalle */}
@@ -182,16 +183,36 @@ export function GemCharacter({ className, talking = false }: { className?: strin
         <circle cx="-14" cy="6" r="8" fill="#28191D" />
         <path d="M-4 -10 L36 -10" stroke="#fff" strokeWidth="5" strokeLinecap="round" />
       </g>
+      {/* avambraccio sinistro: sale dal braccio nudo fino al pugno */}
+      <path
+        d="M244 900 L354 870 C346 920 326 975 300 1030 L136 1030 C170 990 210 950 244 900 Z"
+        fill="#F4B79C"
+        stroke="#28191D"
+        strokeWidth="12"
+        strokeLinejoin="round"
+      />
+      <path d="M340 900 C330 950 312 990 292 1030 L250 1030 C280 990 306 950 322 905 Z" fill="#DB8C78" />
+      <path
+        d="M232 960 C210 984 190 1004 172 1030"
+        fill="none"
+        stroke="#FFD9C6"
+        strokeWidth="12"
+        strokeLinecap="round"
+      />
+      {/* bracciale al polso */}
+      <path
+        d="M228 912 L358 878 C354 896 350 914 346 934 C292 942 238 952 184 966 C200 948 214 930 228 912 Z"
+        fill="#3B2D4D"
+        stroke="#28191D"
+        strokeWidth="10"
+        strokeLinejoin="round"
+      />
+      <g fill="#C9D1DA" stroke="#28191D" strokeWidth="4">
+        <circle cx="250" cy="938" r="7" />
+        <circle cx="312" cy="924" r="7" />
+      </g>
       {/* pugno sinistro che stringe il manico */}
       <g transform="translate(296 900) rotate(-17)">
-        <path
-          d="M-56 140 C-64 80 -60 30 -40 6 L40 2 C60 30 64 80 58 140 Z"
-          fill="#3B2D4D"
-          stroke="#28191D"
-          strokeWidth="10"
-          strokeLinejoin="round"
-        />
-        <path d="M-48 10 L52 4" stroke="#C9D1DA" strokeWidth="8" strokeLinecap="round" />
         <path
           d="M-58 -40 C-60 -84 -24 -104 12 -100 C50 -96 66 -66 62 -32 C60 -4 40 12 4 12 C-30 12 -56 0 -58 -40 Z"
           fill="#F4B79C"
@@ -218,6 +239,7 @@ export function GemHead({ className, talking = false }: { className?: string; ta
 
   return (
     <svg viewBox="-22 -16 652 900" className={className} data-talking={talking || undefined} aria-hidden>
+      <GemNeck />
       <GemHeadArt uid={uid} />
       <g transform="translate(-190 0)">
         {/* cappuccio abbassato: drappeggio a V sotto il mento */}
@@ -246,6 +268,29 @@ export function GemHead({ className, talking = false }: { className?: string; ta
 
 function useSvgUid() {
   return useId().replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+/** Collo taurino da boia, nelle coordinate della testa: parte da dietro la
+ * mascella e finisce sotto il colletto, così la testa resta attaccata al
+ * busto. Sta fuori da .gem-head apposta: quando Gem annuisce si muove solo
+ * il viso, e il collo che spunta da sotto la mascella copre il movimento. */
+function GemNeck() {
+  return (
+    <>
+      <path
+        d="M232 540 L438 540 C440 600 444 660 458 720 C462 740 468 760 474 790 L196 790 C202 760 208 740 212 720 C226 660 230 600 232 540 Z"
+        fill="#F4B79C"
+        stroke="#28191D"
+        strokeWidth="12"
+        strokeLinejoin="round"
+      />
+      {/* ombra sotto la mascella */}
+      <path
+        d="M236 600 L434 600 C438 640 440 660 446 676 C410 720 370 748 335 750 C300 748 260 720 224 676 C230 660 234 640 236 600 Z"
+        fill="#DB8C78"
+      />
+    </>
+  );
 }
 
 /** Viso e capelli, nelle coordinate della testa. */
