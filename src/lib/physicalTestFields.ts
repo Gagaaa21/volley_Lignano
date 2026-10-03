@@ -126,3 +126,72 @@ export function getBodyMeasureHistory(tests: PhysicalTest[]): BodyMeasureHistory
     return { ...field, latest: entries[0] ?? null, previous: entries[1] ?? null };
   });
 }
+
+/** Salto e metrica di un campo Squat Jump, se il nome è uno dei campi del
+ * modulo (salto da 1 a SQUAT_JUMP_TRIALS): l'inverso di squatJumpFieldName. */
+export function parseSquatJumpField(testName: string): { trial: number; metric: SquatJumpMetric } | null {
+  const match = testName.match(/^Squat Jump · Salto (\d+) · (Tempo di volo|Altezza|Forza) /);
+  if (!match) return null;
+  const trial = Number(match[1]);
+  if (trial < 1 || trial > SQUAT_JUMP_TRIALS) return null;
+  const metric: SquatJumpMetric =
+    match[2] === "Tempo di volo" ? "tempo" : match[2] === "Altezza" ? "altezza" : "forza";
+  return { trial, metric };
+}
+
+/** Nome dell'input del modulo per un salto, es. "squatJump_2_altezza". */
+export function squatJumpInputName(trial: number, metric: SquatJumpMetric): string {
+  return `squatJump_${trial}_${metric}`;
+}
+
+/** Una sessione già registrata (tutte le righe di un'atleta in una data)
+ * nella forma dei campi del modulo di inserimento, per poterla modificare. */
+export interface TestSessionValues {
+  originalDate: string;
+  date: string;
+  /** Prima nota non vuota tra le righe: l'inserimento in blocco ne salva
+   * una sola, uguale su tutte. */
+  notes: string;
+  /** Per chiave della misura (peso, gamba90, gambaEstesa). */
+  bodyMeasures: Record<string, string>;
+  /** Per nome dell'input (vedi squatJumpInputName). */
+  squatJump: Record<string, string>;
+  /** Tutto il resto: righe libere, più qualunque riga che non trova un
+   * posto nei campi fissi (così salvare non la cancella per sbaglio). */
+  other: { name: string; value: string }[];
+}
+
+export function buildTestSessionValues(tests: PhysicalTest[], date: string): TestSessionValues | null {
+  const rows = tests.filter((t) => t.date === date).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  if (rows.length === 0) return null;
+
+  const bodyMeasures: Record<string, string> = {};
+  const squatJump: Record<string, string> = {};
+  const other: { name: string; value: string }[] = [];
+
+  for (const row of rows) {
+    const bodyField = BODY_MEASURE_FIELDS.find((f) => f.testName === row.testName);
+    if (bodyField && bodyMeasures[bodyField.key] === undefined) {
+      bodyMeasures[bodyField.key] = row.value;
+      continue;
+    }
+    const jump = parseSquatJumpField(row.testName);
+    if (jump) {
+      const inputName = squatJumpInputName(jump.trial, jump.metric);
+      if (squatJump[inputName] === undefined) {
+        squatJump[inputName] = row.value;
+        continue;
+      }
+    }
+    other.push({ name: row.testName, value: row.value });
+  }
+
+  return {
+    originalDate: date,
+    date,
+    notes: rows.find((r) => r.notes)?.notes ?? "",
+    bodyMeasures,
+    squatJump,
+    other,
+  };
+}

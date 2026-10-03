@@ -269,7 +269,7 @@ export function getTestFisiciTourSteps({
       path,
       target: "test-fisici-athlete",
       title: "Il fascicolo segreto",
-      body: "Tocca un'atleta per vedere tutte le sue sessioni e come cambiano salto, peso e misure nel tempo. Chi migliora mi fa sorridere, chi peggiora… altri dieci squat jump. Scherzo! Forse.",
+      body: "Tocca un'atleta per vedere tutte le sue sessioni e come cambiano salto, peso e misure nel tempo. Hai sbagliato un numero? Ogni sessione si può correggere. Chi migliora mi fa sorridere, chi peggiora… altri dieci squat jump. Scherzo! Forse.",
     },
     {
       id: "test-fisici-help",

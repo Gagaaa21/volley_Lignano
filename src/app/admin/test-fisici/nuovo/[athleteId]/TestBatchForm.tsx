@@ -7,8 +7,13 @@ import { Button } from "@/components/ui/Button";
 import { Textarea, Label, FieldError, FieldHint } from "@/components/ui/Field";
 import { PillInput } from "../../PillInput";
 import { MetricRow, RowGroup } from "../../MetricRow";
-import { saveTestBatchAction, type PhysicalTestBatchFormState } from "../../actions";
-import { BODY_MEASURE_FIELDS, SQUAT_JUMP_TRIALS } from "@/lib/physicalTestFields";
+import { saveTestBatchAction, updateTestSessionAction, type PhysicalTestBatchFormState } from "../../actions";
+import {
+  BODY_MEASURE_FIELDS,
+  SQUAT_JUMP_TRIALS,
+  squatJumpInputName,
+  type TestSessionValues,
+} from "@/lib/physicalTestFields";
 
 const initialState: PhysicalTestBatchFormState = {};
 
@@ -16,20 +21,26 @@ const BODY_MEASURE_ICONS = { peso: Scale, gamba90: Ruler, gambaEstesa: PersonSta
 const BODY_MEASURE_PLACEHOLDERS = { peso: "53", gamba90: "52", gambaEstesa: "91" } as const;
 const TRIALS = Array.from({ length: SQUAT_JUMP_TRIALS }, (_, i) => i + 1);
 
-function SubmitButton() {
+function SubmitButton({ editing }: { editing: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" size="lg" className="w-full" disabled={pending}>
       <Save className="h-4 w-4" />
-      {pending ? "Salvataggio…" : "Salva test"}
+      {pending ? "Salvataggio…" : editing ? "Salva modifiche" : "Salva test"}
     </Button>
   );
 }
 
+interface AltroRow {
+  id: number;
+  name: string;
+  value: string;
+}
+
 let altroRowId = 0;
-function nextAltroRowId() {
+function newAltroRow(name = "", value = ""): AltroRow {
   altroRowId += 1;
-  return altroRowId;
+  return { id: altroRowId, name, value };
 }
 
 /** Ordine d'inserimento calcato sull'app di riferimento usata finora dallo
@@ -42,23 +53,54 @@ export function TestBatchForm({
   athleteId,
   testNameSuggestions,
   bodyMeasurePrefill,
+  session,
 }: {
   athleteId: string;
   testNameSuggestions: string[];
   bodyMeasurePrefill: Record<string, string>;
+  /** Se presente il modulo modifica quella sessione già registrata invece
+   * di crearne una nuova. */
+  session?: TestSessionValues;
 }) {
-  const [state, formAction] = useActionState(saveTestBatchAction, initialState);
-  const [altroRows, setAltroRows] = useState<number[]>(() => [nextAltroRowId()]);
+  const [state, formAction] = useActionState(session ? updateTestSessionAction : saveTestBatchAction, initialState);
+  const [altroRows, setAltroRows] = useState<AltroRow[]>(() =>
+    session && session.other.length > 0
+      ? session.other.map((row) => newAltroRow(row.name, row.value))
+      : [newAltroRow()],
+  );
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Dopo un errore React azzera i campi non controllati: si riparte da
+  // quanto era stato inviato, poi dai valori della sessione (modifica) o da
+  // quelli precompilati (nuova sessione).
+  const sent = state.values;
+  const bodyMeasureDefault = (key: string) =>
+    sent?.[key] ?? (session ? (session.bodyMeasures[key] ?? "") : (bodyMeasurePrefill[key] ?? ""));
+  const jumpDefault = (name: string) => sent?.[name] ?? session?.squatJump[name] ?? "";
+
+  function updateAltroRow(id: number, patch: Partial<AltroRow>) {
+    setAltroRows((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  }
 
   return (
     <form action={formAction} className="space-y-7" noValidate>
       <input type="hidden" name="athleteId" value={athleteId} />
+      {session && <input type="hidden" name="originalDate" value={session.originalDate} />}
+      {session && <input type="hidden" name="originalNotes" value={session.notes} />}
 
       <div>
         <Label htmlFor="date">Data della sessione</Label>
-        <PillInput id="date" name="date" type="date" icon={Calendar} defaultValue={todayStr} required />
-        <FieldHint>Vale per tutti i dati inseriti qui sotto.</FieldHint>
+        <PillInput
+          id="date"
+          name="date"
+          type="date"
+          icon={Calendar}
+          defaultValue={sent?.date ?? session?.date ?? todayStr}
+          required
+        />
+        <FieldHint>
+          {session ? "Vale per tutti i dati di questa sessione." : "Vale per tutti i dati inseriti qui sotto."}
+        </FieldHint>
       </div>
 
       <div>
@@ -75,7 +117,7 @@ export function TestBatchForm({
               icon={BODY_MEASURE_ICONS[field.key]}
               label={field.label}
               unit={field.unit}
-              defaultValue={bodyMeasurePrefill[field.key] ?? ""}
+              defaultValue={bodyMeasureDefault(field.key)}
               placeholder={BODY_MEASURE_PLACEHOLDERS[field.key]}
               aria-label={`${field.label} in ${field.unit}`}
             />
@@ -94,7 +136,8 @@ export function TestBatchForm({
           {TRIALS.map((trial) => (
             <MetricRow
               key={trial}
-              name={`squatJump_${trial}_altezza`}
+              name={squatJumpInputName(trial, "altezza")}
+              defaultValue={jumpDefault(squatJumpInputName(trial, "altezza"))}
               type="number"
               step="any"
               inputMode="decimal"
@@ -111,7 +154,8 @@ export function TestBatchForm({
           {TRIALS.map((trial) => (
             <MetricRow
               key={trial}
-              name={`squatJump_${trial}_tempo`}
+              name={squatJumpInputName(trial, "tempo")}
+              defaultValue={jumpDefault(squatJumpInputName(trial, "tempo"))}
               type="number"
               step="any"
               inputMode="decimal"
@@ -128,7 +172,8 @@ export function TestBatchForm({
           {TRIALS.map((trial) => (
             <MetricRow
               key={trial}
-              name={`squatJump_${trial}_forza`}
+              name={squatJumpInputName(trial, "forza")}
+              defaultValue={jumpDefault(squatJumpInputName(trial, "forza"))}
               type="number"
               step="any"
               inputMode="decimal"
@@ -145,10 +190,12 @@ export function TestBatchForm({
         <p className="font-display text-sm font-bold text-foreground">Altro</p>
         <p className="mt-0.5 text-xs text-muted-foreground">Qualunque altro dato non previsto sopra.</p>
         <RowGroup className="mt-3">
-          {altroRows.map((rowId) => (
-            <div key={rowId} className="flex items-center gap-2 px-4 py-2.5 sm:px-5">
+          {altroRows.map((row) => (
+            <div key={row.id} className="flex items-center gap-2 px-4 py-2.5 sm:px-5">
               <input
                 name="altroName"
+                value={row.name}
+                onChange={(e) => updateAltroRow(row.id, { name: e.target.value })}
                 list="test-name-suggestions"
                 placeholder="Nome del dato"
                 aria-label="Nome del dato"
@@ -156,6 +203,8 @@ export function TestBatchForm({
               />
               <input
                 name="altroValue"
+                value={row.value}
+                onChange={(e) => updateAltroRow(row.id, { value: e.target.value })}
                 placeholder="Valore"
                 aria-label="Valore"
                 className="w-24 shrink-0 rounded-lg border-0 bg-transparent py-1 text-right text-sm font-semibold text-foreground placeholder:text-foreground/25 placeholder:font-normal focus:bg-primary/6 focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -163,7 +212,7 @@ export function TestBatchForm({
               <button
                 type="button"
                 aria-label="Rimuovi riga"
-                onClick={() => setAltroRows((rows) => rows.filter((id) => id !== rowId))}
+                onClick={() => setAltroRows((rows) => rows.filter((r) => r.id !== row.id))}
                 className="shrink-0 rounded-full p-1.5 text-foreground/40 hover:bg-muted hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -181,7 +230,7 @@ export function TestBatchForm({
               variant="ghost"
               size="sm"
               className="-ml-3.5"
-              onClick={() => setAltroRows((rows) => [...rows, nextAltroRowId()])}
+              onClick={() => setAltroRows((rows) => [...rows, newAltroRow()])}
             >
               <Plus className="h-3.5 w-3.5" />
               Aggiungi riga
@@ -192,7 +241,7 @@ export function TestBatchForm({
 
       <div>
         <Label htmlFor="notes">Note (opzionale)</Label>
-        <Textarea id="notes" name="notes" rows={3} />
+        <Textarea id="notes" name="notes" rows={3} defaultValue={sent?.notes ?? session?.notes ?? ""} />
       </div>
 
       {state.error && (
@@ -201,7 +250,7 @@ export function TestBatchForm({
         </div>
       )}
 
-      <SubmitButton />
+      <SubmitButton editing={Boolean(session)} />
     </form>
   );
 }

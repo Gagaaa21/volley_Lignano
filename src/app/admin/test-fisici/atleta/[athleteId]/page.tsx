@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Minus, Pencil, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
+import { CalendarDays, ChevronRight, Minus, Pencil, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff } from "@/lib/auth/guard";
 import { formatDateShort } from "@/lib/format";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
+import { List, ListItem } from "@/components/ui/List";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { AthleteAvatar } from "../../AthleteAvatar";
 import {
@@ -23,6 +24,10 @@ import { deletePhysicalTestAction, deleteSquatJumpSessionAction } from "../../ac
 export const metadata: Metadata = {
   title: "Test fisici atleta",
 };
+
+function sessionEditHref(athleteId: string, date: string) {
+  return `/admin/test-fisici/atleta/${athleteId}/sessione/${date}`;
+}
 
 function Delta({ current, previous, unit }: { current: number; previous: number; unit: string }) {
   const diff = current - previous;
@@ -79,6 +84,23 @@ export default async function AthletePhysicalTestsPage({
   }
   for (const group of otherGroups.values()) group.sort((a, b) => a.date.localeCompare(b.date));
 
+  // Una sessione è un giorno con almeno un dato: da qui si apre il modulo
+  // di inserimento già compilato per correggerla (anche misure e salti
+  // vecchi, che nelle schede qui sotto non si vedono più).
+  const sessionDates = [...new Set(tests.map((t) => t.date))].sort((a, b) => b.localeCompare(a));
+  const sessionSummaries = sessionDates.map((date) => {
+    const rows = tests.filter((t) => t.date === date);
+    const jumps = rows.filter((t) => isSquatJumpField(t.testName)).length;
+    const measures = rows.filter((t) => isBodyMeasureField(t.testName)).length;
+    const others = rows.length - jumps - measures;
+    const parts = [
+      jumps > 0 && "Squat Jump",
+      measures > 0 && `${measures} ${measures === 1 ? "misura" : "misure"}`,
+      others > 0 && `${others} ${others === 1 ? "altro dato" : "altri dati"}`,
+    ].filter(Boolean);
+    return { date, summary: parts.join(" · ") };
+  });
+
   const hasAnyData = bodyMeasures.some((m) => m.latest) || squatJumpSessions.length > 0 || otherGroups.size > 0;
 
   return (
@@ -120,8 +142,8 @@ export default async function AthletePhysicalTestsPage({
                             {measure.label}
                           </p>
                           <Link
-                            href={`/admin/test-fisici/${measure.latest!.id}`}
-                            aria-label={`Modifica ${measure.label}`}
+                            href={sessionEditHref(athlete.id, measure.latest!.date)}
+                            aria-label={`Modifica la sessione del ${formatDateShort(measure.latest!.date)}`}
                             className="-mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -163,10 +185,17 @@ export default async function AthletePhysicalTestsPage({
                           <span className="text-sm font-semibold text-foreground">
                             {formatDateShort(session.date)}
                           </span>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5">
                             {previous?.meanAltezza != null && session.meanAltezza != null && (
                               <Delta current={session.meanAltezza} previous={previous.meanAltezza} unit="cm" />
                             )}
+                            <Link
+                              href={sessionEditHref(athlete.id, session.date)}
+                              aria-label={`Modifica la sessione del ${formatDateShort(session.date)}`}
+                              className="rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Link>
                             <form action={deleteSquatJumpSessionAction}>
                               <input type="hidden" name="athleteId" value={athleteId} />
                               <input type="hidden" name="date" value={session.date} />
@@ -271,6 +300,28 @@ export default async function AthletePhysicalTestsPage({
               </div>
             </div>
           ))}
+
+          <div>
+            <p className="eyebrow">Sessioni registrate</p>
+            <p className="mt-1 text-sm text-muted-foreground">Tocca una sessione per correggerne i dati o la data.</p>
+            <List className="mt-3">
+              {sessionSummaries.map(({ date, summary }) => (
+                <ListItem key={date} href={sessionEditHref(athlete.id, date)}>
+                  <span className="icon-chip shrink-0">
+                    <CalendarDays className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-foreground">{formatDateShort(date)}</span>
+                    <span className="block truncate text-[13px] text-muted-foreground">{summary}</span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary">
+                    Modifica
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </ListItem>
+              ))}
+            </List>
+          </div>
         </div>
       )}
     </div>
