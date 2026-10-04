@@ -8,9 +8,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedLinks } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
+import { loadOfficialResults } from "@/lib/federation/load";
+import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
 import { MatchList } from "./MatchList";
+import { OfficialResultsSection } from "./OfficialResultsSection";
 
 export const metadata: Metadata = {
   title: "Partite",
@@ -32,6 +35,13 @@ export default async function MatchesListPage({
     team,
     category: activeCategory === "all" ? undefined : activeCategory,
   });
+
+  // Risultati ufficiali della federazione: solo per U14/U15, e rilettura dal
+  // portale in secondo piano se i dati hanno più di 30 minuti.
+  if (isU14U15) scheduleFederationRefresh();
+  const official = isU14U15
+    ? (await loadOfficialResults(repo)).filter((entry) => activeCategory === "all" || entry.source.category === activeCategory)
+    : [];
 
   return (
     <div>
@@ -65,6 +75,8 @@ export default async function MatchesListPage({
           />
         </div>
       )}
+
+      {isU14U15 && <OfficialResultsSection official={official} />}
 
       {matches.length === 0 ? (
         <EmptyState

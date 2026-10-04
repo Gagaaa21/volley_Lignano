@@ -39,6 +39,13 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     body: "Passa dalla vista di tutte le partite a quella di una sola categoria, Under 14 o Under 15.",
   },
   {
+    id: "section-partite-official",
+    path: "/admin/partite",
+    target: "section-partite-official",
+    title: "Risultati ufficiali",
+    body: "Il sito legge i risultati dal portale della federazione e te li propone qui: con \"Conferma risultato\" compila i set della partita. Un risultato che hai già scritto tu non viene mai cambiato senza un tuo clic.",
+  },
+  {
     id: "section-partite-cards",
     path: "/admin/partite",
     target: "section-partite-cards",
@@ -219,6 +226,13 @@ export const SECTION_CENTRO_CONTROLLO_STEPS: BaseTourStep[] = [
     target: "section-cc-permissions",
     title: "Permessi pagine",
     body: "Per ogni account Admin scegli quali sezioni e quali squadre può gestire: la modifica ha effetto immediato.",
+  },
+  {
+    id: "section-cc-federation",
+    path: "/admin/centro-controllo",
+    target: "section-cc-federation",
+    title: "Classifiche e risultati ufficiali",
+    body: "L'indirizzo del girone sul portale della federazione, per ogni categoria: da qui il sito prende la classifica pubblica e i risultati da confermare. Quando esce il girone dell'Under 14 basta incollare qui il suo link.",
   },
   {
     id: "section-cc-activity",

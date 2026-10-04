@@ -11,6 +11,7 @@ import {
   Puzzle,
   Swords,
   Target,
+  Trophy,
   Users,
   Volleyball,
 } from "lucide-react";
@@ -56,6 +57,8 @@ const SECTIONS: Section[] = [
       "Compaiono nel calendario pubblico insieme agli allenamenti, filtrabili per categoria.",
       "Creare, modificare o eliminare una partita invia una notifica push agli iscritti.",
       "Nella scheda di una partita si scelgono le convocate, poi si costruiscono le formazioni per ciascuno dei 5 set su un campo interattivo (ruoli S/OH/MB/OP/L e capitana): sono riservate allo staff, mai visibili sul sito pubblico, ed esportabili in PDF.",
+      "In cima all'elenco, sotto \"Risultati ufficiali\", compaiono i risultati letti dal portale della federazione: con \"Conferma risultato\" il sito compila i set della partita, con \"Ignora\" la gara non viene più proposta. Se hai già scritto un risultato diverso resta il tuo e ti viene solo segnalata la differenza; \"Usa quello ufficiale\" lo sostituisce solo se lo scegli tu. \"Aggiorna ora\" rilegge subito il portale.",
+      "La classifica del girone, con tutte le squadre, compare in fondo alla homepage pubblica insieme alla data dell'ultimo aggiornamento.",
     ],
   },
   {
@@ -234,6 +237,44 @@ export default async function GuidaPage() {
                   Uscendo (dal banner in alto) tutte le modifiche fatte in prova spariscono e torni
                   ai dati reali esattamente come li avevi lasciati. Account staff e iscrizioni alle
                   notifiche non sono mai coinvolti dalla modalità prova.
+                </li>
+              </ul>
+            </CardBody>
+          </Card>
+        )}
+
+        {session.role === "dev" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-3.5">
+              <span className="icon-chip shrink-0">
+                <Trophy className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="font-display text-base font-bold text-foreground">
+                  Classifiche e risultati ufficiali
+                </h2>
+                <p className="text-sm text-muted-foreground">Solo Developer.</p>
+              </div>
+            </CardHeader>
+            <CardBody className="pt-0">
+              <ul className="space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']">
+                <li>
+                  Dal{" "}
+                  <Link href="/admin/centro-controllo" className="font-semibold text-primary hover:underline">
+                    Centro di controllo
+                  </Link>{" "}
+                  imposti, per ogni categoria, l&apos;indirizzo del girone sul portale della federazione e il nome con
+                  cui la nostra squadra compare in classifica. Lascia l&apos;indirizzo vuoto finché il girone non è
+                  pubblicato: la categoria resta nascosta.
+                </li>
+                <li>
+                  Il sito rilegge il portale in secondo piano quando i dati hanno più di 30 minuti (e una volta al
+                  giorno in automatico). Se il portale non risponde o cambia pagina, restano gli ultimi dati validi con
+                  la loro data e l&apos;errore compare in{" "}
+                  <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
+                    Manutenzione
+                  </Link>
+                  .
                 </li>
               </ul>
             </CardBody>

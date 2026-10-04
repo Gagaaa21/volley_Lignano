@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit": "playwright test --config playwright.unit.config.ts"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",

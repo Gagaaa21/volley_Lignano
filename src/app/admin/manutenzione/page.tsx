@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { Database, Gauge, HardDrive, RefreshCw } from "lucide-react";
+import { Database, Gauge, HardDrive, RefreshCw, Trophy } from "lucide-react";
 import { getRepo, isDemoMode } from "@/lib/db";
 import { requireDev } from "@/lib/auth/guard";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { CATEGORY_LABELS } from "@/lib/category";
+import { ourSide } from "@/lib/federation/matching";
 
 export const metadata: Metadata = {
   title: "Manutenzione",
@@ -27,6 +29,12 @@ export default async function ManutenzionePage() {
   const repo = await getRepo();
   const demo = isDemoMode();
   const overview = await repo.getStorageOverview().catch(() => null);
+  const federation = await Promise.all([repo.listFederationSources(), repo.listFederationSnapshots()]).then(
+    ([sources, snapshots]) => ({ sources, snapshots }),
+    () => null, // tabelle non ancora create su Supabase
+  );
+  const federationSources = federation?.sources ?? [];
+  const federationSnapshots = federation?.snapshots ?? [];
   const totalRows = overview?.tables.reduce((sum, t) => sum + t.rowCount, 0) ?? 0;
   const totalBytes =
     overview && overview.tables.every((t) => t.sizeBytes !== null)
@@ -130,6 +138,81 @@ export default async function ManutenzionePage() {
               Non è necessaria per il resto del sito — vedi la Guida se un giorno vuoi attivarla.
             </p>
           )}
+        </CardBody>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader className="flex flex-row items-start gap-3.5">
+          <span className="icon-chip shrink-0">
+            <Trophy className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="font-display text-base font-bold text-foreground">Fonti della federazione</h2>
+            <p className="text-sm text-muted-foreground">
+              Stato della lettura di classifiche e risultati dal portale. Se il portale cambia pagina o non risponde,
+              il sito tiene gli ultimi dati validi e l&apos;errore compare qui.
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody className="pt-0">
+          {!federation && (
+            <p className="text-sm text-foreground/70">
+              Mancano le tabelle su Supabase: esegui l&apos;SQL della sezione «Risultati e classifiche ufficiali» di{" "}
+              <code>supabase/schema.sql</code>.
+            </p>
+          )}
+          <ul className="space-y-3">
+            {federationSources.map((source) => {
+              const snapshot = federationSnapshots.find((snap) => snap.category === source.category);
+              const girone = snapshot?.girone ?? null;
+              const ourGames = girone
+                ? girone.matches.filter((match) => ourSide(match, source.teamAliases) !== null).length
+                : 0;
+              return (
+                <li key={source.category} className="rounded-xl border border-border px-4 py-3 text-sm">
+                  <p className="font-semibold text-foreground">{CATEGORY_LABELS[source.category]}</p>
+                  {!source.url ? (
+                    <p className="mt-1 text-foreground/70">Girone non ancora pubblicato: nessuna lettura.</p>
+                  ) : (
+                    <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-foreground/80">
+                      <dt className="text-muted-foreground">Stato</dt>
+                      <dd>{source.enabled ? "attivo" : "spento"}</dd>
+                      <dt className="text-muted-foreground">Ultima lettura</dt>
+                      <dd className="tabular-nums">
+                        {snapshot?.fetchedAt
+                          ? new Date(snapshot.fetchedAt).toLocaleString("it-IT", { timeZone: "Europe/Rome" })
+                          : "mai"}
+                      </dd>
+                      <dt className="text-muted-foreground">Contenuto</dt>
+                      <dd>
+                        {girone
+                          ? `${girone.standings.length} squadre, ${girone.matches.length} gare (${ourGames} della nostra squadra)`
+                          : "nulla di letto"}
+                      </dd>
+                      {girone && ourGames === 0 && (
+                        <>
+                          <dt className="text-muted-foreground">Attenzione</dt>
+                          <dd className="text-warning">
+                            La nostra squadra non compare nel girone: controlla il nome nel Centro di controllo.
+                          </dd>
+                        </>
+                      )}
+                      {snapshot?.lastError && (
+                        <>
+                          <dt className="text-muted-foreground">Ultimo errore</dt>
+                          <dd className="text-destructive">
+                            {snapshot.lastError}
+                            {snapshot.lastErrorAt &&
+                              ` (${new Date(snapshot.lastErrorAt).toLocaleString("it-IT", { timeZone: "Europe/Rome" })})`}
+                          </dd>
+                        </>
+                      )}
+                    </dl>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </CardBody>
       </Card>
 

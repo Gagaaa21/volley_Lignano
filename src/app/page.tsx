@@ -9,9 +9,11 @@ import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
+import { StandingsSection } from "@/components/calendar/StandingsSection";
+import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { getPublicCalendarData, getPublicSeasonRecord } from "@/lib/publicCalendarData";
+import { getPublicCalendarData, getPublicSeasonRecord, getPublicStandings } from "@/lib/publicCalendarData";
 import {
   expandTrainings,
   getMonthGridRange,
@@ -50,10 +52,15 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const [
     { trainings, matches, occurrencePlans, plans, attendance, callUpsByMatchId },
     seasonRecord,
+    standings,
   ] = await Promise.all([
     getPublicCalendarData(startStr, endStr, activeCategory === "all" ? undefined : activeCategory),
     getPublicSeasonRecord(),
+    getPublicStandings(),
   ]);
+  // Rilettura delle classifiche dalla federazione in secondo piano, solo se
+  // i dati hanno più di 30 minuti (chi visita non aspetta mai il portale).
+  scheduleFederationRefresh();
 
   const occurrencePlanIds = new Map(
     occurrencePlans
@@ -153,6 +160,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         />
 
         <SeasonRecordSection records={seasonRecord} />
+
+        <StandingsSection
+          standings={standings.filter((entry) => activeCategory === "all" || entry.category === activeCategory)}
+        />
       </main>
 
       <PublicFooter />

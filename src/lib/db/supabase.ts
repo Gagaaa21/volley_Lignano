@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
-import { LIVE_SCORE_TTL_MS, TEAMS } from "@/lib/types";
+import { CATEGORIES, LIVE_SCORE_TTL_MS, TEAMS } from "@/lib/types";
 import type {
   Athlete,
   AthleteInput,
@@ -27,6 +27,13 @@ import type {
   TrainingRuleInput,
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
+import {
+  DEFAULT_FEDERATION_SOURCES,
+  type FederationDecision,
+  type FederationSnapshot,
+  type FederationSource,
+  type Girone,
+} from "@/lib/federation/types";
 
 type TrainingRow = {
   id: string;
@@ -172,6 +179,59 @@ function matchToRow(input: MatchInput) {
     result_sets_won: input.resultSetsWon,
     result_sets_lost: input.resultSetsLost,
     tournament_games: input.tournamentGames,
+  };
+}
+
+type FederationSourceRow = {
+  category: FederationSource["category"];
+  url: string | null;
+  team_aliases: string[] | null;
+  enabled: boolean;
+  updated_at: string;
+};
+function federationSourceFromRow(row: FederationSourceRow): FederationSource {
+  return {
+    category: row.category,
+    url: row.url,
+    teamAliases: row.team_aliases ?? [],
+    enabled: row.enabled,
+    updatedAt: row.updated_at,
+  };
+}
+
+type FederationSnapshotRow = {
+  category: FederationSnapshot["category"];
+  girone: Girone | null;
+  fetched_at: string | null;
+  last_error: string | null;
+  last_error_at: string | null;
+};
+function federationSnapshotFromRow(row: FederationSnapshotRow): FederationSnapshot {
+  return {
+    category: row.category,
+    girone: row.girone,
+    fetchedAt: row.fetched_at,
+    lastError: row.last_error,
+    lastErrorAt: row.last_error_at,
+  };
+}
+
+type FederationDecisionRow = {
+  category: FederationDecision["category"];
+  external_id: string;
+  decision: FederationDecision["decision"];
+  match_id: string | null;
+  decided_by: string | null;
+  decided_at: string;
+};
+function federationDecisionFromRow(row: FederationDecisionRow): FederationDecision {
+  return {
+    category: row.category,
+    externalId: row.external_id,
+    decision: row.decision,
+    matchId: row.match_id,
+    decidedBy: row.decided_by,
+    decidedAt: row.decided_at,
   };
 }
 
@@ -522,6 +582,84 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
   },
 
+  async listFederationSources() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("federation_sources").select("*");
+    if (error) throw new Error(error.message);
+    const saved = (data as FederationSourceRow[]).map(federationSourceFromRow);
+    return CATEGORIES.map(
+      (category) =>
+        saved.find((src) => src.category === category) ?? { ...DEFAULT_FEDERATION_SOURCES[category], updatedAt: null },
+    );
+  },
+  async saveFederationSource(category, input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("federation_sources")
+      .upsert(
+        {
+          category,
+          url: input.url,
+          team_aliases: input.teamAliases,
+          enabled: input.enabled,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "category" },
+      )
+      .select()
+      .single();
+    return federationSourceFromRow(unwrap(result) as FederationSourceRow);
+  },
+  async listFederationSnapshots() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("federation_snapshots").select("*");
+    if (error) throw new Error(error.message);
+    return (data as FederationSnapshotRow[]).map(federationSnapshotFromRow);
+  },
+  async saveFederationSnapshot(snapshot) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("federation_snapshots").upsert(
+      {
+        category: snapshot.category,
+        girone: snapshot.girone,
+        fetched_at: snapshot.fetchedAt,
+        last_error: snapshot.lastError,
+        last_error_at: snapshot.lastErrorAt,
+      },
+      { onConflict: "category" },
+    );
+    if (error) throw new Error(error.message);
+  },
+  async listFederationDecisions() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("federation_decisions").select("*");
+    if (error) throw new Error(error.message);
+    return (data as FederationDecisionRow[]).map(federationDecisionFromRow);
+  },
+  async setFederationDecision(input) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("federation_decisions").upsert(
+      {
+        category: input.category,
+        external_id: input.externalId,
+        decision: input.decision,
+        match_id: input.matchId,
+        decided_by: input.decidedBy,
+        decided_at: new Date().toISOString(),
+      },
+      { onConflict: "category,external_id" },
+    );
+    if (error) throw new Error(error.message);
+  },
+  async clearFederationDecision(category, externalId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db
+      .from("federation_decisions")
+      .delete()
+      .eq("category", category)
+      .eq("external_id", externalId);
+    if (error) throw new Error(error.message);
+  },
   async listMatchLineups() {
     const db = getSupabaseAdmin();
     const { data, error } = await db.from("match_lineups").select("*");

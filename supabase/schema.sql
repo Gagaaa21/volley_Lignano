@@ -589,3 +589,59 @@ create table if not exists live_score_state (
 );
 alter table live_score_state enable row level security;
 -- Nessuna policy pubblica: raggiungibile solo tramite la service role key.
+
+-- =========================================================
+-- Risultati e classifiche ufficiali dalla federazione (src/lib/federation).
+-- Tutte riservate al server (service role): nessuna policy pubblica, la
+-- classifica pubblica passa dalle pagine del sito.
+--
+-- federation_sources — dove leggere il girone di ogni categoria (una riga
+-- per U14 e U15). url null = girone non ancora pubblicato: la categoria
+-- resta semplicemente nascosta. team_aliases = nomi con cui la nostra
+-- squadra compare nel girone. Modificabile dal Centro di controllo.
+-- =========================================================
+create table if not exists federation_sources (
+  category text primary key check (category in ('U14', 'U15')),
+  url text,
+  team_aliases text[] not null default '{}',
+  enabled boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+alter table federation_sources enable row level security;
+
+-- Partenza: U15 girone A del Comitato di Udine, stagione 2026/27. U14 senza
+-- indirizzo finché il girone non viene pubblicato. Non sovrascrive nulla se
+-- le righe esistono già.
+insert into federation_sources (category, url, team_aliases, enabled) values
+  ('U14', null, array['CDA VOLLEY LIGNANO'], true),
+  ('U15',
+   'https://udine.federvolley.it/risultati-classifiche.aspx?ComitatoId=48&StId=2428&DataDa=&StatoGara=&CId=93676&SId=&PId=15544&btFiltro=CERCA',
+   array['CDA VOLLEY LIGNANO'], true)
+on conflict (category) do nothing;
+
+-- federation_snapshots — ultimo contenuto letto con successo (gare e
+-- classifica) per categoria, più l'ultimo errore di lettura. Una lettura
+-- fallita non cancella mai il contenuto precedente.
+create table if not exists federation_snapshots (
+  category text primary key check (category in ('U14', 'U15')),
+  girone jsonb,
+  fetched_at timestamptz,
+  last_error text,
+  last_error_at timestamptz
+);
+alter table federation_snapshots enable row level security;
+
+-- federation_decisions — cosa ha deciso un admin su una gara ufficiale:
+-- 'linked' = abbinata a una partita del sito (match_id), 'dismissed' =
+-- scartata, non va riproposta. Eliminando la partita sparisce l'abbinamento.
+create table if not exists federation_decisions (
+  category text not null check (category in ('U14', 'U15')),
+  external_id text not null,
+  decision text not null check (decision in ('linked', 'dismissed')),
+  match_id uuid references matches(id) on delete cascade,
+  decided_by uuid references staff(id) on delete set null,
+  decided_at timestamptz not null default now(),
+  primary key (category, external_id)
+);
+create index if not exists federation_decisions_match_idx on federation_decisions (match_id);
+alter table federation_decisions enable row level security;

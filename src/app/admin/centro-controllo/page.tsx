@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bell, Clock, KeyRound, ListChecks, Shield } from "lucide-react";
+import { Bell, Clock, KeyRound, ListChecks, Shield, Trophy } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
@@ -7,6 +7,7 @@ import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { NotificationForm } from "./NotificationForm";
+import { FederationSourcesForm } from "./FederationSourcesForm";
 import { PermissionsMatrix } from "./PermissionsMatrix";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_CENTRO_CONTROLLO_STEPS } from "@/components/tour/sectionSteps";
@@ -27,8 +28,17 @@ export default async function CentroControlloPage() {
   await requireDev();
   const repo = await getRepo();
 
-  const [staff, athletes, matches, trainings, plans, attendanceSessions, lineups, pushSubscriptions] =
-    await Promise.all([
+  const [
+    staff,
+    athletes,
+    matches,
+    trainings,
+    plans,
+    attendanceSessions,
+    lineups,
+    pushSubscriptions,
+    federation,
+  ] = await Promise.all([
       repo.listStaff(),
       repo.listAthletes(),
       repo.listMatches(),
@@ -37,6 +47,12 @@ export default async function CentroControlloPage() {
       repo.listAttendanceSessions(),
       repo.listMatchLineups(),
       repo.listPushSubscriptions(),
+      // Se le tabelle non esistono ancora su Supabase la pagina deve restare
+      // utilizzabile: si mostra solo un avviso al posto del modulo.
+      Promise.all([repo.listFederationSources(), repo.listFederationSnapshots()]).then(
+        ([sources, snapshots]) => ({ sources, snapshots }),
+        () => null,
+      ),
     ]);
 
   const staffNameById = new Map(staff.map((s) => [s.id, s.fullName] as const));
@@ -161,6 +177,32 @@ export default async function CentroControlloPage() {
         </CardHeader>
         <CardBody className="pt-0">
           <PermissionsMatrix admins={adminRows} />
+        </CardBody>
+      </Card>
+
+      {/* Classifiche e risultati ufficiali */}
+      <Card className="mt-5" data-tour="section-cc-federation">
+        <CardHeader className="flex flex-row items-start gap-3.5">
+          <span className="icon-chip shrink-0">
+            <Trophy className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="font-display text-base font-bold text-foreground">Classifiche e risultati ufficiali</h2>
+            <p className="text-sm text-muted-foreground">
+              Da dove il sito legge il girone di ogni categoria sul portale della federazione. Con l&apos;indirizzo
+              impostato compaiono la classifica pubblica e, nelle Partite, i risultati da confermare.
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody className="pt-0">
+          {federation ? (
+            <FederationSourcesForm sources={federation.sources} snapshots={federation.snapshots} />
+          ) : (
+            <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
+              Mancano le tabelle su Supabase: esegui l&apos;SQL della sezione «Risultati e classifiche ufficiali» di{" "}
+              <code>supabase/schema.sql</code> (SQL Editor) e ricarica la pagina.
+            </p>
+          )}
         </CardBody>
       </Card>
 

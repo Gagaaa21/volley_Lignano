@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { ADMIN_PAGES, LIVE_SCORE_TTL_MS, TEAMS } from "@/lib/types";
+import { ADMIN_PAGES, CATEGORIES, LIVE_SCORE_TTL_MS, TEAMS } from "@/lib/types";
 import type {
   Athlete,
   AthleteInput,
@@ -23,6 +23,12 @@ import type {
   TrainingRuleInput,
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
+import {
+  DEFAULT_FEDERATION_SOURCES,
+  type FederationDecision,
+  type FederationSnapshot,
+  type FederationSource,
+} from "@/lib/federation/types";
 
 /**
  * In-memory demo backend, used automatically when Supabase env vars are not
@@ -51,6 +57,9 @@ export interface MemoryStore {
   athletes: Athlete[];
   attendanceSessions: AttendanceSession[];
   physicalTests: PhysicalTest[];
+  federationSources: FederationSource[];
+  federationSnapshots: FederationSnapshot[];
+  federationDecisions: FederationDecision[];
   pushSubscriptions: PushSubscriptionRecord[];
   staff: StaffMember[];
   staffSeeded: boolean;
@@ -68,6 +77,9 @@ export function createEmptyStore(): MemoryStore {
     athletes: [],
     attendanceSessions: [],
     physicalTests: [],
+    federationSources: [],
+    federationSnapshots: [],
+    federationDecisions: [],
     pushSubscriptions: [],
     staff: [],
     staffSeeded: false,
@@ -94,6 +106,13 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   const athletes = store.athletes;
   const attendanceSessions = store.attendanceSessions;
   const physicalTests = store.physicalTests;
+  // Un archivio sandbox salvato prima di questa funzione non ha questi campi.
+  store.federationSources ??= [];
+  store.federationSnapshots ??= [];
+  store.federationDecisions ??= [];
+  const federationSources = store.federationSources;
+  const federationSnapshots = store.federationSnapshots;
+  const federationDecisions = store.federationDecisions;
   const pushSubscriptions = store.pushSubscriptions;
   const staff = store.staff;
 
@@ -171,9 +190,56 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx !== -1) matches.splice(idx, 1);
       const lineupIdx = matchLineups.findIndex((l) => l.matchId === id);
       if (lineupIdx !== -1) matchLineups.splice(lineupIdx, 1);
+      for (let i = federationDecisions.length - 1; i >= 0; i--) {
+        if (federationDecisions[i].matchId === id) federationDecisions.splice(i, 1);
+      }
       for (let i = matchPredictions.length - 1; i >= 0; i--) {
         if (matchPredictions[i].matchId === id) matchPredictions.splice(i, 1);
       }
+    },
+
+    async listFederationSources() {
+      return CATEGORIES.map((category) => {
+        const saved = federationSources.find((src) => src.category === category);
+        return saved ? structuredClone(saved) : { ...DEFAULT_FEDERATION_SOURCES[category], updatedAt: null };
+      });
+    },
+    async saveFederationSource(category, input) {
+      const row: FederationSource = {
+        category,
+        url: input.url,
+        teamAliases: [...input.teamAliases],
+        enabled: input.enabled,
+        updatedAt: new Date().toISOString(),
+      };
+      const idx = federationSources.findIndex((src) => src.category === category);
+      if (idx === -1) federationSources.push(row);
+      else federationSources[idx] = row;
+      return structuredClone(row);
+    },
+    async listFederationSnapshots() {
+      return structuredClone(federationSnapshots);
+    },
+    async saveFederationSnapshot(snapshot) {
+      const idx = federationSnapshots.findIndex((snap) => snap.category === snapshot.category);
+      const copy = structuredClone(snapshot);
+      if (idx === -1) federationSnapshots.push(copy);
+      else federationSnapshots[idx] = copy;
+    },
+    async listFederationDecisions() {
+      return structuredClone(federationDecisions);
+    },
+    async setFederationDecision(input) {
+      const row: FederationDecision = { ...input, decidedAt: new Date().toISOString() };
+      const idx = federationDecisions.findIndex(
+        (d) => d.category === input.category && d.externalId === input.externalId,
+      );
+      if (idx === -1) federationDecisions.push(row);
+      else federationDecisions[idx] = row;
+    },
+    async clearFederationDecision(category, externalId) {
+      const idx = federationDecisions.findIndex((d) => d.category === category && d.externalId === externalId);
+      if (idx !== -1) federationDecisions.splice(idx, 1);
     },
 
     async listMatchLineups() {

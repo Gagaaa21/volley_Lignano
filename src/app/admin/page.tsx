@@ -24,6 +24,8 @@ import { SectionHeading } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { ADMIN_PAGES, isPageAvailableForTeam, type AdminPage, type CalendarEvent } from "@/lib/types";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import { scheduleFederationRefresh } from "@/lib/federation/auto";
+import { actionableProposals, loadOfficialResults } from "@/lib/federation/load";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -76,6 +78,12 @@ export default async function AdminDashboardPage({
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
 
+  // Risultati ufficiali della federazione ancora da confermare (solo U14/U15
+  // e solo per chi ha accesso a Partite).
+  const showOfficial = team === "u14u15" && showMatches && allowedPages.includes("partite");
+  if (showOfficial) scheduleFederationRefresh();
+  const officialToConfirm = showOfficial ? actionableProposals(await loadOfficialResults(repo)).length : 0;
+
   const activeTrainings = trainings.filter((t) => t.isActive);
   const activeAthletes = athletes.filter((a) => a.isActive);
 
@@ -120,6 +128,22 @@ export default async function AdminDashboardPage({
         </h1>
         <p className="mt-2 text-[15px] text-muted-foreground">{summary}</p>
       </header>
+
+      {officialToConfirm > 0 && (
+        <Link
+          href="/admin/partite"
+          data-tour="dashboard-official-results"
+          className="group mb-6 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm font-semibold text-primary transition-colors hover:border-primary/40"
+        >
+          <Swords className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            {officialToConfirm === 1
+              ? "C'è un risultato ufficiale della federazione da confermare."
+              : `Ci sono ${officialToConfirm} risultati ufficiali della federazione da confermare.`}
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-tour="dashboard-stats">
         <StatTile

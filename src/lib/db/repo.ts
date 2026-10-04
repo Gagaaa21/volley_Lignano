@@ -1,4 +1,11 @@
 import type {
+  FederationDecision,
+  FederationDecisionInput,
+  FederationSnapshot,
+  FederationSource,
+  FederationSourceInput,
+} from "@/lib/federation/types";
+import type {
   AdminPage,
   Athlete,
   AthleteInput,
@@ -25,8 +32,10 @@ import type {
   TrainingTeam,
 } from "@/lib/types";
 
+type Category = import("@/lib/types").Category;
+
 export interface MatchFilter {
-  category?: import("@/lib/types").Category;
+  category?: Category;
   from?: string; // ISO date, inclusive
   to?: string; // ISO date, inclusive
   team?: TrainingTeam;
@@ -70,6 +79,19 @@ export interface Repo {
   createMatch(input: MatchInput, createdBy: string | null): Promise<Match>;
   updateMatch(id: string, input: MatchInput): Promise<Match>;
   deleteMatch(id: string): Promise<void>;
+
+  // Risultati e classifiche ufficiali dalla federazione (src/lib/federation).
+  // Fonti e ultimo contenuto letto non sono mai sandboxati in modalità prova
+  // (dati esterni); le decisioni degli admin sì, perché riguardano partite.
+  /** Sempre una riga per categoria, con i valori predefiniti dove manca. */
+  listFederationSources(): Promise<FederationSource[]>;
+  saveFederationSource(category: Category, input: FederationSourceInput): Promise<FederationSource>;
+  listFederationSnapshots(): Promise<FederationSnapshot[]>;
+  saveFederationSnapshot(snapshot: FederationSnapshot): Promise<void>;
+  listFederationDecisions(): Promise<FederationDecision[]>;
+  /** Una sola decisione per (categoria, gara): sostituisce la precedente. */
+  setFederationDecision(input: FederationDecisionInput): Promise<void>;
+  clearFederationDecision(category: Category, externalId: string): Promise<void>;
 
   // Formazioni partita per set (riservate allo staff)
   listMatchLineups(): Promise<MatchLineup[]>;

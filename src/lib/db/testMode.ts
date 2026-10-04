@@ -72,6 +72,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
     trainingOccurrencePlans,
     athletes,
     attendanceSessions,
+    federationDecisions,
   ] = await Promise.all([
     realRepo.listTrainings(),
     realRepo.listMatches(),
@@ -81,6 +82,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
     realRepo.listTrainingOccurrencePlans(),
     realRepo.listAthletes(),
     realRepo.listAttendanceSessions(),
+    realRepo.listFederationDecisions(),
   ]);
 
   const store = createEmptyStore();
@@ -92,6 +94,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
   store.trainingOccurrencePlans = cloneAll(trainingOccurrencePlans);
   store.athletes = cloneAll(athletes);
   store.attendanceSessions = cloneAll(attendanceSessions);
+  store.federationDecisions = cloneAll(federationDecisions);
 
   if (!isSupabaseConfigured()) {
     Object.assign(getLocalStore(), store);
@@ -127,6 +130,8 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "deleteAttendanceSession",
   "saveLiveScoreState",
   "clearLiveScoreState",
+  "setFederationDecision",
+  "clearFederationDecision",
 ]);
 
 // Staff e iscrizioni push non sono mai sandboxati.
@@ -139,6 +144,12 @@ const ALWAYS_REAL_METHODS = new Set<keyof Repo>([
   "setStaffPassword",
   "markGuideSeen",
   "deleteStaff",
+  // Dati esterni (federazione): letti e aggiornati sempre sull'archivio vero.
+  // Solo le decisioni degli admin, che riguardano le partite, seguono la sandbox.
+  "listFederationSources",
+  "saveFederationSource",
+  "listFederationSnapshots",
+  "saveFederationSnapshot",
   "listPushSubscriptions",
   "upsertPushSubscription",
   "deletePushSubscriptionByEndpoint",

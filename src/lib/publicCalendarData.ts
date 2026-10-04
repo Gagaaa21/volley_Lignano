@@ -2,6 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { getRepo } from "@/lib/db";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import type { StandingRow } from "@/lib/federation/types";
 import type { AttendanceStatus, Category, MinivolleyGroup, TrainingTeam } from "@/lib/types";
 
 /** Tag usato per invalidare la cache da ogni azione admin che tocca il
@@ -177,5 +178,69 @@ export const getPublicSeasonRecord = unstable_cache(
     return Object.values(byCategory);
   },
   ["public-season-record"],
+  { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
+);
+
+/** Oltre questo tempo senza una lettura riuscita la classifica si dichiara non aggiornata. */
+const STANDINGS_STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Classifica del girone di una categoria, letta dalla federazione. */
+export interface PublicStandings {
+  category: Category;
+  /** Nomi con cui la nostra squadra compare in classifica (per evidenziarla). */
+  teamAliases: string[];
+  rows: StandingRow[];
+  /** Falso finché nessuna gara del girone è stata giocata. */
+  started: boolean;
+  /** Data della prima gara del girone, "YYYY-MM-DD". */
+  firstMatchDate: string | null;
+  /** Istante dell'ultima lettura riuscita. */
+  fetchedAt: string | null;
+  /** Vero se l'ultima lettura riuscita ha più di una settimana. */
+  stale: boolean;
+  /** Pagina del girone sul portale federale. */
+  sourceUrl: string;
+}
+
+/**
+ * Classifiche dei gironi U14/U15 dall'ultimo contenuto salvato (vedi
+ * src/lib/federation): nessuna chiamata ai siti federali per visitatore. Una
+ * categoria senza girone ancora pubblicato, o mai letto, non compare.
+ */
+export const getPublicStandings = unstable_cache(
+  async (): Promise<PublicStandings[]> => {
+    const repo = await getRepo();
+    let sources, snapshots;
+    try {
+      [sources, snapshots] = await Promise.all([repo.listFederationSources(), repo.listFederationSnapshots()]);
+    } catch (error) {
+      // Es. tabelle non ancora create su Supabase: la home pubblica resta
+      // com'era, senza la classifica.
+      console.error("[federation] classifica non disponibile:", error);
+      return [];
+    }
+
+    const result: PublicStandings[] = [];
+    for (const source of sources) {
+      if (!source.enabled || !source.url) continue;
+      const snapshot = snapshots.find((snap) => snap.category === source.category);
+      const girone = snapshot?.girone;
+      if (!girone || girone.standings.length === 0) continue;
+
+      const dates = girone.matches.map((match) => match.date.slice(0, 10)).sort();
+      result.push({
+        category: source.category,
+        teamAliases: source.teamAliases,
+        rows: girone.standings,
+        started: girone.standings.some((row) => row.played > 0) || girone.matches.some((match) => match.homeSets !== null),
+        firstMatchDate: dates[0] ?? null,
+        fetchedAt: snapshot.fetchedAt,
+        stale: snapshot.fetchedAt !== null && Date.now() - Date.parse(snapshot.fetchedAt) > STANDINGS_STALE_AFTER_MS,
+        sourceUrl: source.url,
+      });
+    }
+    return result;
+  },
+  ["public-standings"],
   { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
 );

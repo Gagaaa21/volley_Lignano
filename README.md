@@ -45,6 +45,17 @@ staff (Developer e Admin).
   naviga il sito. Chi ha attivato le notifiche riceve un avviso quando un
   allenamento o una partita viene aggiunto, modificato o rimosso dal
   calendario.
+- **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
+  della federazione (stessa piattaforma per tutti i comitati, es.
+  `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati
+  delle gare. La classifica è pubblica in fondo alla homepage; i risultati
+  compaiono agli admin in `/admin/partite` come proposte: nulla viene salvato
+  finché non lo si conferma, e un risultato scritto a mano non viene mai
+  sovrascritto senza una scelta esplicita. L'indirizzo del girone di ogni
+  categoria si imposta dal Centro di controllo (solo Developer); `U14` resta
+  nascosta finché non viene pubblicato. Se il portale non risponde si tengono
+  gli ultimi dati validi con la loro data (stato in `/admin/manutenzione`).
+  Dettagli e codice in `src/lib/federation/`.
 - **Guida** (`/admin/guida`) — spiega il funzionamento di tutte le sezioni
   dell'area riservata. Compare automaticamente al primo accesso di un nuovo
   account e resta sempre consultabile dal menu.
@@ -126,6 +137,10 @@ non deve mai iniziare con `NEXT_PUBLIC_`.
    - `SESSION_SECRET`
    - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
      (facoltative, per le notifiche push — vedi sopra)
+   - `CRON_SECRET` (facoltativa: una stringa casuale lunga, serve al controllo
+     giornaliero di `vercel.json` che aggiorna classifiche e risultati dalla
+     federazione; senza, il sito li aggiorna comunque quando qualcuno apre una
+     pagina e i dati hanno più di 30 minuti)
 3. Esegui il deploy. Se non hai ancora eseguito `npm run seed`, puoi farlo
    in locale puntando alle stesse variabili d'ambiente del progetto Supabase
    collegato a Vercel.
@@ -146,12 +161,14 @@ src/
       guida/               Guida all'area riservata
       cambia-password/    Cambio password (obbligatorio al primo accesso)
     api/push/subscribe/    Iscrizione/cancellazione notifiche push
+    api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
   components/              Componenti UI, layout, calendario, form, PWA
   lib/
     db/                    Repository dati: implementazione Supabase + demo
     auth/                  Sessioni, password, guardie di accesso
     calendar.ts            Espansione ricorrenza allenamenti + utility
     push.ts                Invio notifiche push (web-push)
+    federation/            Lettura classifiche e risultati dal portale FIPAV
   proxy.ts                 Protezione route /admin (ex "middleware")
 public/
   manifest.webmanifest     Manifest PWA
@@ -161,9 +178,12 @@ supabase/
   schema.sql               Schema SQL da eseguire su Supabase
 scripts/
   seed.mjs                 Crea l'account Developer iniziale
+unit/                      Test senza rete né server (npm run test:unit)
+e2e/                       Test end-to-end (npm run test:e2e)
+vercel.json                Controllo giornaliero delle classifiche (cron)
 ```
 
 ## Prossimi sviluppi possibili
 
-- Pagina profilo squadra, foto, classifiche
+- Pagina profilo squadra, foto
 - Esportazione calendario (iCal) per Google Calendar / Apple Calendar
