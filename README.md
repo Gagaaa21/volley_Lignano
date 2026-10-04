@@ -48,7 +48,9 @@ staff (Developer e Admin).
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati
-  delle gare. La classifica è pubblica in fondo alla homepage; i risultati
+  delle gare. La classifica è pubblica in fondo alla homepage, con il logo di
+  ogni squadra (quello del portale, servito dal nostro sito e tenuto in cache;
+  per Volley Lignano lo stemma del sito); i risultati
   compaiono agli admin in `/admin/partite` come proposte: nulla viene salvato
   finché non lo si conferma, e un risultato scritto a mano non viene mai
   sovrascritto senza una scelta esplicita. L'indirizzo del girone di ogni
@@ -162,6 +164,7 @@ src/
       cambia-password/    Cambio password (obbligatorio al primo accesso)
     api/push/subscribe/    Iscrizione/cancellazione notifiche push
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
+    api/federation/logo/   Loghi delle squadre in classifica (solo dal portale FIPAV)
   components/              Componenti UI, layout, calendario, form, PWA
   lib/
     db/                    Repository dati: implementazione Supabase + demo

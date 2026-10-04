@@ -1,6 +1,6 @@
 import "server-only";
 import { parseGirone, validateGirone } from "@/lib/federation/parse";
-import { isAllowedFederationUrl } from "@/lib/federation/url";
+import { isAllowedFederationUrl, isAllowedLogoUrl } from "@/lib/federation/url";
 import type { Girone } from "@/lib/federation/types";
 
 /** Il portale federale (udine.federvolley.it, friulivg.portalefipav.net, …)
@@ -38,6 +38,43 @@ async function fetchHtml(url: string): Promise<string> {
   throw new Error(`Portale non raggiungibile dopo ${ATTEMPTS} tentativi (${reason}).`);
 }
 
+const LOGO_ATTEMPTS = 2;
+const LOGO_TIMEOUT_MS = 8_000;
+const LOGO_MAX_BYTES = 500_000;
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+export interface LogoImage {
+  body: ArrayBuffer;
+  contentType: string;
+}
+
+/** Scarica il logo di una squadra. Null se non è raggiungibile, non è
+ * un'immagine ammessa o è troppo grande: il sito mostra le iniziali. */
+export async function fetchLogo(url: string): Promise<LogoImage | null> {
+  if (!isAllowedLogoUrl(url)) return null;
+  for (let attempt = 0; attempt < LOGO_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleep(FIRST_RETRY_DELAY_MS);
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: { "User-Agent": USER_AGENT, Accept: "image/*" },
+        signal: AbortSignal.timeout(LOGO_TIMEOUT_MS),
+      });
+      if (!isAllowedLogoUrl(response.url || url)) return null;
+      if (response.status === 404) return null;
+      if (!response.ok) continue;
+      const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+      if (!LOGO_TYPES.includes(contentType)) return null;
+      const body = await response.arrayBuffer();
+      if (body.byteLength === 0 || body.byteLength > LOGO_MAX_BYTES) return null;
+      return { body, contentType };
+    } catch {
+      // si riprova una volta, poi si rinuncia
+    }
+  }
+  return null;
+}
+
 /** Legge e controlla la pagina di un girone. Se i dati non sono plausibili
  * lancia un errore: il chiamante tiene l'ultimo contenuto valido. */
 export async function readGirone(url: string): Promise<Girone> {
@@ -46,7 +83,7 @@ export async function readGirone(url: string): Promise<Girone> {
       "L'indirizzo del girone non è una pagina della federazione (https, federvolley.it o portalefipav.net).",
     );
   }
-  const result = parseGirone(await fetchHtml(url));
+  const result = parseGirone(await fetchHtml(url), url);
   const problem = validateGirone(result);
   if (problem) throw new Error(problem);
   return result.girone;

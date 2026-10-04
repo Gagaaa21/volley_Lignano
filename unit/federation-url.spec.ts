@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isAllowedFederationUrl } from "@/lib/federation/url";
+import { isAllowedFederationUrl, isAllowedLogoUrl } from "@/lib/federation/url";
 
 test.describe("indirizzi del girone consentiti", () => {
   test("pagine https della federazione, sottodomini dei comitati compresi", () => {
@@ -27,5 +27,24 @@ test.describe("indirizzi del girone consentiti", () => {
   test("testo che non è un indirizzo", () => {
     expect(isAllowedFederationUrl("")).toBe(false);
     expect(isAllowedFederationUrl("udine.federvolley.it")).toBe(false);
+  });
+});
+
+test.describe("indirizzi dei loghi consentiti", () => {
+  test("solo le immagini dei loghi sui siti della federazione", () => {
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/mngArea/Societa/img/2555/Loghi/LogoS2555.png")).toBe(true);
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/mngArea/Societa/img/2521/Loghi/LogoS2521.jpg")).toBe(true);
+    expect(isAllowedLogoUrl("https://friulivg.portalefipav.net/mngArea/Societa/img/10/Loghi/LogoS10.JPEG")).toBe(true);
+  });
+
+  test("niente altre pagine, altri formati o altri siti", () => {
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/risultati-classifiche.aspx")).toBe(false);
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/mngArea/Societa/img/2555/Loghi/logo.svg")).toBe(false);
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/mngArea/Societa/img/abc/Loghi/LogoS1.png")).toBe(false);
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/mngArea/Societa/img/1/Loghi/../../../x.png")).toBe(false);
+    expect(isAllowedLogoUrl("https://udine.federvolley.it/mngArea/Societa/img/1/Loghi/LogoS1.png?x=1")).toBe(false);
+    expect(isAllowedLogoUrl("https://example.com/mngArea/Societa/img/2555/Loghi/LogoS2555.png")).toBe(false);
+    expect(isAllowedLogoUrl("http://udine.federvolley.it/mngArea/Societa/img/2555/Loghi/LogoS2555.png")).toBe(false);
+    expect(isAllowedLogoUrl("")).toBe(false);
   });
 });

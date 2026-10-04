@@ -22,16 +22,29 @@ import { loginAsDev, switchTeam } from "./helpers";
 const OUR_TEAM = "ROJALKENNEDY EMPORIO ADV";
 const FIXTURE = readFileSync(join(__dirname, "fixtures", "federation", "girone-con-partite-giocate.html"), "utf8");
 
+/** PNG 1×1: i loghi delle squadre nel portale finto. */
+const LOGO_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 let portal: Server;
 let portalUrl: string;
+let portalOrigin: string;
 
 test.beforeAll(async () => {
-  portal = createServer((_request, response) => {
+  portal = createServer((request, response) => {
+    if (/^\/mngArea\/Societa\/img\/\d+\/Loghi\//.test(request.url ?? "")) {
+      response.writeHead(200, { "Content-Type": "image/png" });
+      response.end(LOGO_PNG);
+      return;
+    }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     response.end(FIXTURE);
   });
   await new Promise<void>((resolve) => portal.listen(0, "127.0.0.1", resolve));
-  portalUrl = `http://127.0.0.1:${(portal.address() as AddressInfo).port}/girone`;
+  portalOrigin = `http://127.0.0.1:${(portal.address() as AddressInfo).port}`;
+  portalUrl = `${portalOrigin}/girone`;
 });
 
 test.afterAll(async () => {
@@ -177,6 +190,29 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await expect(ourRow.locator("td").first()).toHaveText("1");
   await expect(standings).toContainText("Fonte: FIPAV");
   await expect(standings).toContainText("Aggiornata il");
+
+  // Loghi: la nostra squadra ha lo stemma del sito, le altre il logo del portale
+  // (passato dal nostro sito), chi non ne ha mostra le iniziali.
+  await expect(ourRow.locator("img")).toHaveAttribute("src", /lignano-crest/);
+  const itasRow = standings.locator("tr", { hasText: "ITAS CECCARELLI GROUP" });
+  const itasLogo = itasRow.locator("img");
+  await expect(itasLogo).toHaveAttribute("src", /^\/api\/federation\/logo\?u=/);
+  await expect.poll(() => itasLogo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  const noLogoRow = standings.locator("tr", { hasText: "ASD SANGIORGINA" });
+  await expect(noLogoRow.locator("img")).toHaveCount(0);
+  await expect(noLogoRow).toContainText("S");
+
+  // Il servizio dei loghi accetta solo i loghi della federazione.
+  const logoPath = `${portalOrigin}/mngArea/Societa/img/1/Loghi/LogoS1.png`;
+  const good = await page.request.get(`/api/federation/logo?u=${encodeURIComponent(logoPath)}`);
+  expect(good.status()).toBe(200);
+  expect(good.headers()["content-type"]).toBe("image/png");
+  const other = await page.request.get(`/api/federation/logo?u=${encodeURIComponent(`${portalOrigin}/girone`)}`);
+  expect(other.status()).toBe(400);
+  const foreign = await page.request.get(
+    `/api/federation/logo?u=${encodeURIComponent("https://example.com/mngArea/Societa/img/1/Loghi/LogoS1.png")}`,
+  );
+  expect(foreign.status()).toBe(400);
 
   // --- 6. Senza girone la categoria sparisce, senza errori. ---
   await saveSource(page, "", OUR_TEAM);

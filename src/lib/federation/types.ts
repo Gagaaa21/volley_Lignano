@@ -41,6 +41,12 @@ export interface StandingRow {
   pointsFor: number;
   pointsAgainst: number;
   penalty: number;
+  /** Logo della squadra sul portale (indirizzo completo). Assente nei dati
+   * letti prima che i loghi venissero salvati; null se la squadra non ne ha. */
+  logoUrl?: string | null;
+  /** Fascia di classifica segnata dal portale (es. le righe verdi della
+   * «promozione»). Assente nei dati più vecchi. */
+  zone?: "promotion" | "relegation" | null;
 }
 
 /** Contenuto letto da una pagina di girone. */

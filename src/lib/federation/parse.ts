@@ -71,6 +71,32 @@ function rowsOf(tableHtml: string): string[] {
   return [...tableHtml.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => m[1]);
 }
 
+/** Righe di una tabella con i loro attributi (serve la classe: segna la zona di classifica). */
+function rowsWithAttrs(tableHtml: string): { attrs: string; html: string }[] {
+  return [...tableHtml.matchAll(/<tr\b([^>]*)>([\s\S]*?)<\/tr>/gi)].map((m) => ({ attrs: m[1], html: m[2] }));
+}
+
+/** Logo di una squadra: primo <img> della cella, reso assoluto rispetto alla
+ * pagina. L'immagine «nessun logo» del portale vale null. */
+function parseLogo(cellHtml: string, baseUrl?: string): string | null {
+  const src = cellHtml.match(/<img\b[^>]*\bsrc="([^"]+)"/i)?.[1];
+  if (!src || /no-image/i.test(src)) return null;
+  const path = decodeEntities(src);
+  if (!baseUrl) return path;
+  try {
+    return new URL(path, baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+function zoneOf(rowAttrs: string): "promotion" | "relegation" | null {
+  const classes = rowAttrs.match(/\bclass="([^"]*)"/i)?.[1].toLowerCase() ?? "";
+  if (classes.includes("promozione")) return "promotion";
+  if (classes.includes("retrocessione")) return "relegation";
+  return null;
+}
+
 function cellsOf(rowHtml: string, tag: "td" | "th" = "td"): { attrs: string; html: string }[] {
   return [...rowHtml.matchAll(new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)</${tag}>`, "gi"))].map((m) => ({
     attrs: m[1],
@@ -204,9 +230,9 @@ function parseMatches(tableHtml: string): { matches: OfficialMatch[]; skippedRow
   return { matches, skippedRows };
 }
 
-function parseStandings(tableHtml: string): StandingRow[] {
-  const rows = rowsOf(tableHtml);
-  const header = rows.map((r) => cellsOf(r, "th")).find((cells) => cells.length > 0);
+function parseStandings(tableHtml: string, baseUrl?: string): StandingRow[] {
+  const rows = rowsWithAttrs(tableHtml);
+  const header = rows.map((r) => cellsOf(r.html, "th")).find((cells) => cells.length > 0);
   if (!header) return [];
 
   const index = new Map<string, number>();
@@ -217,7 +243,7 @@ function parseStandings(tableHtml: string): StandingRow[] {
 
   const standings: StandingRow[] = [];
   for (const row of rows) {
-    const cells = cellsOf(row);
+    const cells = cellsOf(row.html);
     if (cells.length === 0) continue;
     const text = (name: string) => stripTags(cells[col(name)!]?.html ?? "");
     const num = (name: string) => toInt(text(name));
@@ -259,16 +285,19 @@ function parseStandings(tableHtml: string): StandingRow[] {
       pointsFor,
       pointsAgainst,
       penalty,
+      logoUrl: parseLogo(cells[col("squadra")!]?.html ?? "", baseUrl),
+      zone: zoneOf(row.attrs),
     });
   }
   return standings.sort((a, b) => a.position - b.position);
 }
 
-export function parseGirone(html: string): GironeParseResult {
+/** `baseUrl` è l'indirizzo della pagina: serve a rendere assoluti i loghi. */
+export function parseGirone(html: string, baseUrl?: string): GironeParseResult {
   const resultsTable = firstTable(html, "tbl-risultati");
   const standingsTable = firstTable(html, "tbl-classifica");
   const { matches, skippedRows } = resultsTable ? parseMatches(resultsTable) : { matches: [], skippedRows: 0 };
-  const standings = standingsTable ? parseStandings(standingsTable) : [];
+  const standings = standingsTable ? parseStandings(standingsTable, baseUrl) : [];
   return {
     girone: { matches, standings },
     skippedRows,

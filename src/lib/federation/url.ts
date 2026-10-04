@@ -22,3 +22,18 @@ export function isAllowedFederationUrl(raw: string): boolean {
     (url.hostname === "localhost" || url.hostname === "127.0.0.1")
   );
 }
+
+/**
+ * I loghi delle squadre si scaricano solo da qui: stesso controllo dei siti
+ * della federazione e, in più, solo il percorso delle immagini dei loghi
+ * (/mngArea/Societa/img/<numero>/Loghi/<file>.png|jpg|gif|webp). Così il
+ * sito non può essere usato per scaricare altro.
+ */
+export function isAllowedLogoUrl(raw: string): boolean {
+  if (!isAllowedFederationUrl(raw)) return false;
+  const url = new URL(raw);
+  return (
+    url.search === "" &&
+    /^\/mngArea\/Societa\/img\/\d+\/Loghi\/[A-Za-z0-9_.-]+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
+  );
+}

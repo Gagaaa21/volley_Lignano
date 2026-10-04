@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { decodeEntities, parseGirone, validateGirone } from "@/lib/federation/parse";
+import { initialsOf } from "@/lib/federation/teamName";
 
 const fixture = (name: string) => readFileSync(join(__dirname, "..", "e2e", "fixtures", "federation", name), "utf8");
 
@@ -53,6 +54,41 @@ test.describe("lettura del girone: U15 girone A non ancora iniziato", () => {
     ]);
     expect(result.girone.standings.every((s) => s.points === 0 && s.played === 0)).toBe(true);
     expect(result.girone.standings.map((s) => s.position)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+});
+
+test.describe("lettura del girone: loghi e fasce di classifica", () => {
+  const PAGE = "https://udine.federvolley.it/risultati-classifiche.aspx?ComitatoId=48&StId=2428&CId=93676&PId=15544";
+  const result = parseGirone(fixture("u15-girone-a-non-iniziato.html"), PAGE);
+  const row = (team: string) => result.girone.standings.find((r) => r.team === team)!;
+
+  test("il logo diventa un indirizzo completo sul portale", () => {
+    expect(row("CDA VOLLEY LIGNANO").logoUrl).toBe(
+      "https://udine.federvolley.it/mngArea/Societa/img/2555/Loghi/LogoS2555.png",
+    );
+    expect(row("ASFJR 1971").logoUrl).toBe("https://udine.federvolley.it/mngArea/Societa/img/2521/Loghi/LogoS2521.jpg");
+  });
+
+  test("l'immagine «nessun logo» del portale vale null", () => {
+    expect(row("FACTORY VOLLEY FAEDIS").logoUrl).toBeNull();
+  });
+
+  test("senza l'indirizzo della pagina il logo resta com'è scritto", () => {
+    const relative = parseGirone(fixture("u15-girone-a-non-iniziato.html")).girone.standings;
+    expect(relative.find((r) => r.team === "CDA VOLLEY LIGNANO")?.logoUrl).toBe(
+      "/mngArea/Societa/img/2555/Loghi/LogoS2555.png",
+    );
+  });
+
+  test("le prime tre righe sono in zona promozione, come sul portale", () => {
+    expect(result.girone.standings.map((r) => r.zone)).toEqual([
+      "promotion",
+      "promotion",
+      "promotion",
+      null,
+      null,
+      null,
+    ]);
   });
 });
 
@@ -150,5 +186,20 @@ test.describe("controlli di sicurezza sui dati letti", () => {
 
   test("decodifica delle entità", () => {
     expect(decodeEntities("1&#176; &amp; Pizza D&#39;Oro &agrave; &#x41;")).toBe("1° & Pizza D'Oro à A");
+  });
+});
+
+test.describe("iniziali delle squadre (segnaposto del logo)", () => {
+  test("ignorano le parole generiche", () => {
+    expect(initialsOf("BLU TEAM")).toBe("BT");
+    expect(initialsOf("A.S.D. Pol. Faedis")).toBe("F");
+    expect(initialsOf("FACTORY VOLLEY FAEDIS")).toBe("FF");
+    expect(initialsOf("CHEI DE VILE")).toBe("CD");
+  });
+
+  test("non restano mai vuote", () => {
+    expect(initialsOf("Volley")).toBe("V");
+    expect(initialsOf("")).toBe("?");
+    expect(initialsOf("ASFJR 1971")).toBe("A1");
   });
 });
