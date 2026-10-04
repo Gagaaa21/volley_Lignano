@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "Partite",
 };
 
+// La lettura dei gironi dal portale (qualche tentativo ciascuno) può superare
+// il tempo massimo di default delle funzioni, soprattutto sul piano gratuito di
+// Vercel: 60 secondi bastano e restano entro il limite anche di quel piano.
+export const maxDuration = 60;
+
 export default async function MatchesListPage({
   searchParams,
 }: {

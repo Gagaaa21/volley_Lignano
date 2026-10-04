@@ -27,6 +27,11 @@ import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import type { Category } from "@/lib/types";
 import type { EventAttendance, EventCallUps, EventPlan } from "@/components/calendar/EventDetailDialog";
 
+// La lettura dei gironi dal portale (qualche tentativo ciascuno) può superare
+// il tempo massimo di default delle funzioni, soprattutto sul piano gratuito di
+// Vercel: 60 secondi bastano e restano entro il limite anche di quel piano.
+export const maxDuration = 60;
+
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
   const monthParamRaw = typeof params.month === "string" ? params.month : undefined;

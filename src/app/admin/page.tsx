@@ -41,6 +41,11 @@ function eventHref(event: CalendarEvent) {
   return event.kind === "training" ? `/admin/allenamenti/${event.ruleId}` : `/admin/partite/${event.id}`;
 }
 
+// La lettura dei gironi dal portale (qualche tentativo ciascuno) può superare
+// il tempo massimo di default delle funzioni, soprattutto sul piano gratuito di
+// Vercel: 60 secondi bastano e restano entro il limite anche di quel piano.
+export const maxDuration = 60;
+
 export default async function AdminDashboardPage({
   searchParams,
 }: {
