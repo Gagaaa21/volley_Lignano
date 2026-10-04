@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import { cn } from "@/lib/cn";
 import crest from "@/assets/lignano-crest.png";
 import { initialsOf } from "@/lib/federation/teamName";
@@ -12,6 +12,8 @@ interface TeamLogoProps {
   name: string;
   /** La nostra squadra usa lo stemma del sito, non il logo del portale. */
   ours?: boolean;
+  /** Logo scelto a mano (vedi manualTeamLogos.ts): vale più di quello del portale. */
+  localLogo?: StaticImageData | null;
   className?: string;
 }
 
@@ -22,13 +24,22 @@ const CHIP = "grid shrink-0 place-items-center overflow-hidden rounded-lg border
  * mostrano le iniziali, così la riga non resta mai con un'immagine rotta.
  * Il nome è già scritto accanto: l'immagine è solo decorativa.
  */
-export function TeamLogo({ src, name, ours = false, className }: TeamLogoProps) {
+export function TeamLogo({ src, name, ours = false, localLogo = null, className }: TeamLogoProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
   if (ours) {
     return (
       <span className={cn(CHIP, "p-1 shadow-xs", className)}>
         <Image src={crest} alt="" className="h-full w-full object-contain" sizes="40px" />
+      </span>
+    );
+  }
+
+  if (localLogo) {
+    // Immagine a tutto riquadro (es. fondo colorato): niente margine bianco attorno.
+    return (
+      <span className={cn(CHIP, className)}>
+        <Image src={localLogo} alt="" className="h-full w-full object-cover" sizes="40px" />
       </span>
     );
   }

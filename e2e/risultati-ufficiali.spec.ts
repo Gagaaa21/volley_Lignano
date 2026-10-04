@@ -21,6 +21,10 @@ import { loginAsDev, switchTeam } from "./helpers";
 
 const OUR_TEAM = "ROJALKENNEDY EMPORIO ADV";
 const FIXTURE = readFileSync(join(__dirname, "fixtures", "federation", "girone-con-partite-giocate.html"), "utf8");
+const FIXTURE_NOT_STARTED = readFileSync(
+  join(__dirname, "fixtures", "federation", "u15-girone-a-non-iniziato.html"),
+  "utf8",
+);
 
 /** PNG 1×1: i loghi delle squadre nel portale finto. */
 const LOGO_PNG = Buffer.from(
@@ -40,7 +44,7 @@ test.beforeAll(async () => {
       return;
     }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    response.end(FIXTURE);
+    response.end(request.url?.startsWith("/non-iniziato") ? FIXTURE_NOT_STARTED : FIXTURE);
   });
   await new Promise<void>((resolve) => portal.listen(0, "127.0.0.1", resolve));
   portalOrigin = `http://127.0.0.1:${(portal.address() as AddressInfo).port}`;
@@ -213,6 +217,26 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
     `/api/federation/logo?u=${encodeURIComponent("https://example.com/mngArea/Societa/img/1/Loghi/LogoS1.png")}`,
   );
   expect(foreign.status()).toBe(400);
+
+  // --- 5b. Campionato non ancora iniziato: riquadri con i loghi; il logo di
+  // Factory Volley Faedis è scelto a mano (il portale non ne ha uno). ---
+  await saveSource(page, `${portalOrigin}/non-iniziato`, "CDA VOLLEY LIGNANO");
+  await expect(page.getByText(/Girone letto: 6 squadre, 30 gare/)).toBeVisible({ timeout: 30_000 });
+  await page.goto("/");
+  const notStarted = page.getByRole("region", { name: "Classifica" });
+  await expect(notStarted).toContainText("Il campionato inizia il 17 ottobre");
+  await expect(notStarted.locator("li", { hasText: "FACTORY VOLLEY FAEDIS" }).locator("img")).toHaveAttribute(
+    "src",
+    /factory-volley-faedis/,
+  );
+  await expect(notStarted.locator("li", { hasText: "CDA VOLLEY LIGNANO" }).locator("img")).toHaveAttribute(
+    "src",
+    /lignano-crest/,
+  );
+  await expect(notStarted.locator("li", { hasText: "BLU TEAM" }).locator("img")).toHaveAttribute(
+    "src",
+    /^\/api\/federation\/logo\?u=/,
+  );
 
   // --- 6. Senza girone la categoria sparisce, senza errori. ---
   await saveSource(page, "", OUR_TEAM);

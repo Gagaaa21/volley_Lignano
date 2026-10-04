@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { CATEGORY_DOT, CATEGORY_LABELS } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { isOurTeam } from "@/lib/federation/matching";
+import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { TeamLogo } from "@/components/calendar/TeamLogo";
 import { SectionHeading } from "@/components/ui/PageHeader";
 import type { PublicStandings } from "@/lib/publicCalendarData";
@@ -126,6 +127,7 @@ export function StandingsSection({ standings }: { standings: PublicStandings[] }
                                     src={row.logoUrl}
                                     name={row.team}
                                     ours={ours}
+                                    localLogo={manualLogoFor(row.team)}
                                     className="h-7 w-7 sm:h-9 sm:w-9"
                                   />
                                   <div className="min-w-0 leading-tight">
@@ -184,7 +186,13 @@ export function StandingsSection({ standings }: { standings: PublicStandings[] }
                             ours ? "bg-primary-soft font-bold text-primary" : "bg-muted text-foreground/80",
                           )}
                         >
-                          <TeamLogo src={row.logoUrl} name={row.team} ours={ours} className="h-8 w-8" />
+                          <TeamLogo
+                            src={row.logoUrl}
+                            name={row.team}
+                            ours={ours}
+                            localLogo={manualLogoFor(row.team)}
+                            className="h-8 w-8"
+                          />
                           <span className="min-w-0">{row.team}</span>
                         </li>
                       );

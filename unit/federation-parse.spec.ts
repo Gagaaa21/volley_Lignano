@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { decodeEntities, parseGirone, validateGirone } from "@/lib/federation/parse";
-import { initialsOf } from "@/lib/federation/teamName";
+import { initialsOf, manualLogoKey } from "@/lib/federation/teamName";
 
 const fixture = (name: string) => readFileSync(join(__dirname, "..", "e2e", "fixtures", "federation", name), "utf8");
 
@@ -201,5 +201,19 @@ test.describe("iniziali delle squadre (segnaposto del logo)", () => {
     expect(initialsOf("Volley")).toBe("V");
     expect(initialsOf("")).toBe("?");
     expect(initialsOf("ASFJR 1971")).toBe("A1");
+  });
+});
+
+test.describe("loghi scelti a mano", () => {
+  test("Factory Volley Faedis, comunque sia scritto il nome", () => {
+    expect(manualLogoKey("FACTORY VOLLEY FAEDIS")).toBe("factory-volley-faedis");
+    expect(manualLogoKey("Factory Volley Faedis")).toBe("factory-volley-faedis");
+    expect(manualLogoKey("A.S.D. Factory Volley Faedis")).toBe("factory-volley-faedis");
+  });
+
+  test("le altre squadre usano il logo del portale", () => {
+    expect(manualLogoKey("BLU TEAM")).toBeNull();
+    expect(manualLogoKey("CDA VOLLEY LIGNANO")).toBeNull();
+    expect(manualLogoKey("")).toBeNull();
   });
 });
