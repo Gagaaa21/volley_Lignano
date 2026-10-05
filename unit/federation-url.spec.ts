@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isAllowedFederationUrl, isAllowedLogoUrl } from "@/lib/federation/url";
+import { isAllowedFederationUrl, isAllowedLogoUrl, restoreLostFilters } from "@/lib/federation/url";
 
 test.describe("indirizzi del girone consentiti", () => {
   test("pagine https della federazione, sottodomini dei comitati compresi", () => {
@@ -46,5 +46,34 @@ test.describe("indirizzi dei loghi consentiti", () => {
     expect(isAllowedLogoUrl("https://example.com/mngArea/Societa/img/2555/Loghi/LogoS2555.png")).toBe(false);
     expect(isAllowedLogoUrl("http://udine.federvolley.it/mngArea/Societa/img/2555/Loghi/LogoS2555.png")).toBe(false);
     expect(isAllowedLogoUrl("")).toBe(false);
+  });
+});
+
+test.describe("filtri persi in un reindirizzamento del portale", () => {
+  const original =
+    "https://udine.federvolley.it/risultati-classifiche.aspx?ComitatoId=48&StId=2428&DataDa=&StatoGara=&CId=92422&SId=&PId=15545&btFiltro=CERCA";
+
+  test("si rimettono i filtri sulla pagina di arrivo", () => {
+    const fixed = restoreLostFilters(original, "https://udine.federvolley.it/risultati-classifiche.aspx?PId=15544");
+    expect(fixed).not.toBeNull();
+    const url = new URL(fixed!);
+    expect(url.pathname).toBe("/risultati-classifiche.aspx");
+    expect(url.searchParams.get("PId")).toBe("15544");
+    expect(url.searchParams.get("CId")).toBe("92422");
+    expect(url.searchParams.get("StId")).toBe("2428");
+    expect(url.searchParams.get("ComitatoId")).toBe("48");
+  });
+
+  test("niente da fare se i filtri ci sono ancora, la pagina o il sito sono altri", () => {
+    expect(restoreLostFilters(original, original)).toBeNull();
+    expect(restoreLostFilters(original, "https://udine.federvolley.it/")).toBeNull();
+    expect(restoreLostFilters(original, "https://example.com/risultati-classifiche.aspx?PId=15544")).toBeNull();
+    expect(
+      restoreLostFilters(
+        "https://udine.federvolley.it/risultati-classifiche.aspx?PId=15545",
+        "https://udine.federvolley.it/risultati-classifiche.aspx?PId=15544",
+      ),
+    ).toBeNull();
+    expect(restoreLostFilters("non un indirizzo", original)).toBeNull();
   });
 });

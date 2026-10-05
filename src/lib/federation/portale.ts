@@ -1,6 +1,6 @@
 import "server-only";
 import { parseGirone, validateGirone } from "@/lib/federation/parse";
-import { isAllowedFederationUrl, isAllowedLogoUrl } from "@/lib/federation/url";
+import { isAllowedFederationUrl, isAllowedLogoUrl, restoreLostFilters } from "@/lib/federation/url";
 import type { Girone } from "@/lib/federation/types";
 
 /** Il portale federale (udine.federvolley.it, friulivg.portalefipav.net, …)
@@ -14,7 +14,13 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchHtml(url: string): Promise<string> {
+/** La pagina e l'indirizzo a cui si è arrivati davvero (dopo gli eventuali reindirizzamenti). */
+interface FetchedPage {
+  html: string;
+  arrivedAt: string;
+}
+
+async function fetchHtml(url: string): Promise<FetchedPage> {
   let lastError: unknown = null;
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     if (attempt > 0) await sleep(FIRST_RETRY_DELAY_MS * 2 ** (attempt - 1));
@@ -29,7 +35,7 @@ async function fetchHtml(url: string): Promise<string> {
         throw new Error("La pagina è stata reindirizzata fuori dal sito della federazione.");
       }
       if (!response.ok) throw new Error(`Il portale ha risposto con errore ${response.status}.`);
-      return await response.text();
+      return { html: await response.text(), arrivedAt: response.url || url };
     } catch (error) {
       lastError = error;
     }
@@ -83,8 +89,18 @@ export async function readGirone(url: string): Promise<Girone> {
       "L'indirizzo del girone non è una pagina della federazione (https, federvolley.it o portalefipav.net).",
     );
   }
-  const result = parseGirone(await fetchHtml(url), url);
-  const problem = validateGirone(result);
+  let page = await fetchHtml(url);
+  let result = parseGirone(page.html, page.arrivedAt);
+  let problem = validateGirone(result);
+  if (problem) {
+    // Il portale può aver rimandato a una pagina senza i filtri del girone: si ritenta con i filtri rimessi.
+    const retryUrl = restoreLostFilters(url, page.arrivedAt);
+    if (retryUrl && isAllowedFederationUrl(retryUrl)) {
+      page = await fetchHtml(retryUrl);
+      result = parseGirone(page.html, page.arrivedAt);
+      problem = validateGirone(result);
+    }
+  }
   if (problem) throw new Error(problem);
   return result.girone;
 }

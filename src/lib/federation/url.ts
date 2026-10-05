@@ -37,3 +37,28 @@ export function isAllowedLogoUrl(raw: string): boolean {
     /^\/mngArea\/Societa\/img\/\d+\/Loghi\/[A-Za-z0-9_.-]+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
   );
 }
+
+/**
+ * Alcuni indirizzi copiati dal browser hanno un `PId` che il portale
+ * riconosce solo per rimandare alla pagina «base» (`?PId=…`), buttando via i
+ * filtri del girone (CId, StId, …): la pagina letta è vuota. Se è successo,
+ * restituisce l'indirizzo di arrivo con i filtri di quello originale rimessi;
+ * altrimenti null (stessa pagina e filtri ancora presenti, o altro sito).
+ */
+export function restoreLostFilters(original: string, arrivedAt: string): string | null {
+  let from: URL;
+  let to: URL;
+  try {
+    from = new URL(original);
+    to = new URL(arrivedAt);
+  } catch {
+    return null;
+  }
+  if (from.origin !== to.origin || from.pathname !== to.pathname) return null;
+  if (!from.searchParams.has("CId") || to.searchParams.has("CId")) return null;
+  const fixed = new URL(to.toString());
+  for (const [key, value] of from.searchParams) {
+    if (key !== "PId") fixed.searchParams.set(key, value);
+  }
+  return fixed.toString();
+}

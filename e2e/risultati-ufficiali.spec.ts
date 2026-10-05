@@ -43,6 +43,21 @@ test.beforeAll(async () => {
       response.end(LOGO_PNG);
       return;
     }
+    // Come il portale con certi indirizzi copiati dal browser: /risultati con PId=2 rimanda a
+    // /risultati?PId=1 buttando via i filtri, e senza filtri (CId) la pagina è vuota.
+    if (request.url?.startsWith("/risultati")) {
+      const params = new URL(request.url, "http://localhost").searchParams;
+      if (params.get("PId") === "2") {
+        response.writeHead(302, { Location: "/risultati?PId=1" });
+        response.end();
+        return;
+      }
+      if (!params.has("CId")) {
+        response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        response.end("<html><body><p>Risultati e classifiche</p></body></html>");
+        return;
+      }
+    }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     response.end(request.url?.startsWith("/non-iniziato") ? FIXTURE_NOT_STARTED : FIXTURE);
   });
@@ -237,6 +252,10 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
     "src",
     /^\/api\/federation\/logo\?u=/,
   );
+
+  // --- 5c. Indirizzo che il portale rimanda a una pagina senza filtri: si legge lo stesso. ---
+  await saveSource(page, `${portalOrigin}/risultati?ComitatoId=1&CId=7&PId=2`, OUR_TEAM);
+  await expect(page.getByText(/Girone letto: 5 squadre, 10 gare/)).toBeVisible({ timeout: 30_000 });
 
   // --- 6. Senza girone la categoria sparisce, senza errori. ---
   await saveSource(page, "", OUR_TEAM);
