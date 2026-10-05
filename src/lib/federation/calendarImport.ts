@@ -13,7 +13,9 @@ import type { Category, Match, MatchInput } from "@/lib/types";
  * - "maybe-duplicate": c'è già una partita con la stessa avversaria e data
  *   vicina (spostamento?): si propone di non aggiungerla, ma l'admin decide.
  * Le gare già nel sito (abbinate dall'admin o riconosciute da sole) non
- * compaiono, e vengono solo contate.
+ * compaiono nell'elenco da aggiungere, e vengono solo contate. Se per una di
+ * queste la data o l'ora sul portale è diversa da quella del sito (gara
+ * spostata) finisce tra le «date cambiate», da aggiornare con un clic.
  */
 
 export type CalendarImportKind = "new" | "maybe-duplicate";
@@ -29,8 +31,19 @@ export interface CalendarImportItem {
   similar: Match | null;
 }
 
+/** Partita del sito la cui data o ora è diversa da quella ufficiale. */
+export interface DateChangeItem {
+  category: Category;
+  official: OfficialMatch;
+  side: "home" | "away";
+  opponent: string;
+  match: Match;
+}
+
 export interface CalendarImportSet {
   items: CalendarImportItem[];
+  /** Partite già nel sito con data o ora diversa dal portale (non ancora giocate). */
+  dateChanges: DateChangeItem[];
   /** Gare della nostra squadra nel girone già presenti nel sito. */
   alreadyPresent: number;
   /** Tutte le gare della nostra squadra nel girone. */
@@ -67,11 +80,27 @@ export function computeCalendarImport(input: {
 
   const claimed = new Set<string>(linked.values());
   const items: CalendarImportItem[] = [];
+  const dateChanges: DateChangeItem[] = [];
   let alreadyPresent = 0;
 
+  /** Una gara già giocata (o con risultato nel sito) non ha più una data da correggere. */
+  const noteDateChange = (match: Match, official: OfficialMatch, side: "home" | "away") => {
+    if (match.resultSetsWon !== null || official.homeSets !== null) return;
+    if (match.matchDate.slice(0, 16) === official.date.slice(0, 16)) return;
+    dateChanges.push({
+      category,
+      official,
+      side,
+      opponent: side === "home" ? official.away : official.home,
+      match,
+    });
+  };
+
   for (const { official, side } of ours) {
-    if (linked.has(official.externalId)) {
+    const linkedId = linked.get(official.externalId);
+    if (linkedId) {
       alreadyPresent++;
+      noteDateChange(byId.get(linkedId)!, official, side);
       continue;
     }
     const free = pool.filter((match) => !claimed.has(match.id));
@@ -79,6 +108,7 @@ export function computeCalendarImport(input: {
     if (same) {
       claimed.add(same.id);
       alreadyPresent++;
+      noteDateChange(same, official, side);
       continue;
     }
     const opponent = side === "home" ? official.away : official.home;
@@ -93,7 +123,7 @@ export function computeCalendarImport(input: {
     });
   }
 
-  return { items, alreadyPresent, total: ours.length };
+  return { items, dateChanges, alreadyPresent, total: ours.length };
 }
 
 /** La partita del sito per una gara ufficiale: dati del portale, senza ritrovo,

@@ -65,3 +65,8 @@ export function actionableProposals(official: CategoryOfficial[]): Proposal[] {
     .flatMap((entry) => entry.proposals?.proposals ?? [])
     .filter((proposal) => proposal.kind !== "no-sets");
 }
+
+/** Partite del sito con data o ora diversa dal portale, da guardare. */
+export function dateChangeCount(official: CategoryOfficial[]): number {
+  return official.reduce((total, entry) => total + (entry.calendar?.dateChanges.length ?? 0), 0);
+}

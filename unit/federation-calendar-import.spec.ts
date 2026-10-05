@@ -135,6 +135,59 @@ test.describe("calendario ufficiale: partite che mancano nel sito", () => {
   });
 });
 
+test.describe("calendario ufficiale: date cambiate sul portale", () => {
+  test("stessa data e ora (anche nel formato con i secondi del database): nessun avviso", () => {
+    expect(run([siteMatch()], [official()]).dateChanges).toHaveLength(0);
+    expect(run([siteMatch({ matchDate: "2026-10-18T11:00:00" })], [official()]).dateChanges).toHaveLength(0);
+  });
+
+  test("ora o giorno diversi: la partita compare tra le date cambiate, e non tra quelle da aggiungere", () => {
+    const result = run([siteMatch({ matchDate: "2026-10-18T10:00" })], [official()]);
+    expect(result.items).toHaveLength(0);
+    expect(result.dateChanges).toHaveLength(1);
+    expect(result.dateChanges[0]).toMatchObject({ opponent: "DEGANO ROJALKENNEDY", side: "home" });
+    expect(result.dateChanges[0].match.id).toBe("m1");
+    expect(result.dateChanges[0].official.date).toBe("2026-10-18T11:00");
+
+    const nextDay = run([siteMatch({ matchDate: "2026-10-17T11:00" })], [official()]);
+    expect(nextDay.dateChanges).toHaveLength(1);
+  });
+
+  test("una partita abbinata da un admin si segnala anche con la data molto diversa", () => {
+    const moved = siteMatch({ id: "m9", matchDate: "2026-12-20T11:00", opponent: "Altro nome" });
+    const decisions: FederationDecision[] = [
+      {
+        category: "U15",
+        externalId: "15001",
+        decision: "linked",
+        matchId: "m9",
+        decidedBy: null,
+        decidedAt: "2026-10-01T00:00:00Z",
+      },
+    ];
+    const result = run([moved], [official()], decisions);
+    expect(result.dateChanges.map((change) => change.match.id)).toEqual(["m9"]);
+  });
+
+  test("già giocata (risultato nel sito o sul portale): niente da correggere", () => {
+    const played = siteMatch({
+      matchDate: "2026-10-17T11:00",
+      setScores: [{ us: 25, them: 10 }],
+      resultSetsWon: 1,
+      resultSetsLost: 0,
+    });
+    expect(run([played], [official()]).dateChanges).toHaveLength(0);
+    const officialPlayed = official({ homeSets: 3, awaySets: 0, sets: [{ home: 25, away: 10 }] });
+    expect(run([siteMatch({ matchDate: "2026-10-17T11:00" })], [officialPlayed]).dateChanges).toHaveLength(0);
+  });
+
+  test("una partita simile ma non abbinata resta un dubbio da aggiungere, non una data cambiata", () => {
+    const result = run([siteMatch({ matchDate: "2026-10-28T11:00" })], [official()]);
+    expect(result.dateChanges).toHaveLength(0);
+    expect(result.items[0].kind).toBe("maybe-duplicate");
+  });
+});
+
 test.describe("partita creata dalla gara ufficiale", () => {
   test("in casa: dati del portale, niente risultato né convocazioni", () => {
     const input = matchInputFromOfficial("U15", official(), "home");

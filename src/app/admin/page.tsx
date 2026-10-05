@@ -25,7 +25,7 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { ADMIN_PAGES, isPageAvailableForTeam, type AdminPage, type CalendarEvent } from "@/lib/types";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
-import { actionableProposals, loadOfficialResults } from "@/lib/federation/load";
+import { actionableProposals, dateChangeCount, loadOfficialResults } from "@/lib/federation/load";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -87,7 +87,9 @@ export default async function AdminDashboardPage({
   // e solo per chi ha accesso a Partite).
   const showOfficial = team === "u14u15" && showMatches && allowedPages.includes("partite");
   if (showOfficial) scheduleFederationRefresh();
-  const officialToConfirm = showOfficial ? actionableProposals(await loadOfficialResults(repo)).length : 0;
+  const officialData = showOfficial ? await loadOfficialResults(repo) : [];
+  const officialToConfirm = actionableProposals(officialData).length;
+  const datesChanged = dateChangeCount(officialData);
 
   const activeTrainings = trainings.filter((t) => t.isActive);
   const activeAthletes = athletes.filter((a) => a.isActive);
@@ -145,6 +147,21 @@ export default async function AdminDashboardPage({
             {officialToConfirm === 1
               ? "C'è un risultato ufficiale della federazione da confermare."
               : `Ci sono ${officialToConfirm} risultati ufficiali della federazione da confermare.`}
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
+
+      {datesChanged > 0 && (
+        <Link
+          href="/admin/partite"
+          className="group mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning transition-colors hover:border-warning/50"
+        >
+          <CalendarClock className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            {datesChanged === 1
+              ? "Una partita ha cambiato data o ora sul portale della federazione."
+              : `${datesChanged} partite hanno cambiato data o ora sul portale della federazione.`}
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>

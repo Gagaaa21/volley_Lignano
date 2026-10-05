@@ -278,3 +278,98 @@ export async function importOfficialCalendarAction(
     return { error: "Non è stato possibile aggiungere tutte le partite. Controlla l'elenco e riprova." };
   }
 }
+
+/** Data e ora per una notifica, es. «sab 24 ott · ore 15:30». */
+function whenForNotification(iso: string): string {
+  const date = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  const day = date.toLocaleDateString("it-IT", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" });
+  return `${day} · ore ${iso.slice(11, 16)}`;
+}
+
+/**
+ * «Aggiorna le date»: porta nel sito la data e l'ora ufficiali delle partite
+ * scelte da un admin, quando sul portale sono cambiate (gara spostata). Cambia
+ * solo la data: palestra, ritrovo, convocazioni e il resto restano come sono.
+ * Ricalcola dai dati salvati, mai da quello che arriva dal browser.
+ */
+export async function updateOfficialDatesAction(
+  _prevState: OfficialResultFormState,
+  formData: FormData,
+): Promise<OfficialResultFormState> {
+  await requireStaffPage("partite");
+  const category = parseCategory(formData.get("category"));
+  const wanted = new Set(formData.getAll("externalId").map((value) => value.toString()));
+  const notify = formData.get("notify") === "on";
+  if (!category) return { error: "Dati mancanti: aggiorna la pagina e riprova." };
+  if (wanted.size === 0) return { error: "Scegli almeno una partita da aggiornare." };
+
+  try {
+    const repo = await getActiveRepo();
+    const [sources, snapshots, decisions, matches] = await Promise.all([
+      repo.listFederationSources(),
+      repo.listFederationSnapshots(),
+      repo.listFederationDecisions(),
+      repo.listMatches({ team: "u14u15" }),
+    ]);
+    const source = sources.find((src) => src.category === category);
+    const girone = snapshots.find((snap) => snap.category === category)?.girone;
+    if (!source?.enabled || !girone) return { error: "Il calendario ufficiale non è disponibile: aggiorna e riprova." };
+
+    const { dateChanges } = computeCalendarImport({
+      category,
+      girone,
+      aliases: source.teamAliases,
+      matches,
+      decisions,
+    });
+    const chosen = dateChanges.filter((change) => wanted.has(change.official.externalId));
+    if (chosen.length === 0) return { error: "Queste date sono già aggiornate: ricarica la pagina." };
+
+    let updated = 0;
+    try {
+      for (const { match, official } of chosen) {
+        const input: MatchInput = {
+          team: match.team,
+          category: match.category,
+          opponent: match.opponent,
+          isHome: match.isHome,
+          isFriendly: match.isFriendly,
+          isTournament: match.isTournament,
+          location: match.location,
+          matchDate: official.date.slice(0, 16),
+          meetingTime: match.meetingTime,
+          meetingLocation: match.meetingLocation,
+          notes: match.notes,
+          calledUpAthleteIds: match.calledUpAthleteIds,
+          setScores: match.setScores,
+          resultSetsWon: match.resultSetsWon,
+          resultSetsLost: match.resultSetsLost,
+          tournamentGames: match.tournamentGames,
+        };
+        await repo.updateMatch(match.id, input);
+        updated++;
+      }
+    } finally {
+      if (updated > 0) revalidateAll();
+    }
+
+    if (notify) {
+      const first = chosen[0];
+      await notifyCalendarChange(
+        {
+          title: updated === 1 ? "Partita spostata" : "Calendario aggiornato",
+          body:
+            updated === 1
+              ? `${CATEGORY_LABELS[category]} · vs ${first.opponent} · ${whenForNotification(first.official.date)}`
+              : `${updated} partite ${CATEGORY_LABELS[category]} hanno cambiato data o ora.`,
+          url: "/",
+        },
+        "u14u15",
+      );
+    }
+    return { message: updated === 1 ? "Aggiornata 1 data." : `Aggiornate ${updated} date.` };
+  } catch (error) {
+    console.error("[updateOfficialDatesAction]", error);
+    return { error: "Non è stato possibile aggiornare tutte le date. Controlla l'elenco e riprova." };
+  }
+}

@@ -34,6 +34,8 @@ const LOGO_PNG = Buffer.from(
 
 let portal: Server;
 let portalUrl: string;
+/** Il portale finto sposta la gara 13 (da sab 10/10 20:30 a dom 11/10 18:00) quando diventa vero. */
+let gameMoved = false;
 let portalOrigin: string;
 
 test.beforeAll(async () => {
@@ -59,7 +61,8 @@ test.beforeAll(async () => {
       }
     }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    response.end(request.url?.startsWith("/non-iniziato") ? FIXTURE_NOT_STARTED : FIXTURE);
+    const fixture = gameMoved ? FIXTURE.replace("10/10/26 20:30", "11/10/26 18:00") : FIXTURE;
+    response.end(request.url?.startsWith("/non-iniziato") ? FIXTURE_NOT_STARTED : fixture);
   });
   await new Promise<void>((resolve) => portal.listen(0, "127.0.0.1", resolve));
   portalOrigin = `http://127.0.0.1:${(portal.address() as AddressInfo).port}`;
@@ -222,6 +225,24 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   // «Aggiorna ora» appena dopo una lettura: non carica di nuovo il portale.
   await page.getByRole("button", { name: "Aggiorna ora" }).click();
   await expect(page.getByText("Già aggiornato da pochi istanti.")).toBeVisible();
+
+  // --- 4c. Il portale sposta la gara 13: il sito lo segnala e l'admin porta la data al nuovo valore. ---
+  gameMoved = true;
+  await saveSource(page, portalUrl, OUR_TEAM);
+  await expect(page.getByText(/Girone letto: 5 squadre, 10 gare/)).toBeVisible({ timeout: 30_000 });
+  await page.goto("/admin");
+  await expect(page.getByText("Una partita ha cambiato data o ora sul portale della federazione.")).toBeVisible();
+  await page.goto("/admin/partite");
+  const changed = calendar.locator('li[data-official-game="13"]');
+  await expect(changed).toContainText("vs ASD SANGIORGINA");
+  await expect(changed).toContainText("Nel sito: sab 10 ott · ore 20:30");
+  await expect(changed).toContainText("Sul portale: dom 11 ott · ore 18:00");
+  await calendar.getByRole("button", { name: "Aggiorna 1 data" }).click();
+  await expect(calendar.getByText("Aggiornata 1 data.").first()).toBeVisible();
+  await expect(calendar.getByText("ha cambiato data o ora sul portale")).toHaveCount(0);
+  await expect(matchRow(page, "ASD SANGIORGINA")).toContainText("18:00");
+  await page.goto("/admin");
+  await expect(page.getByText(/ha cambiato data o ora sul portale/)).toHaveCount(0);
 
   // --- 5. Classifica pubblica. ---
   await page.goto("/");

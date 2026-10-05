@@ -1,6 +1,7 @@
 import type { CategoryOfficial } from "@/lib/federation/load";
 import { SectionHeading } from "@/components/ui/PageHeader";
 import { OfficialCalendarImport } from "./OfficialCalendarImport";
+import { OfficialDateChanges } from "./OfficialDateChanges";
 
 /** Calendario ufficiale del girone: le partite della nostra squadra che nel
  * sito non ci sono ancora, da aggiungere con un clic e una conferma. */
@@ -12,17 +13,19 @@ export function OfficialCalendarSection({ official }: { official: CategoryOffici
     <section className="mb-8" aria-label="Calendario ufficiale">
       <SectionHeading
         title="Calendario ufficiale"
-        description="Le partite di campionato lette dal portale: aggiungile al calendario del sito, nulla viene creato senza la tua conferma."
+        description="Le partite di campionato lette dal portale: aggiungi quelle che mancano e aggiorna quelle spostate, nulla cambia senza la tua conferma."
       />
       <div className="space-y-5">
         {entries.map(({ source, calendar }) => (
-          <OfficialCalendarImport
-            key={source.category}
-            category={source.category}
-            items={calendar!.items}
-            alreadyPresent={calendar!.alreadyPresent}
-            total={calendar!.total}
-          />
+          <div key={source.category} className="space-y-5">
+            <OfficialDateChanges category={source.category} changes={calendar!.dateChanges} />
+            <OfficialCalendarImport
+              category={source.category}
+              items={calendar!.items}
+              alreadyPresent={calendar!.alreadyPresent}
+              total={calendar!.total}
+            />
+          </div>
         ))}
       </div>
     </section>
