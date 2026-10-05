@@ -7,6 +7,10 @@ interface SubscribeBody {
   endpoint?: unknown;
   keys?: { p256dh?: unknown; auth?: unknown };
   team?: unknown;
+  /** Rinnovo silenzioso di un'iscrizione già esistente: squadra e account non cambiano. */
+  refresh?: unknown;
+  /** Indirizzo precedente, quando il browser lo ha sostituito (pushsubscriptionchange). */
+  oldEndpoint?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -24,6 +28,23 @@ export async function POST(request: Request) {
 
   const session = await getSession();
   const repo = await getRepo();
+
+  // Rinnovo silenzioso (il browser ha cambiato indirizzo o chiavi, oppure è
+  // un controllo periodico): squadra e account restano quelli già registrati,
+  // altrimenti chi segue Minivolley verrebbe spostato su U14/U15 solo perché
+  // ha aperto l'altra pagina del sito.
+  if (body?.refresh === true || typeof body?.oldEndpoint === "string") {
+    const known = await repo.listPushSubscriptions();
+    const previous =
+      known.find((sub) => sub.endpoint === endpoint) ??
+      (typeof body?.oldEndpoint === "string" ? known.find((sub) => sub.endpoint === body.oldEndpoint) : undefined);
+    if (previous) {
+      await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: previous.staffId, team: previous.team });
+      if (previous.endpoint !== endpoint) await repo.deletePushSubscriptionByEndpoint(previous.endpoint);
+      return NextResponse.json({ ok: true });
+    }
+  }
+
   await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: session?.sub ?? null, team });
   return NextResponse.json({ ok: true });
 }

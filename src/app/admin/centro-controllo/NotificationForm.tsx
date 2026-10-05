@@ -64,8 +64,8 @@ export function NotificationForm({
           </label>
         </div>
         <FieldHint>
-          Tutti U14/U15 o Tutti Minivolley: genitori e atlete iscritti alle notifiche di quella
-          squadra. Solo Admin: tutti gli account Admin registrati, a prescindere dalla squadra.
+          Tutti U14/U15 o Tutti Minivolley: genitori e atlete iscritti alle notifiche di quella squadra. Solo Admin:
+          tutti gli account Admin registrati, a prescindere dalla squadra.
         </FieldHint>
       </div>
 
@@ -75,9 +75,24 @@ export function NotificationForm({
         </div>
       )}
       {state.success && (
-        <p className="text-sm font-medium text-primary">
-          Notifica inviata a {state.sentTo} dispositiv{state.sentTo === 1 ? "o" : "i"}.
-        </p>
+        <div className="space-y-1 text-sm">
+          <p className="font-medium text-primary">
+            Notifica inviata a {state.sentTo} dispositiv{state.sentTo === 1 ? "o" : "i"}.
+          </p>
+          {state.removed ? (
+            <p className="text-muted-foreground">
+              {state.removed} dispositiv{state.removed === 1 ? "o" : "i"} non {state.removed === 1 ? "era" : "erano"}{" "}
+              più raggiungibil{state.removed === 1 ? "e" : "i"} (notifiche disattivate o app disinstallata) e{" "}
+              {state.removed === 1 ? "è stato tolto" : "sono stati tolti"} dall&apos;elenco.
+            </p>
+          ) : null}
+          {state.failed ? (
+            <p className="font-medium text-warning">
+              {state.failed} dispositiv{state.failed === 1 ? "o" : "i"} non {state.failed === 1 ? "ha" : "hanno"}{" "}
+              ricevuto la notifica per un errore temporaneo: riprova tra poco.
+            </p>
+          ) : null}
+        </div>
       )}
 
       <SubmitButton />

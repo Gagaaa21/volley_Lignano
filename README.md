@@ -49,6 +49,14 @@ staff (Developer e Admin).
   notifiche»): lo rivede chi apre il sito e non le ha ancora attivate, anche
   se l'aveva chiuso da poco (richiede la tabella `app_settings` di
   `supabase/schema.sql`).
+  Per arrivare anche con il telefono in risparmio energia le notifiche si
+  inviano con priorità alta (`urgency: high`) e scadenza di 7 giorni, restano
+  sullo schermo finché non vengono aperte o chiuse (`requireInteraction`) e il
+  service worker rinnova l'iscrizione se il browser la cambia
+  (`pushsubscriptionchange`); `PwaClient` controlla ogni giorno che
+  l'iscrizione esista ancora e, se manca, la ricrea senza chiedere nulla. Le
+  impostazioni di batteria del telefono, invece, non si possono cambiare dal
+  sito: vedi i consigli in `/admin/guida`.
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati

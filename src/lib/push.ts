@@ -18,6 +18,24 @@ function ensureConfigured(): boolean {
   return true;
 }
 
+/** Quanto a lungo il servizio push (FCM, Mozilla, Apple) tiene in coda una
+ * notifica per un dispositivo spento o senza rete, prima di scartarla: una
+ * settimana, perché una partita spostata resta utile a chi riaccende il
+ * telefono dopo un giorno o due. (Senza indicazione il limite è di 4
+ * settimane, troppo anche per un avviso ormai vecchio.) */
+const PUSH_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+/** Esito di un invio: quanti dispositivi hanno ricevuto la notifica dal
+ * servizio push, quanti non esistevano più (rimossi dall'elenco) e quanti
+ * hanno dato un errore temporaneo. */
+export interface PushResult {
+  delivered: number;
+  removed: number;
+  failed: number;
+}
+
+const NOTHING_SENT: PushResult = { delivered: 0, removed: 0, failed: 0 };
+
 export interface CalendarNotification {
   title: string;
   body: string;
@@ -31,7 +49,7 @@ export interface CalendarNotification {
 async function sendToSubscriptions(
   subscriptions: PushSubscriptionRecord[],
   payload: CalendarNotification,
-): Promise<void> {
+): Promise<PushResult> {
   const repo = await getRepo();
   const message = JSON.stringify({
     title: payload.title,
@@ -40,28 +58,36 @@ async function sendToSubscriptions(
     icon: payload.icon,
   });
 
+  const result: PushResult = { delivered: 0, removed: 0, failed: 0 };
   await Promise.all(
     subscriptions.map(async (sub) => {
       try {
         // "urgency: high" dice al servizio push (FCM/APNs/Mozilla) di
-        // consegnare subito anche a schermo spento o app in background,
-        // invece di rimandare la consegna fino alla prossima riattivazione
-        // del dispositivo (comportamento di default senza questo header).
+        // consegnare subito anche a schermo spento, in risparmio energetico
+        // o con il telefono fermo (modalità Doze di Android): senza questo
+        // header la consegna può slittare alla prossima "finestra di
+        // manutenzione" del dispositivo, anche di ore. "TTL" fissa per
+        // quanto tempo riprovare se il dispositivo è spento o senza rete.
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           message,
-          { urgency: "high" },
+          { urgency: "high", TTL: PUSH_TTL_SECONDS },
         );
+        result.delivered++;
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode;
         if (statusCode === 404 || statusCode === 410) {
+          // Il browser ha annullato l'iscrizione: inutile riprovare.
           await repo.deletePushSubscriptionByEndpoint(sub.endpoint).catch(() => {});
+          result.removed++;
         } else {
           console.error("[push] invio notifica fallito:", err);
+          result.failed++;
         }
       }
     }),
   );
+  return result;
 }
 
 /**
@@ -71,22 +97,20 @@ async function sendToSubscriptions(
  * non sono configurate, o l'invio fallisce, l'operazione di calendario che
  * l'ha chiamata deve comunque andare a buon fine.
  */
-export async function notifyCalendarChange(
-  payload: CalendarNotification,
-  team: TrainingTeam,
-): Promise<void> {
+export async function notifyCalendarChange(payload: CalendarNotification, team: TrainingTeam): Promise<PushResult> {
   try {
-    if (!ensureConfigured()) return;
-    if ((await getSession())?.testMode) return;
+    if (!ensureConfigured()) return NOTHING_SENT;
+    if ((await getSession())?.testMode) return NOTHING_SENT;
 
     const repo = await getRepo();
     const subscriptions = (await repo.listPushSubscriptions()).filter((sub) => sub.team === team);
-    if (subscriptions.length === 0) return;
+    if (subscriptions.length === 0) return NOTHING_SENT;
 
     const icon = payload.icon ?? (team === "minivolley" ? "/icons-s3/icon-192.png" : undefined);
-    await sendToSubscriptions(subscriptions, { ...payload, icon });
+    return await sendToSubscriptions(subscriptions, { ...payload, icon });
   } catch (err) {
     console.error("[push] notifyCalendarChange fallito:", err);
+    return NOTHING_SENT;
   }
 }
 
@@ -108,10 +132,10 @@ export async function notifyStaffChange(
   payload: CalendarNotification,
   team: TrainingTeam,
   page: AdminPage,
-): Promise<void> {
+): Promise<PushResult> {
   try {
-    if (!ensureConfigured()) return;
-    if ((await getSession())?.testMode) return;
+    if (!ensureConfigured()) return NOTHING_SENT;
+    if ((await getSession())?.testMode) return NOTHING_SENT;
 
     const repo = await getRepo();
     const [subscriptions, staff] = await Promise.all([repo.listPushSubscriptions(), repo.listStaff()]);
@@ -122,12 +146,13 @@ export async function notifyStaffChange(
       if (!member) return false;
       return member.role === "dev" || member.allowedPages.includes(page);
     });
-    if (targeted.length === 0) return;
+    if (targeted.length === 0) return NOTHING_SENT;
 
     const icon = payload.icon ?? (team === "minivolley" ? "/icons-s3/icon-192.png" : undefined);
-    await sendToSubscriptions(targeted, { ...payload, icon });
+    return await sendToSubscriptions(targeted, { ...payload, icon });
   } catch (err) {
     console.error("[push] notifyStaffChange fallito:", err);
+    return NOTHING_SENT;
   }
 }
 
@@ -140,19 +165,20 @@ export async function notifyStaffChange(
  * notifyStaffChange): il Developer sta scegliendo esplicitamente
  * l'audience "tutti gli Admin", non una sezione specifica.
  */
-export async function notifyAdmins(payload: CalendarNotification): Promise<void> {
+export async function notifyAdmins(payload: CalendarNotification): Promise<PushResult> {
   try {
-    if (!ensureConfigured()) return;
-    if ((await getSession())?.testMode) return;
+    if (!ensureConfigured()) return NOTHING_SENT;
+    if ((await getSession())?.testMode) return NOTHING_SENT;
 
     const repo = await getRepo();
     const [subscriptions, staff] = await Promise.all([repo.listPushSubscriptions(), repo.listStaff()]);
     const adminIds = new Set(staff.filter((s) => s.role === "admin").map((s) => s.id));
     const targeted = subscriptions.filter((sub) => sub.staffId && adminIds.has(sub.staffId));
-    if (targeted.length === 0) return;
+    if (targeted.length === 0) return NOTHING_SENT;
 
-    await sendToSubscriptions(targeted, payload);
+    return await sendToSubscriptions(targeted, payload);
   } catch (err) {
     console.error("[push] notifyAdmins fallito:", err);
+    return NOTHING_SENT;
   }
 }

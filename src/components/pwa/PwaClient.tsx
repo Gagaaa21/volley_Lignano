@@ -22,6 +22,11 @@ const NOTIFY_REPROMPT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
  * ricompare subito, senza aspettare i 7 giorni. Si confrontano i valori
  * dell'istante scritto dal server, non gli orologi: nessun problema di fuso. */
 const NOTIFY_CAMPAIGN_SEEN_KEY = "vl-pwa-notify-campaign-seen";
+/** Squadra con cui questo browser si è iscritto alle notifiche, e quando
+ * l'iscrizione è stata controllata l'ultima volta (vedi healPushSubscription). */
+const PUSH_TEAM_KEY = "vl-pwa-push-team";
+const PUSH_SYNCED_AT_KEY = "vl-pwa-push-synced-at";
+const PUSH_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -48,6 +53,46 @@ async function subscribeToPush(team: TrainingTeam) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, team }),
   }).catch(() => {});
+  try {
+    localStorage.setItem(PUSH_TEAM_KEY, team);
+    localStorage.setItem(PUSH_SYNCED_AT_KEY, String(Date.now()));
+  } catch {
+    // localStorage non disponibile: nessun problema, si ricontrolla alla prossima visita.
+  }
+}
+
+/**
+ * Tiene viva l'iscrizione alle notifiche di chi le ha già concesse. Chrome (e
+ * il risparmio energia dei telefoni) può cancellare l'iscrizione di un sito
+ * senza togliere il permesso: l'utente resta convinto di riceverle, ma il
+ * sito non ha più un indirizzo valido a cui scrivere. A ogni visita (al
+ * massimo una volta al giorno) si controlla che l'iscrizione esista ancora:
+ * se c'è, si rinnova sul sito in modo silenzioso (squadra e account non
+ * cambiano); se manca, se ne crea una nuova senza chiedere nulla (il
+ * permesso c'è già), con la squadra che il browser aveva scelto.
+ */
+async function healPushSubscription(fallbackTeam: TrainingTeam) {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!publicKey) return;
+  const lastSynced = Number(localStorage.getItem(PUSH_SYNCED_AT_KEY) ?? "0");
+  if (Date.now() - lastSynced < PUSH_SYNC_INTERVAL_MS) return;
+
+  const registration = await navigator.serviceWorker.ready;
+  const existing = await registration.pushManager.getSubscription();
+  const storedTeam = localStorage.getItem(PUSH_TEAM_KEY);
+  const team: TrainingTeam = storedTeam === "minivolley" || storedTeam === "u14u15" ? storedTeam : fallbackTeam;
+
+  if (!existing) {
+    await subscribeToPush(team);
+    return;
+  }
+  const json = existing.toJSON();
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, team, refresh: true }),
+  }).catch(() => {});
+  localStorage.setItem(PUSH_SYNCED_AT_KEY, String(Date.now()));
 }
 
 function computeInitialStep(): "install" | "notify" {
@@ -152,6 +197,18 @@ export function PwaClient() {
         if (typeof data?.at === "string") setPromptCampaign(data.at);
       })
       .catch(() => {});
+  }, []);
+
+  // Fuori dall'area riservata (lì ci pensa l'effect qui sopra): controllo
+  // periodico che l'iscrizione alle notifiche esista ancora.
+  useEffect(() => {
+    if (pathname?.startsWith("/admin")) return;
+    if (typeof window === "undefined") return;
+    const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+    if (!supported || Notification.permission !== "granted") return;
+    healPushSubscription(team).catch(() => {});
+    // Una volta per caricamento della pagina, non a ogni cambio di rotta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

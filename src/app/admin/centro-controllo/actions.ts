@@ -20,7 +20,12 @@ const schema = z.object({
 export interface ManualNotificationState {
   error?: string;
   success?: boolean;
+  /** Dispositivi a cui il servizio push ha consegnato la notifica. */
   sentTo?: number;
+  /** Dispositivi che non esistevano più (iscrizione annullata dal browser): tolti dall'elenco. */
+  removed?: number;
+  /** Dispositivi con un errore temporaneo: la notifica non è arrivata. */
+  failed?: number;
 }
 
 /** Invia una notifica push manuale, a scelta a tutti gli iscritti al
@@ -46,17 +51,17 @@ export async function sendManualNotificationAction(
   const repo = await getRepo();
   const subscriptions = await repo.listPushSubscriptions();
 
-  let sentTo: number;
+  let attempted: number;
   if (parsed.data.audience === "admins") {
     const staff = await repo.listStaff();
     const adminIds = new Set(staff.filter((s) => s.role === "admin").map((s) => s.id));
-    sentTo = subscriptions.filter((sub) => sub.staffId && adminIds.has(sub.staffId)).length;
+    attempted = subscriptions.filter((sub) => sub.staffId && adminIds.has(sub.staffId)).length;
   } else {
     const team = parsed.data.audience === "all-minivolley" ? "minivolley" : "u14u15";
-    sentTo = subscriptions.filter((sub) => sub.team === team).length;
+    attempted = subscriptions.filter((sub) => sub.team === team).length;
   }
 
-  if (sentTo === 0) {
+  if (attempted === 0) {
     return {
       error:
         parsed.data.audience === "admins"
@@ -66,14 +71,20 @@ export async function sendManualNotificationAction(
   }
 
   const payload = { title: parsed.data.title, body: parsed.data.body, url: "/" };
-  if (parsed.data.audience === "admins") {
-    await notifyAdmins(payload);
-  } else if (parsed.data.audience === "all-minivolley") {
-    await notifyCalendarChange({ ...payload, url: "/minivolley" }, "minivolley");
-  } else {
-    await notifyCalendarChange(payload, "u14u15");
+  const result =
+    parsed.data.audience === "admins"
+      ? await notifyAdmins(payload)
+      : parsed.data.audience === "all-minivolley"
+        ? await notifyCalendarChange({ ...payload, url: "/minivolley" }, "minivolley")
+        : await notifyCalendarChange(payload, "u14u15");
+
+  // Niente consegne e niente errori: l'invio non è partito (chiavi VAPID mancanti o modalità prova).
+  if (result.delivered + result.removed + result.failed === 0) {
+    return {
+      error: "L'invio non è partito: controlla le chiavi per le notifiche (VAPID) e che la modalità prova sia spenta.",
+    };
   }
-  return { success: true, sentTo };
+  return { success: true, sentTo: result.delivered, removed: result.removed, failed: result.failed };
 }
 
 /** Aggiorna quali pagine dell'area riservata e quali squadre (U14/U15,
