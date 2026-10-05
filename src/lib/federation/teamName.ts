@@ -38,6 +38,8 @@ const MANUAL_LOGO_TEAMS: { key: string; names: string[] }[] = [
   // Presi dalla pagina ufficiale della società (udine.federvolley.it, elenco società).
   { key: "pav-bressa", names: ["PAV BRESSA - Multiservice", "PAV BRESSA"] },
   { key: "project-volley-olimpia", names: ["PROJECT VOLLEY OLIMPIA"] },
+  // Dal profilo Instagram della squadra, ritagliato e ripulito.
+  { key: "futura-libertas", names: ["FUTURA-LIBERTAS"] },
 ];
 
 /** Chiave del logo scelto a mano per questa squadra, se c'è. */

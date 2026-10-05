@@ -1,5 +1,6 @@
 import type { StaticImageData } from "next/image";
 import factoryVolleyFaedis from "@/assets/team-logos/factory-volley-faedis.png";
+import futuraLibertas from "@/assets/team-logos/futura-libertas.png";
 import pavBressa from "@/assets/team-logos/pav-bressa.png";
 import projectVolleyOlimpia from "@/assets/team-logos/project-volley-olimpia.png";
 import { manualLogoKey } from "@/lib/federation/teamName";
@@ -7,6 +8,7 @@ import { manualLogoKey } from "@/lib/federation/teamName";
 /** File dei loghi scelti a mano, per chiave (l'elenco delle squadre è in teamName.ts). */
 const IMAGES: Record<string, StaticImageData> = {
   "factory-volley-faedis": factoryVolleyFaedis,
+  "futura-libertas": futuraLibertas,
   "pav-bressa": pavBressa,
   "project-volley-olimpia": projectVolleyOlimpia,
 };

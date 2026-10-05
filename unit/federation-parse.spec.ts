@@ -215,6 +215,8 @@ test.describe("loghi scelti a mano", () => {
     expect(manualLogoKey("PAV BRESSA - Multiservice")).toBe("pav-bressa");
     expect(manualLogoKey("PROJECT VOLLEY OLIMPIA")).toBe("project-volley-olimpia");
     expect(manualLogoKey("Pizza D'Oro-PAV BRESSA")).toBeNull();
+    expect(manualLogoKey("FUTURA-LIBERTAS")).toBe("futura-libertas");
+    expect(manualLogoKey("Futura Libertas")).toBe("futura-libertas");
   });
 
   test("le altre squadre usano il logo del portale", () => {
