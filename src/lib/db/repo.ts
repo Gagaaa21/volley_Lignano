@@ -93,6 +93,11 @@ export interface Repo {
   setFederationDecision(input: FederationDecisionInput): Promise<void>;
   clearFederationDecision(category: Category, externalId: string): Promise<void>;
 
+  // Impostazioni globali del sito (chiave → testo), es. l'ultima richiesta di
+  // attivazione delle notifiche. Null se la chiave non è mai stata scritta.
+  getAppSetting(key: string): Promise<string | null>;
+  setAppSetting(key: string, value: string): Promise<void>;
+
   // Formazioni partita per set (riservate allo staff)
   listMatchLineups(): Promise<MatchLineup[]>;
   getMatchLineup(matchId: string): Promise<MatchLineup | null>;

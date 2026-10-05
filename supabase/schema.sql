@@ -647,3 +647,17 @@ create table if not exists federation_decisions (
 );
 create index if not exists federation_decisions_match_idx on federation_decisions (match_id);
 alter table federation_decisions enable row level security;
+
+-- =========================================================
+-- app_settings — impostazioni globali del sito (chiave → testo). Per ora
+-- ci sta solo `notify_prompt_at`: l'istante dell'ultima «richiesta di
+-- attivazione delle notifiche» inviata dal Centro di controllo. Chi apre il
+-- sito e non ha ancora attivato le notifiche rivede il messaggio «Attiva le
+-- notifiche» anche se l'aveva chiuso da poco.
+-- =========================================================
+create table if not exists app_settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+alter table app_settings enable row level security;

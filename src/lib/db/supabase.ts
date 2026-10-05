@@ -1031,6 +1031,20 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
   },
 
+  async getAppSetting(key) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("app_settings").select("value").eq("key", key).maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as { value: string } | null)?.value ?? null;
+  },
+  async setAppSetting(key, value) {
+    const db = getSupabaseAdmin();
+    const { error } = await db
+      .from("app_settings")
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
+  },
+
   async listPushSubscriptions() {
     const db = getSupabaseAdmin();
     const { data, error } = await db.from("push_subscriptions").select("*");

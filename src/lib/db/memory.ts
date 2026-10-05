@@ -60,6 +60,7 @@ export interface MemoryStore {
   federationSources: FederationSource[];
   federationSnapshots: FederationSnapshot[];
   federationDecisions: FederationDecision[];
+  appSettings: Record<string, string>;
   pushSubscriptions: PushSubscriptionRecord[];
   staff: StaffMember[];
   staffSeeded: boolean;
@@ -80,6 +81,7 @@ export function createEmptyStore(): MemoryStore {
     federationSources: [],
     federationSnapshots: [],
     federationDecisions: [],
+    appSettings: {},
     pushSubscriptions: [],
     staff: [],
     staffSeeded: false,
@@ -110,6 +112,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   store.federationSources ??= [];
   store.federationSnapshots ??= [];
   store.federationDecisions ??= [];
+  store.appSettings ??= {};
   const federationSources = store.federationSources;
   const federationSnapshots = store.federationSnapshots;
   const federationDecisions = store.federationDecisions;
@@ -522,6 +525,13 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     async deletePhysicalTest(id) {
       const idx = physicalTests.findIndex((t) => t.id === id);
       if (idx !== -1) physicalTests.splice(idx, 1);
+    },
+
+    async getAppSetting(key) {
+      return store.appSettings[key] ?? null;
+    },
+    async setAppSetting(key, value) {
+      store.appSettings[key] = value;
     },
 
     async listPushSubscriptions() {

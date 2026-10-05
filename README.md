@@ -44,7 +44,11 @@ staff (Developer e Admin).
   attivare le notifiche: viene chiesto una sola volta, la prima volta che si
   naviga il sito. Chi ha attivato le notifiche riceve un avviso quando un
   allenamento o una partita viene aggiunto, modificato o rimosso dal
-  calendario.
+  calendario. Il Developer può far riapparire a tutti il messaggio «Attiva le
+  notifiche» dal Centro di controllo («Chiedi a tutti di attivare le
+  notifiche»): lo rivede chi apre il sito e non le ha ancora attivate, anche
+  se l'aveva chiuso da poco (richiede la tabella `app_settings` di
+  `supabase/schema.sql`).
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati

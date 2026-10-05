@@ -7,6 +7,7 @@ import { requireDev } from "@/lib/auth/guard";
 import { notifyAdmins, notifyCalendarChange } from "@/lib/push";
 import { refreshFederation } from "@/lib/federation/refresh";
 import { isAllowedFederationUrl } from "@/lib/federation/url";
+import { NOTIFY_PROMPT_COOLDOWN_MS, NOTIFY_PROMPT_SETTING } from "@/lib/notifyPrompt";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import { ADMIN_PAGES, TEAMS, type AdminPage, type TrainingTeam } from "@/lib/types";
 
@@ -178,4 +179,43 @@ function revalidateFederationPages() {
   revalidatePath("/admin");
   revalidatePath("/");
   updateTag(PUBLIC_CALENDAR_TAG);
+}
+
+export interface NotificationPromptState {
+  error?: string;
+  success?: boolean;
+}
+
+/**
+ * «Chiedi a tutti di attivare le notifiche»: da questo momento chi apre il
+ * sito (pubblico o area riservata) senza aver ancora attivato le notifiche
+ * rivede il messaggio «Attiva le notifiche», anche se l'aveva chiuso da
+ * poco. Non invia nulla a chi non è già iscritto (senza iscrizione non c'è
+ * modo di raggiungerlo): il messaggio compare alla sua prossima visita. Chi
+ * ha già attivato le notifiche, o le ha bloccate dal browser, non vede niente.
+ * Riservata al Developer; tra una richiesta e l'altra passa almeno un'ora.
+ */
+export async function requestNotificationPromptAction(): Promise<NotificationPromptState> {
+  await requireDev();
+  try {
+    const repo = await getRepo();
+    const last = await repo.getAppSetting(NOTIFY_PROMPT_SETTING);
+    if (last) {
+      const waitMs = NOTIFY_PROMPT_COOLDOWN_MS - (Date.now() - Date.parse(last));
+      if (waitMs > 0) {
+        return {
+          error: `Hai già inviato la richiesta da poco: attendi ancora ${Math.ceil(waitMs / 60_000)} minuti, altrimenti chi l'ha appena chiusa se la ritrova subito.`,
+        };
+      }
+    }
+    await repo.setAppSetting(NOTIFY_PROMPT_SETTING, new Date().toISOString());
+    revalidatePath("/admin/centro-controllo");
+    return { success: true };
+  } catch (error) {
+    console.error("[requestNotificationPromptAction]", error);
+    return {
+      error:
+        "Non è stato possibile salvare la richiesta. Se non l'hai ancora fatto, esegui su Supabase l'SQL della tabella app_settings (in fondo a supabase/schema.sql).",
+    };
+  }
 }

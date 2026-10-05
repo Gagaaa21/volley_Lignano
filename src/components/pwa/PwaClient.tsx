@@ -17,6 +17,11 @@ const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
  * stato reale di Notification.permission, non solo questo timestamp. */
 const NOTIFY_LAST_PROMPTED_KEY = "vl-pwa-notify-last-prompted-at";
 const NOTIFY_REPROMPT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Ultima «richiesta di attivazione» del Developer (Centro di controllo) già
+ * vista da questo browser: se sul server ce n'è una più recente, il banner
+ * ricompare subito, senza aspettare i 7 giorni. Si confrontano i valori
+ * dell'istante scritto dal server, non gli orologi: nessun problema di fuso. */
+const NOTIFY_CAMPAIGN_SEEN_KEY = "vl-pwa-notify-campaign-seen";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -76,10 +81,18 @@ function readActiveTeamCookie(): TrainingTeam {
   return match?.[1] === "minivolley" ? "minivolley" : "u14u15";
 }
 
-function isNotifyEligible(): boolean {
+/** Il browser supporta le notifiche e l'utente non ha ancora deciso (né
+ * concesso né negato): solo allora ha senso chiedere. */
+function canAskForNotifications(): boolean {
   if (typeof window === "undefined") return false;
   const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
-  if (!supported || Notification.permission !== "default") return false;
+  return supported && Notification.permission === "default";
+}
+
+function isNotifyEligible(promptCampaign: string | null): boolean {
+  if (!canAskForNotifications()) return false;
+  // Richiesta del Developer non ancora vista da questo browser: si chiede subito.
+  if (promptCampaign && localStorage.getItem(NOTIFY_CAMPAIGN_SEEN_KEY) !== promptCampaign) return true;
   const lastPrompted = Number(localStorage.getItem(NOTIFY_LAST_PROMPTED_KEY) ?? "0");
   return Date.now() - lastPrompted >= NOTIFY_REPROMPT_INTERVAL_MS;
 }
@@ -87,6 +100,8 @@ function isNotifyEligible(): boolean {
 export function PwaClient() {
   const mounted = useMounted();
   const [step, setStep] = useState<"install" | "notify" | "done">(computeInitialStep);
+  // Istante dell'ultima «richiesta di attivazione» inviata dal Developer, se c'è.
+  const [promptCampaign, setPromptCampaign] = useState<string | null>(null);
   const { canInstall, isAndroidNonChrome, isStandalone, promptInstall } = usePwaInstall();
   const pathname = usePathname();
   // Sul sito pubblico la squadra si legge dall'URL; nell'area riservata,
@@ -127,6 +142,18 @@ export function PwaClient() {
     subscribeToPush(team).catch(() => {});
   }, [pathname, team]);
 
+  // Solo chi può ancora attivare le notifiche chiede al server se c'è una
+  // richiesta nuova: per tutti gli altri nessuna chiamata in più.
+  useEffect(() => {
+    if (!canAskForNotifications()) return;
+    fetch("/api/push/prompt", { cache: "no-cache" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { at?: string | null } | null) => {
+        if (typeof data?.at === "string") setPromptCampaign(data.at);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (step !== "install") return;
     const timeout = setTimeout(() => {
@@ -136,7 +163,7 @@ export function PwaClient() {
   }, [step, canInstall]);
 
   const showInstallBanner = mounted && step === "install" && canInstall && !isStandalone;
-  const showNotifyBanner = mounted && step === "notify" && isNotifyEligible();
+  const showNotifyBanner = mounted && step === "notify" && isNotifyEligible(promptCampaign);
 
   async function handleInstall(accept: boolean) {
     localStorage.setItem(INSTALL_PROMPTED_KEY, "1");
@@ -155,6 +182,7 @@ export function PwaClient() {
 
   async function handleNotify(accept: boolean) {
     localStorage.setItem(NOTIFY_LAST_PROMPTED_KEY, String(Date.now()));
+    if (promptCampaign) localStorage.setItem(NOTIFY_CAMPAIGN_SEEN_KEY, promptCampaign);
     if (accept) {
       try {
         const permission = await Notification.requestPermission();

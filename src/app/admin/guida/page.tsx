@@ -127,6 +127,7 @@ const SECTIONS: Section[] = [
       "Il pulsante \"Sito pubblico\" nell'header porta alla homepage pubblica; da lì \"Area tecnici\" torna al login.",
       "Chiunque visiti il sito (pubblico o area tecnici) può installare l'app sul proprio dispositivo e attivare le notifiche: viene chiesto una sola volta, la prima volta che si naviga il sito.",
       "Chi ha attivato le notifiche riceve un avviso ogni volta che un allenamento o una partita viene aggiunto, modificato o rimosso dal calendario.",
+      "Il Developer può far riapparire a tutti il messaggio \"Attiva le notifiche\" dal Centro di controllo (\"Chiedi a tutti di attivare le notifiche\"): lo vede chi apre il sito e non le ha ancora attivate, anche se l'aveva chiuso da poco. Chi le ha già attivate o le ha bloccate dal browser non vede niente.",
     ],
   },
 ];

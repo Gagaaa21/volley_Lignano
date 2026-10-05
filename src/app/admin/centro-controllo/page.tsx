@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bell, Clock, KeyRound, ListChecks, Shield, Trophy } from "lucide-react";
+import { Bell, BellRing, Clock, KeyRound, ListChecks, Shield, Trophy } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
@@ -7,6 +7,8 @@ import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { NotificationForm } from "./NotificationForm";
+import { NotificationPromptForm } from "./NotificationPromptForm";
+import { NOTIFY_PROMPT_SETTING } from "@/lib/notifyPrompt";
 import { FederationSourcesForm } from "./FederationSourcesForm";
 import { PermissionsMatrix } from "./PermissionsMatrix";
 import { SectionTour } from "@/components/tour/SectionTour";
@@ -15,6 +17,17 @@ import { SECTION_CENTRO_CONTROLLO_STEPS } from "@/components/tour/sectionSteps";
 export const metadata: Metadata = {
   title: "Centro di controllo",
 };
+
+/** Data e ora in orario italiano (il server può girare su un altro fuso). */
+function formatMoment(iso: string): string {
+  return new Date(iso).toLocaleString("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 interface ActivityEntry {
   type: string;
@@ -42,6 +55,7 @@ export default async function CentroControlloPage() {
     attendanceSessions,
     lineups,
     pushSubscriptions,
+    notifyPromptAt,
     federation,
   ] = await Promise.all([
       repo.listStaff(),
@@ -52,6 +66,8 @@ export default async function CentroControlloPage() {
       repo.listAttendanceSessions(),
       repo.listMatchLineups(),
       repo.listPushSubscriptions(),
+      // Senza la tabella app_settings (SQL non ancora eseguito) si mostra solo «mai inviata».
+      repo.getAppSetting(NOTIFY_PROMPT_SETTING).catch(() => null),
       // Se le tabelle non esistono ancora su Supabase la pagina deve restare
       // utilizzabile: si mostra solo un avviso al posto del modulo.
       Promise.all([repo.listFederationSources(), repo.listFederationSnapshots()]).then(
@@ -163,6 +179,34 @@ export default async function CentroControlloPage() {
             minivolleySubscribers={minivolleySubscriberCount}
             adminSubscribers={adminSubscriberCount}
           />
+        </CardBody>
+      </Card>
+
+      {/* Richiesta di attivazione notifiche */}
+      <Card className="mt-5">
+        <CardHeader className="flex flex-row items-start gap-3.5">
+          <span className="icon-chip shrink-0">
+            <BellRing className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="font-display text-base font-bold text-foreground">Chiedi di attivare le notifiche</h2>
+            <p className="text-sm text-muted-foreground">
+              Fa riapparire il messaggio &quot;Attiva le notifiche&quot; a chiunque apra il sito e non le abbia ancora
+              attivate, anche se l&apos;aveva chiuso da poco. Chi le ha già attivate, o le ha bloccate dal browser, non
+              vede niente.
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody className="pt-0">
+          <p className="mb-4 text-sm text-foreground/80" data-notify-prompt-last>
+            {pushSubscriptions.length === 1
+              ? "1 dispositivo ha già attivato le notifiche."
+              : `${pushSubscriptions.length} dispositivi hanno già attivato le notifiche.`}{" "}
+            {notifyPromptAt
+              ? `Ultima richiesta inviata il ${formatMoment(notifyPromptAt)}.`
+              : "Nessuna richiesta inviata finora."}
+          </p>
+          <NotificationPromptForm />
         </CardBody>
       </Card>
 
