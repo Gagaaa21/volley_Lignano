@@ -149,6 +149,22 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
   await expect(matchRow(page, "Itas Ceccarelli")).toContainText("3–0");
 
+  // --- 2b. Calendario ufficiale: mancano la gara 12 (Farravolo è già nel sito, ma con la data
+  // lontana: dubbio, deselezionata) e la gara 13 (nuova, selezionata). ---
+  await page.goto("/admin/partite");
+  const calendar = page.getByRole("region", { name: "Calendario ufficiale" });
+  await expect(calendar).toContainText("Mancano 2 partite");
+  const dubious = calendar.locator('li[data-official-game="12"]');
+  await expect(dubious).toHaveAttribute("data-official-kind", "maybe-duplicate");
+  await expect(dubious).toContainText("Nel sito c'è già «Farravolo»");
+  await expect(dubious.getByRole("checkbox")).not.toBeChecked();
+  const fresh = calendar.locator('li[data-official-game="13"]');
+  await expect(fresh).toHaveAttribute("data-official-kind", "new");
+  await expect(fresh).toContainText("vs ASD SANGIORGINA");
+  await expect(fresh).toContainText("in trasferta");
+  await expect(fresh.getByRole("checkbox")).toBeChecked();
+  await expect(calendar.getByRole("button", { name: "Aggiungi 1 partita" })).toBeVisible();
+
   // --- 3. La dashboard segnala le tre gare da guardare. ---
   await page.goto("/admin");
   await expect(page.getByText(/Ci sono 3 risultati ufficiali della federazione da confermare/)).toBeVisible();
@@ -195,6 +211,13 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await game12.getByRole("button", { name: "Abbina e conferma" }).click();
   await expect(matchRow(page, "Farravolo")).toContainText("3–1");
   await expect(page.getByText("Nessun risultato ufficiale da confermare.")).toBeVisible();
+
+  // --- 4b. Abbinata la gara 12, nel calendario ufficiale resta solo la 13: si aggiunge con un clic. ---
+  await expect(calendar).toContainText("Manca 1 partita");
+  await calendar.getByRole("button", { name: "Aggiungi 1 partita" }).click();
+  await expect(calendar.getByText("Aggiunta 1 partita al calendario.")).toBeVisible();
+  await expect(calendar).toContainText("tutte le 4 partite del calendario ufficiale sono già nel sito");
+  await expect(matchRow(page, "ASD SANGIORGINA")).toBeVisible();
 
   // «Aggiorna ora» appena dopo una lettura: non carica di nuovo il portale.
   await page.getByRole("button", { name: "Aggiorna ora" }).click();

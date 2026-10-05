@@ -57,6 +57,7 @@ const SECTIONS: Section[] = [
       "Compaiono nel calendario pubblico insieme agli allenamenti, filtrabili per categoria.",
       "Creare, modificare o eliminare una partita invia una notifica push agli iscritti.",
       "Nella scheda di una partita si scelgono le convocate, poi si costruiscono le formazioni per ciascuno dei 5 set su un campo interattivo (ruoli S/OH/MB/OP/L e capitana): sono riservate allo staff, mai visibili sul sito pubblico, ed esportabili in PDF.",
+      "In cima all'elenco, sotto \"Calendario ufficiale\", compaiono le partite del campionato che il portale della federazione ha in calendario e nel sito mancano: spunta quelle giuste e premi \"Aggiungi\". Avversaria, data, ora e palestra arrivano dal portale; ritrovo e convocazioni li imposti dopo, partita per partita. Se nel sito c'è già una partita simile (data spostata?) la riga parte deselezionata, così non si duplica.",
       "In cima all'elenco, sotto \"Risultati ufficiali\", compaiono i risultati letti dal portale della federazione: con \"Conferma risultato\" il sito compila i set della partita, con \"Ignora\" la gara non viene più proposta. Se hai già scritto un risultato diverso resta il tuo e ti viene solo segnalata la differenza; \"Usa quello ufficiale\" lo sostituisce solo se lo scegli tu. \"Aggiorna ora\" rilegge subito il portale.",
       "La classifica del girone, con tutte le squadre e il loro logo (per la nostra c'è lo stemma del sito), compare in fondo alla homepage pubblica insieme alla data dell'ultimo aggiornamento.",
     ],

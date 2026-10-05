@@ -13,6 +13,7 @@ import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
 import { MatchList } from "./MatchList";
+import { OfficialCalendarSection } from "./OfficialCalendarSection";
 import { OfficialResultsSection } from "./OfficialResultsSection";
 
 export const metadata: Metadata = {
@@ -81,6 +82,7 @@ export default async function MatchesListPage({
         </div>
       )}
 
+      {isU14U15 && <OfficialCalendarSection official={official} />}
       {isU14U15 && <OfficialResultsSection official={official} />}
 
       {matches.length === 0 ? (

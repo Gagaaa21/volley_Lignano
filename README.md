@@ -50,9 +50,11 @@ staff (Developer e Admin).
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati
   delle gare. La classifica è pubblica in fondo alla homepage, con il logo di
   ogni squadra (quello del portale, servito dal nostro sito e tenuto in cache;
-  per Volley Lignano lo stemma del sito); i risultati
-  compaiono agli admin in `/admin/partite` come proposte: nulla viene salvato
-  finché non lo si conferma, e un risultato scritto a mano non viene mai
+  per Volley Lignano lo stemma del sito). In `/admin/partite` gli admin
+  trovano i risultati come proposte e le partite del campionato che nel sito
+  mancano, da aggiungere al calendario con anteprima e conferma (senza
+  duplicare quelle già inserite): nulla viene salvato finché non lo si
+  conferma, e un risultato scritto a mano non viene mai
   sovrascritto senza una scelta esplicita. L'indirizzo del girone di ogni
   categoria si imposta dal Centro di controllo (solo Developer); `U14` resta
   nascosta finché non viene pubblicato. Se il portale non risponde si tengono

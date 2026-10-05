@@ -1,4 +1,5 @@
 import "server-only";
+import { computeCalendarImport, type CalendarImportSet } from "@/lib/federation/calendarImport";
 import { computeProposals, type Proposal, type ProposalSet } from "@/lib/federation/proposals";
 import type { FederationSnapshot, FederationSource } from "@/lib/federation/types";
 import type { Repo } from "@/lib/db/repo";
@@ -9,6 +10,8 @@ export interface CategoryOfficial {
   snapshot: FederationSnapshot | null;
   /** Null se per questa categoria non c'è ancora nulla da confrontare. */
   proposals: ProposalSet | null;
+  /** Gare del calendario ufficiale che mancano nel sito; null senza dati letti. */
+  calendar: CalendarImportSet | null;
 }
 
 /** Per ogni categoria: dove si legge, cosa è stato letto e cosa si può
@@ -34,7 +37,17 @@ export async function loadOfficialResults(repo: Repo): Promise<CategoryOfficial[
               decisions,
             })
           : null;
-      return { source, snapshot, proposals };
+      const calendar =
+        source.enabled && snapshot?.girone
+          ? computeCalendarImport({
+              category: source.category,
+              girone: snapshot.girone,
+              aliases: source.teamAliases,
+              matches,
+              decisions,
+            })
+          : null;
+      return { source, snapshot, proposals, calendar };
     });
   } catch (error) {
     // Es. le tabelle della federazione non sono ancora state create su

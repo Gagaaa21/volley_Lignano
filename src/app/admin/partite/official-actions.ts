@@ -3,6 +3,9 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
+import { CATEGORY_LABELS } from "@/lib/category";
+import { computeCalendarImport, matchInputFromOfficial } from "@/lib/federation/calendarImport";
+import { notifyCalendarChange } from "@/lib/push";
 import { ourSide } from "@/lib/federation/matching";
 import { orientResult, sameResult } from "@/lib/federation/proposals";
 import { MANUAL_REFRESH_MIN_INTERVAL_MS, refreshFederation } from "@/lib/federation/refresh";
@@ -196,5 +199,82 @@ export async function refreshOfficialResultsAction(): Promise<OfficialResultForm
   } catch (error) {
     console.error("[refreshOfficialResultsAction]", error);
     return { error: "Non è stato possibile aggiornare. Riprova." };
+  }
+}
+
+/**
+ * «Aggiungi dal calendario ufficiale»: crea nel sito le partite scelte da un
+ * admin tra quelle che mancano e le abbina alla gara ufficiale, così i
+ * risultati arriveranno poi come proposte già collegate. Ricalcola tutto dai
+ * dati salvati (mai da quello che arriva dal browser): una partita già
+ * presente non si duplica, anche con due clic o due admin insieme.
+ */
+export async function importOfficialCalendarAction(
+  _prevState: OfficialResultFormState,
+  formData: FormData,
+): Promise<OfficialResultFormState> {
+  const session = await requireStaffPage("partite");
+  const category = parseCategory(formData.get("category"));
+  const wanted = new Set(formData.getAll("externalId").map((value) => value.toString()));
+  const notify = formData.get("notify") === "on";
+  if (!category) return { error: "Dati mancanti: aggiorna la pagina e riprova." };
+  if (wanted.size === 0) return { error: "Scegli almeno una partita da aggiungere." };
+
+  try {
+    const repo = await getActiveRepo();
+    const [sources, snapshots, decisions, matches] = await Promise.all([
+      repo.listFederationSources(),
+      repo.listFederationSnapshots(),
+      repo.listFederationDecisions(),
+      repo.listMatches({ team: "u14u15" }),
+    ]);
+    const source = sources.find((src) => src.category === category);
+    const girone = snapshots.find((snap) => snap.category === category)?.girone;
+    if (!source?.enabled || !girone) return { error: "Il calendario ufficiale non è disponibile: aggiorna e riprova." };
+
+    const { items } = computeCalendarImport({
+      category,
+      girone,
+      aliases: source.teamAliases,
+      matches,
+      decisions,
+    });
+    const chosen = items.filter((item) => wanted.has(item.official.externalId));
+    if (chosen.length === 0) {
+      return { error: "Queste partite sono già nel calendario: aggiorna la pagina." };
+    }
+
+    // Una alla volta: se qualcosa si interrompe, quelle già create restano abbinate e non si duplicano al secondo tentativo.
+    let added = 0;
+    try {
+      for (const item of chosen) {
+        const created = await repo.createMatch(matchInputFromOfficial(category, item.official, item.side), session.sub);
+        await repo.setFederationDecision({
+          category,
+          externalId: item.official.externalId,
+          decision: "linked",
+          matchId: created.id,
+          decidedBy: session.sub,
+        });
+        added++;
+      }
+    } finally {
+      if (added > 0) revalidateAll();
+    }
+
+    if (notify) {
+      await notifyCalendarChange(
+        {
+          title: "Calendario aggiornato",
+          body: `${added === 1 ? "Nuova partita" : `${added} nuove partite`} ${CATEGORY_LABELS[category]} in calendario.`,
+          url: "/",
+        },
+        "u14u15",
+      );
+    }
+    return { message: added === 1 ? "Aggiunta 1 partita al calendario." : `Aggiunte ${added} partite al calendario.` };
+  } catch (error) {
+    console.error("[importOfficialCalendarAction]", error);
+    return { error: "Non è stato possibile aggiungere tutte le partite. Controlla l'elenco e riprova." };
   }
 }
