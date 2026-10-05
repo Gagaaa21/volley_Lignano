@@ -95,7 +95,10 @@ export interface FederationDecision {
 export type FederationDecisionInput = Omit<FederationDecision, "decidedAt">;
 
 /** Impostazioni di partenza (U15 girone A di Udine, dalla stagione 2026/27).
- * Usate dalla modalità demo e come valori di riserva se la tabella è vuota. */
+ * Usate dalla modalità demo e come valori di riserva se la tabella è vuota.
+ * U14 resta senza indirizzo qui, così demo e test non leggono il portale vero:
+ * l'indirizzo del girone U14 si imposta dal Centro di controllo (o dal seed
+ * di supabase/schema.sql per una nuova installazione). */
 export const DEFAULT_FEDERATION_SOURCES: Record<Category, Omit<FederationSource, "updatedAt">> = {
   U14: { category: "U14", url: null, teamAliases: ["CDA VOLLEY LIGNANO"], enabled: true },
   U15: {

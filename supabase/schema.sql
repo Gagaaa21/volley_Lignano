@@ -609,11 +609,13 @@ create table if not exists federation_sources (
 );
 alter table federation_sources enable row level security;
 
--- Partenza: U15 girone A del Comitato di Udine, stagione 2026/27. U14 senza
--- indirizzo finché il girone non viene pubblicato. Non sovrascrive nulla se
--- le righe esistono già.
+-- Partenza: U14 e U15 girone A del Comitato di Udine, stagione 2026/27. Non
+-- sovrascrive nulla se le righe esistono già (per un'installazione già
+-- avviata l'indirizzo si cambia dal Centro di controllo).
 insert into federation_sources (category, url, team_aliases, enabled) values
-  ('U14', null, array['CDA VOLLEY LIGNANO'], true),
+  ('U14',
+   'https://udine.federvolley.it/risultati-classifiche.aspx?ComitatoId=48&StId=2428&DataDa=&StatoGara=&CId=92422&SId=&PId=15544&btFiltro=CERCA',
+   array['CDA VOLLEY LIGNANO'], true),
   ('U15',
    'https://udine.federvolley.it/risultati-classifiche.aspx?ComitatoId=48&StId=2428&DataDa=&StatoGara=&CId=93676&SId=&PId=15544&btFiltro=CERCA',
    array['CDA VOLLEY LIGNANO'], true)

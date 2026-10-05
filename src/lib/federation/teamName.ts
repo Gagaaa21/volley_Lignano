@@ -28,13 +28,16 @@ export function initialsOf(name: string): string {
 }
 
 /**
- * Loghi scelti a mano per le squadre che sul portale non ne hanno uno. La
+ * Loghi scelti a mano per le squadre che nella pagina del girone non ne hanno uno. La
  * chiave indica il file in src/assets/team-logos (vedi manualTeamLogos.ts);
  * il nome si confronta come per gli abbinamenti, quindi maiuscole, «A.S.D.»
  * e simili non contano. Il logo scelto a mano vale più di quello del portale.
  */
 const MANUAL_LOGO_TEAMS: { key: string; names: string[] }[] = [
   { key: "factory-volley-faedis", names: ["FACTORY VOLLEY FAEDIS"] },
+  // Presi dalla pagina ufficiale della società (udine.federvolley.it, elenco società).
+  { key: "pav-bressa", names: ["PAV BRESSA - Multiservice", "PAV BRESSA"] },
+  { key: "project-volley-olimpia", names: ["PROJECT VOLLEY OLIMPIA"] },
 ];
 
 /** Chiave del logo scelto a mano per questa squadra, se c'è. */

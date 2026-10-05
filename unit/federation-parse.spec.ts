@@ -211,6 +211,12 @@ test.describe("loghi scelti a mano", () => {
     expect(manualLogoKey("A.S.D. Factory Volley Faedis")).toBe("factory-volley-faedis");
   });
 
+  test("PAV Bressa e Project Volley Olimpia (U14F girone A)", () => {
+    expect(manualLogoKey("PAV BRESSA - Multiservice")).toBe("pav-bressa");
+    expect(manualLogoKey("PROJECT VOLLEY OLIMPIA")).toBe("project-volley-olimpia");
+    expect(manualLogoKey("Pizza D'Oro-PAV BRESSA")).toBeNull();
+  });
+
   test("le altre squadre usano il logo del portale", () => {
     expect(manualLogoKey("BLU TEAM")).toBeNull();
     expect(manualLogoKey("CDA VOLLEY LIGNANO")).toBeNull();
