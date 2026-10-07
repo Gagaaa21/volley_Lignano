@@ -17,8 +17,10 @@ import type { Category, Match, MatchInput } from "@/lib/types";
  * queste il portale dice altro (data o ora, ma anche avversaria o casa /
  * trasferta: la federazione a volte rivede il calendario mantenendo i
  * numeri di gara e cambiando gli abbinamenti) finisce tra le «partite
- * cambiate», da aggiornare con un clic. Le partite del sito abbinate a un
- * numero di gara che ora è di altre squadre sono «orfane»: si segnalano.
+ * cambiate», da aggiornare con un clic. Le partite del sito che non
+ * corrispondono a nessuna gara della nostra squadra (collegate a un numero
+ * di gara che ora è di altre squadre, oppure mai collegate e senza nulla di
+ * simile nel calendario ufficiale) sono «orfane»: si segnalano.
  */
 
 export type CalendarImportKind = "new" | "maybe-duplicate";
@@ -55,17 +57,18 @@ export interface GameChangeItem {
   changed: GameChangeKinds;
 }
 
-/** Partita del sito abbinata a un numero di gara che ora è di altre squadre. */
+/** Partita del sito che non corrisponde a nessuna gara ufficiale della nostra squadra. */
 export interface OrphanMatch {
   match: Match;
-  externalId: string;
+  /** Numero della gara a cui era collegata, se lo era (ora è di altre squadre); null se non era collegata a nessuna. */
+  externalId: string | null;
 }
 
 export interface CalendarImportSet {
   items: CalendarImportItem[];
   /** Partite già nel sito con data, ora, avversaria o campo diversi dal portale (non ancora giocate). */
   changes: GameChangeItem[];
-  /** Partite del sito abbinate a una gara ufficiale che non è più della nostra squadra. */
+  /** Partite del sito (non giocate) che non corrispondono a nessuna gara ufficiale della nostra squadra. */
   orphans: OrphanMatch[];
   /** Gare della nostra squadra nel girone già presenti nel sito. */
   alreadyPresent: number;
@@ -147,15 +150,25 @@ export function computeCalendarImport(input: {
     });
   }
 
-  // Partite abbinate a un numero di gara che ora non è più una gara della nostra squadra.
+  const orphans: OrphanMatch[] = [];
+  // (a) Partite collegate a un numero di gara che ora non è più una gara della nostra squadra.
   const oursIds = new Set(ours.map((entry) => entry.official.externalId));
   const knownIds = new Set(girone.matches.map((official) => official.externalId));
-  const orphans: OrphanMatch[] = [];
+  const reported = new Set<string>();
   for (const [externalId, matchId] of linked) {
     if (oursIds.has(externalId) || !knownIds.has(externalId)) continue;
     const match = byId.get(matchId)!;
     if (match.resultSetsWon !== null) continue;
     orphans.push({ match, externalId });
+    reported.add(match.id);
+  }
+  // (b) Partite mai abbinate a niente: non riconosciute da sole e senza una gara simile da aggiungere
+  // (quelle simili sono già segnalate come dubbio nella riga della gara).
+  const similarIds = new Set(items.flatMap((item) => (item.similar ? [item.similar.id] : [])));
+  for (const match of pool) {
+    if (claimed.has(match.id) || reported.has(match.id) || similarIds.has(match.id)) continue;
+    if (match.resultSetsWon !== null) continue;
+    orphans.push({ match, externalId: null });
   }
   orphans.sort((a, b) => a.match.matchDate.localeCompare(b.match.matchDate));
 

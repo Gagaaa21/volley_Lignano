@@ -25,7 +25,7 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { ADMIN_PAGES, isPageAvailableForTeam, type AdminPage, type CalendarEvent } from "@/lib/types";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
-import { actionableProposals, gameChangeCount, loadOfficialResults } from "@/lib/federation/load";
+import { actionableProposals, calendarMismatchCount, loadOfficialResults } from "@/lib/federation/load";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -89,7 +89,7 @@ export default async function AdminDashboardPage({
   if (showOfficial) scheduleFederationRefresh();
   const officialData = showOfficial ? await loadOfficialResults(repo) : [];
   const officialToConfirm = actionableProposals(officialData).length;
-  const gamesChanged = gameChangeCount(officialData);
+  const calendarMismatches = calendarMismatchCount(officialData);
 
   const activeTrainings = trainings.filter((t) => t.isActive);
   const activeAthletes = athletes.filter((a) => a.isActive);
@@ -152,16 +152,16 @@ export default async function AdminDashboardPage({
         </Link>
       )}
 
-      {gamesChanged > 0 && (
+      {calendarMismatches > 0 && (
         <Link
           href="/admin/partite"
           className="group mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning transition-colors hover:border-warning/50"
         >
           <CalendarClock className="h-4 w-4 shrink-0" />
           <span className="flex-1">
-            {gamesChanged === 1
-              ? "Una partita è cambiata sul portale della federazione (avversaria, data o ora): controlla Partite."
-              : `${gamesChanged} partite sono cambiate sul portale della federazione (avversaria, data o ora): controlla Partite.`}
+            {calendarMismatches === 1
+              ? "Il calendario del sito non coincide con quello ufficiale per una partita: controlla Partite."
+              : `Il calendario del sito non coincide con quello ufficiale per ${calendarMismatches} partite: controlla Partite.`}
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>

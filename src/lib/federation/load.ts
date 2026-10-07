@@ -66,11 +66,17 @@ export function actionableProposals(official: CategoryOfficial[]): Proposal[] {
     .filter((proposal) => proposal.kind !== "no-sets");
 }
 
-/** Partite del sito che non corrispondono più al portale (data, ora, avversaria
- * o campo cambiati) o abbinate a una gara che non è più nostra: da guardare. */
-export function gameChangeCount(official: CategoryOfficial[]): number {
+/** Quante partite del calendario ufficiale il sito non rispecchia: da aggiungere
+ * (mancano) o da aggiornare (data, ora, avversaria o campo cambiati). Le gare
+ * con una partita simile già nel sito (dubbio) e le partite del sito senza
+ * corrispondenza non contano: si vedono in Partite ma non fanno rumore. */
+export function calendarMismatchCount(official: CategoryOfficial[]): number {
   return official.reduce(
-    (total, entry) => total + (entry.calendar ? entry.calendar.changes.length + entry.calendar.orphans.length : 0),
+    (total, entry) =>
+      total +
+      (entry.calendar
+        ? entry.calendar.changes.length + entry.calendar.items.filter((item) => item.kind === "new").length
+        : 0),
     0,
   );
 }

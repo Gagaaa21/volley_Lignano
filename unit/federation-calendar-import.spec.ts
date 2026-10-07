@@ -338,6 +338,60 @@ test.describe("calendario U14 girone A rivisto dalla federazione (ver2)", () => 
     ]);
   });
 
+  /**
+   * Il sito pubblicato a ottobre: tre partite giuste (14004, 14018, 14035) e due create dal primo
+   * calendario con la data già corretta dal vecchio «Aggiorna la data» ma avversaria e palestra vecchie.
+   */
+  function productionLike(linked: boolean) {
+    const { matches, decisions } = siteFromV1();
+    const keep = new Set(["14004", "14018", "14035", "14000", "14008"]);
+    const kept = matches
+      .filter((match) => keep.has(match.id.replace("site-", "")))
+      .map((match) => {
+        const game = v2.matches.find((official) => `site-${official.externalId}` === match.id)!;
+        return { ...match, matchDate: game.date };
+      });
+    const ids = new Set(kept.map((match) => match.id));
+    return {
+      matches: kept,
+      decisions: linked ? decisions.filter((decision) => ids.has(decision.matchId ?? "")) : [],
+    };
+  }
+
+  test("sito reale, partite abbinate: due da correggere e tre da aggiungere", () => {
+    const { matches, decisions } = productionLike(true);
+    const result = computeCalendarImport({ category: "U14", girone: v2, aliases: ALIASES, matches, decisions });
+    expect(result.alreadyPresent).toBe(5);
+    expect(result.items.map((item) => [item.official.externalId, item.kind])).toEqual([
+      ["14013", "new"],
+      ["14020", "new"],
+      ["14027", "new"],
+    ]);
+    expect(result.changes.map((change) => [change.official.externalId, change.changed])).toEqual([
+      ["14000", { date: false, opponent: true, side: false }],
+      ["14008", { date: false, opponent: true, side: false }],
+    ]);
+    expect(result.orphans).toHaveLength(0);
+  });
+
+  test("sito reale, partite mai abbinate: si segnalano comunque, senza creare doppioni", () => {
+    const { matches, decisions } = productionLike(false);
+    const result = computeCalendarImport({ category: "U14", girone: v2, aliases: ALIASES, matches, decisions });
+    // Le tre giuste sono riconosciute da sole; le altre cinque gare mancano.
+    expect(result.alreadyPresent).toBe(3);
+    expect(result.items.map((item) => [item.official.externalId, item.kind])).toEqual([
+      ["14000", "new"],
+      ["14008", "maybe-duplicate"],
+      ["14013", "new"],
+      ["14020", "new"],
+      ["14027", "new"],
+    ]);
+    // La partita contro il PROJECT OLIMPIA del 7/11 non corrisponde a nessuna gara ufficiale di Lignano.
+    expect(result.orphans.map((orphan) => [orphan.externalId, orphan.match.opponent])).toEqual([
+      [null, "PROJECT VOLLEY OLIMPIA"],
+    ]);
+  });
+
   test("allineate le tre partite al portale, non resta nulla da segnalare", () => {
     const { matches, decisions } = siteFromV1();
     const aligned = matches.map((match) => {

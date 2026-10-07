@@ -244,7 +244,7 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await saveSource(page, portalUrl, OUR_TEAM);
   await expect(page.getByText(/Girone letto: 5 squadre, 10 gare/)).toBeVisible({ timeout: 30_000 });
   await page.goto("/admin");
-  await expect(page.getByText(/Una partita è cambiata sul portale della federazione/)).toBeVisible();
+  await expect(page.getByText(/Il calendario del sito non coincide con quello ufficiale per una partita/)).toBeVisible();
   await page.goto("/admin/partite");
   const changed = calendar.locator('li[data-official-game="13"]');
   await expect(changed).toContainText("Nel sito:");
@@ -261,7 +261,7 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await expect(revised).toContainText("18:00");
   await expect(matchRow(page, "ASD SANGIORGINA")).toHaveCount(0);
   await page.goto("/admin");
-  await expect(page.getByText(/è cambiata sul portale della federazione/)).toHaveCount(0);
+  await expect(page.getByText(/non coincide con quello ufficiale/)).toHaveCount(0);
 
   // --- 5. Classifica pubblica. ---
   await page.goto("/");
