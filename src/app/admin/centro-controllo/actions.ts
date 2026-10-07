@@ -14,7 +14,7 @@ import { ADMIN_PAGES, TEAMS, type AdminPage, type TrainingTeam } from "@/lib/typ
 const schema = z.object({
   title: z.string().min(1, "Inserisci un titolo."),
   body: z.string().min(1, "Inserisci il testo della notifica."),
-  audience: z.enum(["all-u14u15", "all-minivolley", "admins"]),
+  audience: z.enum(["all-u14u15", "all-minivolley", "admins"], { message: "Scegli a chi mandare la notifica." }),
 });
 
 export interface ManualNotificationState {
@@ -42,7 +42,7 @@ export async function sendManualNotificationAction(
   const parsed = schema.safeParse({
     title: formData.get("title")?.toString().trim() ?? "",
     body: formData.get("body")?.toString().trim() ?? "",
-    audience: formData.get("audience")?.toString() ?? "all",
+    audience: formData.get("audience")?.toString(),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };

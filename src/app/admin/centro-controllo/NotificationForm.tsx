@@ -34,7 +34,7 @@ export function NotificationForm({
     <form action={formAction} className="space-y-5" noValidate>
       <div>
         <Label htmlFor="title">Titolo</Label>
-        <Input id="title" name="title" defaultValue="Convocazioni disponibili" required />
+        <Input id="title" name="title" placeholder="Es. Convocazioni disponibili" required />
       </div>
 
       <div>
@@ -42,7 +42,7 @@ export function NotificationForm({
         <Textarea
           id="body"
           name="body"
-          defaultValue="Le convocazioni per la partita del 27 sono disponibili."
+          placeholder="Es. Le convocazioni per la partita del 27 sono disponibili."
           required
         />
       </div>
@@ -51,7 +51,7 @@ export function NotificationForm({
         <Label>Destinatari</Label>
         <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1">
           <label className="flex-1 cursor-pointer whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
-            <input type="radio" name="audience" value="all-u14u15" defaultChecked className="sr-only" />
+            <input type="radio" name="audience" value="all-u14u15" className="sr-only" />
             Tutti U14/U15 ({u14u15Subscribers})
           </label>
           <label className="flex-1 cursor-pointer whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
