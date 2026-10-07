@@ -1,4 +1,4 @@
-import { findCandidates, autoMatch, ourSide } from "@/lib/federation/matching";
+import { autoMatch, findCandidates, MIN_NAME_SCORE, nameSimilarity, ourSide } from "@/lib/federation/matching";
 import type { FederationDecision, Girone, OfficialMatch } from "@/lib/federation/types";
 import type { Category, Match, MatchInput } from "@/lib/types";
 
@@ -14,8 +14,11 @@ import type { Category, Match, MatchInput } from "@/lib/types";
  *   vicina (spostamento?): si propone di non aggiungerla, ma l'admin decide.
  * Le gare già nel sito (abbinate dall'admin o riconosciute da sole) non
  * compaiono nell'elenco da aggiungere, e vengono solo contate. Se per una di
- * queste la data o l'ora sul portale è diversa da quella del sito (gara
- * spostata) finisce tra le «date cambiate», da aggiornare con un clic.
+ * queste il portale dice altro (data o ora, ma anche avversaria o casa /
+ * trasferta: la federazione a volte rivede il calendario mantenendo i
+ * numeri di gara e cambiando gli abbinamenti) finisce tra le «partite
+ * cambiate», da aggiornare con un clic. Le partite del sito abbinate a un
+ * numero di gara che ora è di altre squadre sono «orfane»: si segnalano.
  */
 
 export type CalendarImportKind = "new" | "maybe-duplicate";
@@ -31,19 +34,39 @@ export interface CalendarImportItem {
   similar: Match | null;
 }
 
-/** Partita del sito la cui data o ora è diversa da quella ufficiale. */
-export interface DateChangeItem {
+/** Cosa è cambiato sul portale rispetto a una partita già nel sito. */
+export interface GameChangeKinds {
+  /** Data o ora diverse. */
+  date: boolean;
+  /** Un'altra squadra avversaria. */
+  opponent: boolean;
+  /** Da casa a trasferta o viceversa. */
+  side: boolean;
+}
+
+/** Partita del sito che non corrisponde più alla gara ufficiale (non ancora giocata). */
+export interface GameChangeItem {
   category: Category;
   official: OfficialMatch;
   side: "home" | "away";
+  /** Avversaria secondo il portale. */
   opponent: string;
   match: Match;
+  changed: GameChangeKinds;
+}
+
+/** Partita del sito abbinata a un numero di gara che ora è di altre squadre. */
+export interface OrphanMatch {
+  match: Match;
+  externalId: string;
 }
 
 export interface CalendarImportSet {
   items: CalendarImportItem[];
-  /** Partite già nel sito con data o ora diversa dal portale (non ancora giocate). */
-  dateChanges: DateChangeItem[];
+  /** Partite già nel sito con data, ora, avversaria o campo diversi dal portale (non ancora giocate). */
+  changes: GameChangeItem[];
+  /** Partite del sito abbinate a una gara ufficiale che non è più della nostra squadra. */
+  orphans: OrphanMatch[];
   /** Gare della nostra squadra nel girone già presenti nel sito. */
   alreadyPresent: number;
   /** Tutte le gare della nostra squadra nel girone. */
@@ -80,27 +103,28 @@ export function computeCalendarImport(input: {
 
   const claimed = new Set<string>(linked.values());
   const items: CalendarImportItem[] = [];
-  const dateChanges: DateChangeItem[] = [];
+  const changes: GameChangeItem[] = [];
   let alreadyPresent = 0;
 
-  /** Una gara già giocata (o con risultato nel sito) non ha più una data da correggere. */
-  const noteDateChange = (match: Match, official: OfficialMatch, side: "home" | "away") => {
+  /** Una gara già giocata (o con risultato nel sito) non ha più nulla da correggere. */
+  const noteChange = (match: Match, official: OfficialMatch, side: "home" | "away") => {
     if (match.resultSetsWon !== null || official.homeSets !== null) return;
-    if (match.matchDate.slice(0, 16) === official.date.slice(0, 16)) return;
-    dateChanges.push({
-      category,
-      official,
-      side,
-      opponent: side === "home" ? official.away : official.home,
-      match,
-    });
+    const opponent = side === "home" ? official.away : official.home;
+    const opponentClub = side === "home" ? official.awayClub : official.homeClub;
+    const changed: GameChangeKinds = {
+      date: match.matchDate.slice(0, 16) !== official.date.slice(0, 16),
+      opponent: nameSimilarity(match.opponent, [opponent, opponentClub]) < MIN_NAME_SCORE,
+      side: match.isHome !== (side === "home"),
+    };
+    if (!changed.date && !changed.opponent && !changed.side) return;
+    changes.push({ category, official, side, opponent, match, changed });
   };
 
   for (const { official, side } of ours) {
     const linkedId = linked.get(official.externalId);
     if (linkedId) {
       alreadyPresent++;
-      noteDateChange(byId.get(linkedId)!, official, side);
+      noteChange(byId.get(linkedId)!, official, side);
       continue;
     }
     const free = pool.filter((match) => !claimed.has(match.id));
@@ -108,7 +132,7 @@ export function computeCalendarImport(input: {
     if (same) {
       claimed.add(same.id);
       alreadyPresent++;
-      noteDateChange(same, official, side);
+      noteChange(same, official, side);
       continue;
     }
     const opponent = side === "home" ? official.away : official.home;
@@ -123,7 +147,19 @@ export function computeCalendarImport(input: {
     });
   }
 
-  return { items, dateChanges, alreadyPresent, total: ours.length };
+  // Partite abbinate a un numero di gara che ora non è più una gara della nostra squadra.
+  const oursIds = new Set(ours.map((entry) => entry.official.externalId));
+  const knownIds = new Set(girone.matches.map((official) => official.externalId));
+  const orphans: OrphanMatch[] = [];
+  for (const [externalId, matchId] of linked) {
+    if (oursIds.has(externalId) || !knownIds.has(externalId)) continue;
+    const match = byId.get(matchId)!;
+    if (match.resultSetsWon !== null) continue;
+    orphans.push({ match, externalId });
+  }
+  orphans.sort((a, b) => a.match.matchDate.localeCompare(b.match.matchDate));
+
+  return { items, changes, orphans, alreadyPresent, total: ours.length };
 }
 
 /** La partita del sito per una gara ufficiale: dati del portale, senza ritrovo,

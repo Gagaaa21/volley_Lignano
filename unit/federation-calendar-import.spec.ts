@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { computeCalendarImport, matchInputFromOfficial } from "@/lib/federation/calendarImport";
+import { ourSide } from "@/lib/federation/matching";
 import { parseGirone } from "@/lib/federation/parse";
 import type { FederationDecision, Girone, OfficialMatch } from "@/lib/federation/types";
 import type { Match } from "@/lib/types";
@@ -135,22 +136,23 @@ test.describe("calendario ufficiale: partite che mancano nel sito", () => {
   });
 });
 
-test.describe("calendario ufficiale: date cambiate sul portale", () => {
+test.describe("calendario ufficiale: partite cambiate sul portale", () => {
   test("stessa data e ora (anche nel formato con i secondi del database): nessun avviso", () => {
-    expect(run([siteMatch()], [official()]).dateChanges).toHaveLength(0);
-    expect(run([siteMatch({ matchDate: "2026-10-18T11:00:00" })], [official()]).dateChanges).toHaveLength(0);
+    expect(run([siteMatch()], [official()]).changes).toHaveLength(0);
+    expect(run([siteMatch({ matchDate: "2026-10-18T11:00:00" })], [official()]).changes).toHaveLength(0);
   });
 
-  test("ora o giorno diversi: la partita compare tra le date cambiate, e non tra quelle da aggiungere", () => {
+  test("ora o giorno diversi: la partita compare tra quelle cambiate, e non tra quelle da aggiungere", () => {
     const result = run([siteMatch({ matchDate: "2026-10-18T10:00" })], [official()]);
     expect(result.items).toHaveLength(0);
-    expect(result.dateChanges).toHaveLength(1);
-    expect(result.dateChanges[0]).toMatchObject({ opponent: "DEGANO ROJALKENNEDY", side: "home" });
-    expect(result.dateChanges[0].match.id).toBe("m1");
-    expect(result.dateChanges[0].official.date).toBe("2026-10-18T11:00");
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0]).toMatchObject({ opponent: "DEGANO ROJALKENNEDY", side: "home" });
+    expect(result.changes[0].match.id).toBe("m1");
+    expect(result.changes[0].official.date).toBe("2026-10-18T11:00");
+    expect(result.changes[0].changed).toEqual({ date: true, opponent: false, side: false });
 
     const nextDay = run([siteMatch({ matchDate: "2026-10-17T11:00" })], [official()]);
-    expect(nextDay.dateChanges).toHaveLength(1);
+    expect(nextDay.changes).toHaveLength(1);
   });
 
   test("una partita abbinata da un admin si segnala anche con la data molto diversa", () => {
@@ -166,7 +168,7 @@ test.describe("calendario ufficiale: date cambiate sul portale", () => {
       },
     ];
     const result = run([moved], [official()], decisions);
-    expect(result.dateChanges.map((change) => change.match.id)).toEqual(["m9"]);
+    expect(result.changes.map((change) => change.match.id)).toEqual(["m9"]);
   });
 
   test("già giocata (risultato nel sito o sul portale): niente da correggere", () => {
@@ -176,15 +178,181 @@ test.describe("calendario ufficiale: date cambiate sul portale", () => {
       resultSetsWon: 1,
       resultSetsLost: 0,
     });
-    expect(run([played], [official()]).dateChanges).toHaveLength(0);
+    expect(run([played], [official()]).changes).toHaveLength(0);
     const officialPlayed = official({ homeSets: 3, awaySets: 0, sets: [{ home: 25, away: 10 }] });
-    expect(run([siteMatch({ matchDate: "2026-10-17T11:00" })], [officialPlayed]).dateChanges).toHaveLength(0);
+    expect(run([siteMatch({ matchDate: "2026-10-17T11:00" })], [officialPlayed]).changes).toHaveLength(0);
   });
 
   test("una partita simile ma non abbinata resta un dubbio da aggiungere, non una data cambiata", () => {
     const result = run([siteMatch({ matchDate: "2026-10-28T11:00" })], [official()]);
-    expect(result.dateChanges).toHaveLength(0);
+    expect(result.changes).toHaveLength(0);
     expect(result.items[0].kind).toBe("maybe-duplicate");
+  });
+});
+
+test.describe("calendario ufficiale: avversaria o campo cambiati sul portale", () => {
+  test("stessa data ma un'altra avversaria con lo stesso numero di gara: si segnala, non è solo un problema di data", () => {
+    // Il sito ha «Degano» il 18/10; il portale ora dice che la gara 15001 è contro un'altra squadra.
+    const result = run([siteMatch()], [official({ away: "BLU TEAM", awayClub: "A.S.D. BLU TEAM" })]);
+    expect(result.items).toHaveLength(1); // la partita col vecchio nome non è più riconosciuta da sola
+    const linked = run(
+      [siteMatch()],
+      [official({ away: "BLU TEAM", awayClub: "A.S.D. BLU TEAM" })],
+      [
+        {
+          category: "U15",
+          externalId: "15001",
+          decision: "linked",
+          matchId: "m1",
+          decidedBy: null,
+          decidedAt: "2026-10-01T00:00:00Z",
+        },
+      ],
+    );
+    expect(linked.items).toHaveLength(0);
+    expect(linked.changes).toHaveLength(1);
+    expect(linked.changes[0].changed).toEqual({ date: false, opponent: true, side: false });
+    expect(linked.changes[0].opponent).toBe("BLU TEAM");
+  });
+
+  test("da casa a trasferta con lo stesso numero di gara: si segnala", () => {
+    const decisions: FederationDecision[] = [
+      { category: "U15", externalId: "15008", decision: "linked", matchId: "m1", decidedBy: null, decidedAt: "" },
+    ];
+    // Il sito ha la partita in casa contro BLU TEAM; il portale ora dice trasferta (stessa avversaria e data).
+    const site = siteMatch({ opponent: "BLU TEAM", isHome: true, matchDate: "2026-10-31T16:00" });
+    const result = run([site], [AWAY], decisions);
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0].changed).toEqual({ date: false, opponent: false, side: true });
+  });
+
+  test("il nome scritto a modo tuo non basta a far segnalare una partita giusta", () => {
+    const decisions: FederationDecision[] = [
+      { category: "U15", externalId: "15001", decision: "linked", matchId: "m1", decidedBy: null, decidedAt: "" },
+    ];
+    expect(run([siteMatch({ opponent: "Degano" })], [official()], decisions).changes).toHaveLength(0);
+    expect(run([siteMatch({ opponent: "A.S.D. Degano Rojalkennedy" })], [official()], decisions).changes).toHaveLength(
+      0,
+    );
+  });
+
+  test("partita abbinata a un numero di gara che ora è di altre squadre: si segnala come non più in calendario", () => {
+    const decisions: FederationDecision[] = [
+      { category: "U15", externalId: "15002", decision: "linked", matchId: "m1", decidedBy: null, decidedAt: "" },
+    ];
+    // La gara 15002 esiste ancora ma è BLU TEAM - CHEI DE VILE (senza di noi).
+    const result = run([siteMatch()], [official(), OTHER], decisions);
+    expect(result.orphans.map((orphan) => [orphan.externalId, orphan.match.id])).toEqual([["15002", "m1"]]);
+    // Un numero di gara che sparisce del tutto dai dati letti non si considera (potrebbe essere una lettura incompleta).
+    expect(run([siteMatch()], [official()], decisions).orphans).toHaveLength(0);
+    // Con un risultato già scritto non c'è più nulla da segnalare.
+    const played = siteMatch({ setScores: [{ us: 25, them: 10 }], resultSetsWon: 1, resultSetsLost: 0 });
+    expect(run([played], [official(), OTHER], decisions).orphans).toHaveLength(0);
+  });
+});
+
+test.describe("calendario U14 girone A rivisto dalla federazione (ver2)", () => {
+  const fixture = (name: string) => readFileSync(join(__dirname, "..", "e2e", "fixtures", "federation", name), "utf8");
+  const v1 = parseGirone(fixture("u14-girone-a-calendario-v1.html")).girone;
+  const v2 = parseGirone(fixture("u14-girone-a-calendario-v2.html")).girone;
+
+  /** Come l'importazione: una partita per gara di Lignano del primo calendario, abbinata al suo numero. */
+  function siteFromV1() {
+    const matches: Match[] = [];
+    const decisions: FederationDecision[] = [];
+    for (const game of v1.matches) {
+      const side = ourSide(game, ALIASES);
+      if (!side) continue;
+      const id = `site-${game.externalId}`;
+      matches.push({ ...siteMatch(), ...matchInputFromOfficial("U14", game, side), id } as Match);
+      decisions.push({
+        category: "U14",
+        externalId: game.externalId,
+        decision: "linked",
+        matchId: id,
+        decidedBy: null,
+        decidedAt: "",
+      });
+    }
+    return { matches, decisions };
+  }
+
+  // Le 8 gare di CDA Volley Lignano nel PDF «Calendario Under 14 Femminile girone A ver2» della federazione.
+  const PDF_V2 = [
+    ["14000", "2026-10-25T11:00", "away", "ROJALKENNEDY ASSICOOP"],
+    ["14004", "2026-10-31T15:30", "home", "VILLADIES"],
+    ["14008", "2026-11-07T15:30", "away", "PAV BRESSA - Multiservice"],
+    ["14013", "2026-11-14T15:30", "home", "SPORTING CLUB"],
+    ["14018", "2026-11-21T16:00", "away", "HORIZON ANTARTIK"],
+    ["14020", "2026-11-28T15:30", "home", "FUTURA-LIBERTAS"],
+    ["14027", "2026-12-05T17:30", "away", "PROJECT VOLLEY OLIMPIA"],
+    ["14035", "2026-12-19T15:30", "home", "GESTECO VOLLEYBAS"],
+  ];
+
+  test("la lettura del sito coincide con il PDF ufficiale ver2", () => {
+    const ours = v2.matches
+      .map((game) => ({ game, side: ourSide(game, ALIASES) }))
+      .filter((entry) => entry.side)
+      .map(({ game, side }) => [game.externalId, game.date, side, side === "home" ? game.away : game.home]);
+    expect(ours).toEqual(PDF_V2);
+  });
+
+  test("le partite create dal primo calendario non coincidono più: tre cambiano avversaria, data e palestra", () => {
+    const { matches, decisions } = siteFromV1();
+    const result = computeCalendarImport({ category: "U14", girone: v2, aliases: ALIASES, matches, decisions });
+    expect(result.items).toHaveLength(0);
+    expect(result.alreadyPresent).toBe(8);
+    expect(result.orphans).toHaveLength(0);
+    expect(
+      result.changes.map((change) => [
+        change.official.externalId,
+        change.match.opponent,
+        change.opponent,
+        change.changed,
+      ]),
+    ).toEqual([
+      ["14000", "PAV BRESSA - Multiservice", "ROJALKENNEDY ASSICOOP", { date: true, opponent: true, side: false }],
+      ["14008", "PROJECT VOLLEY OLIMPIA", "PAV BRESSA - Multiservice", { date: true, opponent: true, side: false }],
+      ["14027", "ROJALKENNEDY ASSICOOP", "PROJECT VOLLEY OLIMPIA", { date: true, opponent: true, side: false }],
+    ]);
+  });
+
+  test("chi aveva aggiornato solo la data (versione precedente del sito) vede ancora l'avversaria sbagliata", () => {
+    const { matches, decisions } = siteFromV1();
+    // Come dopo il vecchio «Aggiorna la data»: data nuova, avversaria e palestra vecchie.
+    const patched = matches.map((match) => {
+      const game = v2.matches.find((official) => `site-${official.externalId}` === match.id)!;
+      return { ...match, matchDate: game.date };
+    });
+    const result = computeCalendarImport({
+      category: "U14",
+      girone: v2,
+      aliases: ALIASES,
+      matches: patched,
+      decisions,
+    });
+    expect(result.changes.map((change) => [change.official.externalId, change.changed])).toEqual([
+      ["14000", { date: false, opponent: true, side: false }],
+      ["14008", { date: false, opponent: true, side: false }],
+      ["14027", { date: false, opponent: true, side: false }],
+    ]);
+  });
+
+  test("allineate le tre partite al portale, non resta nulla da segnalare", () => {
+    const { matches, decisions } = siteFromV1();
+    const aligned = matches.map((match) => {
+      const game = v2.matches.find((official) => `site-${official.externalId}` === match.id)!;
+      const side = ourSide(game, ALIASES)!;
+      return { ...match, ...matchInputFromOfficial("U14", game, side) };
+    });
+    const result = computeCalendarImport({
+      category: "U14",
+      girone: v2,
+      aliases: ALIASES,
+      matches: aligned,
+      decisions,
+    });
+    expect(result.changes).toHaveLength(0);
   });
 });
 

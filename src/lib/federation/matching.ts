@@ -93,7 +93,8 @@ export interface MatchCandidate {
   days: number;
 }
 
-const MIN_NAME_SCORE = 0.5;
+/** Sotto questa somiglianza due nomi di squadra sono considerati diversi. */
+export const MIN_NAME_SCORE = 0.5;
 /** Recuperi e spostamenti: la data del sito può differire di qualche giorno. */
 export const AUTO_MATCH_WINDOW_DAYS = 3;
 

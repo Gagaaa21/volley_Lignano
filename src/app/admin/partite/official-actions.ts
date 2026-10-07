@@ -287,12 +287,16 @@ function whenForNotification(iso: string): string {
 }
 
 /**
- * «Aggiorna le date»: porta nel sito la data e l'ora ufficiali delle partite
- * scelte da un admin, quando sul portale sono cambiate (gara spostata). Cambia
- * solo la data: palestra, ritrovo, convocazioni e il resto restano come sono.
- * Ricalcola dai dati salvati, mai da quello che arriva dal browser.
+ * «Aggiorna»: porta nel sito le partite scelte da un admin a quello che dice
+ * il portale quando è cambiato: data e ora, ma anche avversaria e casa /
+ * trasferta (la federazione a volte rivede il calendario tenendo i numeri di
+ * gara e cambiando gli abbinamenti: aggiornare solo la data lascerebbe nel
+ * sito l'avversaria sbagliata). Se cambia l'avversaria o il lato, anche la
+ * palestra passa a quella ufficiale. Ritrovo, note e convocazioni restano
+ * come sono (l'admin li ricontrolla). Ricalcola dai dati salvati, mai da
+ * quello che arriva dal browser.
  */
-export async function updateOfficialDatesAction(
+export async function updateOfficialGamesAction(
   _prevState: OfficialResultFormState,
   formData: FormData,
 ): Promise<OfficialResultFormState> {
@@ -315,27 +319,29 @@ export async function updateOfficialDatesAction(
     const girone = snapshots.find((snap) => snap.category === category)?.girone;
     if (!source?.enabled || !girone) return { error: "Il calendario ufficiale non è disponibile: aggiorna e riprova." };
 
-    const { dateChanges } = computeCalendarImport({
+    const { changes } = computeCalendarImport({
       category,
       girone,
       aliases: source.teamAliases,
       matches,
       decisions,
     });
-    const chosen = dateChanges.filter((change) => wanted.has(change.official.externalId));
-    if (chosen.length === 0) return { error: "Queste date sono già aggiornate: ricarica la pagina." };
+    const chosen = changes.filter((change) => wanted.has(change.official.externalId));
+    if (chosen.length === 0) return { error: "Queste partite sono già aggiornate: ricarica la pagina." };
 
     let updated = 0;
     try {
-      for (const { match, official } of chosen) {
+      for (const { match, official, side, changed } of chosen) {
+        const fromPortal = matchInputFromOfficial(category, official, side);
+        const differentGame = changed.opponent || changed.side;
         const input: MatchInput = {
           team: match.team,
           category: match.category,
-          opponent: match.opponent,
-          isHome: match.isHome,
+          opponent: differentGame ? fromPortal.opponent : match.opponent,
+          isHome: differentGame ? fromPortal.isHome : match.isHome,
           isFriendly: match.isFriendly,
           isTournament: match.isTournament,
-          location: match.location,
+          location: differentGame ? fromPortal.location : match.location,
           matchDate: official.date.slice(0, 16),
           meetingTime: match.meetingTime,
           meetingLocation: match.meetingLocation,
@@ -357,19 +363,19 @@ export async function updateOfficialDatesAction(
       const first = chosen[0];
       await notifyCalendarChange(
         {
-          title: updated === 1 ? "Partita spostata" : "Calendario aggiornato",
+          title: updated === 1 ? "Partita aggiornata" : "Calendario aggiornato",
           body:
             updated === 1
               ? `${CATEGORY_LABELS[category]} · vs ${first.opponent} · ${whenForNotification(first.official.date)}`
-              : `${updated} partite ${CATEGORY_LABELS[category]} hanno cambiato data o ora.`,
+              : `${updated} partite ${CATEGORY_LABELS[category]} sono cambiate (avversaria, data o ora).`,
           url: "/",
         },
         "u14u15",
       );
     }
-    return { message: updated === 1 ? "Aggiornata 1 data." : `Aggiornate ${updated} date.` };
+    return { message: updated === 1 ? "Aggiornata 1 partita." : `Aggiornate ${updated} partite.` };
   } catch (error) {
-    console.error("[updateOfficialDatesAction]", error);
-    return { error: "Non è stato possibile aggiornare tutte le date. Controlla l'elenco e riprova." };
+    console.error("[updateOfficialGamesAction]", error);
+    return { error: "Non è stato possibile aggiornare tutte le partite. Controlla l'elenco e riprova." };
   }
 }

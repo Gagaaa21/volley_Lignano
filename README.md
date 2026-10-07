@@ -65,9 +65,11 @@ staff (Developer e Admin).
   per Volley Lignano lo stemma del sito). In `/admin/partite` gli admin
   trovano i risultati come proposte e le partite del campionato che nel sito
   mancano, da aggiungere al calendario con anteprima e conferma (senza
-  duplicare quelle già inserite) e le avvisano se il portale ha spostato una
-  partita già in calendario (data e ora da aggiornare con un clic): nulla viene
-  salvato finché non lo si
+  duplicare quelle già inserite) e le avvisano se il portale ha cambiato una
+  partita già in calendario (data, ora, avversaria o casa/trasferta: la
+  federazione a volte rivede il calendario tenendo i numeri di gara e
+  cambiando gli abbinamenti; si aggiorna con un clic, palestra compresa) o se
+  una partita non risulta più in calendario: nulla viene salvato finché non lo si
   conferma, e un risultato scritto a mano non viene mai
   sovrascritto senza una scelta esplicita. L'indirizzo del girone di ogni
   categoria si imposta dal Centro di controllo (solo Developer); `U14` resta

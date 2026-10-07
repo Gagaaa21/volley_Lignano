@@ -34,9 +34,21 @@ const LOGO_PNG = Buffer.from(
 
 let portal: Server;
 let portalUrl: string;
-/** Il portale finto sposta la gara 13 (da sab 10/10 20:30 a dom 11/10 18:00) quando diventa vero. */
-let gameMoved = false;
 let portalOrigin: string;
+/** Il portale finto rivede la gara 13 quando diventa vero: da «ASD SANGIORGINA, sab 10/10 20:30» a
+ * «Pizza D'Oro-PAV BRESSA, dom 11/10 18:00» (stesso numero di gara, altra avversaria: come la
+ * federazione ha fatto con il calendario U14). */
+let gameMoved = false;
+
+function reviseGame13(html: string): string {
+  return html.replace(/<tr>(?:(?!<tr>)[\s\S])*?10\/10\/26 20:30[\s\S]*?<\/tr>/, (row) =>
+    row
+      .replace("10/10/26 20:30", "11/10/26 18:00")
+      // Squadra e società (nel tooltip della cella) cambiano insieme, come sul portale vero.
+      .replace("S.D. PALLAVOLO SANGIORGINA", "PAV BRESSA A.S.D.")
+      .replace("ASD SANGIORGINA", "Pizza D'Oro-PAV BRESSA"),
+  );
+}
 
 test.beforeAll(async () => {
   portal = createServer((request, response) => {
@@ -61,7 +73,7 @@ test.beforeAll(async () => {
       }
     }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    const fixture = gameMoved ? FIXTURE.replace("10/10/26 20:30", "11/10/26 18:00") : FIXTURE;
+    const fixture = gameMoved ? reviseGame13(FIXTURE) : FIXTURE;
     response.end(request.url?.startsWith("/non-iniziato") ? FIXTURE_NOT_STARTED : fixture);
   });
   await new Promise<void>((resolve) => portal.listen(0, "127.0.0.1", resolve));
@@ -226,23 +238,30 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await page.getByRole("button", { name: "Aggiorna ora" }).click();
   await expect(page.getByText("Già aggiornato da pochi istanti.")).toBeVisible();
 
-  // --- 4c. Il portale sposta la gara 13: il sito lo segnala e l'admin porta la data al nuovo valore. ---
+  // --- 4c. Il portale rivede la gara 13 (altra avversaria e altra data): il sito lo segnala e
+  // l'admin porta la partita a quello che dice il portale, avversaria compresa. ---
   gameMoved = true;
   await saveSource(page, portalUrl, OUR_TEAM);
   await expect(page.getByText(/Girone letto: 5 squadre, 10 gare/)).toBeVisible({ timeout: 30_000 });
   await page.goto("/admin");
-  await expect(page.getByText("Una partita ha cambiato data o ora sul portale della federazione.")).toBeVisible();
+  await expect(page.getByText(/Una partita è cambiata sul portale della federazione/)).toBeVisible();
   await page.goto("/admin/partite");
   const changed = calendar.locator('li[data-official-game="13"]');
+  await expect(changed).toContainText("Nel sito:");
   await expect(changed).toContainText("vs ASD SANGIORGINA");
-  await expect(changed).toContainText("Nel sito: sab 10 ott · ore 20:30");
-  await expect(changed).toContainText("Sul portale: dom 11 ott · ore 18:00");
-  await calendar.getByRole("button", { name: "Aggiorna 1 data" }).click();
-  await expect(calendar.getByText("Aggiornata 1 data.").first()).toBeVisible();
-  await expect(calendar.getByText("ha cambiato data o ora sul portale")).toHaveCount(0);
-  await expect(matchRow(page, "ASD SANGIORGINA")).toContainText("18:00");
+  await expect(changed).toContainText("sab 10 ott · ore 20:30");
+  await expect(changed).toContainText("Sul portale:");
+  await expect(changed).toContainText("vs Pizza D'Oro-PAV BRESSA");
+  await expect(changed).toContainText("dom 11 ott · ore 18:00");
+  await expect(changed).toContainText("Cambia l'avversaria");
+  await calendar.getByRole("button", { name: "Aggiorna 1 partita" }).click();
+  await expect(calendar.getByText("Aggiornata 1 partita.").first()).toBeVisible();
+  await expect(calendar.getByText("è cambiata sul portale")).toHaveCount(0);
+  const revised = page.locator('a[href^="/admin/partite/"]', { hasText: "Pizza D'Oro" });
+  await expect(revised).toContainText("18:00");
+  await expect(matchRow(page, "ASD SANGIORGINA")).toHaveCount(0);
   await page.goto("/admin");
-  await expect(page.getByText(/ha cambiato data o ora sul portale/)).toHaveCount(0);
+  await expect(page.getByText(/è cambiata sul portale della federazione/)).toHaveCount(0);
 
   // --- 5. Classifica pubblica. ---
   await page.goto("/");

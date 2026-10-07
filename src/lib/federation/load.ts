@@ -66,7 +66,11 @@ export function actionableProposals(official: CategoryOfficial[]): Proposal[] {
     .filter((proposal) => proposal.kind !== "no-sets");
 }
 
-/** Partite del sito con data o ora diversa dal portale, da guardare. */
-export function dateChangeCount(official: CategoryOfficial[]): number {
-  return official.reduce((total, entry) => total + (entry.calendar?.dateChanges.length ?? 0), 0);
+/** Partite del sito che non corrispondono più al portale (data, ora, avversaria
+ * o campo cambiati) o abbinate a una gara che non è più nostra: da guardare. */
+export function gameChangeCount(official: CategoryOfficial[]): number {
+  return official.reduce(
+    (total, entry) => total + (entry.calendar ? entry.calendar.changes.length + entry.calendar.orphans.length : 0),
+    0,
+  );
 }
