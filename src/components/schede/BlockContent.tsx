@@ -1,53 +1,52 @@
 import { cn } from "@/lib/cn";
-
-function splitParagraphs(content: string): string[] {
-  return content
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-}
+import { parseBlockContent } from "@/lib/blockContent";
 
 export function BlockContent({ content, className }: { content: string; className?: string }) {
-  const paragraphs = splitParagraphs(content);
+  const parts = parseBlockContent(content);
 
-  if (paragraphs.length === 0) {
+  if (parts.length === 0) {
     return <p className={cn("text-sm italic text-foreground/40", className)}>Nessuna descrizione.</p>;
   }
 
   return (
     <div className={cn("space-y-2.5 text-sm leading-relaxed text-foreground/75", className)}>
-      {paragraphs.map((para, i) => {
-        const lines = para
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean);
-        const isBullet = lines.every((l) => /^[*-]\s+/.test(l));
-        const isNumbered = lines.every((l) => /^\d+[.)]\s+/.test(l));
-
-        if (isBullet) {
+      {parts.map((part, i) => {
+        if (part.kind === "bullets") {
           return (
             <ul key={i} className="list-disc space-y-1 pl-5 marker:text-sea-500">
-              {lines.map((l, j) => (
-                <li key={j}>{l.replace(/^[*-]\s+/, "")}</li>
+              {part.items.map((item, j) => (
+                <li key={j}>{item}</li>
               ))}
             </ul>
           );
         }
-        if (isNumbered) {
+        if (part.kind === "numbered") {
+          // Si tengono i numeri scritti dall'allenatore: un elenco interrotto da altre righe
+          // ("1. Attacchi a muro", poi i punti, poi "2. Attacchi da Z4") non riparte da 1.
+          // Una riga numerata da sola è il titolo di un esercizio: in evidenza.
           return (
-            <ol key={i} className="list-decimal space-y-1 pl-5 marker:text-sea-500 marker:font-semibold">
-              {lines.map((l, j) => (
-                <li key={j}>{l.replace(/^\d+[.)]\s+/, "")}</li>
+            <ol
+              key={i}
+              start={part.items[0].number}
+              className={cn(
+                "list-decimal space-y-1 pl-5 marker:font-semibold marker:text-sea-500",
+                part.items.length === 1 && "pt-1 font-semibold text-foreground",
+              )}
+            >
+              {part.items.map((item, j) => (
+                <li key={j} value={item.number}>
+                  {item.text}
+                </li>
               ))}
             </ol>
           );
         }
         return (
           <p key={i}>
-            {lines.map((l, j) => (
+            {part.lines.map((line, j) => (
               <span key={j}>
-                {l}
-                {j < lines.length - 1 && <br />}
+                {line}
+                {j < part.lines.length - 1 && <br />}
               </span>
             ))}
           </p>

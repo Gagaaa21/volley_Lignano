@@ -1,5 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { TOTAL_RE, type ParsedBlock, type ParsedTrainingText } from "./trainingPlanParser";
+import { cleanTrainingText, splitAtHeadings, type BlockHeading, type ParsedTrainingText } from "./trainingPlanParser";
+
+/**
+ * Modelli da provare in ordine: i modelli "flash" sono spesso sovraccarichi
+ * (errore 503), hanno un limite di richieste al minuto (429) o vengono
+ * ritirati (404), quindi se uno non risponde si passa al successivo invece di
+ * rinunciare all'IA. Ogni modello ha un limite suo: alternarli regge anche il
+ * ricontrollo di molte schede di fila.
+ */
+const MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.6-flash"];
+/** Tempo massimo per un modello e per tutti i tentativi insieme: poi si usa la divisione con regole fisse. */
+const MODEL_TIMEOUT_MS = 20_000;
+const TOTAL_TIMEOUT_MS = 45_000;
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -12,10 +24,16 @@ const RESPONSE_SCHEMA = {
           headingLine: {
             type: Type.STRING,
             description:
-              "La riga di intestazione ESATTAMENTE come appare nel testo originale, carattere per carattere (stessi spazi, stessa punteggiatura, stesso trattino/apostrofo) — es. \"3. RICEZIONE – 30’\". Mai corretta, riformattata o parafrasata.",
+              "La riga che apre il blocco, copiata intera ESATTAMENTE come appare nel testo (stessi caratteri, spazi e punteggiatura).",
           },
-          title: { type: Type.STRING, description: "Titolo del blocco, senza numero né durata." },
-          durationMinutes: { type: Type.INTEGER, description: "Durata del blocco in minuti, come numero intero." },
+          title: {
+            type: Type.STRING,
+            description: "Titolo del blocco, senza numero/lettera iniziale né durata, con le parole del testo.",
+          },
+          durationMinutes: {
+            type: Type.INTEGER,
+            description: "Durata del blocco in minuti; 0 se il testo non la indica.",
+          },
         },
         required: ["headingLine", "title", "durationMinutes"],
       },
@@ -24,21 +42,32 @@ const RESPONSE_SCHEMA = {
   required: ["blocks"],
 };
 
-const SYSTEM_INSTRUCTION = `Sei un assistente che individua le intestazioni dei blocchi in un testo di allenamento di
-pallavolo incollato da un allenatore, spesso introdotte da righe come "1. TITOLO – 10'" (numero, titolo, durata) ma con
-formattazione irregolare (durate "circa", trattini diversi, titoli con più parole).
+const SYSTEM_INSTRUCTION = `Ricevi il testo di un allenamento di pallavolo scritto da un allenatore, spesso copiato da Word
+o da WhatsApp con una formattazione irregolare. Il programma divide la seduta in BLOCCHI: le parti principali, una dopo
+l'altra, ciascuna con un titolo e di solito una durata. Tu decidi quali righe del testo aprono un nuovo blocco.
 
-Il tuo UNICO compito è individuare ogni riga di intestazione di un blocco numerato e restituirla ESATTAMENTE come
-appare nel testo originale (stessi spazi, stessa punteggiatura, stesso apostrofo/trattino), insieme al titolo e alla
-durata che ne estrai. Il contenuto che segue ogni intestazione NON lo scrivi tu: lo estrae il programma dal testo
-originale copiandolo carattere per carattere, quindi non devi mai riassumerlo, correggerlo, tradurlo, riordinarlo o
-inventarlo — anche solo descriverlo diversamente da come è scritto (es. cambiare "esercizi" in "stazioni", o
-aggiungere dettagli come zone del campo non menzionate) è un errore grave.
+Come decidere:
+- Un blocco è una parte principale della seduta (riscaldamento, core, lavoro tecnico, gioco, defaticamento…). Le
+  intestazioni hanno forme diverse: "1. TITOLO – 10'", "A – 45' TITOLO", "TITOLO (20 min)", "Parte 2: …", una riga in
+  maiuscolo con la durata, e così via. Numeri, lettere, maiuscole o trattini da soli non bastano: conta il ruolo della
+  riga nella struttura della seduta.
+- Guarda la gerarchia. Se una parte con una sua durata (es. "A – 45' LAVORO ANALITICO SULL'ATTACCO") contiene esercizi
+  numerati senza una durata propria ("1. Attacchi a muro", "2. Attacchi da Z4 – entrambi i campi"), il blocco è la parte
+  e gli esercizi restano nel suo contenuto. Anche un esercizio breve con la durata davanti dentro una parte ("5' –
+  Palleggio spinto da zona 1 → zona 5") resta nel contenuto della parte.
+- Con più livelli, i blocchi sono quelli del livello più alto che scandisce i tempi della seduta. Le loro durate,
+  sommate, dovrebbero dare più o meno la durata totale della seduta, se è indicata: usale per controllare la divisione.
+- Il testo prima del primo blocco (introduzione, obiettivi, materiale) non è un blocco. Una riga "Totale …" non è un
+  blocco.
 
-Non considerare intestazione una riga che introduce un singolo esercizio più breve dentro un blocco più ampio (es.
-"5' – Palleggio spinto da zona 1 → zona 5", durata scritta PRIMA del titolo): fa parte del contenuto del blocco
-numerato che la precede, non è un nuovo blocco. Non inventare intestazioni che non esistono nel testo e non alterare
-l'ordine in cui compaiono.`;
+Per ogni blocco, nell'ordine del testo:
+- headingLine: la riga che lo apre, copiata intera e identica, carattere per carattere.
+- title: il titolo senza numero o lettera iniziale e senza durata, con le stesse parole del testo.
+- durationMinutes: i minuti indicati nell'intestazione (per "circa 60'" → 60); se l'intestazione non li indica, la somma
+  delle durate scritte nel contenuto del blocco; altrimenti 0.
+
+Non scrivere mai il contenuto dei blocchi: il programma lo ritaglia dal testo originale, quindi non riassumere, non
+correggere e non inventare nulla. Non inventare intestazioni che non esistono e non cambiare l'ordine.`;
 
 function getClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -46,98 +75,86 @@ function getClient(): GoogleGenAI | null {
   return new GoogleGenAI({ apiKey });
 }
 
-async function generateWithRetry(client: GoogleGenAI, text: string) {
-  for (let attempt = 1; attempt <= 2; attempt++) {
+/** L'IA è configurata? (Senza chiave si usa solo la divisione con regole fisse.) */
+export function isTrainingPlanAIAvailable(): boolean {
+  return Boolean(process.env.GEMINI_API_KEY);
+}
+
+async function generate(client: GoogleGenAI, text: string) {
+  const deadline = Date.now() + TOTAL_TIMEOUT_MS;
+  let lastError: unknown = null;
+  for (const model of MODELS) {
+    const remaining = deadline - Date.now();
+    if (remaining < 2_000) break;
     try {
       return await client.models.generateContent({
-        model: "gemini-3.6-flash",
+        model,
         contents: text,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           responseMimeType: "application/json",
           responseSchema: RESPONSE_SCHEMA,
           temperature: 0.1,
+          abortSignal: AbortSignal.timeout(Math.min(MODEL_TIMEOUT_MS, remaining)),
         },
       });
     } catch (err) {
-      // Il modello flash può restituire 503 (sovraccarico temporaneo): un solo
-      // ritentativo dopo una breve pausa evita di rinunciare all'IA per un blip.
-      if (attempt === 2) throw err;
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      lastError = err;
+      console.warn(`[parseTrainingPlanWithAI] ${model} non disponibile:`, err instanceof Error ? err.message : err);
     }
   }
-  throw new Error("unreachable");
+  throw lastError ?? new Error("Nessun modello IA disponibile.");
 }
 
-/**
- * Ripiego basato su IA per dividere un testo di allenamento in blocchi quando il parser
- * regex (parseTrainingPlanText) non riesce a riconoscere la formattazione. Ritorna null
- * per qualsiasi errore/assenza di configurazione, cosicché il chiamante possa ricadere
- * sul risultato del parser regex senza interrompere la creazione della scheda.
- *
- * L'IA individua SOLO dove inizia ogni blocco (titolo, durata, riga di intestazione
- * esatta): il contenuto di ogni blocco viene sempre ritagliato dal testo originale con
- * un semplice taglio di stringa, mai riscritto dal modello. Se una riga di intestazione
- * restituita dall'IA non corrisponde esattamente (carattere per carattere) a una riga del
- * testo originale — segno che il modello l'ha alterata invece di copiarla — l'intero
- * risultato viene scartato e si ricade sul parser regex, per non rischiare di salvare
- * contenuto inventato o riformulato.
- */
-export async function parseTrainingPlanWithAI(raw: string): Promise<ParsedTrainingText | null> {
-  const cleaned = raw
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .filter((line) => !TOTAL_RE.test(line.trim()))
-    .join("\n")
-    .trim();
-  if (!cleaned) return null;
-
+/** Le righe che aprono i blocchi, secondo l'IA; null se l'IA non risponde o risponde male. */
+async function findBlockHeadings(text: string): Promise<BlockHeading[] | null> {
   const client = getClient();
   if (!client) return null;
 
+  const response = await generate(client, text);
+  const responseText = response.text;
+  if (!responseText) return null;
+
+  const parsed = JSON.parse(responseText) as {
+    blocks?: Array<{ headingLine?: unknown; title?: unknown; durationMinutes?: unknown }>;
+  };
+  if (!Array.isArray(parsed.blocks)) return null;
+
+  const headings: BlockHeading[] = [];
+  for (const b of parsed.blocks) {
+    if (typeof b.headingLine !== "string" || !b.headingLine.trim()) continue;
+    const durationMinutes = typeof b.durationMinutes === "number" ? b.durationMinutes : Number(b.durationMinutes);
+    headings.push({
+      headingLine: b.headingLine,
+      title: typeof b.title === "string" ? b.title : "",
+      durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : 0,
+    });
+  }
+  return headings.length > 0 ? headings : null;
+}
+
+/**
+ * Divide un testo di allenamento in blocchi lasciando decidere all'IA dove
+ * inizia ogni blocco, qualunque sia la formattazione. Ritorna null per
+ * qualsiasi errore o se l'IA non è configurata, così il chiamante ricade
+ * sulla divisione con regole fisse senza interrompere il lavoro.
+ *
+ * L'IA indica SOLO le righe che aprono i blocchi (con titolo e durata): il
+ * contenuto di ogni blocco viene sempre ritagliato dal testo originale, mai
+ * scritto dal modello. Se una riga indicata non esiste nel testo (segno che il
+ * modello l'ha alterata) l'intero risultato viene scartato.
+ */
+export async function parseTrainingPlanWithAI(
+  raw: string,
+): Promise<(ParsedTrainingText & { headings: BlockHeading[] }) | null> {
+  const cleaned = cleanTrainingText(raw);
+  if (!cleaned) return null;
   try {
-    const response = await generateWithRetry(client, cleaned);
-
-    const responseText = response.text;
-    if (!responseText) return null;
-
-    const parsed = JSON.parse(responseText) as {
-      blocks?: Array<{ headingLine?: unknown; title?: unknown; durationMinutes?: unknown }>;
-    };
-    if (!Array.isArray(parsed.blocks) || parsed.blocks.length === 0) return null;
-
-    const headings: { headingLine: string; title: string; durationMinutes: number }[] = [];
-    for (const b of parsed.blocks) {
-      if (typeof b.headingLine !== "string" || typeof b.title !== "string") continue;
-      const durationMinutes =
-        typeof b.durationMinutes === "number" ? Math.round(b.durationMinutes) : Number(b.durationMinutes);
-      const title = b.title.trim();
-      if (!title || !Number.isFinite(durationMinutes) || durationMinutes <= 0) continue;
-      headings.push({ headingLine: b.headingLine, title, durationMinutes });
-    }
-    if (headings.length === 0) return null;
-
-    // Localizza ogni intestazione nel testo originale, in ordine di comparsa.
-    const positions: number[] = [];
-    let cursor = 0;
-    for (const { headingLine } of headings) {
-      const idx = cleaned.indexOf(headingLine, cursor);
-      if (idx === -1) return null;
-      positions.push(idx);
-      cursor = idx + headingLine.length;
-    }
-
-    const blocks: ParsedBlock[] = [];
-    for (let i = 0; i < positions.length; i++) {
-      const start = positions[i] + headings[i].headingLine.length;
-      const end = i + 1 < positions.length ? positions[i + 1] : cleaned.length;
-      const content = cleaned.slice(start, end).trim();
-      if (content) blocks.push({ title: headings[i].title, durationMinutes: headings[i].durationMinutes, content });
-    }
-    if (blocks.length === 0) return null;
-
-    return { preamble: cleaned.slice(0, positions[0]).trim(), blocks };
-  } catch {
+    const headings = await findBlockHeadings(cleaned);
+    const parsed = headings ? splitAtHeadings(cleaned, headings) : null;
+    return parsed && headings ? { ...parsed, headings } : null;
+  } catch (err) {
+    console.error("[parseTrainingPlanWithAI]", err);
     return null;
   }
 }

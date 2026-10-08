@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "Nuova scheda",
 };
 
+// La divisione in blocchi con l'IA (con modelli di riserva) può richiedere
+// qualche decina di secondi: 60 secondi restano entro il limite di ogni piano Vercel.
+export const maxDuration = 60;
+
 export default async function NewTrainingPlanPage() {
   return (
     <div className="mx-auto max-w-2xl">

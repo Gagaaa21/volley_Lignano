@@ -81,7 +81,7 @@ export const SECTION_SCHEDE_STEPS: BaseTourStep[] = [
     path: "/admin/schede",
     target: "section-schede-new",
     title: "Crea una scheda incollando il testo",
-    body: "Premi qui e incolla il testo dell'allenamento così come lo scrivi di solito (es. \"1. TITOLO – 10'\"): viene diviso automaticamente in blocchi, uno per intestazione, senza modificare il contenuto.",
+    body: "Premi qui e incolla il testo dell'allenamento così come lo scrivi di solito: l'IA lo divide da sola in blocchi, con titolo e durata, senza modificare il contenuto.",
   },
 ];
 

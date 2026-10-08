@@ -25,11 +25,16 @@ staff (Developer e Admin).
   password temporanea. Un Developer può anche modificare il nome utente di
   un Admin o impostargli una nuova password temporanea.
 - **Schede allenamento** (`/admin/schede`) — visibili solo a Developer e
-  Admin. Incolla il testo di un allenamento (es. "1. TITOLO – 10' ...") e
-  viene diviso automaticamente in blocchi, uno per intestazione numerata:
-  il contenuto di ogni blocco resta esattamente come scritto, senza
-  modifiche, e vive solo dentro quella scheda (niente libreria condivisa
-  da riusare tra schede diverse).
+  Admin. Incolla il testo di un allenamento com'è: l'IA (Gemini, chiave
+  `GEMINI_API_KEY`) decide da sola dove inizia ogni blocco, qualunque sia la
+  formattazione ("1. TITOLO – 10'", "A – 45' TITOLO", sezioni con esercizi
+  numerati dentro…), e ne indica titolo e durata. Il contenuto di ogni
+  blocco viene sempre ritagliato dal testo originale, mai riscritto dal
+  modello, e vive solo dentro quella scheda (niente libreria condivisa).
+  Se l'IA non è configurata o non risponde (si provano più modelli) si usano
+  regole fisse. Le schede già salvate si possono ricontrollare con l'IA
+  ("Ricontrolla le schede con l'IA" in `/admin/schede`, o dalla singola
+  scheda): si vede la divisione proposta e si applica con un clic.
 - **Presenze** (`/admin/presenze`) — registro presenze legato agli
   allenamenti del calendario: si sceglie l'allenamento da registrare e per
   ogni atleta si segna Presente/Assente (di default tutte presenti), con

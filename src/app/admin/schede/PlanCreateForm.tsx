@@ -25,7 +25,7 @@ function SubmitButton({ label }: { label: string }) {
   return (
     <Button type="submit" size="lg" disabled={pending}>
       <ClipboardList className="h-4 w-4" />
-      {pending ? "Creazione…" : label}
+      {pending ? "L'IA divide i blocchi…" : label}
     </Button>
   );
 }
@@ -77,17 +77,11 @@ export function PlanCreateForm({
           className="bg-surface-muted font-mono text-[13px] leading-relaxed sm:text-xs"
         />
         <FieldHint>
-          Ogni blocco inizia con una riga tipo &quot;1. TITOLO – 10&apos;&quot;: il testo viene diviso in
-          blocchi, uno per intestazione, senza modificarne il contenuto. Lascia vuoto per una scheda
-          senza blocchi.
+          Incollalo com&apos;è: l&apos;IA riconosce da sola le parti dell&apos;allenamento (titolo e durata),
+          qualunque sia la formattazione, e il testo resta esattamente come l&apos;hai scritto. Lascia vuoto per
+          una scheda senza blocchi.
         </FieldHint>
       </div>
-
-      <Toggle
-        name="useAi"
-        label="Dividi con l'aiuto dell'IA"
-        description="Consigliato per testi con formattazione irregolare. Senza questa opzione l'IA interviene solo se non viene riconosciuto nessun blocco."
-      />
 
       <div>
         <Label htmlFor="notes">Note (opzionale)</Label>

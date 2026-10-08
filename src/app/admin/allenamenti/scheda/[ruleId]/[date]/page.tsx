@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "Scheda dell'allenamento",
 };
 
+// La divisione in blocchi con l'IA (con modelli di riserva) può richiedere
+// qualche decina di secondi: 60 secondi restano entro il limite di ogni piano Vercel.
+export const maxDuration = 60;
+
 export default async function OccurrencePlanPage({
   params,
 }: {
@@ -92,9 +96,11 @@ export default async function OccurrencePlanPage({
                       <span className="tabular mr-1.5 text-muted-foreground">{index + 1}.</span>
                       {block.title}
                     </p>
-                    <span className="tabular shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] font-bold text-foreground/70 ring-1 ring-border">
-                      {block.durationMinutes}&apos;
-                    </span>
+                    {block.durationMinutes > 0 && (
+                      <span className="tabular shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] font-bold text-foreground/70 ring-1 ring-border">
+                        {block.durationMinutes}&apos;
+                      </span>
+                    )}
                   </div>
                   <BlockContent content={block.content} className="mt-2" />
                 </li>

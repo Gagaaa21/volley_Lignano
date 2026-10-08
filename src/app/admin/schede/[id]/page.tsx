@@ -11,11 +11,17 @@ import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { cn } from "@/lib/cn";
 import { deletePlanAction, removeBlockFromPlanAction, reorderPlanBlockAction } from "../actions";
+import { isTrainingPlanAIAvailable } from "@/lib/aiTrainingPlanParser";
+import { PlanSplitCheck } from "../PlanSplitCheck";
 import { PlanDetailsForm } from "./PlanDetailsForm";
 
 export const metadata: Metadata = {
   title: "Scheda allenamento",
 };
+
+// La divisione in blocchi con l'IA (con modelli di riserva) può richiedere
+// qualche decina di secondi: 60 secondi restano entro il limite di ogni piano Vercel.
+export const maxDuration = 60;
 
 export default async function TrainingPlanDetailPage({
   params,
@@ -90,7 +96,9 @@ export default async function TrainingPlanDetailPage({
                         <div className="min-w-0">
                           <h3 className="font-display text-base font-bold leading-snug text-foreground">{block.title}</h3>
                           <p className="tabular mt-1 text-xs font-semibold text-muted-foreground">
-                            {block.durationMinutes}&apos; · dal minuto {from} al {to}
+                            {block.durationMinutes > 0
+                              ? `${block.durationMinutes}' · dal minuto ${from} al ${to}`
+                              : "Durata non indicata"}
                           </p>
                         </div>
                         <div className="-mr-1.5 -mt-1 flex shrink-0 items-center">
@@ -177,6 +185,10 @@ export default async function TrainingPlanDetailPage({
               </div>
             )}
           </section>
+
+          {planBlocks.length > 0 && isTrainingPlanAIAvailable() && (
+            <PlanSplitCheck planIds={[plan.id]} single />
+          )}
 
           <section>
             <SectionHeading title="Dettagli" />

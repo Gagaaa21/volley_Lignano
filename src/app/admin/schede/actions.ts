@@ -17,7 +17,6 @@ const createSchema = z.object({
   title: z.string().min(1, "Inserisci un titolo per la scheda."),
   notes: z.string().optional(),
   pastedText: z.string().optional(),
-  useAi: z.boolean().optional(),
   occurrenceRuleId: z.string().optional(),
   occurrenceDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).optional(),
   isPublic: z.boolean().optional(),
@@ -36,7 +35,6 @@ export async function createPlanAction(
     title: formData.get("title")?.toString().trim() ?? "",
     notes: formData.get("notes")?.toString().trim() || undefined,
     pastedText: formData.get("pastedText")?.toString() ?? "",
-    useAi: formData.get("useAi") === "on",
     occurrenceRuleId: formData.get("occurrenceRuleId")?.toString() || undefined,
     occurrenceDate: formData.get("occurrenceDate")?.toString() ?? "",
     isPublic: formData.get("isPublic") === "on",
@@ -47,15 +45,11 @@ export async function createPlanAction(
 
   const repo = await getActiveRepo();
   const pastedText = parsed.data.pastedText ?? "";
-  let { preamble, blocks: parsedBlocks } = parseTrainingPlanText(pastedText);
-
-  if (pastedText.trim() && (parsed.data.useAi || parsedBlocks.length === 0)) {
-    const aiResult = await parseTrainingPlanWithAI(pastedText);
-    if (aiResult) {
-      preamble = aiResult.preamble;
-      parsedBlocks = aiResult.blocks;
-    }
-  }
+  // È l'IA a decidere dove inizia ogni blocco, qualunque sia la formattazione;
+  // le regole fisse servono solo se l'IA non è configurata o non risponde.
+  const { preamble, blocks: parsedBlocks } = pastedText.trim()
+    ? ((await parseTrainingPlanWithAI(pastedText)) ?? parseTrainingPlanText(pastedText))
+    : { preamble: "", blocks: [] };
 
   // I blocchi vivono solo dentro questa scheda: nessuna libreria condivisa
   // da riusare, così il testo appena incollato viene sempre salvato per

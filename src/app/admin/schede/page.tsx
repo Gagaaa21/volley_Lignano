@@ -9,11 +9,17 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_SCHEDE_STEPS } from "@/components/tour/sectionSteps";
+import { isTrainingPlanAIAvailable } from "@/lib/aiTrainingPlanParser";
+import { PlanSplitCheck } from "./PlanSplitCheck";
 import { SchedeLibrary, type SchedeCardData } from "./SchedeLibrary";
 
 export const metadata: Metadata = {
   title: "Schede allenamento",
 };
+
+// La divisione in blocchi con l'IA (con modelli di riserva) può richiedere
+// qualche decina di secondi: 60 secondi restano entro il limite di ogni piano Vercel.
+export const maxDuration = 60;
 
 export default async function TrainingPlansPage() {
   const session = await requireStaff();
@@ -56,11 +62,16 @@ export default async function TrainingPlansPage() {
     return a.title.localeCompare(b.title, "it");
   });
 
+  // Schede con blocchi da poter ricontrollare con l'IA (solo se l'IA è configurata).
+  const splitCheckIds = isTrainingPlanAIAvailable()
+    ? plans.filter((plan) => plan.blocks.length > 0).map((plan) => plan.id)
+    : [];
+
   return (
     <div>
       <PageHeader
         title="Schede allenamento"
-        description="Visibili solo allo staff. Incolla il testo di un allenamento: viene diviso automaticamente in blocchi."
+        description="Visibili solo allo staff. Incolla il testo di un allenamento: l'IA lo divide da sola in blocchi."
         help={<SectionTour steps={SECTION_SCHEDE_STEPS} />}
         actions={
           <LinkButton href="/admin/schede/nuova" data-tour="section-schede-new">
@@ -77,7 +88,14 @@ export default async function TrainingPlansPage() {
           description="Crea la prima incollando il testo di un allenamento."
         />
       ) : (
-        <SchedeLibrary plans={cards} />
+        <>
+          {splitCheckIds.length > 0 && (
+            <div className="mb-6">
+              <PlanSplitCheck planIds={splitCheckIds} />
+            </div>
+          )}
+          <SchedeLibrary plans={cards} />
+        </>
       )}
     </div>
   );
