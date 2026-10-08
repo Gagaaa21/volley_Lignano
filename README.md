@@ -18,7 +18,13 @@ staff (Developer e Admin).
   - Un pulsante nell'header dell'area riservata ("Sito pubblico") permette
     di tornare in un click al calendario pubblico.
 - **Gestione allenamenti** (`/admin/allenamenti`) — regole ricorrenti per
-  giorno della settimana, orario, luogo e periodo di validità.
+  giorno della settimana, orario, luogo e periodo di validità. Una singola
+  data si può saltare oppure spostare (orario e/o luogo diversi solo quel
+  giorno, dalla pagina della data: "Orario e luogo di questo giorno"); le
+  altre date della serie restano come sono, il sito pubblico mostra
+  l'avviso "Orario o luogo cambiati" e si può mandare una notifica. Le
+  variazioni stanno in `training_sessions.occurrence_overrides` (vedi
+  `supabase/schema.sql`).
 - **Gestione partite** (`/admin/partite`) — partite per categoria (U14/U15),
   avversario, casa/trasferta, data/ora, luogo.
 - **Gestione staff** (`/admin/staff`) — creazione nuovi account admin con

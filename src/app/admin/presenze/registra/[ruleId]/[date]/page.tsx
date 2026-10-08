@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Clock, MapPin } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
+import { occurrenceSchedule } from "@/lib/calendar";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,6 +30,8 @@ export default async function RecordAttendancePage({
   if (!training) notFound();
 
   const isMini = training.team === "minivolley";
+  // Orario e luogo di quel giorno: possono essere stati cambiati solo per quella data.
+  const schedule = occurrenceSchedule(training, date);
   const athletes = await repo.listAthletes({ team: training.team });
   const activeAthletes = athletes.filter((a) => a.isActive);
 
@@ -44,12 +47,12 @@ export default async function RecordAttendancePage({
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
               <span className="tabular">
-                {training.startTime}–{training.endTime}
+                {schedule.startTime}–{schedule.endTime}
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="h-4 w-4" />
-              {training.location}
+              {schedule.location}
             </span>
           </span>
         }
@@ -74,7 +77,7 @@ export default async function RecordAttendancePage({
               trainingRuleId={ruleId}
               sessionDate={date}
               title={training.title}
-              location={training.location}
+              location={schedule.location}
             />
           ) : (
             <AttendanceForm
@@ -84,7 +87,7 @@ export default async function RecordAttendancePage({
               trainingRuleId={ruleId}
               sessionDate={date}
               title={training.title}
-              location={training.location}
+              location={schedule.location}
             />
           )}
         </CardBody>

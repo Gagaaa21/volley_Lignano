@@ -120,6 +120,11 @@ export function UpcomingPanel({
               <MapPin className="h-4 w-4 shrink-0" />
               <span className="truncate">{first.location}</span>
             </span>
+            {first.kind === "training" && first.usual && (
+              <span className="rounded-full bg-warning-soft px-2 py-px text-[12px] font-semibold text-warning">
+                Orario o luogo cambiati
+              </span>
+            )}
           </span>
         </span>
         <ChevronRight className="hidden h-5 w-5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 sm:block" />

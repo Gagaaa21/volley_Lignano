@@ -73,7 +73,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           description={
             training.repeat === "once"
               ? "Collega una scheda a questo allenamento e scegli se mostrarla nel calendario pubblico."
-              : "La scheda vale solo per la data scelta, non per l'intera serie."
+              : "Apri una data per collegarle una scheda o cambiarne orario e luogo solo per quel giorno."
           }
         />
         {occurrences.length === 0 ? (
@@ -102,6 +102,14 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
                         currentPlan ? "font-semibold text-primary" : "text-muted-foreground",
                       )}
                     >
+                      {occ.kind === "training" && occ.usual && (
+                        <span
+                          className="max-w-[55%] shrink-0 truncate rounded-full bg-warning-soft px-2 py-px text-[11px] font-semibold text-warning"
+                          title="Cambiato solo per questo giorno"
+                        >
+                          {occ.startTime}–{occ.endTime} · {occ.location}
+                        </span>
+                      )}
                       <ClipboardList className="h-4 w-4 shrink-0" />
                       <span className="truncate">{currentPlan ? currentPlan.title : "Nessuna scheda"}</span>
                       {currentPlan && occurrencePlan?.isPublic && (

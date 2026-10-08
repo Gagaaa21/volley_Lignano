@@ -3,8 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { updateTag } from "next/cache";
+import { format, parseISO } from "date-fns";
+import { it } from "date-fns/locale";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
+import { expandTrainings } from "@/lib/calendar";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
@@ -333,4 +336,123 @@ export async function restoreTrainingOccurrenceAction(formData: FormData): Promi
   revalidatePath("/admin/allenamenti/elenco");
   revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
+}
+
+const occurrenceOverrideSchema = z
+  .object({
+    ruleId: z.string().min(1),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida."),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/, "Orario di inizio non valido."),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/, "Orario di fine non valido."),
+    location: z.string().trim().min(1, "Inserisci il luogo."),
+  })
+  .refine((data) => data.endTime > data.startTime, {
+    message: "L'orario di fine deve essere successivo a quello di inizio.",
+  });
+
+/** "venerdì 9 ottobre" */
+function dayLabel(date: string): string {
+  return format(parseISO(date), "EEEE d MMMM", { locale: it });
+}
+
+export interface OccurrenceOverrideState {
+  error?: string;
+  message?: string;
+}
+
+/**
+ * Cambia orario e/o luogo di un allenamento ricorrente solo per una data
+ * (intent "save"), oppure lo riporta a quelli di sempre (intent "reset").
+ * Tutte le altre date della serie, la scheda collegata e le presenze di quel
+ * giorno restano come sono.
+ */
+export async function saveOccurrenceOverrideAction(
+  _prevState: OccurrenceOverrideState,
+  formData: FormData,
+): Promise<OccurrenceOverrideState> {
+  await requireStaffPage("allenamenti");
+  const reset = formData.get("intent") === "reset";
+  const notify = formData.get("notify") === "on";
+  const parsed = occurrenceOverrideSchema.safeParse({
+    ruleId: formData.get("ruleId")?.toString() ?? "",
+    date: formData.get("date")?.toString() ?? "",
+    startTime: formData.get("startTime")?.toString() ?? "",
+    endTime: formData.get("endTime")?.toString() ?? "",
+    location: formData.get("location")?.toString() ?? "",
+  });
+  if (!parsed.success && !reset) {
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
+  }
+  const ruleId = formData.get("ruleId")?.toString() ?? "";
+  const date = formData.get("date")?.toString() ?? "";
+
+  try {
+    const repo = await getActiveRepo();
+    const training = await repo.getTraining(ruleId);
+    if (!training) return { error: "Allenamento non trovato." };
+    if (training.repeat === "once") {
+      return { error: "È un allenamento singolo: modifica direttamente l'allenamento." };
+    }
+    // Solo una data che fa davvero parte della serie (giorno giusto, non saltata).
+    const day = new Date(`${date}T00:00:00`);
+    if (expandTrainings([{ ...training, occurrenceOverrides: [] }], day, day).length === 0) {
+      return { error: "Questa data non fa parte dell'allenamento." };
+    }
+
+    const existing = training.occurrenceOverrides ?? [];
+    const others = existing.filter((o) => o.date !== date);
+    const wasChanged = others.length !== existing.length;
+    const sameAsUsual =
+      parsed.success &&
+      parsed.data.startTime === training.startTime &&
+      parsed.data.endTime === training.endTime &&
+      parsed.data.location === training.location;
+
+    let body: string;
+    let message: string;
+    if (reset || sameAsUsual) {
+      if (!wasChanged) return { message: "Orario e luogo sono già quelli di sempre." };
+      await repo.setTrainingOccurrenceOverrides(ruleId, others);
+      body = `${training.title} di ${dayLabel(date)}: torna all'orario di sempre, ${training.startTime}–${training.endTime} · ${training.location}.`;
+      message = "Tornato all'orario e al luogo di sempre.";
+    } else {
+      if (!parsed.success) return { error: "Dati non validi." };
+      const { startTime, endTime, location } = parsed.data;
+      await repo.setTrainingOccurrenceOverrides(
+        ruleId,
+        [...others, { date, startTime, endTime, location }].sort((a, b) => a.date.localeCompare(b.date)),
+      );
+      body = `${training.title} di ${dayLabel(date)}: ${startTime}–${endTime} · ${location} (solo questa volta).`;
+      message = `Salvato: solo ${dayLabel(date)} l'allenamento è ${startTime}–${endTime} · ${location}.`;
+    }
+
+    if (notify) {
+      await notifyCalendarChange(
+        {
+          title: reset || sameAsUsual ? "Allenamento: orario di sempre" : "Allenamento spostato",
+          body,
+          url: training.team === "minivolley" ? "/minivolley" : "/",
+        },
+        training.team,
+      );
+    }
+
+    revalidatePath(`/admin/allenamenti/${ruleId}`);
+    revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
+    revalidatePath(`/admin/presenze/registra/${ruleId}/${date}`);
+    revalidatePath("/admin/allenamenti");
+    revalidatePath("/admin/allenamenti/elenco");
+    revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
+    updateTag(PUBLIC_CALENDAR_TAG);
+    return { message };
+  } catch (err) {
+    console.error("[saveOccurrenceOverrideAction]", err);
+    if (err instanceof Error && err.message.includes("occurrence_overrides")) {
+      return {
+        error:
+          "Il database non è ancora pronto per le modifiche di un solo giorno: va eseguita l'istruzione SQL di aggiornamento (colonna occurrence_overrides).",
+      };
+    }
+    return { error: "Non è stato possibile salvare. Riprova." };
+  }
 }

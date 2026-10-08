@@ -1,6 +1,35 @@
 import { addDays, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
 import type { CalendarEvent, Match, TrainingRule } from "@/lib/types";
 
+/** Orario e luogo di una data di un allenamento. */
+export interface OccurrenceSchedule {
+  startTime: string;
+  endTime: string;
+  location: string;
+  /** Orario e luogo di sempre, se quella data è stata cambiata solo per quella volta; altrimenti null. */
+  usual: { startTime: string; endTime: string; location: string } | null;
+}
+
+/**
+ * Orario e luogo di un allenamento in una certa data: quelli della regola,
+ * oppure quelli cambiati solo per quel giorno (vedi
+ * TrainingRule.occurrenceOverrides). Un allenamento singolo si modifica
+ * direttamente, quindi per "once" valgono sempre quelli della regola.
+ */
+export function occurrenceSchedule(rule: TrainingRule, date: string): OccurrenceSchedule {
+  const override =
+    rule.repeat === "once" ? undefined : (rule.occurrenceOverrides ?? []).find((o) => o.date === date);
+  if (!override) {
+    return { startTime: rule.startTime, endTime: rule.endTime, location: rule.location, usual: null };
+  }
+  return {
+    startTime: override.startTime,
+    endTime: override.endTime,
+    location: override.location.trim() || rule.location,
+    usual: { startTime: rule.startTime, endTime: rule.endTime, location: rule.location },
+  };
+}
+
 export function getMonthGridRange(monthDate: Date): { start: Date; end: Date } {
   const start = startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 });
   const end = endOfWeek(endOfMonth(monthDate), { weekStartsOn: 1 });
@@ -64,6 +93,7 @@ export function expandTrainings(
           team: rule.team,
           isTournament: rule.isTournament,
           color: rule.color,
+          usual: null,
         });
       }
       continue;
@@ -83,15 +113,18 @@ export function expandTrainings(
       safety += 1;
       const dateStr = format(cursor, "yyyy-MM-dd");
       if (rule.weekdays.includes(cursor.getDay()) && !excludedDates.has(dateStr)) {
+        // Orario e luogo possono essere stati cambiati solo per questa data.
+        const schedule = occurrenceSchedule(rule, dateStr);
         events.push({
           kind: "training",
           id: `${rule.id}:${dateStr}`,
           ruleId: rule.id,
           date: dateStr,
-          startTime: rule.startTime,
-          endTime: rule.endTime,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          usual: schedule.usual,
           title: rule.title,
-          location: rule.location,
+          location: schedule.location,
           notes: rule.notes,
           planId: occurrencePlanIds.get(occurrenceKey(rule.id, dateStr)) ?? null,
           team: rule.team,

@@ -11,10 +11,12 @@ import { Label, Select, Toggle } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { PlanCreateForm } from "@/app/admin/schede/PlanCreateForm";
+import { expandTrainings, occurrenceSchedule } from "@/lib/calendar";
 import { removeOccurrencePlanAction, setOccurrencePlanAction } from "../../../actions";
+import { OccurrenceOverrideForm } from "../../../OccurrenceOverrideForm";
 
 export const metadata: Metadata = {
-  title: "Scheda dell'allenamento",
+  title: "Allenamento del giorno",
 };
 
 // La divisione in blocchi con l'IA (con modelli di riserva) può richiedere
@@ -37,7 +39,22 @@ export default async function OccurrencePlanPage({
   if (!training) notFound();
   // Solo schede della stessa squadra dell'allenamento: mai proporre di
   // collegare una scheda Minivolley a un allenamento U14/U15 o viceversa.
-  const allPlans = await repo.listTrainingPlans({ team: training.team });
+  const [allPlans, teamTrainings] = await Promise.all([
+    repo.listTrainingPlans({ team: training.team }),
+    repo.listTrainings({ team: training.team }),
+  ]);
+  // Orario e luogo di questo giorno: quelli di sempre o quelli cambiati solo per oggi.
+  const schedule = occurrenceSchedule(training, date);
+  const day = new Date(`${date}T00:00:00`);
+  const canOverride =
+    training.repeat !== "once" && expandTrainings([{ ...training, occurrenceOverrides: [] }], day, day).length > 0;
+  const locationSuggestions = [
+    ...new Set(
+      teamTrainings.flatMap((t) => [t.location, ...(t.occurrenceOverrides ?? []).map((o) => o.location)]),
+    ),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "it"));
 
   const currentPlan = occurrencePlan ? await repo.getTrainingPlan(occurrencePlan.planId) : null;
   const currentPlanBlocks = currentPlan?.blocks ?? [];
@@ -54,7 +71,9 @@ export default async function OccurrencePlanPage({
         description={
           training.repeat === "once"
             ? `${training.startTime}–${training.endTime} · ${training.location}`
-            : `${training.startTime}–${training.endTime} · ${training.location}. La scheda vale solo per questa data.`
+            : `${schedule.startTime}–${schedule.endTime} · ${schedule.location}${
+                schedule.usual ? " (cambiato solo per questo giorno)" : ""
+              }. Le modifiche qui sotto valgono solo per questa data.`
         }
         actions={
           <LinkButton href={`/admin/allenamenti/${ruleId}`} variant="outline" size="sm">
@@ -63,6 +82,21 @@ export default async function OccurrencePlanPage({
         }
       />
 
+      {canOverride && (
+        <Card className="mb-9">
+          <CardBody className="pt-5 sm:pt-6">
+            <OccurrenceOverrideForm
+              ruleId={ruleId}
+              date={date}
+              current={{ startTime: schedule.startTime, endTime: schedule.endTime, location: schedule.location }}
+              usual={schedule.usual}
+              locationSuggestions={locationSuggestions}
+            />
+          </CardBody>
+        </Card>
+      )}
+
+      {canOverride && <SectionHeading title="Scheda" description="La scheda vale solo per questa data." />}
       {currentPlan && occurrencePlan ? (
         <Card>
           <CardBody className="pt-5 sm:pt-6">

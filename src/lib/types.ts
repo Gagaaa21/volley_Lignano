@@ -159,6 +159,16 @@ export const TRAINING_COLORS = [
 export type TrainingColor = (typeof TRAINING_COLORS)[number];
 export const DEFAULT_TRAINING_COLOR: TrainingColor = "amber";
 
+/** Variazione di una singola data di un allenamento ricorrente: quel giorno
+ * l'allenamento si fa in un altro orario e/o in un altro luogo, tutte le
+ * altre date della serie restano come sono. */
+export interface TrainingOccurrenceOverride {
+  date: string; // "YYYY-MM-DD"
+  startTime: string; // "HH:mm"
+  endTime: string; // "HH:mm"
+  location: string;
+}
+
 export interface TrainingRule {
   id: string;
   title: string;
@@ -186,6 +196,11 @@ export interface TrainingRule {
    * repeat "once" (un'unica occorrenza si gestisce disattivando la regola
    * stessa). */
   excludedDates: string[];
+  /** Date con orario e/o luogo diversi solo quel giorno (vedi
+   * TrainingOccurrenceOverride). Non passano dal form principale: si
+   * salvano a parte con setTrainingOccurrenceOverrides(), così modificare la
+   * regola non le cancella. Ignorate per repeat "once". */
+  occurrenceOverrides: TrainingOccurrenceOverride[];
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -193,7 +208,7 @@ export interface TrainingRule {
 
 export type TrainingRuleInput = Omit<
   TrainingRule,
-  "id" | "createdBy" | "createdAt" | "updatedAt"
+  "id" | "createdBy" | "createdAt" | "updatedAt" | "occurrenceOverrides"
 >;
 
 /** Punteggio di un singolo set (parziale). */
@@ -492,6 +507,8 @@ export type CalendarEvent =
       team: TrainingTeam;
       isTournament: boolean;
       color: TrainingColor;
+      /** Orario e luogo di sempre, se questa data è stata cambiata solo per questa volta; altrimenti null. */
+      usual: { startTime: string; endTime: string; location: string } | null;
     }
   | {
       kind: "match";

@@ -26,7 +26,7 @@ export const SECTION_ALLENAMENTI_STEPS: BaseTourStep[] = [
     path: "/admin/allenamenti",
     target: "section-allenamenti-calendar",
     title: "Calendario",
-    body: "Tocca una data per collegare o cambiare la scheda di quel giorno: vale solo per quella data, non per l'intera regola.",
+    body: "Tocca una data per collegare o cambiare la scheda di quel giorno, o per spostarne orario e luogo solo per quel giorno: vale solo per quella data, non per l'intera regola.",
   },
 ];
 

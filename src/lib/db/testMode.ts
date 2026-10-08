@@ -110,6 +110,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
 const WRITE_METHODS = new Set<keyof Repo>([
   "createTraining",
   "updateTraining",
+  "setTrainingOccurrenceOverrides",
   "deleteTraining",
   "createMatch",
   "updateMatch",

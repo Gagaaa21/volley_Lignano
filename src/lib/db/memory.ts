@@ -150,7 +150,14 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     },
     async createTraining(input: TrainingRuleInput, createdBy) {
       const now = new Date().toISOString();
-      const row: TrainingRule = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+      const row: TrainingRule = {
+        ...input,
+        occurrenceOverrides: [],
+        id: uid(),
+        createdBy,
+        createdAt: now,
+        updatedAt: now,
+      };
       trainings.push(row);
       return row;
     },
@@ -158,6 +165,12 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       const idx = trainings.findIndex((t) => t.id === id);
       if (idx === -1) throw new Error("Allenamento non trovato");
       trainings[idx] = { ...trainings[idx], ...input, updatedAt: new Date().toISOString() };
+      return trainings[idx];
+    },
+    async setTrainingOccurrenceOverrides(id, overrides) {
+      const idx = trainings.findIndex((t) => t.id === id);
+      if (idx === -1) throw new Error("Allenamento non trovato");
+      trainings[idx] = { ...trainings[idx], occurrenceOverrides: overrides, updatedAt: new Date().toISOString() };
       return trainings[idx];
     },
     async deleteTraining(id) {

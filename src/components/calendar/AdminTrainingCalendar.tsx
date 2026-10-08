@@ -31,7 +31,9 @@ function Occ({ event, planTitle }: { event: TrainingEvent; planTitle: string | n
           ? cn("font-semibold hover:brightness-[0.97]", trainingBadgeClass(event.color))
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
-      title={`${event.startTime} · ${event.title} · ${planTitle ?? "Nessuna scheda"}`}
+      title={`${event.startTime} · ${event.title} · ${planTitle ?? "Nessuna scheda"}${
+        event.usual ? ` · solo questo giorno: ${event.location}` : ""
+      }`}
     >
       {hasPlan ? (
         <span className={cn("h-2 w-2 shrink-0 rounded-full", trainingDotClass(event.color))} aria-hidden />
@@ -169,6 +171,11 @@ export function AdminTrainingCalendar({
                               <span className="tabular shrink-0 font-semibold text-foreground/75">
                                 {event.startTime}–{event.endTime}
                               </span>
+                              {event.usual && (
+                                <span className="shrink-0 rounded-full bg-warning-soft px-1.5 text-[11px] font-semibold text-warning">
+                                  solo oggi · {event.location}
+                                </span>
+                              )}
                               <ClipboardList className="ml-1 h-3.5 w-3.5 shrink-0" />
                               <span className={cn("truncate", planTitle && "font-medium text-primary")}>
                                 {planTitle ?? "Nessuna scheda"}

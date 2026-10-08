@@ -528,6 +528,11 @@ end $$;
 -- intatta la regola per tutte le altre (vedi TrainingRule.excludedDates).
 alter table training_sessions add column if not exists excluded_dates date[] not null default '{}';
 
+-- Variazioni di singole date di un allenamento ricorrente: quel giorno orario
+-- e/o luogo diversi, tutte le altre date restano come sono. Elenco di oggetti
+-- {date, startTime, endTime, location} (vedi TrainingRule.occurrenceOverrides).
+alter table training_sessions add column if not exists occurrence_overrides jsonb not null default '[]'::jsonb;
+
 -- Nuova sezione "Test fisici" (vedi tabella physical_tests sopra, già
 -- creata da questo file): gli account Admin già esistenti e con pagine
 -- ristrette non la vedono finché il Developer non spunta "Test fisici" per

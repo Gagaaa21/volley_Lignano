@@ -141,6 +141,9 @@ function EventRow({ event, isPast, onSelect }: { event: CalendarEvent; isPast: b
           )}
           {!isTraining && event.isFriendly && <span className={cn(tagClass, "bg-muted text-muted-foreground")}>Amichevole</span>}
           {event.isTournament && <span className={cn(tagClass, "bg-sand-100 text-sand-800")}>Torneo</span>}
+          {isTraining && event.usual && (
+            <span className={cn(tagClass, "bg-warning-soft text-warning")}>Orario o luogo cambiati</span>
+          )}
           {!isTraining && event.resultSetsWon !== null && event.resultSetsLost !== null && (
             <span
               className={cn(

@@ -25,7 +25,9 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
             ? "bg-sand-100 font-semibold text-sand-800 hover:bg-sand-200/70"
             : "text-foreground/85 hover:bg-muted",
         )}
-        title={`${event.startTime}–${event.endTime} · ${event.title} · ${event.location}`}
+        title={`${event.startTime}–${event.endTime} · ${event.title} · ${event.location}${
+          event.usual ? " (cambiato solo per questo giorno)" : ""
+        }`}
       >
         {event.isTournament ? (
           <Trophy className="h-3 w-3 shrink-0" />

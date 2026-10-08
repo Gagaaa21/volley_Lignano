@@ -23,6 +23,7 @@ import type {
   TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
+  TrainingOccurrenceOverride,
   TrainingRule,
   TrainingRuleInput,
 } from "@/lib/types";
@@ -51,6 +52,8 @@ type TrainingRow = {
   is_tournament: boolean;
   color: TrainingRule["color"];
   excluded_dates: string[] | null;
+  /** Assente finché non si esegue la migrazione (vedi schema.sql). */
+  occurrence_overrides?: unknown;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -94,6 +97,18 @@ type StaffRow = {
   created_at: string;
 };
 
+/** Le variazioni di singole date, ripulite: la colonna è jsonb e senza migrazione non esiste. */
+function occurrenceOverridesFromRow(value: unknown): TrainingOccurrenceOverride[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const o = item as Partial<TrainingOccurrenceOverride> | null;
+    if (!o || typeof o.date !== "string" || typeof o.startTime !== "string" || typeof o.endTime !== "string") {
+      return [];
+    }
+    return [{ date: o.date, startTime: o.startTime, endTime: o.endTime, location: String(o.location ?? "") }];
+  });
+}
+
 function trainingFromRow(row: TrainingRow): TrainingRule {
   return {
     id: row.id,
@@ -111,6 +126,7 @@ function trainingFromRow(row: TrainingRow): TrainingRule {
     isTournament: row.is_tournament,
     color: row.color,
     excludedDates: row.excluded_dates ?? [],
+    occurrenceOverrides: occurrenceOverridesFromRow(row.occurrence_overrides),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -529,6 +545,18 @@ export const supabaseRepo: Repo = {
     const result = await db
       .from("training_sessions")
       .update({ ...trainingToRow(input), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+    return trainingFromRow(unwrap(result) as TrainingRow);
+  },
+  async setTrainingOccurrenceOverrides(id, overrides) {
+    const db = getSupabaseAdmin();
+    // Solo questa colonna: il resto della regola (e i salvataggi del form
+    // principale, che non la toccano mai) restano indipendenti.
+    const result = await db
+      .from("training_sessions")
+      .update({ occurrence_overrides: overrides, updated_at: new Date().toISOString() })
       .eq("id", id)
       .select("*")
       .single();

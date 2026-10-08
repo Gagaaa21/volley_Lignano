@@ -240,6 +240,15 @@ export function EventDetailDialog({
               <Fact icon={<Calendar />}>
                 <span className="block font-semibold first-letter:uppercase">{format(dateObj, "EEEE d MMMM yyyy", { locale: it })}</span>
               </Fact>
+              {isTraining && event.usual && (
+                <p
+                  className="rounded-xl bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning"
+                  data-training-changed
+                >
+                  <span className="font-semibold">Orario e luogo cambiati solo per questo giorno.</span> Di solito:{" "}
+                  {event.usual.startTime}–{event.usual.endTime} · {event.usual.location}
+                </p>
+              )}
               <Fact icon={<Clock />}>
                 <span className="tabular">{isTraining ? `${event.startTime}–${event.endTime}` : event.time}</span>
                 {!isTraining && (event.meetingTime || event.meetingLocation) && (

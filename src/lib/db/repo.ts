@@ -24,6 +24,7 @@ import type {
   StaffMember,
   StaffRole,
   StorageOverview,
+  TrainingOccurrenceOverride,
   TrainingOccurrencePlan,
   TrainingPlan,
   TrainingPlanInput,
@@ -71,6 +72,8 @@ export interface Repo {
   getTraining(id: string): Promise<TrainingRule | null>;
   createTraining(input: TrainingRuleInput, createdBy: string | null): Promise<TrainingRule>;
   updateTraining(id: string, input: TrainingRuleInput): Promise<TrainingRule>;
+  /** Sostituisce le variazioni di singole date (orario/luogo solo quel giorno) di un allenamento. */
+  setTrainingOccurrenceOverrides(id: string, overrides: TrainingOccurrenceOverride[]): Promise<TrainingRule>;
   deleteTraining(id: string): Promise<void>;
 
   // Matches
