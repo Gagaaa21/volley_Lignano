@@ -160,8 +160,8 @@ export default async function AdminDashboardPage({
           <CalendarClock className="h-4 w-4 shrink-0" />
           <span className="flex-1">
             {calendarMismatches === 1
-              ? "Il calendario del sito non coincide con quello ufficiale per una partita: controlla Partite."
-              : `Il calendario del sito non coincide con quello ufficiale per ${calendarMismatches} partite: controlla Partite.`}
+              ? "Una partita è diversa dal calendario ufficiale (data, avversaria o campo): controlla Partite."
+              : `${calendarMismatches} partite sono diverse dal calendario ufficiale (data, avversaria o campo): controlla Partite.`}
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>

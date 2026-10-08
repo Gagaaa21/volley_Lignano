@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { computeCalendarImport, matchInputFromOfficial } from "@/lib/federation/calendarImport";
+import { calendarMismatchCount, computeCalendarImport, matchInputFromOfficial } from "@/lib/federation/calendarImport";
 import { ourSide } from "@/lib/federation/matching";
 import { parseGirone } from "@/lib/federation/parse";
 import type { FederationDecision, Girone, OfficialMatch } from "@/lib/federation/types";
@@ -70,6 +70,30 @@ const AWAY = official({
   home: "BLU TEAM",
   away: "CDA VOLLEY LIGNANO",
   venue: "Palestra comunale, PAVIA DI UDINE UD, Via Carnia, 10",
+});
+
+test.describe("avvisi: solo partite diverse dal portale, non quelle che mancano", () => {
+  const decisions = (matchId: string): FederationDecision[] => [
+    { category: "U15", externalId: "15001", decision: "linked", matchId, decidedBy: null, decidedAt: "" },
+  ];
+
+  test("sito vuoto o con partite mancanti: nessun avviso", () => {
+    expect(calendarMismatchCount(run([], [official(), AWAY]))).toBe(0);
+    // Una sola partita presente e giusta, l'altra manca: nessun avviso.
+    expect(calendarMismatchCount(run([siteMatch()], [official(), AWAY], decisions("m1")))).toBe(0);
+  });
+
+  test("data, avversaria o campo diversi dal portale: un avviso per partita", () => {
+    expect(calendarMismatchCount(run([siteMatch({ matchDate: "2026-10-19T11:00" })], [official()], decisions("m1")))).toBe(
+      1,
+    );
+    expect(calendarMismatchCount(run([siteMatch({ opponent: "Blu Team" })], [official()], decisions("m1")))).toBe(1);
+    expect(calendarMismatchCount(run([siteMatch({ isHome: false })], [official()], decisions("m1")))).toBe(1);
+  });
+
+  test("partita del sito senza nessuna gara ufficiale: un avviso", () => {
+    expect(calendarMismatchCount(run([siteMatch({ opponent: "Altra squadra" })], [official()]))).toBe(1);
+  });
 });
 
 test.describe("calendario ufficiale: partite che mancano nel sito", () => {
@@ -372,6 +396,8 @@ test.describe("calendario U14 girone A rivisto dalla federazione (ver2)", () => 
       ["14008", { date: false, opponent: true, side: false }],
     ]);
     expect(result.orphans).toHaveLength(0);
+    // Le tre che mancano non sono un errore: contano solo le due con avversaria diversa.
+    expect(calendarMismatchCount(result)).toBe(2);
   });
 
   test("sito reale, partite mai abbinate: si segnalano comunque, senza creare doppioni", () => {
@@ -390,6 +416,8 @@ test.describe("calendario U14 girone A rivisto dalla federazione (ver2)", () => 
     expect(result.orphans.map((orphan) => [orphan.externalId, orphan.match.opponent])).toEqual([
       [null, "PROJECT VOLLEY OLIMPIA"],
     ]);
+    // Contano la partita con data sbagliata (14008, forse già presente) e quella senza gara: non le tre che mancano.
+    expect(calendarMismatchCount(result)).toBe(2);
   });
 
   test("allineate le tre partite al portale, non resta nulla da segnalare", () => {

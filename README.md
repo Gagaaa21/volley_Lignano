@@ -69,8 +69,9 @@ staff (Developer e Admin).
   partita già in calendario (data, ora, avversaria o casa/trasferta: la
   federazione a volte rivede il calendario tenendo i numeri di gara e
   cambiando gli abbinamenti; si aggiorna con un clic, palestra compresa) o se
-  una partita del sito non corrisponde a nessuna gara ufficiale: nulla viene
-  salvato finché non lo si conferma, e un risultato scritto a mano non viene mai
+  una partita del sito non corrisponde a nessuna gara ufficiale (le partite del
+  portale non ancora inserite non sono un errore e non vengono segnalate nella
+  dashboard): nulla viene salvato finché non lo si conferma, e un risultato scritto a mano non viene mai
   sovrascritto senza una scelta esplicita. L'indirizzo del girone di ogni
   categoria si imposta dal Centro di controllo (solo Developer); `U14` resta
   nascosta finché non viene pubblicato. Se il portale non risponde si tengono

@@ -1,5 +1,9 @@
 import "server-only";
-import { computeCalendarImport, type CalendarImportSet } from "@/lib/federation/calendarImport";
+import {
+  calendarMismatchCount as countCalendarMismatches,
+  computeCalendarImport,
+  type CalendarImportSet,
+} from "@/lib/federation/calendarImport";
 import { computeProposals, type Proposal, type ProposalSet } from "@/lib/federation/proposals";
 import type { FederationSnapshot, FederationSource } from "@/lib/federation/types";
 import type { Repo } from "@/lib/db/repo";
@@ -66,17 +70,9 @@ export function actionableProposals(official: CategoryOfficial[]): Proposal[] {
     .filter((proposal) => proposal.kind !== "no-sets");
 }
 
-/** Quante partite del calendario ufficiale il sito non rispecchia: da aggiungere
- * (mancano) o da aggiornare (data, ora, avversaria o campo cambiati). Le gare
- * con una partita simile già nel sito (dubbio) e le partite del sito senza
- * corrispondenza non contano: si vedono in Partite ma non fanno rumore. */
+/** Quante partite del sito sono diverse dal calendario ufficiale (data, avversaria,
+ * campo o nessuna gara corrispondente). Le partite che mancano nel sito non
+ * contano: non sono un errore. */
 export function calendarMismatchCount(official: CategoryOfficial[]): number {
-  return official.reduce(
-    (total, entry) =>
-      total +
-      (entry.calendar
-        ? entry.calendar.changes.length + entry.calendar.items.filter((item) => item.kind === "new").length
-        : 0),
-    0,
-  );
+  return official.reduce((total, entry) => total + (entry.calendar ? countCalendarMismatches(entry.calendar) : 0), 0);
 }

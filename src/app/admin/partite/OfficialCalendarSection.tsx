@@ -18,7 +18,7 @@ export function OfficialCalendarSection({ official }: { official: CategoryOffici
     <section className="mb-8" aria-label="Calendario ufficiale">
       <SectionHeading
         title="Calendario ufficiale"
-        description="Le partite di campionato lette dal portale: aggiungi quelle che mancano e aggiorna quelle cambiate, nulla cambia senza la tua conferma."
+        description="Le partite di campionato lette dal portale. Aggiungere quelle che non hai inserito è facoltativo: ti avviso solo se una partita già nel sito ha data o avversaria diverse dal portale. Nulla cambia senza la tua conferma."
       />
       <div className="space-y-5">
         {entries.map(({ source, calendar }) => (

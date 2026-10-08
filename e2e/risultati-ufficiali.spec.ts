@@ -229,6 +229,12 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
 
   // --- 4b. Abbinata la gara 12, nel calendario ufficiale resta solo la 13: si aggiunge con un clic. ---
   await expect(calendar).toContainText("Manca 1 partita");
+  // Una partita che manca nel sito non è un errore: la dashboard non la segnala.
+  await page.goto("/admin");
+  await expect(page.locator('[data-tour="dashboard-stats"]')).toBeVisible();
+  await expect(page.getByText(/diverse? dal calendario ufficiale/)).toHaveCount(0);
+  await page.goto("/admin/partite");
+  await expect(calendar).toContainText("Manca 1 partita");
   await calendar.getByRole("button", { name: "Aggiungi 1 partita" }).click();
   await expect(calendar.getByText("Aggiunta 1 partita al calendario.")).toBeVisible();
   await expect(calendar).toContainText("tutte le 4 partite del calendario ufficiale sono già nel sito");
@@ -244,7 +250,7 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await saveSource(page, portalUrl, OUR_TEAM);
   await expect(page.getByText(/Girone letto: 5 squadre, 10 gare/)).toBeVisible({ timeout: 30_000 });
   await page.goto("/admin");
-  await expect(page.getByText(/Il calendario del sito non coincide con quello ufficiale per una partita/)).toBeVisible();
+  await expect(page.getByText(/Una partita è diversa dal calendario ufficiale \(data, avversaria o campo\)/)).toBeVisible();
   await page.goto("/admin/partite");
   const changed = calendar.locator('li[data-official-game="13"]');
   await expect(changed).toContainText("Nel sito:");
@@ -261,7 +267,7 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await expect(revised).toContainText("18:00");
   await expect(matchRow(page, "ASD SANGIORGINA")).toHaveCount(0);
   await page.goto("/admin");
-  await expect(page.getByText(/non coincide con quello ufficiale/)).toHaveCount(0);
+  await expect(page.getByText(/diverse? dal calendario ufficiale \(data, avversaria o campo\)/)).toHaveCount(0);
 
   // --- 5. Classifica pubblica. ---
   await page.goto("/");

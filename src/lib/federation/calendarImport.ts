@@ -76,6 +76,17 @@ export interface CalendarImportSet {
   total: number;
 }
 
+/**
+ * Quante partite già nel sito sono diverse dal portale: data, ora, avversaria
+ * o campo cambiati, partite senza nessuna gara corrispondente e gare per cui
+ * nel sito c'è una partita con la stessa avversaria ma un altro giorno.
+ * Le gare che nel sito semplicemente non ci sono ("new") non sono un errore:
+ * si possono aggiungere da Partite, ma nessun avviso le conta.
+ */
+export function calendarMismatchCount(set: CalendarImportSet): number {
+  return set.changes.length + set.orphans.length + set.items.filter((item) => item.kind === "maybe-duplicate").length;
+}
+
 /** Finestra per segnalare una possibile partita già inserita (date spostate). */
 const SIMILAR_WINDOW_DAYS = 14;
 
