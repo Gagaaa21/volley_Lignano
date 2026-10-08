@@ -168,6 +168,16 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   // lontana: dubbio, deselezionata) e la gara 13 (nuova, selezionata). ---
   await page.goto("/admin/partite");
   const calendar = page.getByRole("region", { name: "Calendario ufficiale" });
+  // Le partite registrate e lo strumento del portale sono due cose separate, in due riquadri.
+  const registered = page.getByRole("region", { name: "Partite registrate" });
+  const portalPanel = page.getByRole("region", { name: "Collegamento con il portale FIPAV" });
+  await expect(registered).toContainText("Farravolo");
+  await expect(registered.getByRole("region", { name: "Calendario ufficiale" })).toHaveCount(0);
+  await expect(registered.getByRole("region", { name: "Risultati ufficiali" })).toHaveCount(0);
+  await expect(portalPanel.getByRole("region", { name: "Calendario ufficiale" })).toBeVisible();
+  await expect(portalPanel.getByRole("region", { name: "Risultati ufficiali" })).toBeVisible();
+  await expect(portalPanel.getByRole("link", { name: /vs Farravolo/ })).toHaveCount(0);
+  await expect(page.locator("[data-portal-alert]")).toContainText("cose da controllare");
   await expect(calendar).toContainText("Mancano 2 partite");
   const dubious = calendar.locator('li[data-official-game="12"]');
   await expect(dubious).toHaveAttribute("data-official-kind", "maybe-duplicate");

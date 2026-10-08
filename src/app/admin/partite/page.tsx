@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
-import { Download, Plus, Swords } from "lucide-react";
+import { ArrowDown, Download, Plus, Swords } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedLinks } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
-import { loadOfficialResults } from "@/lib/federation/load";
+import { actionableProposals, calendarMismatchCount, loadOfficialResults } from "@/lib/federation/load";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
 import { MatchList } from "./MatchList";
 import { OfficialCalendarSection } from "./OfficialCalendarSection";
 import { OfficialResultsSection } from "./OfficialResultsSection";
+import { PortalPanel } from "./PortalPanel";
 
 export const metadata: Metadata = {
   title: "Partite",
@@ -49,6 +51,10 @@ export default async function MatchesListPage({
     ? (await loadOfficialResults(repo)).filter((entry) => activeCategory === "all" || entry.source.category === activeCategory)
     : [];
 
+  // Lo strumento del portale compare solo se almeno una categoria è collegata.
+  const showPortal = official.some((entry) => entry.source.enabled);
+  const portalToCheck = calendarMismatchCount(official) + actionableProposals(official).length;
+
   return (
     <div>
       <PageHeader
@@ -70,35 +76,63 @@ export default async function MatchesListPage({
       />
 
       {isU14U15 && (
-        <div className="mb-6 w-fit" data-tour="section-partite-filter">
-          <SegmentedLinks
-            ariaLabel="Filtra per categoria"
-            items={(["all", "U14", "U15"] as const).map((value) => ({
-              href: value === "all" ? "/admin/partite" : `/admin/partite?cat=${value}`,
-              label: value === "all" ? "Tutte" : CATEGORY_LABELS[value],
-              active: activeCategory === value,
-            }))}
-          />
+        <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="w-fit" data-tour="section-partite-filter">
+            <SegmentedLinks
+              ariaLabel="Filtra per categoria"
+              items={(["all", "U14", "U15"] as const).map((value) => ({
+                href: value === "all" ? "/admin/partite" : `/admin/partite?cat=${value}`,
+                label: value === "all" ? "Tutte" : CATEGORY_LABELS[value],
+                active: activeCategory === value,
+              }))}
+            />
+          </div>
+          {showPortal && portalToCheck > 0 && (
+            <a
+              href="#portale"
+              data-portal-alert
+              className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-3 py-1.5 text-[13px] font-semibold text-warning transition-colors hover:bg-warning-soft/70"
+            >
+              Dal portale FIPAV: {portalToCheck} {portalToCheck === 1 ? "cosa da controllare" : "cose da controllare"}
+              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )}
         </div>
       )}
 
-      {isU14U15 && <OfficialCalendarSection official={official} />}
-      {isU14U15 && <OfficialResultsSection official={official} />}
+      <section aria-labelledby="partite-registrate">
+        <div className="mb-1.5 flex items-center gap-3">
+          <h2 id="partite-registrate" className="display-wide text-[1.375rem] leading-tight text-foreground">
+            Partite registrate
+          </h2>
+          <Badge tone="neutral">{matches.length}</Badge>
+        </div>
+        <p className="mb-5 max-w-2xl text-sm text-muted-foreground">
+          Sono le partite del calendario del sito, quelle che vedono anche genitori e atlete.
+        </p>
 
-      {matches.length === 0 ? (
-        <EmptyState
-          icon={Swords}
-          title="Nessuna partita in programma"
-          description="Aggiungi la prima partita: comparirà subito nel calendario pubblico."
-          action={
-            <LinkButton href="/admin/partite/nuovo">
-              <Plus className="h-4 w-4" />
-              Nuova partita
-            </LinkButton>
-          }
-        />
-      ) : (
-        <MatchList matches={matches} />
+        {matches.length === 0 ? (
+          <EmptyState
+            icon={Swords}
+            title="Nessuna partita in programma"
+            description="Aggiungi la prima partita: comparirà subito nel calendario pubblico."
+            action={
+              <LinkButton href="/admin/partite/nuovo">
+                <Plus className="h-4 w-4" />
+                Nuova partita
+              </LinkButton>
+            }
+          />
+        ) : (
+          <MatchList matches={matches} />
+        )}
+      </section>
+
+      {isU14U15 && showPortal && (
+        <PortalPanel>
+          <OfficialCalendarSection official={official} />
+          <OfficialResultsSection official={official} />
+        </PortalPanel>
       )}
     </div>
   );

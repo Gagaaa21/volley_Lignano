@@ -138,7 +138,7 @@ export default async function AdminDashboardPage({
 
       {officialToConfirm > 0 && (
         <Link
-          href="/admin/partite"
+          href="/admin/partite#portale"
           data-tour="dashboard-official-results"
           className="group mb-6 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm font-semibold text-primary transition-colors hover:border-primary/40"
         >
@@ -154,7 +154,7 @@ export default async function AdminDashboardPage({
 
       {calendarMismatches > 0 && (
         <Link
-          href="/admin/partite"
+          href="/admin/partite#portale"
           className="group mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning transition-colors hover:border-warning/50"
         >
           <CalendarClock className="h-4 w-4 shrink-0" />

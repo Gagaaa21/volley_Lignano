@@ -39,25 +39,25 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     body: "Passa dalla vista di tutte le partite a quella di una sola categoria, Under 14 o Under 15.",
   },
   {
-    id: "section-partite-official",
-    path: "/admin/partite",
-    target: "section-partite-official",
-    title: "Risultati ufficiali",
-    body: "Il sito legge i risultati dal portale della federazione e te li propone qui: con \"Conferma risultato\" compila i set della partita. Un risultato che hai già scritto tu non viene mai cambiato senza un tuo clic.",
-  },
-  {
-    id: "section-partite-cards",
-    path: "/admin/partite",
-    target: "section-partite-cards",
-    title: "Le tue partite",
-    body: "Ogni scheda apre i dettagli della partita, dove imposti anche convocazioni, formazioni per set ed esportazione PDF.",
-  },
-  {
     id: "section-partite-new",
     path: "/admin/partite",
     target: "section-partite-new",
     title: "Nuova partita",
     body: "Categoria, avversaria, casa o trasferta, data e ora: da qui crei una nuova partita di campionato o un'amichevole.",
+  },
+  {
+    id: "section-partite-cards",
+    path: "/admin/partite",
+    target: "section-partite-cards",
+    title: "Partite registrate",
+    body: "Sono le partite del calendario del sito. Ogni scheda apre i dettagli della partita, dove imposti anche convocazioni, formazioni per set ed esportazione PDF.",
+  },
+  {
+    id: "section-partite-official",
+    path: "/admin/partite",
+    target: "section-partite-official",
+    title: "Collegamento con il portale FIPAV",
+    body: "In fondo alla pagina c'è uno strumento separato dalle partite registrate: legge il portale della federazione e ti propone partite da aggiungere, partite da correggere e risultati da confermare (\"Conferma risultato\" compila i set). Nulla cambia senza un tuo clic, e un risultato che hai già scritto non viene mai cambiato da solo.",
   },
 ];
 

@@ -27,7 +27,7 @@ export function OfficialResultsSection({ official }: { official: CategoryOfficia
   const dismissed = configured.flatMap((entry) => entry.proposals?.dismissed ?? []);
 
   return (
-    <section className="mb-8" aria-label="Risultati ufficiali" data-tour="section-partite-official">
+    <section className="mb-8" aria-label="Risultati ufficiali">
       <SectionHeading
         title="Risultati ufficiali"
         description="Letti dal portale della federazione: nulla viene salvato finché non lo confermi."
