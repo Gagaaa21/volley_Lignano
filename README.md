@@ -19,8 +19,9 @@ staff (Developer e Admin).
     di tornare in un click al calendario pubblico.
 - **Gestione allenamenti** (`/admin/allenamenti`) — regole ricorrenti per
   giorno della settimana, orario, luogo e periodo di validità. Una singola
-  data si può saltare oppure spostare (orario e/o luogo diversi solo quel
-  giorno, dalla pagina della data: "Orario e luogo di questo giorno"); le
+  data si può annullare oppure spostare (orario e/o luogo diversi solo quel
+  giorno): toccando un allenamento nel calendario (o nella dashboard) si apre
+  "Modifica solo questo allenamento"; le
   altre date della serie restano come sono, il sito pubblico mostra
   l'avviso "Orario o luogo cambiati" e si può mandare una notifica. Le
   variazioni stanno in `training_sessions.occurrence_overrides` (vedi

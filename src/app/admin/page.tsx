@@ -37,8 +37,11 @@ const QUICK_ACTIONS: { href: string; label: string; icon: typeof Plus; page: Adm
   { href: "/admin/schede/nuova", label: "Nuova scheda", icon: ClipboardList, page: "schede" },
 ];
 
+/** Un allenamento apre la pagina di quel giorno (modificabile da solo), non l'intera serie. */
 function eventHref(event: CalendarEvent) {
-  return event.kind === "training" ? `/admin/allenamenti/${event.ruleId}` : `/admin/partite/${event.id}`;
+  return event.kind === "training"
+    ? `/admin/allenamenti/scheda/${event.ruleId}/${event.date}`
+    : `/admin/partite/${event.id}`;
 }
 
 // La lettura dei gironi dal portale (qualche tentativo ciascuno) può superare

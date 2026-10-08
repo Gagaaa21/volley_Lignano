@@ -40,6 +40,13 @@ test("un allenamento ricorrente si sposta solo per un giorno e poi torna come se
     .getAttribute("href");
   const ruleId = ruleHref!.split("/").pop()!;
 
+  // Toccando l'allenamento di domani (qui dalla dashboard) si apre quel giorno, non la serie.
+  await page.goto("/admin");
+  await page.locator(`a[href="/admin/allenamenti/scheda/${ruleId}/${tomorrow.iso}"]`).first().click();
+  await page.waitForURL(new RegExp(`/admin/allenamenti/scheda/${ruleId}/${tomorrow.iso}$`));
+  await expect(page.getByText("Modifica solo questo allenamento")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Modifica tutta la serie" })).toBeVisible();
+
   // Domani: dalle 17:30 alle 19:30 alle Medie, solo per quel giorno.
   await page.goto(`/admin/allenamenti/scheda/${ruleId}/${tomorrow.iso}`);
   // I campi sono gestiti da React: si scrive solo a pagina pronta.
@@ -79,4 +86,14 @@ test("un allenamento ricorrente si sposta solo per un giorno e poi torna come se
   );
   await expect(page.locator("[data-occurrence-override]").getByLabel("Ora inizio")).toHaveValue("19:00");
   await expect(page.locator("[data-occurrence-usual]")).toHaveCount(0);
+
+  // Non si fa: si annulla solo quel giorno e si torna al calendario.
+  const cancel = page.locator("[data-occurrence-cancel]");
+  await cancel.getByText("Avvisa con una notifica").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await cancel.getByRole("button", { name: "Annulla questo allenamento" }).click();
+  await page.waitForURL(/\/admin\/allenamenti$/, { timeout: 20_000 });
+  await page.goto(`/admin/allenamenti/${ruleId}`);
+  const skipped = new Date(`${tomorrow.iso}T00:00:00`).toLocaleDateString("it-IT", { day: "numeric", month: "long" });
+  await expect(page.locator("section", { hasText: "Date saltate" })).toContainText(skipped);
 });

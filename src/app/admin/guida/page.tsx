@@ -45,7 +45,7 @@ const SECTIONS: Section[] = [
       "Ogni regola definisce giorni della settimana, orario, luogo e un periodo di validità (con data di fine facoltativa).",
       "Le regole attive compaiono nel calendario pubblico della homepage per tutte le settimane comprese nel periodo.",
       "Modificare o eliminare una regola aggiorna subito la vista pubblica e invia una notifica push a chi ha attivato le notifiche.",
-      "Per spostare un solo giorno (es. domani dalle 17:30 alle 19:30 alle Medie invece che dalle 19 alle 21 al Palazzetto) tocca quella data nel calendario e usa \"Orario e luogo di questo giorno\": cambia solo quella data, le altre della serie restano come sono. Sul sito pubblico compare con l'avviso \"Orario o luogo cambiati\" e, se vuoi, parte una notifica. Con \"Torna all'orario di sempre\" annulli la modifica.",
+      "Tocca un allenamento nel calendario (o in \"Prossimi impegni\" della dashboard) per modificare solo quello: in \"Modifica solo questo allenamento\" cambi orario e luogo di quel giorno (es. domani dalle 17:30 alle 19:30 alle Medie invece che dalle 19 alle 21 al Palazzetto) e con \"Annulla questo allenamento\" lo togli dal calendario. Le altre date della serie restano come sono; sul sito pubblico compare l'avviso \"Orario o luogo cambiati\" e, se vuoi, parte una notifica. \"Torna all'orario di sempre\" annulla la modifica; \"Modifica tutta la serie\" cambia invece tutte le date.",
     ],
   },
   {

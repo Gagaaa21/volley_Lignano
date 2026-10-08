@@ -291,11 +291,15 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
 
 /** Salta una singola data di una regola ricorrente (es. una festività) senza
  * disattivare né spezzare la regola: expandTrainings() smette di generare
- * un'occorrenza per quella data, tutte le altre restano invariate. */
+ * un'occorrenza per quella data, tutte le altre restano invariate. Con
+ * "notify" avvisa chi segue il calendario; con "redirectTo" (solo pagine
+ * dell'area tecnici) ci torna dopo, es. dalla pagina del giorno annullato. */
 export async function skipTrainingOccurrenceAction(formData: FormData): Promise<void> {
   await requireStaffPage("allenamenti");
   const ruleId = formData.get("ruleId")?.toString();
   const date = formData.get("date")?.toString();
+  const notify = formData.get("notify") === "on";
+  const redirectTo = formData.get("redirectTo")?.toString();
   if (!ruleId || !date) return;
 
   const repo = await getActiveRepo();
@@ -308,11 +312,23 @@ export async function skipTrainingOccurrenceAction(formData: FormData): Promise<
     excludedDates: [...training.excludedDates, date].sort(),
   });
 
+  if (notify) {
+    await notifyCalendarChange(
+      {
+        title: "Allenamento annullato",
+        body: `${training.title} di ${dayLabel(date)}: non si fa. Le altre date restano come sempre.`,
+        url: training.team === "minivolley" ? "/minivolley" : "/",
+      },
+      training.team,
+    );
+  }
+
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath("/admin/allenamenti");
   revalidatePath("/admin/allenamenti/elenco");
   revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
+  if (redirectTo?.startsWith("/admin/")) redirect(redirectTo);
 }
 
 /** Ripristina una data precedentemente saltata (vedi skipTrainingOccurrenceAction). */

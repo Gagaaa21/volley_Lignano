@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronDown, ClipboardList, Clock, ExternalLink, Globe, Lock } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { it } from "date-fns/locale";
+import { CalendarOff, ChevronDown, ClipboardList, Clock, ExternalLink, Globe, Lock } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -12,7 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { PlanCreateForm } from "@/app/admin/schede/PlanCreateForm";
 import { expandTrainings, occurrenceSchedule } from "@/lib/calendar";
-import { removeOccurrencePlanAction, setOccurrencePlanAction } from "../../../actions";
+import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
+import { removeOccurrencePlanAction, setOccurrencePlanAction, skipTrainingOccurrenceAction } from "../../../actions";
 import { OccurrenceOverrideForm } from "../../../OccurrenceOverrideForm";
 
 export const metadata: Metadata = {
@@ -45,6 +48,7 @@ export default async function OccurrencePlanPage({
   ]);
   // Orario e luogo di questo giorno: quelli di sempre o quelli cambiati solo per oggi.
   const schedule = occurrenceSchedule(training, date);
+  const dayName = format(parseISO(date), "EEEE d MMMM", { locale: it });
   const day = new Date(`${date}T00:00:00`);
   const canOverride =
     training.repeat !== "once" && expandTrainings([{ ...training, occurrenceOverrides: [] }], day, day).length > 0;
@@ -76,9 +80,16 @@ export default async function OccurrencePlanPage({
               }. Le modifiche qui sotto valgono solo per questa data.`
         }
         actions={
-          <LinkButton href={`/admin/allenamenti/${ruleId}`} variant="outline" size="sm">
-            Modifica allenamento
-          </LinkButton>
+          // Per una serie questo pulsante cambia tutte le date: si dice chiaramente.
+          training.repeat === "once" ? (
+            <LinkButton href={`/admin/allenamenti/${ruleId}`} size="sm">
+              Modifica allenamento
+            </LinkButton>
+          ) : (
+            <LinkButton href={`/admin/allenamenti/${ruleId}`} variant="outline" size="sm">
+              Modifica tutta la serie
+            </LinkButton>
+          )
         }
       />
 
@@ -92,6 +103,40 @@ export default async function OccurrencePlanPage({
               usual={schedule.usual}
               locationSuggestions={locationSuggestions}
             />
+
+            <form
+              action={skipTrainingOccurrenceAction}
+              className="mt-6 border-t border-border pt-5"
+              data-occurrence-cancel
+            >
+              <input type="hidden" name="ruleId" value={ruleId} />
+              <input type="hidden" name="date" value={date} />
+              <input type="hidden" name="redirectTo" value="/admin/allenamenti" />
+              <p className="text-sm font-semibold text-foreground">Non si fa?</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                Annulla solo questo allenamento: sparisce dal calendario, le altre date della serie restano. Si può
+                ripristinare da &quot;Modifica tutta la serie&quot;.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground/80">
+                  <input
+                    type="checkbox"
+                    name="notify"
+                    defaultChecked
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  Avvisa con una notifica
+                </label>
+                <ConfirmSubmitButton
+                  confirmMessage={`Annullare l'allenamento di ${dayName}? Le altre date della serie restano invariate.`}
+                  variant="danger-ghost"
+                  size="sm"
+                >
+                  <CalendarOff className="h-4 w-4" />
+                  Annulla questo allenamento
+                </ConfirmSubmitButton>
+              </div>
+            </form>
           </CardBody>
         </Card>
       )}

@@ -61,9 +61,11 @@ export function OccurrenceOverrideForm({
           <CalendarClock className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="font-display text-[15px] font-bold leading-tight text-foreground">Orario e luogo di questo giorno</p>
+          <p className="font-display text-[15px] font-bold leading-tight text-foreground">
+            Modifica solo questo allenamento
+          </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Cambia solo questa data: le altre della serie restano come sono.
+            Orario e luogo di questo giorno: le altre date della serie restano come sono.
           </p>
         </div>
       </div>
