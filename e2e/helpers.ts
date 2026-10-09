@@ -1,6 +1,14 @@
 import type { Page } from "@playwright/test";
 
 export const DEV_USERNAME = "Gaga";
+
+/** Data "YYYY-MM-DD" fra `offsetDays` giorni, in ora italiana come il sito.
+ * Mai toISOString(): è sempre UTC, e tra mezzanotte e le 2 darebbe il giorno prima. */
+export function localDate(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 /** Password fissa impostata da global-setup al primo avvio della suite
  * (l'account seed "Gaga" nasce con mustChangePassword true e password
  * "Gaga211" solo sul primo avvio del server demo in-memory) — tutti gli

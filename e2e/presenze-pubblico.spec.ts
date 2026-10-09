@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsDev, switchTeam, uniqueName } from "./helpers";
+import { loginAsDev, switchTeam, uniqueName, localDate } from "./helpers";
 
 test("calendario pubblico U14/U15: con tutte presenti resta scritto Presente su ogni riga", async ({ page }) => {
   test.setTimeout(180_000);
@@ -15,7 +15,7 @@ test("calendario pubblico U14/U15: con tutte presenti resta scritto Presente su 
   await page.goto("/admin/allenamenti/nuovo");
   await page.getByRole("radio", { name: "Singolo giorno" }).check({ force: true });
   await page.getByLabel("Luogo").fill("Palestra presenze E2E");
-  await page.locator('input[name="startDate"]').fill(new Date().toISOString().slice(0, 10));
+  await page.locator('input[name="startDate"]').fill(localDate());
   await page.getByRole("button", { name: /salva allenamento/i }).click();
   await page.waitForURL(/\/admin\/allenamenti\/elenco$/, { timeout: 20_000 });
   await page.goto("/admin/presenze");

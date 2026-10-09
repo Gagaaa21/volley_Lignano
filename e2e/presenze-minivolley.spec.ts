@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsDev, switchTeam, uniqueName } from "./helpers";
+import { loginAsDev, switchTeam, uniqueName, localDate } from "./helpers";
 
 test.describe("Presenze Minivolley", () => {
   test("anagrafica con Gruppo, aggiunta in blocco con dedup, checklist solo-presenti", async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe("Presenze Minivolley", () => {
     await page.goto("/admin/allenamenti/nuovo");
     await page.getByRole("radio", { name: "Singolo giorno" }).check({ force: true });
     await page.getByLabel("Luogo").fill("Palestra Minivolley E2E");
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDate();
     await page.locator('input[name="startDate"]').fill(todayStr);
     await page.getByRole("button", { name: /salva allenamento/i }).click();
     await page.waitForURL(/\/admin\/allenamenti\/elenco$/, { timeout: 20_000 });
@@ -85,9 +85,7 @@ test.describe("Presenze Minivolley", () => {
     expect(before?.trim()).toBe("0");
     await expect(page.getByText(/allenamenti senza presenze registrate/)).toHaveCount(0);
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const yesterdayStr = localDate(-1);
 
     await page.goto("/admin/allenamenti/nuovo");
     await page.getByRole("radio", { name: "Singolo giorno" }).check({ force: true });

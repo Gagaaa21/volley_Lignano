@@ -8,6 +8,11 @@ import { defineConfig, devices } from "@playwright/test";
  * suite gira sempre in un solo worker, in sequenza — ogni file di test usa
  * comunque nomi/utenti con suffisso univoco per restare autonomo.
  */
+// Anche i test ragionano in ora italiana, come il sito (src/instrumentation.ts)
+// e i telefoni di chi lo usa: tra mezzanotte e le 2 «oggi» in UTC sarebbe
+// ancora il giorno prima. Vale per questo processo e per i worker dei test.
+process.env.TZ = "Europe/Rome";
+
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",

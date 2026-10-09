@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsDev, switchTeam, uniqueName } from "./helpers";
+import { loginAsDev, switchTeam, uniqueName, localDate } from "./helpers";
 
 test.describe("Presenze U14/U15", () => {
   test("anagrafica con Categoria, registro presente-di-default con assenze", async ({ page }) => {
@@ -24,7 +24,7 @@ test.describe("Presenze U14/U15", () => {
     await page.goto("/admin/allenamenti/nuovo");
     await page.getByRole("radio", { name: "Singolo giorno" }).check({ force: true });
     await page.getByLabel("Luogo").fill("Palestra di prova E2E");
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDate();
     await page.locator('input[name="startDate"]').fill(todayStr);
     await page.getByRole("button", { name: /salva allenamento/i }).click();
     await page.waitForURL(/\/admin\/allenamenti\/elenco$/, { timeout: 20_000 });
