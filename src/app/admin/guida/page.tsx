@@ -9,6 +9,7 @@ import {
   Globe,
   KeyRound,
   Puzzle,
+  Ruler,
   Swords,
   Target,
   Trophy,
@@ -89,6 +90,18 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    page: "testfisici",
+    icon: Ruler,
+    title: "Test fisici",
+    intro: "Squat Jump, misure corporee e altri test per atleta, da confrontare nel tempo.",
+    points: [
+      "\"Nuovo test\" registra in un colpo solo le misure (peso e lunghezza delle gambe, già precompilate dall'ultima volta), i 3 Squat Jump e ogni altro dato libero. Ogni sessione si può correggere in seguito.",
+      "In \"Atlete\" si apre il fascicolo di una atleta: tutte le sue sessioni e come cambiano misure e salti nel tempo.",
+      "\"Riepilogo\" mette tutte le atlete in un'unica tabella, senza aprirle una a una. \"Ultimi risultati\" mostra per ognuna l'ultimo valore di ogni misura (con la data, se è di un altro giorno); \"Un giorno\" confronta le atlete provate lo stesso giorno; \"Tutte le sessioni\" le elenca di fila.",
+      "Un clic sull'intestazione di una colonna ordina la tabella. Sotto ogni numero c'è la variazione rispetto alla misura precedente della stessa atleta; in verde il valore più alto di ogni salto. In fondo trovi la media di quello che vedi. \"Scarica CSV\" salva la tabella così com'è, per Excel.",
+    ],
+  },
+  {
     page: "livescore",
     icon: Volleyball,
     title: "Live score",
@@ -127,6 +140,7 @@ const SECTIONS: Section[] = [
     intro: "Il calendario è visibile a chiunque, senza bisogno di un account.",
     points: [
       "Il pulsante \"Sito pubblico\" nell'header porta alla homepage pubblica; da lì \"Area tecnici\" torna al login.",
+      "Il tema (Chiaro, Scuro o Automatico, che segue il dispositivo) si sceglie dal pulsante con sole o luna in alto nel sito pubblico e nella pagina di accesso, e dal menu del tuo account nell'area tecnici. La scelta resta su quel dispositivo: il sito parte sempre chiaro.",
       "Chiunque visiti il sito (pubblico o area tecnici) può installare l'app sul proprio dispositivo e attivare le notifiche: viene chiesto una sola volta, la prima volta che si naviga il sito.",
       "Chi ha attivato le notifiche riceve un avviso ogni volta che un allenamento o una partita viene aggiunto, modificato o rimosso dal calendario.",
       "Le notifiche partono con priorità alta e restano sullo schermo finché non vengono aperte o chiuse. Il sito rinnova da solo l'iscrizione di chi le ha attivate se il browser la cancella (succede con il risparmio energia).",

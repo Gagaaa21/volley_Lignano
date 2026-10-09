@@ -78,7 +78,7 @@ export function UpcomingPanel({
         <span
           className={cn(
             "rounded-full px-2.5 py-0.5 text-xs font-bold",
-            relative === "Oggi" ? "bg-primary text-primary-foreground" : "bg-sand-100 text-sand-800",
+            relative === "Oggi" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground",
           )}
         >
           {relative}

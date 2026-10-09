@@ -96,7 +96,7 @@ export default async function MinivolleyPage({
           src={crest}
           alt=""
           aria-hidden
-          className="pointer-events-none absolute -left-28 -top-16 z-0 h-[24rem] w-[24rem] select-none object-contain opacity-[0.07] sm:-left-24 sm:h-[30rem] sm:w-[30rem]"
+          className="pointer-events-none absolute -left-28 -top-16 z-0 h-[24rem] w-[24rem] select-none object-contain opacity-[0.07] mix-blend-multiply sm:-left-24 sm:h-[30rem] sm:w-[30rem]"
         />
 
         <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-14 lg:px-8">

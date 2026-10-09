@@ -2,6 +2,7 @@ import { ClipboardCheck, LogIn } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { InstallButton } from "@/components/pwa/InstallButton";
+import { ThemePopover } from "@/components/theme/ThemeSwitcher";
 import type { TrainingTeam } from "@/lib/types";
 
 /** Header dei siti pubblici: U14/U15 e Minivolley sono due siti distinti di
@@ -21,6 +22,7 @@ export function PublicHeader({ team = "u14u15" }: { team?: TrainingTeam } = {}) 
               <span className="hidden sm:inline">Presenze</span>
             </LinkButton>
           )}
+          <ThemePopover />
           <InstallButton />
           <LinkButton href="/login" variant="outline" size="sm" data-tour="public-nav-area-tecnici">
             <LogIn className="h-4 w-4" />

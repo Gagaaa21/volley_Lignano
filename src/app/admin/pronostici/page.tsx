@@ -156,7 +156,7 @@ export default async function PronosticiPage() {
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             {leaderboard.length === 0 ? (
               <div className="flex flex-col items-center px-6 py-8 text-center">
-                <span className="mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-sand-100 text-sand-700">
+                <span className="mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-accent text-accent-foreground">
                   <Trophy className="h-5 w-5" />
                 </span>
                 <p className="text-sm text-muted-foreground">
@@ -168,7 +168,7 @@ export default async function PronosticiPage() {
                 {leaderboard.map((entry, i) => {
                   const name = nameById.get(entry.staffId) ?? "Utente rimosso";
                   return (
-                    <li key={entry.staffId} className={cn("flex items-center gap-3 px-4 py-3", i === 0 && "bg-sand-50")}>
+                    <li key={entry.staffId} className={cn("flex items-center gap-3 px-4 py-3", i === 0 && "bg-accent/40")}>
                       <span
                         className={cn(
                           "tabular grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold",
@@ -177,7 +177,7 @@ export default async function PronosticiPage() {
                             : i === 1
                               ? "bg-muted text-foreground/80 ring-1 ring-border-strong"
                               : i === 2
-                                ? "bg-sand-100 text-sand-800"
+                                ? "bg-accent text-accent-foreground"
                                 : "text-muted-foreground",
                         )}
                       >

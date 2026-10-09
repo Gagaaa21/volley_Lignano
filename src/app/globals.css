@@ -101,6 +101,18 @@
   --surface-muted: #f7f9fb;
   --border-subtle: var(--border);
 
+  /* Varianti usate dai componenti al posto di classi legate alla scala
+     sea/sand (che resta la stessa nei due temi): così si adattano da sole
+     al tema scuro. */
+  --primary-strong: var(--color-sea-700);
+  --primary-soft-hover: var(--color-sea-100);
+  --accent-hover: var(--color-sand-200);
+  --success-foreground: #ffffff;
+  --warning-foreground: #ffffff;
+  /* Aloni colorati dello sfondo di accesso. */
+  --stage-glow-a: color-mix(in oklab, var(--color-sea-100) 85%, transparent);
+  --stage-glow-b: color-mix(in oklab, var(--color-sand-100) 80%, transparent);
+
   --gradient-primary: linear-gradient(135deg, var(--color-sea-500), var(--color-sea-700));
   --shadow-xs: 0 1px 2px rgba(15, 30, 50, 0.05);
   --shadow-card: 0 1px 2px rgba(15, 30, 50, 0.04), 0 2px 8px -3px rgba(15, 30, 50, 0.07);
@@ -128,6 +140,11 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft-hover: var(--primary-soft-hover);
+  --color-accent-hover: var(--accent-hover);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-foreground: var(--warning-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -232,16 +249,122 @@
   --primary-hover: var(--color-sea-700);
   --primary-soft: var(--color-sea-50);
   --primary-foreground: #ffffff;
+  --primary-strong: var(--color-sea-700);
+  --primary-soft-hover: var(--color-sea-100);
   --accent: var(--color-sand-100);
   --accent-foreground: var(--color-sand-800);
+  --accent-hover: var(--color-sand-200);
   --ring: var(--color-sea-500);
   --gradient-primary: linear-gradient(135deg, var(--color-sea-500), var(--color-sea-700));
 
   --font-display: var(--font-display-minivolley);
 }
 
-/* Il sito usa sempre il tema chiaro, indipendentemente dalle preferenze
-   di sistema del visitatore (nessun @media prefers-color-scheme: dark). */
+/* Tema scuro — si attiva con data-color-scheme="dark" sull'elemento <html>
+   (lo imposta lo script in src/lib/theme.ts prima del primo disegno, in base
+   alla scelta fatta con il selettore Chiaro / Scuro / Automatico). Cambia solo
+   i token semantici: i componenti usano quelli, quindi si adattano da soli.
+   Le scale sea e sand restano uguali ai due temi, perché servono anche a
+   disegni (campo, tabellone) che hanno già i loro colori. Il blu d'azione
+   diventa più chiaro e il testo sui pulsanti scuro, per un contrasto alto. */
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+
+  --background: #0a111d;
+  --foreground: #e7edf5;
+  --card: #111a2a;
+  --card-foreground: var(--foreground);
+  --popover: #16213a;
+  --popover-foreground: var(--foreground);
+  --primary: #5b9bea;
+  --primary-hover: #7bb0f0;
+  --primary-soft: #14284a;
+  --primary-foreground: #08172b;
+  --primary-strong: #9cc4f4;
+  --primary-soft-hover: #1b3560;
+  --secondary: #18233a;
+  --secondary-foreground: var(--foreground);
+  --muted: #18233a;
+  --muted-foreground: #92a3ba;
+  --accent: #33280f;
+  --accent-foreground: #f1d38f;
+  --accent-hover: #44351a;
+  --destructive: #f2736b;
+  --destructive-strong: #ff9d96;
+  --destructive-foreground: #25090a;
+  --success: #4cc78a;
+  --success-soft: #11321f;
+  --success-foreground: #06210f;
+  --warning: #f2ab4a;
+  --warning-soft: #36270f;
+  --warning-foreground: #2a1803;
+  --border: #223049;
+  --border-strong: #31435f;
+  --input: #2b3c58;
+  --ring: #6aa6ec;
+
+  --surface: var(--card);
+  --surface-muted: #0e1726;
+  --border-subtle: var(--border);
+
+  --gradient-primary: linear-gradient(135deg, #4a8bdc, #2f64b4);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 10px -3px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 40px -12px rgba(0, 0, 0, 0.7);
+  --shadow-elegant: var(--shadow-raised);
+  --shadow-hover: var(--shadow-raised);
+
+  --stage-glow-a: color-mix(in oklab, var(--color-sea-800) 50%, transparent);
+  --stage-glow-b: color-mix(in oklab, var(--color-sand-800) 32%, transparent);
+
+  /* Categorie e colori degli allenamenti: fondo scuro e testo chiaro. */
+  --color-u14-soft: #0f2e2b;
+  --color-u14-strong: #6ee7d3;
+  --color-u15-soft: #251a45;
+  --color-u15-strong: #c4b0fb;
+  --color-training-soft: #33260f;
+  --color-training-strong: #f0cf8c;
+  --color-training-amber-soft: #3a2a0a;
+  --color-training-amber-strong: #fcd34d;
+  --color-training-blue-soft: #11264d;
+  --color-training-blue-strong: #93c5fd;
+  --color-training-green-soft: #0f2f1b;
+  --color-training-green-strong: #86efac;
+  --color-training-teal-soft: #0b2e36;
+  --color-training-teal-strong: #67e8f9;
+  --color-training-violet-soft: #2a1a4d;
+  --color-training-violet-strong: #d8b4fe;
+  --color-training-pink-soft: #3f1230;
+  --color-training-pink-strong: #f9a8d4;
+  --color-training-orange-soft: #3d1d0c;
+  --color-training-orange-strong: #fdba74;
+  --color-training-slate: #94a3b8;
+  --color-training-slate-soft: #1e293b;
+  --color-training-slate-strong: #cbd5e1;
+}
+
+/* Tema scuro del sito Minivolley: stessi principi, con il corallo e il
+   turchese del suo logo. Va dopo il tema chiaro e ha più peso, perché le
+   variabili derivate (--primary…) si ridichiarano dentro [data-theme]. */
+:root[data-color-scheme="dark"] [data-theme="minivolley"] {
+  --primary: #ff8a63;
+  --primary-hover: #ffa387;
+  --primary-soft: #3a1a12;
+  --primary-foreground: #2b0d05;
+  --primary-strong: #ffb59e;
+  --primary-soft-hover: #4b2218;
+  --accent: #10302c;
+  --accent-foreground: #7ee6d9;
+  --accent-hover: #174440;
+  --ring: #ff9a78;
+  --gradient-primary: linear-gradient(135deg, #f57a52, #c8451f);
+}
+
+/* Il tema parte sempre chiaro (scelta del club): chi vuole sceglie Scuro o
+   Automatico (segue il dispositivo) dal selettore del tema. La scelta resta
+   sul dispositivo (vedi src/lib/theme.ts); nessun @media prefers-color-scheme
+   qui, per non cambiare il sito a chi non l'ha chiesto. */
 
 @layer base {
   * {
@@ -403,8 +526,8 @@
 @utility auth-stage {
   background-color: var(--background);
   background-image:
-    radial-gradient(ellipse 70% 60% at 0% 0%, color-mix(in oklab, var(--color-sea-100) 85%, transparent), transparent 62%),
-    radial-gradient(ellipse 55% 50% at 100% 0%, color-mix(in oklab, var(--color-sand-100) 80%, transparent), transparent 64%);
+    radial-gradient(ellipse 70% 60% at 0% 0%, var(--stage-glow-a), transparent 62%),
+    radial-gradient(ellipse 55% 50% at 100% 0%, var(--stage-glow-b), transparent 64%);
 }
 @utility auth-stage-logo {
   position: absolute;

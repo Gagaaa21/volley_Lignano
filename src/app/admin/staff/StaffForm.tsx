@@ -62,7 +62,7 @@ export function StaffForm() {
           <p className="mt-1.5">
             Comunica queste credenziali al nuovo admin, dovrà cambiare la password al primo accesso.
           </p>
-          <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 font-mono text-xs text-foreground">
+          <p className="mt-2 rounded-lg bg-card/70 px-3 py-2 font-mono text-xs text-foreground">
             Utente: <strong>{state.created.username}</strong>
             <br />
             Password: <strong>{state.created.password}</strong>

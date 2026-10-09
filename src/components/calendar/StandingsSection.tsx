@@ -115,7 +115,7 @@ export function StandingsSection({ standings }: { standings: PublicStandings[] }
                                 <span
                                   className={cn(
                                     "grid h-6 w-6 place-items-center rounded-full text-xs font-bold",
-                                    row.zone === "promotion" ? "bg-success text-white" : "bg-muted text-foreground/70",
+                                    row.zone === "promotion" ? "bg-success text-success-foreground" : "bg-muted text-foreground/70",
                                   )}
                                 >
                                   {row.position}

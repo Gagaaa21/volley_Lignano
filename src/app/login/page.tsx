@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
+import { ThemePopover } from "@/components/theme/ThemeSwitcher";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -13,6 +14,9 @@ export default function LoginPage() {
   return (
     <div className="auth-stage relative min-h-screen overflow-hidden">
       <Image src={crest} alt="" aria-hidden className="auth-stage-logo" />
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <ThemePopover />
+      </div>
 
       <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-8">
         <div className="w-full max-w-[24rem]">

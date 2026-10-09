@@ -57,6 +57,26 @@ staff (Developer e Admin).
   `/admin/presenze/atlete/elenco`; la categoria U14/U15 è facoltativa e
   assegnabile anche in un secondo momento), storico dei registri salvati
   (anche per singola atleta) in `/admin/presenze/storico`.
+- **Test fisici** (`/admin/test-fisici`) — Squat Jump (3 salti), misure
+  corporee e altri dati liberi per atleta, con lo storico di ognuna. Il
+  «Riepilogo» (`/admin/test-fisici/riepilogo`) mette tutte le atlete in una
+  tabella: ultimi risultati, un giorno di test o tutte le sessioni; ricerca,
+  filtro per categoria, ordinamento con un clic sulle intestazioni, variazione
+  rispetto alla misura precedente, valore più alto di ogni salto in evidenza,
+  media di quello che si vede e «Scarica CSV». La logica che trasforma le
+  righe `PhysicalTest` in tabella è in `src/lib/physicalTestOverview.ts` (con
+  test unitari); la media dei salti ignora i valori mancanti (non contano come
+  zero).
+- **Tema chiaro/scuro** — il sito parte sempre chiaro; da un pulsante con
+  sole/luna (testata del sito pubblico e pagina di accesso) o dal menu
+  dell'account (area tecnici) si sceglie Chiaro, Scuro o Automatico (segue il
+  dispositivo). La scelta resta su quel dispositivo (`localStorage`,
+  `src/lib/theme.ts`); uno script nel `<head>` imposta
+  `data-color-scheme="dark"` su `<html>` prima del primo disegno, quindi non
+  c'è il lampo bianco. I colori del tema scuro sono token in
+  `src/app/globals.css` (anche per il tema Minivolley): i componenti usano i
+  token semantici, quindi non vanno scritti colori fissi (`bg-white`,
+  `bg-sand-100`…) per i fondi dell'interfaccia.
 - **App installabile (PWA) e notifiche push** — chiunque visiti il sito
   (pubblico o area riservata) può installare l'app sul proprio dispositivo e
   attivare le notifiche: viene chiesto una sola volta, la prima volta che si

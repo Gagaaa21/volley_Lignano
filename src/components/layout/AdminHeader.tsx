@@ -30,6 +30,7 @@ import { setActiveTeamAction } from "@/app/admin/actions";
 import type { SessionPayload } from "@/lib/auth/session";
 import { isPageAvailableForTeam, type AdminPage, type TrainingTeam } from "@/lib/types";
 import { InstallButton } from "@/components/pwa/InstallButton";
+import { ThemeSegmented } from "@/components/theme/ThemeSwitcher";
 import { Avatar } from "@/components/ui/Avatar";
 import crest from "@/assets/lignano-crest.png";
 
@@ -216,6 +217,13 @@ function UserMenu({ session, activeTeam }: { session: SessionPayload; activeTeam
               )}
             </div>
           )}
+
+          <div className="border-t border-border px-1 py-2">
+            <p className="px-1.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Tema
+            </p>
+            <ThemeSegmented />
+          </div>
 
           <div className="border-t border-border pt-1.5">
             <Link

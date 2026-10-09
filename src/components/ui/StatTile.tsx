@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 
 const toneClass = {
   primary: "bg-primary-soft text-primary",
-  gold: "bg-sand-100 text-sand-700",
+  gold: "bg-accent text-accent-foreground",
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",
   u14: "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]",

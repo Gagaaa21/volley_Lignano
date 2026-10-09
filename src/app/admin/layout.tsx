@@ -48,7 +48,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
       )}
       {demo && (
-        <div className="border-b border-sand-300/60 bg-sand-100 px-4 py-1.5 text-center text-xs font-medium text-sand-800">
+        <div className="border-b border-accent-foreground/20 bg-accent px-4 py-1.5 text-center text-xs font-medium text-accent-foreground">
           Modalità demo: dati salvati solo in memoria. Configura Supabase per l&apos;uso reale.
         </div>
       )}

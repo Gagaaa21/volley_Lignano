@@ -112,7 +112,7 @@ export function MiniAttendanceForm({
                     <span
                       className={cn(
                         "grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-colors",
-                        isPresent ? "border-success bg-success text-white" : "border-border-strong",
+                        isPresent ? "border-success bg-success text-success-foreground" : "border-border-strong",
                       )}
                     >
                       {isPresent && <Check className="h-3.5 w-3.5" />}

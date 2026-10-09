@@ -22,7 +22,7 @@ const variants: Record<ButtonVariant, string> = {
     "border border-border-strong/80 bg-surface text-foreground shadow-xs hover:border-border-strong hover:bg-surface-muted",
   ghost: "text-primary hover:bg-primary-soft",
   quiet: "text-muted-foreground hover:bg-muted hover:text-foreground",
-  soft: "bg-primary-soft text-primary hover:bg-sea-100",
+  soft: "bg-primary-soft text-primary hover:bg-primary-soft-hover",
   danger: "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive-strong",
   "danger-ghost": "text-destructive hover:bg-destructive/8",
 };

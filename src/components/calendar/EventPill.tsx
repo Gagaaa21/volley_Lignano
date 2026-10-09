@@ -22,7 +22,7 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
         className={cn(
           base,
           event.isTournament
-            ? "bg-sand-100 font-semibold text-sand-800 hover:bg-sand-200/70"
+            ? "bg-accent font-semibold text-accent-foreground hover:bg-accent-hover"
             : "text-foreground/85 hover:bg-muted",
         )}
         title={`${event.startTime}–${event.endTime} · ${event.title} · ${event.location}${

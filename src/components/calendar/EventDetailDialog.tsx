@@ -47,7 +47,7 @@ const ATTENDANCE_LABEL: Record<PublicAttendanceRecord["status"], string> = {
 
 const ATTENDANCE_CLASS: Record<PublicAttendanceRecord["status"], string> = {
   present: "bg-success-soft text-success",
-  excused: "bg-sand-100 text-sand-800",
+  excused: "bg-accent text-accent-foreground",
   unexcused: "bg-destructive/10 text-destructive",
 };
 

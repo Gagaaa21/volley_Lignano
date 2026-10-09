@@ -885,7 +885,7 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
         className={cn(
           "hidden sm:block",
           isFullscreen &&
-            "overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-0.5 sm:p-1",
+            "overflow-y-auto bg-gradient-to-br from-primary-soft via-background to-accent p-0.5 sm:p-1",
           // Schermo intero vero: lo riempie il browser. Simulato: il riquadro ricopre la finestra.
           isFullscreen && !isSimulated && "h-screen w-screen",
           isSimulated && "fixed inset-0 z-40",

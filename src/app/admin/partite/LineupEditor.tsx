@@ -336,8 +336,8 @@ export function LineupEditor({
             dragHoverPosition={dragHoverPosition}
           />
 
-          <div className="mt-2.5 rounded-2xl border border-dashed border-sea-700/25 bg-sea-50/60 p-2.5">
-            <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-sea-700">
+          <div className="mt-2.5 rounded-2xl border border-dashed border-sea-700/25 bg-primary-soft/60 p-2.5">
+            <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-primary-strong">
               Libero — fuori dalla rotazione
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -359,11 +359,11 @@ export function LineupEditor({
                     className={cn(
                       "flex min-h-[3.25rem] touch-none flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-1 py-2 text-center transition-colors",
                       athlete
-                        ? "border-sea-700 bg-white shadow-sm shadow-sea-950/10"
-                        : "border-dashed border-sea-700/25 bg-white/60",
+                        ? "border-sea-700 bg-card shadow-sm shadow-sea-950/10"
+                        : "border-dashed border-sea-700/25 bg-card/60",
                       "cursor-pointer hover:border-sea-700/60",
                       isSelected && "ring-2 ring-sand-400 ring-offset-1",
-                      isHovered && "border-sea-700 bg-sea-50 ring-2 ring-sea-700 ring-offset-1",
+                      isHovered && "border-sea-700 bg-primary-soft ring-2 ring-sea-700 ring-offset-1",
                     )}
                   >
                     <span className="text-[9px] font-bold uppercase text-foreground/35">Libero {i + 1}</span>
@@ -504,7 +504,7 @@ export function LineupEditor({
                           <span className="truncate text-sm font-medium text-foreground">{athlete.fullName}</span>
                         </span>
                         {label && (
-                          <span className="shrink-0 rounded-full bg-sea-700/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sea-700">
+                          <span className="shrink-0 rounded-full bg-sea-700/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-strong">
                             {label}
                           </span>
                         )}

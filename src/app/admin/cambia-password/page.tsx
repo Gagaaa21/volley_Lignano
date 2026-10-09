@@ -26,7 +26,7 @@ export default async function ChangePasswordPage() {
       />
 
       {forced && (
-        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-sand-300/70 bg-sand-50 px-4 py-3.5 text-sm text-sand-900">
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-accent-foreground/20 bg-accent px-4 py-3.5 text-sm text-accent-foreground">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <p>Stai usando una password temporanea. Impostane una nuova per accedere al resto del pannello.</p>
         </div>

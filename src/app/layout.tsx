@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Baloo_2, Inter } from "next/font/google";
 import { PwaClient } from "@/components/pwa/PwaClient";
 import { PwaInstallProvider } from "@/components/pwa/PwaInstallContext";
+import { ThemeSync } from "@/components/theme/ThemeSwitcher";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const body = Inter({
@@ -69,15 +71,22 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    // suppressHydrationWarning: lo script nel <head> imposta data-color-scheme
+    // prima che React parta (è voluto: evita il lampo bianco col tema scuro).
     <html
       lang="it"
       data-scroll-behavior="smooth"
       className={`${body.variable} ${display.variable} ${displayMinivolley.variable} h-full scroll-smooth antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <PwaInstallProvider>
           {children}
           <PwaClient />
+          <ThemeSync />
         </PwaInstallProvider>
       </body>
     </html>

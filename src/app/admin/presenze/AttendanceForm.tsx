@@ -38,8 +38,8 @@ function SegmentButton({
     tone === "danger"
       ? "bg-destructive text-destructive-foreground shadow-xs"
       : tone === "warning"
-        ? "bg-warning text-white shadow-xs"
-        : "bg-success text-white shadow-xs";
+        ? "bg-warning text-warning-foreground shadow-xs"
+        : "bg-success text-success-foreground shadow-xs";
   return (
     <button
       type="button"

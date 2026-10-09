@@ -6,7 +6,7 @@ export type AvatarSize = "sm" | "md" | "lg" | "xl";
 const tones: Record<AvatarTone, string> = {
   primary: "bg-primary-soft text-primary ring-primary/15",
   neutral: "bg-muted text-foreground/70 ring-border",
-  gold: "bg-sand-100 text-sand-800 ring-sand-300/50",
+  gold: "bg-accent text-accent-foreground ring-accent-foreground/20",
   u14: "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)] ring-[var(--color-u14)]/20",
   u15: "bg-[var(--color-u15-soft)] text-[var(--color-u15-strong)] ring-[var(--color-u15)]/20",
 };
