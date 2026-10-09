@@ -284,7 +284,7 @@ export function AdminHeader({
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link href="/admin" className="flex min-w-0 items-center gap-3">
           <span className="brand-chip h-10 w-10 shrink-0">
-            <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain p-0.5" priority />
+            <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain p-0.5" loading="eager" />
           </span>
           <span className="hidden min-w-0 leading-tight min-[480px]:block">
             <span className="block truncate font-display text-[15px] font-extrabold tracking-[-0.01em] text-foreground">

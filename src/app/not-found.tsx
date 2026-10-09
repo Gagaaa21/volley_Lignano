@@ -12,7 +12,7 @@ export default function NotFound() {
         <div className="w-full max-w-[24rem]">
           <div className="auth-card p-6 text-center sm:p-8">
             <span className="brand-chip mx-auto h-16 w-16 rounded-2xl p-2">
-              <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
+              <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" loading="eager" />
             </span>
             <p className="eyebrow mt-5 justify-center">Volley Lignano</p>
             <h1 className="display-wide mt-2 text-[1.75rem] leading-tight text-foreground">

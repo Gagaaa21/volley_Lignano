@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="auth-stage relative min-h-screen overflow-hidden">
-      <Image src={crest} alt="" aria-hidden className="auth-stage-logo" />
+      <Image src={crest} alt="" aria-hidden className="auth-stage-logo" loading="eager" />
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <ThemePopover />
       </div>
@@ -23,7 +23,7 @@ export default function LoginPage() {
           <div className="auth-card p-6 sm:p-8">
             <div className="flex flex-col items-center text-center">
               <span className="brand-chip h-16 w-16 rounded-2xl p-2">
-                <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" priority />
+                <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain" loading="eager" />
               </span>
               <p className="eyebrow mt-5">Volley Lignano</p>
               <h1 className="display-wide mt-2 text-[2rem] leading-none text-foreground">Area tecnici</h1>

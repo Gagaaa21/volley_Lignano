@@ -55,7 +55,7 @@ export function Logo({
           src={CREST_BY_TEAM[team]}
           alt={CREST_ALT_BY_TEAM[team]}
           className="h-full w-full object-contain"
-          priority
+          loading="eager"
         />
       </span>
       {showWordmark && (
