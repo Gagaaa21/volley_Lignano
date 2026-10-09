@@ -366,12 +366,11 @@ export function EventDetailDialog({
           )}
 
           {isTraining && attendance && attendance.records.length > 0 && (() => {
-            // Il Minivolley non registra le assenze (vedi MiniAttendanceForm),
-            // quindi ogni voce è per forza presente: qui non si distingue dal
-            // caso (raro) in cui, in U14/U15, erano davvero presenti tutte —
-            // in entrambi i casi il testo "N/N presenti" e il badge ripetuto
-            // su ogni riga sarebbero solo rumore.
-            const allPresent = attendance.records.every((r) => r.status === "present");
+            // Il Minivolley non registra le assenze (vedi MiniAttendanceForm): ogni
+            // voce è per forza presente, quindi il badge ripetuto su ogni riga
+            // sarebbe solo rumore. In U14/U15 invece ogni atleta ha il suo stato,
+            // anche quando erano presenti tutte: "Presente" resta scritto.
+            const tracksAbsences = event.team !== "minivolley";
             const presentCount = attendance.records.filter((r) => r.status === "present").length;
             return (
               <Section
@@ -379,7 +378,7 @@ export function EventDetailDialog({
                 aside={
                   <span className="inline-flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5" />
-                    {allPresent ? `${attendance.records.length} presenti` : `${presentCount}/${attendance.records.length} presenti`}
+                    {tracksAbsences ? `${presentCount}/${attendance.records.length} presenti` : `${attendance.records.length} presenti`}
                   </span>
                 }
               >
@@ -387,7 +386,7 @@ export function EventDetailDialog({
                   {attendance.records.map((record) => (
                     <li key={record.fullName} className="flex items-center justify-between gap-3 px-4 py-2.5">
                       <span className="min-w-0 truncate text-sm font-medium text-foreground">{record.fullName}</span>
-                      {!allPresent && (
+                      {tracksAbsences && (
                         <span
                           className={cn(
                             "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
