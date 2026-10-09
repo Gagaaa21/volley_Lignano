@@ -187,7 +187,7 @@ export default async function TrainingPlanDetailPage({
           </section>
 
           {planBlocks.length > 0 && isTrainingPlanAIAvailable() && (
-            <PlanSplitCheck planIds={[plan.id]} single />
+            <PlanSplitCheck plans={[{ id: plan.id, title: plan.title }]} single />
           )}
 
           <section>

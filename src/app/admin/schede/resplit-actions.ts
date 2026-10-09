@@ -3,7 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
-import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
+import { splitTrainingPlanWithAI, type AIFailure } from "@/lib/aiTrainingPlanParser";
 import {
   cleanTrainingText,
   planBlocksToText,
@@ -27,12 +27,18 @@ export interface PlanSplitProposal {
   headings: BlockHeading[];
 }
 
+export interface PlanSplitFailure {
+  planId: string;
+  planTitle: string;
+  reason: AIFailure;
+}
+
 export interface PlanSplitCheck {
   proposals: PlanSplitProposal[];
   /** Schede già divise come le dividerebbe l'IA. */
   unchanged: number;
-  /** Schede che l'IA non è riuscita a controllare (non risponde, risposta non valida). */
-  failed: number;
+  /** Schede che l'IA non è riuscita a controllare, e perché: si possono riprovare. */
+  failures: PlanSplitFailure[];
 }
 
 /**
@@ -46,12 +52,14 @@ export async function checkPlanSplitsAction(planIds: string[]): Promise<PlanSpli
   const ids = [...new Set(planIds)].slice(0, MAX_PLANS_PER_CHECK);
 
   const results = await Promise.all(
-    ids.map(async (id): Promise<PlanSplitProposal | "unchanged" | "failed"> => {
+    ids.map(async (id): Promise<PlanSplitProposal | PlanSplitFailure | "unchanged"> => {
       const plan = await repo.getTrainingPlan(id);
       if (!plan || plan.blocks.length === 0) return "unchanged";
-      const ai = await parseTrainingPlanWithAI(planBlocksToText(plan.blocks));
+      const result = await splitTrainingPlanWithAI(planBlocksToText(plan.blocks));
+      if (!result.ok) return { planId: plan.id, planTitle: plan.title, reason: result.reason };
+      const ai = result.value;
       // Testo prima del primo blocco: l'IA non riconosce la prima intestazione, meglio non toccare nulla.
-      if (!ai || ai.blocks.length === 0 || ai.preamble) return "failed";
+      if (ai.blocks.length === 0 || ai.preamble) return { planId: plan.id, planTitle: plan.title, reason: "invalid" };
       if (sameDivision(plan.blocks, ai.blocks)) return "unchanged";
       return {
         planId: plan.id,
@@ -64,14 +72,16 @@ export async function checkPlanSplitsAction(planIds: string[]): Promise<PlanSpli
   );
 
   return {
-    proposals: results.filter((r): r is PlanSplitProposal => typeof r === "object"),
+    proposals: results.filter((r): r is PlanSplitProposal => typeof r === "object" && "headings" in r),
     unchanged: results.filter((r) => r === "unchanged").length,
-    failed: results.filter((r) => r === "failed").length,
+    failures: results.filter((r): r is PlanSplitFailure => typeof r === "object" && "reason" in r),
   };
 }
 
 export interface ApplyPlanSplitState {
   error?: string;
+  /** Blocchi che la scheda ha davvero dopo il salvataggio (riletti dal database). */
+  blockCount?: number;
 }
 
 /**
@@ -107,13 +117,18 @@ export async function applyPlanSplitAction(planId: string, headings: BlockHeadin
       content: b.content,
     }));
     await repo.updateTrainingPlan(plan.id, { title: plan.title, notes: plan.notes, blocks, team: plan.team });
+    // Si dice "salvata" solo dopo aver riletto la scheda dal database: niente conferme a vuoto.
+    const saved = await repo.getTrainingPlan(plan.id);
+    if (!saved || saved.blocks.length !== blocks.length) {
+      return { error: "La nuova divisione non risulta salvata. Riprova." };
+    }
 
     revalidatePath("/admin/schede");
     revalidatePath(`/admin/schede/${plan.id}`);
     revalidatePath("/admin/allenamenti", "layout");
     revalidatePath(plan.team === "minivolley" ? "/minivolley" : "/");
     updateTag(PUBLIC_CALENDAR_TAG);
-    return {};
+    return { blockCount: saved.blocks.length };
   } catch (err) {
     console.error("[applyPlanSplitAction]", err);
     return { error: "Non è stato possibile salvare la nuova divisione. Riprova." };

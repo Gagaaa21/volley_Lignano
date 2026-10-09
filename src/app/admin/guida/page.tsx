@@ -71,7 +71,7 @@ const SECTIONS: Section[] = [
     points: [
       "Sull'allenamento desiderato incolli il testo così come lo scrivi di solito: l'IA capisce da sola dove inizia ogni parte dell'allenamento e ne prende titolo e durata, qualunque sia la formattazione (\"1. TITOLO – 10'\", \"A – 45' TITOLO\", sezioni con esercizi numerati dentro…). Gli esercizi che stanno dentro una parte restano nel suo blocco.",
       "Il contenuto di ogni blocco resta esattamente come scritto, senza modifiche: l'IA sceglie solo dove dividere. I blocchi si possono riordinare o rimuovere dalla scheda.",
-      "Se una scheda già salvata è divisa male (un blocco che contiene pezzi di altri), in Schede premi \"Ricontrolla le schede con l'IA\" oppure, dentro la scheda, \"Ricontrolla con l'IA\": vedi la divisione attuale e quella proposta, e la applichi solo se ti va bene.",
+      "Se una scheda già salvata è divisa male (un blocco che contiene pezzi di altri), in Schede premi \"Ricontrolla le schede con l'IA\" oppure, dentro la scheda, \"Ricontrolla con l'IA\": vedi la divisione attuale e quella proposta, e la applichi solo se ti va bene. Se l'IA non riesce a controllare qualche scheda (a volte è sovraccarica, oppure ha finito le richieste gratuite del giorno) te lo dice con i nomi delle schede e un pulsante \"Riprova\": quelle già controllate non vengono rifatte.",
       "Ogni volta che colleghi una scheda a un allenamento ti viene chiesto se renderla visibile alle atlete nel calendario pubblico: di default resta privata, allo staff. Puoi cambiare idea in qualsiasi momento dalla pagina di quell'allenamento.",
     ],
   },

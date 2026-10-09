@@ -63,8 +63,8 @@ export default async function TrainingPlansPage() {
   });
 
   // Schede con blocchi da poter ricontrollare con l'IA (solo se l'IA è configurata).
-  const splitCheckIds = isTrainingPlanAIAvailable()
-    ? plans.filter((plan) => plan.blocks.length > 0).map((plan) => plan.id)
+  const splitCheckPlans = isTrainingPlanAIAvailable()
+    ? plans.filter((plan) => plan.blocks.length > 0).map((plan) => ({ id: plan.id, title: plan.title }))
     : [];
 
   return (
@@ -89,9 +89,9 @@ export default async function TrainingPlansPage() {
         />
       ) : (
         <>
-          {splitCheckIds.length > 0 && (
+          {splitCheckPlans.length > 0 && (
             <div className="mb-6">
-              <PlanSplitCheck planIds={splitCheckIds} />
+              <PlanSplitCheck plans={splitCheckPlans} />
             </div>
           )}
           <SchedeLibrary plans={cards} />

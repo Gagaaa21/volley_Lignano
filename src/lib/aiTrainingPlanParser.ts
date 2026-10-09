@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { isQuotaError, retryDelayMs } from "./geminiErrors";
 import { cleanTrainingText, splitAtHeadings, type BlockHeading, type ParsedTrainingText } from "./trainingPlanParser";
 
 /**
@@ -80,10 +81,36 @@ export function isTrainingPlanAIAvailable(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
+/** Perché l'IA non ha potuto dividere il testo. */
+export type AIFailure =
+  /** Il limite gratuito di richieste è finito per tutti i modelli (si rinnova col tempo). */
+  | "quota"
+  /** Non risponde (sovraccarica, senza rete, tempo scaduto) o non è configurata. */
+  | "unavailable"
+  /** Ha risposto, ma con una divisione che non corrisponde al testo. */
+  | "invalid";
+
+class AIUnavailableError extends Error {
+  constructor(readonly reason: Exclude<AIFailure, "invalid">) {
+    super(reason === "quota" ? "Limite di richieste dell'IA esaurito." : "Nessun modello IA disponibile.");
+  }
+}
+
+/**
+ * Modelli a cui è finito il limite di richieste: finché non si rinnova (il
+ * server dice tra quanto) li saltiamo, senza sprecare tempo a richiamarli.
+ */
+const cooldownUntil = new Map<string, number>();
+
 async function generate(client: GoogleGenAI, text: string) {
   const deadline = Date.now() + TOTAL_TIMEOUT_MS;
-  let lastError: unknown = null;
+  let quotaFailures = 0;
+  let otherFailures = 0;
   for (const model of MODELS) {
+    if ((cooldownUntil.get(model) ?? 0) > Date.now()) {
+      quotaFailures++;
+      continue;
+    }
     const remaining = deadline - Date.now();
     if (remaining < 2_000) break;
     try {
@@ -99,11 +126,17 @@ async function generate(client: GoogleGenAI, text: string) {
         },
       });
     } catch (err) {
-      lastError = err;
+      if (isQuotaError(err)) {
+        quotaFailures++;
+        cooldownUntil.set(model, Date.now() + retryDelayMs(err));
+      } else {
+        otherFailures++;
+      }
       console.warn(`[parseTrainingPlanWithAI] ${model} non disponibile:`, err instanceof Error ? err.message : err);
     }
   }
-  throw lastError ?? new Error("Nessun modello IA disponibile.");
+  // "Limite finito" solo se è l'unico problema: se qualche modello era semplicemente sovraccarico, riprovare ha senso.
+  throw new AIUnavailableError(quotaFailures > 0 && otherFailures === 0 ? "quota" : "unavailable");
 }
 
 /** Le righe che aprono i blocchi, secondo l'IA; null se l'IA non risponde o risponde male. */
@@ -133,28 +166,44 @@ async function findBlockHeadings(text: string): Promise<BlockHeading[] | null> {
   return headings.length > 0 ? headings : null;
 }
 
+export type AISplitResult =
+  | { ok: true; value: ParsedTrainingText & { headings: BlockHeading[] } }
+  | { ok: false; reason: AIFailure };
+
 /**
  * Divide un testo di allenamento in blocchi lasciando decidere all'IA dove
- * inizia ogni blocco, qualunque sia la formattazione. Ritorna null per
- * qualsiasi errore o se l'IA non è configurata, così il chiamante ricade
- * sulla divisione con regole fisse senza interrompere il lavoro.
+ * inizia ogni blocco, qualunque sia la formattazione. Se non ci riesce dice
+ * perché (limite di richieste finito, IA che non risponde, risposta non
+ * valida), così chi la usa può avvisare con le parole giuste e riprovare.
  *
  * L'IA indica SOLO le righe che aprono i blocchi (con titolo e durata): il
  * contenuto di ogni blocco viene sempre ritagliato dal testo originale, mai
  * scritto dal modello. Se una riga indicata non esiste nel testo (segno che il
  * modello l'ha alterata) l'intero risultato viene scartato.
  */
-export async function parseTrainingPlanWithAI(
-  raw: string,
-): Promise<(ParsedTrainingText & { headings: BlockHeading[] }) | null> {
+export async function splitTrainingPlanWithAI(raw: string): Promise<AISplitResult> {
   const cleaned = cleanTrainingText(raw);
-  if (!cleaned) return null;
+  if (!cleaned) return { ok: false, reason: "invalid" };
+  if (!isTrainingPlanAIAvailable()) return { ok: false, reason: "unavailable" };
   try {
     const headings = await findBlockHeadings(cleaned);
     const parsed = headings ? splitAtHeadings(cleaned, headings) : null;
-    return parsed && headings ? { ...parsed, headings } : null;
+    return parsed && headings ? { ok: true, value: { ...parsed, headings } } : { ok: false, reason: "invalid" };
   } catch (err) {
-    console.error("[parseTrainingPlanWithAI]", err);
-    return null;
+    if (err instanceof AIUnavailableError) return { ok: false, reason: err.reason };
+    console.error("[splitTrainingPlanWithAI]", err);
+    return { ok: false, reason: "unavailable" };
   }
+}
+
+/**
+ * Come splitTrainingPlanWithAI, ma ritorna null per qualsiasi errore (anche se
+ * l'IA non è configurata): il chiamante ricade sulla divisione con regole fisse
+ * senza interrompere il lavoro.
+ */
+export async function parseTrainingPlanWithAI(
+  raw: string,
+): Promise<(ParsedTrainingText & { headings: BlockHeading[] }) | null> {
+  const result = await splitTrainingPlanWithAI(raw);
+  return result.ok ? result.value : null;
 }

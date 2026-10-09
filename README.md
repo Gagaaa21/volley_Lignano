@@ -41,7 +41,13 @@ staff (Developer e Admin).
   Se l'IA non è configurata o non risponde (si provano più modelli) si usano
   regole fisse. Le schede già salvate si possono ricontrollare con l'IA
   ("Ricontrolla le schede con l'IA" in `/admin/schede`, o dalla singola
-  scheda): si vede la divisione proposta e si applica con un clic.
+  scheda): si vede la divisione proposta e si applica con un clic (il
+  salvataggio è confermato rileggendo la scheda dal database). L'IA gratuita
+  ha un limite di richieste per modello (oggi 20 al giorno): le schede che
+  non è riuscita a controllare vengono elencate con il motivo e si possono
+  riprovare da sole; un modello a cui è finito il limite viene saltato finché
+  non si rinnova. Nei test l'IA è un finto Gemini (`e2e/fixtures/fake-gemini.mjs`,
+  avviato da `playwright.config.ts`).
 - **Presenze** (`/admin/presenze`) — registro presenze legato agli
   allenamenti del calendario: si sceglie l'allenamento da registrare e per
   ogni atleta si segna Presente/Assente (di default tutte presenti), con

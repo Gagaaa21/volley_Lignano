@@ -33,11 +33,21 @@ export default defineConfig({
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
       : undefined,
   },
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // Finto Gemini (vedi e2e/fixtures/fake-gemini.mjs): i test dell'IA non toccano il servizio vero.
+      command: "node e2e/fixtures/fake-gemini.mjs",
+      url: "http://localhost:4010/__health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 20_000,
+    },
+    {
+      command: "npm run dev",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: { GEMINI_API_KEY: "chiave-finta-per-i-test", GOOGLE_GEMINI_BASE_URL: "http://localhost:4010" },
+    },
+  ],
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

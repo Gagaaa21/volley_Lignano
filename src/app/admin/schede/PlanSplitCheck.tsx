@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, RotateCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import {
   applyPlanSplitAction,
   checkPlanSplitsAction,
+  type PlanSplitFailure,
   type PlanSplitProposal,
 } from "./resplit-actions";
 
@@ -16,6 +17,13 @@ import {
 const CHUNK = 2;
 /** Pausa tra una richiesta e l'altra: l'IA gratuita accetta poche richieste al minuto. */
 const PAUSE_MS = 1500;
+/** Nomi delle schede non controllate mostrati per esteso: oltre, "…e altre N". */
+const MAX_FAILURES_LISTED = 6;
+
+interface PlanRef {
+  id: string;
+  title: string;
+}
 
 function durationLabel(minutes: number): string {
   return minutes > 0 ? `${minutes}'` : "—";
@@ -27,7 +35,9 @@ function BlockList({ blocks, tone }: { blocks: { title: string; durationMinutes:
       {blocks.map((block, i) => (
         <li key={i} className="flex items-baseline gap-2 text-sm">
           <span className="tabular w-5 shrink-0 text-right text-xs font-semibold text-muted-foreground">{i + 1}.</span>
-          <span className={cn("min-w-0 flex-1", tone === "old" ? "text-foreground/70" : "font-semibold text-foreground")}>
+          <span
+            className={cn("min-w-0 flex-1 break-words", tone === "old" ? "text-foreground/70" : "font-semibold text-foreground")}
+          >
             {block.title}
           </span>
           <span className="tabular shrink-0 text-xs font-semibold text-muted-foreground">
@@ -39,57 +49,99 @@ function BlockList({ blocks, tone }: { blocks: { title: string; durationMinutes:
   );
 }
 
+/** Cosa dire quando alcune schede non sono state controllate: il motivo più utile da sapere. */
+function failureExplanation(failures: PlanSplitFailure[]): string {
+  if (failures.some((f) => f.reason === "quota")) {
+    return "L'IA gratuita ha finito le richieste che può fare oggi: si rinnovano col tempo. Riprova più tardi o domani.";
+  }
+  if (failures.some((f) => f.reason === "unavailable")) {
+    return "L'IA non ha risposto (a volte è sovraccarica): riprova tra qualche minuto.";
+  }
+  return "L'IA ha risposto con una divisione che non corrisponde al testo della scheda: riprova.";
+}
+
 /**
  * Ricontrolla con l'IA la divisione in blocchi delle schede già salvate e
  * propone le correzioni: il testo dei blocchi non cambia, cambia solo dove
- * inizia ogni blocco. Ogni proposta si applica con un clic.
+ * inizia ogni blocco. Ogni proposta si applica con un clic. Le schede che l'IA
+ * non riesce a controllare vengono elencate, e si possono riprovare da sole.
  */
-export function PlanSplitCheck({ planIds, single = false }: { planIds: string[]; single?: boolean }) {
+export function PlanSplitCheck({ plans, single = false }: { plans: PlanRef[]; single?: boolean }) {
   const router = useRouter();
   const [phase, setPhase] = useState<"idle" | "checking" | "done">("idle");
   const [checked, setChecked] = useState(0);
+  const [total, setTotal] = useState(plans.length);
   const [proposals, setProposals] = useState<PlanSplitProposal[]>([]);
   const [unchanged, setUnchanged] = useState(0);
-  const [failed, setFailed] = useState(0);
-  const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [failures, setFailures] = useState<PlanSplitFailure[]>([]);
+  /** Schede salvate con la nuova divisione, con il numero di blocchi che hanno ora. */
+  const [applied, setApplied] = useState<Map<string, number>>(new Map());
   const [applying, setApplying] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  async function check() {
+  /** Controlla le schede indicate; con `fresh` riparte da zero, altrimenti aggiunge ai risultati già ottenuti. */
+  async function run(targets: PlanRef[], fresh: boolean) {
     setPhase("checking");
     setChecked(0);
-    setProposals([]);
-    setUnchanged(0);
-    setFailed(0);
-    setApplied(new Set());
-    setErrors({});
-    for (let i = 0; i < planIds.length; i += CHUNK) {
-      const chunk = planIds.slice(i, i + CHUNK);
+    setTotal(targets.length);
+    setFailures([]);
+    if (fresh) {
+      setProposals([]);
+      setUnchanged(0);
+      setApplied(new Map());
+      setErrors({});
+    }
+    const notChecked: PlanSplitFailure[] = [];
+    for (let i = 0; i < targets.length; i += CHUNK) {
+      const chunk = targets.slice(i, i + CHUNK);
       try {
-        const result = await checkPlanSplitsAction(chunk);
+        const result = await checkPlanSplitsAction(chunk.map((plan) => plan.id));
         setProposals((prev) => [...prev, ...result.proposals]);
         setUnchanged((prev) => prev + result.unchanged);
-        setFailed((prev) => prev + result.failed);
+        notChecked.push(...result.failures);
+        // Il limite di richieste vale per tutte le schede: inutile insistere con le altre.
+        if (result.failures.some((f) => f.reason === "quota")) {
+          for (const plan of targets.slice(i + CHUNK)) {
+            notChecked.push({ planId: plan.id, planTitle: plan.title, reason: "quota" });
+          }
+          setChecked(targets.length);
+          break;
+        }
       } catch {
-        setFailed((prev) => prev + chunk.length);
+        for (const plan of chunk) notChecked.push({ planId: plan.id, planTitle: plan.title, reason: "unavailable" });
       }
       setChecked((prev) => prev + chunk.length);
-      if (i + CHUNK < planIds.length) await new Promise((resolve) => setTimeout(resolve, PAUSE_MS));
+      if (i + CHUNK < targets.length) await new Promise((resolve) => setTimeout(resolve, PAUSE_MS));
     }
+    setFailures(notChecked);
     setPhase("done");
+  }
+
+  function retryFailed() {
+    const ids = new Set(failures.map((f) => f.planId));
+    void run(
+      plans.filter((plan) => ids.has(plan.id)),
+      false,
+    );
   }
 
   async function apply(proposal: PlanSplitProposal): Promise<boolean> {
     setApplying(proposal.planId);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[proposal.planId];
+      return next;
+    });
     const result = await applyPlanSplitAction(proposal.planId, proposal.headings).catch(() => ({
       error: "Non è stato possibile salvare la nuova divisione. Riprova.",
+      blockCount: undefined,
     }));
     setApplying(null);
     if (result.error) {
       setErrors((prev) => ({ ...prev, [proposal.planId]: result.error! }));
       return false;
     }
-    setApplied((prev) => new Set(prev).add(proposal.planId));
+    setApplied((prev) => new Map(prev).set(proposal.planId, result.blockCount ?? proposal.after.length));
     return true;
   }
 
@@ -101,6 +153,21 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
   }
 
   const pending = proposals.filter((p) => !applied.has(p.planId));
+
+  const summary =
+    proposals.length > 0
+      ? single
+        ? "L'IA propone una divisione diversa."
+        : `${proposals.length === 1 ? "1 scheda da correggere" : `${proposals.length} schede da correggere`}${
+            unchanged > 0 ? ` · ${unchanged} già giust${unchanged === 1 ? "a" : "e"}` : ""
+          }.`
+      : failures.length > 0
+        ? unchanged > 0
+          ? `${unchanged} ${unchanged === 1 ? "scheda già giusta" : "schede già giuste"}.`
+          : null
+        : single
+          ? "La divisione è già giusta: nulla da correggere."
+          : "Tutte le schede sono già divise bene: nulla da correggere.";
 
   return (
     <div
@@ -126,7 +193,7 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
             type="button"
             size="sm"
             variant={phase === "done" ? "outline" : "primary"}
-            onClick={check}
+            onClick={() => void run(plans, true)}
             // Nella colonna stretta della singola scheda il pulsante va a capo sotto il testo.
             className={cn(single && "basis-full sm:basis-auto lg:basis-full")}
           >
@@ -135,7 +202,7 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
               ? "Ricontrolla"
               : single
                 ? "Ricontrolla con l'IA"
-                : `Controlla ${planIds.length === 1 ? "la scheda" : `le ${planIds.length} schede`}`}
+                : `Controlla ${plans.length === 1 ? "la scheda" : `le ${plans.length} schede`}`}
           </Button>
         )}
       </div>
@@ -143,12 +210,12 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
       {phase === "checking" && (
         <div className="mt-4" role="status">
           <p className="text-sm font-semibold text-foreground">
-            {single ? "L'IA sta rileggendo la scheda…" : `Controllo in corso: ${checked} di ${planIds.length}…`}
+            {single ? "L'IA sta rileggendo la scheda…" : `Controllo in corso: ${checked} di ${total}…`}
           </p>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-card">
             <div
               className="h-full rounded-full bg-primary transition-[width] duration-500"
-              style={{ width: `${Math.max(8, (checked / Math.max(1, planIds.length)) * 100)}%` }}
+              style={{ width: `${Math.max(8, (checked / Math.max(1, total)) * 100)}%` }}
             />
           </div>
         </div>
@@ -156,26 +223,48 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
 
       {phase === "done" && (
         <div className="mt-4 space-y-3">
-          <p className="text-sm text-foreground/80" role="status">
-            {proposals.length === 0
-              ? single
-                ? "La divisione è già giusta: nulla da correggere."
-                : "Tutte le schede sono già divise bene: nulla da correggere."
-              : single
-                ? "L'IA propone una divisione diversa."
-                : `${proposals.length === 1 ? "1 scheda da correggere" : `${proposals.length} schede da correggere`}${
-                    unchanged > 0 ? ` · ${unchanged} già giust${unchanged === 1 ? "a" : "e"}` : ""
-                  }.`}
-            {failed > 0 &&
-              ` ${failed === 1 ? "Una scheda non è stata controllata" : `${failed} schede non sono state controllate`} (IA non disponibile): riprova più tardi.`}
-          </p>
+          {summary && (
+            <p className="text-sm text-foreground/80" role="status">
+              {summary}
+            </p>
+          )}
+
+          {failures.length > 0 && (
+            <div className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-foreground" data-plan-split-failures>
+              <p className="font-semibold text-warning">
+                {single
+                  ? "L'IA non ha potuto controllare la scheda."
+                  : failures.length === 1
+                    ? "Una scheda non è stata controllata:"
+                    : `${failures.length} schede non sono state controllate:`}
+              </p>
+              {!single && (
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+                  {failures.slice(0, MAX_FAILURES_LISTED).map((f) => (
+                    <li key={f.planId}>{f.planTitle}</li>
+                  ))}
+                  {failures.length > MAX_FAILURES_LISTED && (
+                    <li className="list-none text-muted-foreground">
+                      …e altre {failures.length - MAX_FAILURES_LISTED}
+                    </li>
+                  )}
+                </ul>
+              )}
+              <p className="mt-1.5 text-foreground/80">{failureExplanation(failures)}</p>
+              <Button type="button" size="sm" variant="outline" className="mt-2.5" onClick={retryFailed}>
+                <RotateCw className="h-4 w-4" />
+                {single || failures.length === 1 ? "Riprova" : `Riprova le ${failures.length} non controllate`}
+              </Button>
+            </div>
+          )}
 
           {proposals.map((proposal) => {
-            const done = applied.has(proposal.planId);
+            const savedBlocks = applied.get(proposal.planId);
             return (
+              // @container: sotto i 28rem di larghezza (colonna stretta) le due divisioni vanno una sopra l'altra.
               <div
                 key={proposal.planId}
-                className="rounded-xl border border-border bg-card p-4 shadow-card"
+                className="@container rounded-xl border border-border bg-card p-4 shadow-card"
                 data-plan-split-proposal={proposal.planId}
               >
                 {!single && (
@@ -186,15 +275,21 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
                     {proposal.planTitle}
                   </Link>
                 )}
-                <div className={cn("grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-start", !single && "mt-3")}>
-                  <div>
+                <div
+                  className={cn(
+                    "grid gap-3 @md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @md:items-start @md:gap-4",
+                    !single && "mt-3",
+                  )}
+                >
+                  <div className="min-w-0">
                     <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
                       Ora · {proposal.before.length} blocch{proposal.before.length === 1 ? "o" : "i"}
                     </p>
                     <BlockList blocks={proposal.before} tone="old" />
                   </div>
-                  <ArrowRight className="hidden h-4 w-4 self-center text-muted-foreground sm:block" aria-hidden />
-                  <div>
+                  <ArrowRight className="hidden h-4 w-4 self-center text-muted-foreground @md:block" aria-hidden />
+                  <ArrowDown className="h-4 w-4 text-muted-foreground @md:hidden" aria-hidden />
+                  <div className="min-w-0">
                     <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-primary">
                       Con l&apos;IA · {proposal.after.length} blocch{proposal.after.length === 1 ? "o" : "i"}
                     </p>
@@ -202,10 +297,10 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  {done ? (
+                  {savedBlocks !== undefined ? (
                     <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-success">
                       <Check className="h-4 w-4" />
-                      Nuova divisione salvata.
+                      Salvata: ora la scheda ha {savedBlocks} blocch{savedBlocks === 1 ? "o" : "i"}.
                     </p>
                   ) : (
                     <Button
@@ -221,7 +316,9 @@ export function PlanSplitCheck({ planIds, single = false }: { planIds: string[];
                     </Button>
                   )}
                   {errors[proposal.planId] && (
-                    <p className="text-sm font-medium text-destructive">{errors[proposal.planId]}</p>
+                    <p className="text-sm font-medium text-destructive" role="alert">
+                      {errors[proposal.planId]}
+                    </p>
                   )}
                 </div>
               </div>
