@@ -195,10 +195,15 @@ export async function saveMatchAction(
   redirect("/admin/partite");
 }
 
+/** Pagine da cui si può eliminare una partita e su cui si torna dopo (il resto torna all'elenco). */
+const DELETE_RETURN_PATHS = new Set(["/admin/partite", "/admin/partite/portale"]);
+
 export async function deleteMatchAction(formData: FormData): Promise<void> {
   await requireStaffPage("partite");
   const id = formData.get("id")?.toString();
   if (!id) return;
+  const requestedReturn = formData.get("returnTo")?.toString() ?? "";
+  const returnTo = DELETE_RETURN_PATHS.has(requestedReturn) ? requestedReturn : "/admin/partite";
   const repo = await getActiveRepo();
   const match = await repo.getMatch(id);
   await repo.deleteMatch(id);
@@ -214,9 +219,11 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
     );
   }
   revalidatePath("/admin/partite");
+  revalidatePath("/admin/partite/portale");
+  revalidatePath("/admin");
   revalidatePath(match?.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
-  redirect("/admin/partite");
+  redirect(returnTo);
 }
 
 const positionSchema = z.union([

@@ -100,18 +100,19 @@ staff (Developer e Admin).
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati
   delle gare. La classifica è pubblica in fondo alla homepage, con il logo di
   ogni squadra (quello del portale, servito dal nostro sito e tenuto in cache;
-  per Volley Lignano lo stemma del sito). In `/admin/partite` l'elenco
-  «Partite registrate» è separato dal riquadro «Collegamento con il portale
-  FIPAV» (in fondo, raggiungibile da `#portale`), dove gli admin
-  trovano i risultati come proposte e le partite del campionato che nel sito
-  mancano, da aggiungere al calendario con anteprima e conferma (senza
-  duplicare quelle già inserite) e le avvisano se il portale ha cambiato una
-  partita già in calendario (data, ora, avversaria o casa/trasferta: la
-  federazione a volte rivede il calendario tenendo i numeri di gara e
-  cambiando gli abbinamenti; si aggiorna con un clic, palestra compresa) o se
-  una partita del sito non corrisponde a nessuna gara ufficiale (le partite del
-  portale non ancora inserite non sono un errore e non vengono segnalate nella
-  dashboard): nulla viene salvato finché non lo si conferma, e un risultato scritto a mano non viene mai
+  per Volley Lignano lo stemma del sito). In `/admin/partite` un riquadro
+  dice se il sito è allineato al portale e apre `/admin/partite/portale`, la
+  pagina «Portale FIPAV»: per ogni gara ufficiale un solo stato
+  (`src/lib/federation/portal.ts`) e, divise per tipo, solo le cose da
+  sistemare — risultati da confermare (anche tutti insieme), partite cambiate
+  sul portale (data, ora, avversaria o casa/trasferta: la federazione a volte
+  rivede il calendario tenendo i numeri di gara), casi da verificare con una
+  domanda ciascuno (partita simile in un altro giorno: collega o aggiungi;
+  gara giocata assente nel sito: aggiungi con il risultato; risultato diverso;
+  partita del sito senza gara ufficiale: collega, amichevole o elimina) — più
+  le partite del calendario ufficiale da aggiungere (facoltative, non segnalate
+  come errore) e il calendario completo con lo stato di ogni gara. Nulla viene
+  salvato finché non lo si conferma, e un risultato scritto a mano non viene mai
   sovrascritto senza una scelta esplicita. L'indirizzo del girone di ogni
   categoria si imposta dal Centro di controllo (solo Developer); `U14` resta
   nascosta finché non viene pubblicato. Se il portale non risponde si tengono
@@ -205,6 +206,11 @@ non deve mai iniziare con `NEXT_PUBLIC_`.
 3. Esegui il deploy. Se non hai ancora eseguito `npm run seed`, puoi farlo
    in locale puntando alle stesse variabili d'ambiente del progetto Supabase
    collegato a Vercel.
+4. Le funzioni del server girano a Francoforte (`"regions": ["fra1"]` in
+   `vercel.json`), vicino al database: ogni lettura costa pochi centesimi di
+   secondo invece di attraversare l'oceano. Se il progetto Supabase è in
+   un'altra regione (Supabase → Project Settings → General), scegli in
+   `vercel.json` la regione di Vercel più vicina.
 
 ## Struttura del progetto
 
@@ -215,7 +221,7 @@ src/
     login/                Login staff
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti
-      partite/             CRUD partite
+      partite/             CRUD partite (portale/: confronto con il portale FIPAV)
       schede/              Schede allenamento (blocchi incorporati nella scheda)
       presenze/            Registro presenze, anagrafica atlete, storico
       staff/               Creazione/modifica account admin
@@ -232,6 +238,7 @@ src/
     push.ts                Invio notifiche push (web-push)
     federation/            Lettura classifiche e risultati dal portale FIPAV
   proxy.ts                 Protezione route /admin (ex "middleware")
+  instrumentation.ts       Ora italiana per tutto il server (Vercel gira in UTC)
 public/
   manifest.webmanifest     Manifest PWA
   sw.js                    Service worker (notifiche push)
@@ -242,7 +249,7 @@ scripts/
   seed.mjs                 Crea l'account Developer iniziale
 unit/                      Test senza rete né server (npm run test:unit)
 e2e/                       Test end-to-end (npm run test:e2e)
-vercel.json                Controllo giornaliero delle classifiche (cron)
+vercel.json                Regione delle funzioni (fra1) e controllo giornaliero delle classifiche (cron)
 ```
 
 ## Prossimi sviluppi possibili

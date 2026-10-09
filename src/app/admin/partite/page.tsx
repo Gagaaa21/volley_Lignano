@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { ArrowDown, Download, Plus, Swords } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, ChevronRight, Download, Link2, Plus, Swords } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -9,23 +10,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedLinks } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
-import { actionableProposals, calendarMismatchCount, loadOfficialResults } from "@/lib/federation/load";
+import { loadOfficialResults, officialToAddCount, officialTodoCount, officialTodoParts } from "@/lib/federation/load";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
 import { MatchList } from "./MatchList";
-import { OfficialCalendarSection } from "./OfficialCalendarSection";
-import { OfficialResultsSection } from "./OfficialResultsSection";
-import { PortalPanel } from "./PortalPanel";
 
 export const metadata: Metadata = {
   title: "Partite",
 };
-
-// La lettura dei gironi dal portale (qualche tentativo ciascuno) può superare
-// il tempo massimo di default delle funzioni, soprattutto sul piano gratuito di
-// Vercel: 60 secondi bastano e restano entro il limite anche di quel piano.
-export const maxDuration = 60;
 
 export default async function MatchesListPage({
   searchParams,
@@ -39,21 +32,26 @@ export default async function MatchesListPage({
   const activeCategory: "all" | Category = isU14U15 && (cat === "U14" || cat === "U15") ? cat : "all";
 
   const repo = await getActiveRepo();
-  const matches = await repo.listMatches({
+  // Partite e dati del portale in parallelo; senza filtro di categoria le
+  // partite sono le stesse che servono al confronto con il portale.
+  const matchesPromise = repo.listMatches({
     team,
     category: activeCategory === "all" ? undefined : activeCategory,
   });
-
-  // Risultati ufficiali della federazione: solo per U14/U15, e rilettura dal
-  // portale in secondo piano se i dati hanno più di 30 minuti.
   if (isU14U15) scheduleFederationRefresh();
-  const official = isU14U15
-    ? (await loadOfficialResults(repo)).filter((entry) => activeCategory === "all" || entry.source.category === activeCategory)
-    : [];
+  const [matches, allOfficial] = await Promise.all([
+    matchesPromise,
+    isU14U15 ? loadOfficialResults(repo, activeCategory === "all" ? matchesPromise : undefined) : Promise.resolve([]),
+  ]);
+  const official = allOfficial.filter(
+    (entry) => entry.source.enabled && entry.source.url && (activeCategory === "all" || entry.source.category === activeCategory),
+  );
 
-  // Lo strumento del portale compare solo se almeno una categoria è collegata.
-  const showPortal = official.some((entry) => entry.source.enabled);
-  const portalToCheck = calendarMismatchCount(official) + actionableProposals(official).length;
+  // Il riquadro del portale compare solo se almeno una categoria è collegata.
+  const showPortal = official.length > 0;
+  const portalTodo = officialTodoCount(official);
+  const portalToAdd = officialToAddCount(official);
+  const portalHref = activeCategory === "all" ? "/admin/partite/portale" : `/admin/partite/portale?cat=${activeCategory}`;
 
   return (
     <div>
@@ -87,17 +85,42 @@ export default async function MatchesListPage({
               }))}
             />
           </div>
-          {showPortal && portalToCheck > 0 && (
-            <a
-              href="#portale"
-              data-portal-alert
-              className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-3 py-1.5 text-[13px] font-semibold text-warning transition-colors hover:bg-warning-soft/70"
-            >
-              Dal portale FIPAV: {portalToCheck} {portalToCheck === 1 ? "cosa da controllare" : "cose da controllare"}
-              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
-            </a>
-          )}
         </div>
+      )}
+
+      {isU14U15 && showPortal && (
+        <Link
+          href={portalHref}
+          data-tour="section-partite-official"
+          data-portal-alert={portalTodo > 0 ? "" : undefined}
+          className={
+            portalTodo > 0
+              ? "group mb-8 flex items-center gap-3.5 rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3.5 transition-colors hover:border-warning/50 sm:px-5"
+              : "group mb-8 flex items-center gap-3.5 rounded-2xl border border-primary/20 bg-primary-soft/60 px-4 py-3.5 transition-colors hover:border-primary/40 sm:px-5"
+          }
+        >
+          <span
+            className={
+              portalTodo > 0
+                ? "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-warning text-white"
+                : "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"
+            }
+            aria-hidden
+          >
+            {portalTodo > 0 ? <Link2 className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-base font-bold text-foreground">Portale FIPAV</span>
+            <span className={portalTodo > 0 ? "block text-sm font-semibold text-warning" : "block text-sm text-muted-foreground"}>
+              {portalTodo > 0
+                ? `Da sistemare: ${officialTodoParts(official).join(" · ")}.`
+                : portalToAdd > 0
+                  ? `Tutto allineato. ${portalToAdd === 1 ? "1 partita del calendario ufficiale non è" : `${portalToAdd} partite del calendario ufficiale non sono`} ancora nel sito.`
+                  : "Tutto allineato con il calendario e i risultati ufficiali."}
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
       )}
 
       <section aria-labelledby="partite-registrate">
@@ -128,12 +151,6 @@ export default async function MatchesListPage({
         )}
       </section>
 
-      {isU14U15 && showPortal && (
-        <PortalPanel>
-          <OfficialCalendarSection official={official} />
-          <OfficialResultsSection official={official} />
-        </PortalPanel>
-      )}
     </div>
   );
 }

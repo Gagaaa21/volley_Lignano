@@ -56,8 +56,8 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     id: "section-partite-official",
     path: "/admin/partite",
     target: "section-partite-official",
-    title: "Collegamento con il portale FIPAV",
-    body: "In fondo alla pagina c'è uno strumento separato dalle partite registrate: legge il portale della federazione e ti propone partite da aggiungere, partite da correggere e risultati da confermare (\"Conferma risultato\" compila i set). Nulla cambia senza un tuo clic, e un risultato che hai già scritto non viene mai cambiato da solo.",
+    title: "Portale FIPAV",
+    body: "Questo riquadro ti dice se il sito è allineato al portale della federazione e apre la pagina \"Portale FIPAV\": lì trovi, divise per tipo, solo le cose da sistemare (risultati da confermare, partite cambiate, casi da verificare) e le partite del calendario ufficiale da aggiungere. Nulla cambia senza un tuo clic, e un risultato che hai già scritto non viene mai cambiato da solo.",
   },
 ];
 

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { loginAsDev, switchTeam } from "./helpers";
 
 /**
@@ -119,11 +119,6 @@ async function createMatch(page: Page, fields: { opponent: string; away?: boolea
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
 }
 
-/** Gara ufficiale ancora da decidere (non quelle ignorate, che stanno sotto «Gare ignorate»). */
-function proposal(section: Locator, game: string) {
-  return section.locator(`li[data-official-game="${game}"][data-official-state="proposal"]`);
-}
-
 /** Riga della partita nell'elenco, per il nome dell'avversaria. */
 function matchRow(page: Page, opponent: string) {
   return page.locator('a[href^="/admin/partite/"]', { hasText: opponent });
@@ -164,91 +159,90 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
   await expect(matchRow(page, "Itas Ceccarelli")).toContainText("3–0");
 
-  // --- 2b. Calendario ufficiale: mancano la gara 12 (Farravolo è già nel sito, ma con la data
-  // lontana: dubbio, deselezionata) e la gara 13 (nuova, selezionata). ---
+  // --- 3. Partite: un riquadro in alto dice cosa c'è da sistemare e apre la pagina del portale. ---
   await page.goto("/admin/partite");
-  const calendar = page.getByRole("region", { name: "Calendario ufficiale" });
-  // Le partite registrate e lo strumento del portale sono due cose separate, in due riquadri.
   const registered = page.getByRole("region", { name: "Partite registrate" });
-  const portalPanel = page.getByRole("region", { name: "Collegamento con il portale FIPAV" });
   await expect(registered).toContainText("Farravolo");
-  await expect(registered.getByRole("region", { name: "Calendario ufficiale" })).toHaveCount(0);
-  await expect(registered.getByRole("region", { name: "Risultati ufficiali" })).toHaveCount(0);
-  await expect(portalPanel.getByRole("region", { name: "Calendario ufficiale" })).toBeVisible();
-  await expect(portalPanel.getByRole("region", { name: "Risultati ufficiali" })).toBeVisible();
-  await expect(portalPanel.getByRole("link", { name: /vs Farravolo/ })).toHaveCount(0);
-  await expect(page.locator("[data-portal-alert]")).toContainText("cose da controllare");
-  await expect(calendar).toContainText("Mancano 2 partite");
-  const dubious = calendar.locator('li[data-official-game="12"]');
-  await expect(dubious).toHaveAttribute("data-official-kind", "maybe-duplicate");
-  await expect(dubious).toContainText("Nel sito c'è già «Farravolo»");
-  await expect(dubious.getByRole("checkbox")).not.toBeChecked();
-  const fresh = calendar.locator('li[data-official-game="13"]');
-  await expect(fresh).toHaveAttribute("data-official-kind", "new");
-  await expect(fresh).toContainText("vs ASD SANGIORGINA");
-  await expect(fresh).toContainText("in trasferta");
-  await expect(fresh.getByRole("checkbox")).toBeChecked();
-  await expect(calendar.getByRole("button", { name: "Aggiungi 1 partita" })).toBeVisible();
+  const alert = page.locator("[data-portal-alert]");
+  await expect(alert).toContainText("1 risultato da confermare");
+  await expect(alert).toContainText("2 da verificare");
 
-  // --- 3. La dashboard segnala le tre gare da guardare. ---
+  // La dashboard segnala le stesse cose, con un solo avviso.
   await page.goto("/admin");
-  await expect(page.getByText(/Ci sono 3 risultati ufficiali della federazione da confermare/)).toBeVisible();
+  await expect(page.getByText(/Portale FIPAV, da sistemare: 1 risultato da confermare · 2 da verificare/)).toBeVisible();
+  await page.getByText(/Portale FIPAV, da sistemare/).click();
+  await page.waitForURL(/\/admin\/partite\/portale$/);
 
-  // --- 4. Partite: le proposte. ---
-  await page.goto("/admin/partite");
-  const section = page.getByRole("region", { name: "Risultati ufficiali" });
-  await expect(section.locator('li[data-official-state="proposal"]')).toHaveCount(3);
+  // --- 4. Pagina del portale: ogni gara compare una volta sola, nel gruppo giusto. ---
+  const results = page.locator('[data-portal-group="risultati"]');
+  const toCheck = page.locator('[data-portal-group="verificare"]');
+  const toAdd = page.locator('[data-portal-group="aggiungere"]');
+  await expect(results.locator("li[data-portal-game]")).toHaveCount(1);
+  await expect(toCheck.locator("li[data-portal-game]")).toHaveCount(2);
+  await expect(toAdd.locator("li[data-portal-game]")).toHaveCount(1);
 
   // Gara 5: partita senza risultato → si conferma e si compilano i set.
-  const game5 = proposal(section, "5");
+  const game5 = results.locator('li[data-portal-game="5"]');
   await expect(game5).toContainText("Partita nel sito");
   await expect(game5).toContainText("25-16 · 25-15 · 25-10");
   await game5.getByRole("button", { name: "Conferma risultato" }).click();
-  await expect(proposal(section, "5")).toHaveCount(0);
-  await expect(matchRow(page, "Pav Bressa")).toContainText("3–0");
+  await expect(results).toHaveCount(0);
 
   // Gara 10: risultato diverso già scritto → resta il nostro, si segnala soltanto.
-  const game10 = proposal(section, "10");
-  await expect(game10).toContainText("Nel sito hai scritto un risultato diverso: resta il tuo");
+  const game10 = toCheck.locator('li[data-portal-game="10"]');
+  await expect(game10).toHaveAttribute("data-portal-status", "conflict");
+  await expect(game10).toContainText("Nel sito hai scritto un risultato diverso");
   await expect(game10).toContainText("3–0");
   await expect(game10).toContainText("3–1");
   await game10.getByRole("button", { name: "Tieni il mio" }).click();
-  await expect(proposal(section, "10")).toHaveCount(0);
-  await expect(matchRow(page, "Itas Ceccarelli")).toContainText("3–0");
+  await expect(toCheck.locator('li[data-portal-game="10"]')).toHaveCount(0);
 
   // Ripristinata, la scelta esplicita «Usa quello ufficiale» sostituisce il risultato.
   await page.getByText(/Gare ignorate \(1\)/).click();
   await page.getByRole("button", { name: "Ripristina" }).click();
-  const restored = proposal(section, "10");
+  const restored = toCheck.locator('li[data-portal-game="10"]');
   await expect(restored).toContainText("Nel sito hai scritto un risultato diverso");
   await restored.getByRole("button", { name: "Usa quello ufficiale" }).click();
-  await expect(proposal(section, "10")).toHaveCount(0);
+  await expect(toCheck.locator('li[data-portal-game="10"]')).toHaveCount(0);
+
+  // Gara 12: nel sito c'è Farravolo con un'altra data → «È la stessa partita?» → sì: collegata, con il risultato.
+  const game12 = toCheck.locator('li[data-portal-game="12"]');
+  await expect(game12).toHaveAttribute("data-portal-status", "maybe-same");
+  await expect(game12).toContainText("Nel sito c'è vs Farravolo");
+  await game12.getByRole("button", { name: "Sì: collega e salva il risultato" }).click();
+  await expect(toCheck).toHaveCount(0);
+  await expect(page.locator("[data-portal-all-good]")).toContainText("Niente da sistemare");
+
+  await page.goto("/admin/partite");
+  await expect(matchRow(page, "Pav Bressa")).toContainText("3–0");
   await expect(matchRow(page, "Itas Ceccarelli")).toContainText("3–1");
-
-  // Gara 12: nessuna partita abbinata da sola (data lontana) → si sceglie a mano.
-  const game12 = proposal(section, "12");
-  await expect(game12).toContainText("Nessuna partita del sito abbinata");
-  const choices = game12.getByRole("combobox");
-  const options = await choices.locator("option").allTextContents();
-  const farravolo = options.find((text) => text.includes("Farravolo"));
-  expect(farravolo, "la partita con Farravolo è tra quelle proposte").toBeTruthy();
-  await choices.selectOption({ label: farravolo! });
-  await game12.getByRole("button", { name: "Abbina e conferma" }).click();
   await expect(matchRow(page, "Farravolo")).toContainText("3–1");
-  await expect(page.getByText("Nessun risultato ufficiale da confermare.")).toBeVisible();
-
-  // --- 4b. Abbinata la gara 12, nel calendario ufficiale resta solo la 13: si aggiunge con un clic. ---
-  await expect(calendar).toContainText("Manca 1 partita");
-  // Una partita che manca nel sito non è un errore: la dashboard non la segnala.
+  // Le partite che mancano nel sito non sono un errore: niente avviso, solo l'informazione.
+  await expect(page.locator("[data-portal-alert]")).toHaveCount(0);
+  await expect(page.getByText("1 partita del calendario ufficiale non è ancora nel sito")).toBeVisible();
   await page.goto("/admin");
   await expect(page.locator('[data-tour="dashboard-stats"]')).toBeVisible();
-  await expect(page.getByText(/diverse? dal calendario ufficiale/)).toHaveCount(0);
-  await page.goto("/admin/partite");
-  await expect(calendar).toContainText("Manca 1 partita");
-  await calendar.getByRole("button", { name: "Aggiungi 1 partita" }).click();
-  await expect(calendar.getByText("Aggiunta 1 partita al calendario.")).toBeVisible();
-  await expect(calendar).toContainText("tutte le 4 partite del calendario ufficiale sono già nel sito");
+  await expect(page.getByText(/Portale FIPAV, da sistemare/)).toHaveCount(0);
+
+  // --- 4b. La gara 13 si aggiunge con un clic. ---
+  await page.goto("/admin/partite/portale");
+  const game13 = toAdd.locator('li[data-portal-game="13"]');
+  await expect(game13).toContainText("vs ASD SANGIORGINA");
+  await expect(game13).toContainText("in trasferta");
+  await expect(game13.getByRole("checkbox")).toBeChecked();
+  await toAdd.getByRole("button", { name: "Aggiungi 1 partita" }).click();
+  await expect(page.locator("[data-portal-all-good]")).toContainText("Tutto in ordine");
+  await expect(toAdd).toHaveCount(0);
+
+  // Una partita del sito senza gara ufficiale: si segnala, e se è un'amichevole si toglie dal confronto.
+  await createMatch(page, { opponent: "Squadra fantasma", date: "2026-11-20T18:00" });
   await expect(matchRow(page, "ASD SANGIORGINA")).toBeVisible();
+  await page.goto("/admin/partite/portale");
+  const orphan = toCheck.locator("li[data-portal-orphan]");
+  await expect(orphan).toContainText("vs Squadra fantasma");
+  await expect(orphan).toContainText("Nel calendario ufficiale della squadra non c'è una gara così");
+  await orphan.getByRole("button", { name: "È un'amichevole" }).click();
+  await expect(toCheck).toHaveCount(0);
 
   // «Aggiorna ora» appena dopo una lettura: non carica di nuovo il portale.
   await page.getByRole("button", { name: "Aggiorna ora" }).click();
@@ -260,24 +254,26 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   await saveSource(page, portalUrl, OUR_TEAM);
   await expect(page.getByText(/Girone letto: 5 squadre, 10 gare/)).toBeVisible({ timeout: 30_000 });
   await page.goto("/admin");
-  await expect(page.getByText(/Una partita è diversa dal calendario ufficiale \(data, avversaria o campo\)/)).toBeVisible();
-  await page.goto("/admin/partite");
-  const changed = calendar.locator('li[data-official-game="13"]');
+  await expect(page.getByText(/Portale FIPAV, da sistemare: 1 partita cambiata/)).toBeVisible();
+  await page.goto("/admin/partite/portale");
+  const changedGroup = page.locator('[data-portal-group="cambiate"]');
+  const changed = changedGroup.locator('li[data-portal-game="13"]');
   await expect(changed).toContainText("Nel sito:");
   await expect(changed).toContainText("vs ASD SANGIORGINA");
   await expect(changed).toContainText("sab 10 ott · ore 20:30");
   await expect(changed).toContainText("Sul portale:");
   await expect(changed).toContainText("vs Pizza D'Oro-PAV BRESSA");
   await expect(changed).toContainText("dom 11 ott · ore 18:00");
-  await expect(changed).toContainText("Cambia l'avversaria");
-  await calendar.getByRole("button", { name: "Aggiorna 1 partita" }).click();
-  await expect(calendar.getByText("Aggiornata 1 partita.").first()).toBeVisible();
-  await expect(calendar.getByText("è cambiata sul portale")).toHaveCount(0);
+  await expect(changed).toContainText("Cambiano l'avversaria, la data o l'ora e la palestra.");
+  await changedGroup.getByRole("button", { name: "Aggiorna 1 partita" }).click();
+  await expect(changedGroup).toHaveCount(0);
+  await expect(page.locator("[data-portal-all-good]")).toContainText("Tutto in ordine");
+  await page.goto("/admin/partite");
   const revised = page.locator('a[href^="/admin/partite/"]', { hasText: "Pizza D'Oro" });
   await expect(revised).toContainText("18:00");
   await expect(matchRow(page, "ASD SANGIORGINA")).toHaveCount(0);
   await page.goto("/admin");
-  await expect(page.getByText(/diverse? dal calendario ufficiale \(data, avversaria o campo\)/)).toHaveCount(0);
+  await expect(page.getByText(/Portale FIPAV, da sistemare/)).toHaveCount(0);
 
   // --- 5. Classifica pubblica. ---
   await page.goto("/");

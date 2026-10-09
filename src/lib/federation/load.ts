@@ -1,39 +1,39 @@
 import "server-only";
 import {
-  calendarMismatchCount as countCalendarMismatches,
-  computeCalendarImport,
-  type CalendarImportSet,
-} from "@/lib/federation/calendarImport";
-import { computeProposals, type Proposal, type ProposalSet } from "@/lib/federation/proposals";
+  computePortalView,
+  portalTodoCount,
+  type PortalCategoryView,
+  type PortalGameStatus,
+} from "@/lib/federation/portal";
 import type { FederationSnapshot, FederationSource } from "@/lib/federation/types";
 import type { Repo } from "@/lib/db/repo";
+import type { Match } from "@/lib/types";
 
 export interface CategoryOfficial {
   source: FederationSource;
   /** Ultimo contenuto letto (e ultimo errore); null se non è mai stato letto. */
   snapshot: FederationSnapshot | null;
-  /** Null se per questa categoria non c'è ancora nulla da confrontare. */
-  proposals: ProposalSet | null;
-  /** Gare del calendario ufficiale che mancano nel sito; null senza dati letti. */
-  calendar: CalendarImportSet | null;
+  /** Confronto tra gare ufficiali e partite del sito; null senza dati letti. */
+  view: PortalCategoryView | null;
 }
 
-/** Per ogni categoria: dove si legge, cosa è stato letto e cosa si può
- * proporre agli admin. Solo letture dal database, mai dal portale. */
-export async function loadOfficialResults(repo: Repo): Promise<CategoryOfficial[]> {
+/** Per ogni categoria: dove si legge, cosa è stato letto e cosa c'è da
+ * sistemare. Solo letture dal database, mai dal portale. Chi ha già in mano
+ * le partite U14/U15 le passa, così non si rileggono. */
+export async function loadOfficialResults(repo: Repo, knownMatches?: Promise<Match[]>): Promise<CategoryOfficial[]> {
   try {
     const [sources, snapshots, decisions, matches] = await Promise.all([
       repo.listFederationSources(),
       repo.listFederationSnapshots(),
       repo.listFederationDecisions(),
-      repo.listMatches({ team: "u14u15" }),
+      knownMatches ?? repo.listMatches({ team: "u14u15" }),
     ]);
 
     return sources.map((source) => {
       const snapshot = snapshots.find((snap) => snap.category === source.category) ?? null;
-      const proposals =
+      const view =
         source.enabled && snapshot?.girone
-          ? computeProposals({
+          ? computePortalView({
               category: source.category,
               girone: snapshot.girone,
               aliases: source.teamAliases,
@@ -41,17 +41,7 @@ export async function loadOfficialResults(repo: Repo): Promise<CategoryOfficial[
               decisions,
             })
           : null;
-      const calendar =
-        source.enabled && snapshot?.girone
-          ? computeCalendarImport({
-              category: source.category,
-              girone: snapshot.girone,
-              aliases: source.teamAliases,
-              matches,
-              decisions,
-            })
-          : null;
-      return { source, snapshot, proposals, calendar };
+      return { source, snapshot, view };
     });
   } catch (error) {
     // Es. le tabelle della federazione non sono ancora state create su
@@ -62,17 +52,32 @@ export async function loadOfficialResults(repo: Repo): Promise<CategoryOfficial[
   }
 }
 
-/** Proposte su cui un admin deve fare qualcosa: «risultato senza parziali» è
- * solo da attendere, non si conta. */
-export function actionableProposals(official: CategoryOfficial[]): Proposal[] {
-  return official
-    .flatMap((entry) => entry.proposals?.proposals ?? [])
-    .filter((proposal) => proposal.kind !== "no-sets");
+/** Cose da sistemare (gare e partite del sito) in tutte le categorie. Le
+ * partite del portale non ancora inserite non contano: aggiungerle è facoltativo. */
+export function officialTodoCount(official: CategoryOfficial[]): number {
+  return official.reduce((total, entry) => total + (entry.view ? portalTodoCount(entry.view) : 0), 0);
 }
 
-/** Quante partite del sito sono diverse dal calendario ufficiale (data, avversaria,
- * campo o nessuna gara corrispondente). Le partite che mancano nel sito non
- * contano: non sono un errore. */
-export function calendarMismatchCount(official: CategoryOfficial[]): number {
-  return official.reduce((total, entry) => total + (entry.calendar ? countCalendarMismatches(entry.calendar) : 0), 0);
+/** Partite del calendario ufficiale (da giocare) che nel sito non ci sono ancora. */
+export function officialToAddCount(official: CategoryOfficial[]): number {
+  return official.reduce(
+    (total, entry) => total + (entry.view?.games.filter((game) => game.status === "to-add").length ?? 0),
+    0,
+  );
+}
+
+/** Le cose da sistemare a parole, per gli avvisi: «1 risultato da confermare», «2 partite cambiate», «3 da verificare». */
+export function officialTodoParts(official: CategoryOfficial[]): string[] {
+  const games = official.flatMap((entry) => entry.view?.games ?? []);
+  const count = (...statuses: PortalGameStatus[]) => games.filter((game) => statuses.includes(game.status)).length;
+  const results = count("result");
+  const changed = count("changed");
+  const toCheck =
+    count("conflict", "maybe-same", "played-missing") +
+    official.reduce((total, entry) => total + (entry.view?.orphans.length ?? 0), 0);
+  const parts: string[] = [];
+  if (results > 0) parts.push(results === 1 ? "1 risultato da confermare" : `${results} risultati da confermare`);
+  if (changed > 0) parts.push(changed === 1 ? "1 partita cambiata" : `${changed} partite cambiate`);
+  if (toCheck > 0) parts.push(`${toCheck} da verificare`);
+  return parts;
 }

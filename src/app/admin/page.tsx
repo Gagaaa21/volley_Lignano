@@ -25,7 +25,7 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { ADMIN_PAGES, isPageAvailableForTeam, type AdminPage, type CalendarEvent } from "@/lib/types";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
-import { actionableProposals, calendarMismatchCount, loadOfficialResults } from "@/lib/federation/load";
+import { loadOfficialResults, officialTodoCount, officialTodoParts } from "@/lib/federation/load";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -76,23 +76,22 @@ export default async function AdminDashboardPage({
     (action) => isPageAvailableForTeam(action.page, team) && allowedPages.includes(action.page),
   );
 
-  const [trainings, matches, athletes, attendanceSessions] = await Promise.all([
+  // Cose da sistemare dal portale della federazione (solo U14/U15 e solo per
+  // chi ha accesso a Partite): lette insieme al resto, non dopo.
+  const showOfficial = team === "u14u15" && showMatches && allowedPages.includes("partite");
+  if (showOfficial) scheduleFederationRefresh();
+  const matchesPromise = showMatches ? repo.listMatches({ team }) : Promise.resolve([]);
+  const [trainings, matches, athletes, attendanceSessions, officialData] = await Promise.all([
     repo.listTrainings({ team }),
-    showMatches ? repo.listMatches({ team }) : Promise.resolve([]),
+    matchesPromise,
     repo.listAthletes({ team }),
     showPresenze ? repo.listAttendanceSessions({ team }) : Promise.resolve([]),
+    showOfficial ? loadOfficialResults(repo, matchesPromise) : Promise.resolve([]),
   ]);
+  const portalTodo = officialTodoCount(officialData);
 
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
-
-  // Risultati ufficiali della federazione ancora da confermare (solo U14/U15
-  // e solo per chi ha accesso a Partite).
-  const showOfficial = team === "u14u15" && showMatches && allowedPages.includes("partite");
-  if (showOfficial) scheduleFederationRefresh();
-  const officialData = showOfficial ? await loadOfficialResults(repo) : [];
-  const officialToConfirm = actionableProposals(officialData).length;
-  const calendarMismatches = calendarMismatchCount(officialData);
 
   const activeTrainings = trainings.filter((t) => t.isActive);
   const activeAthletes = athletes.filter((a) => a.isActive);
@@ -139,32 +138,15 @@ export default async function AdminDashboardPage({
         <p className="mt-2 text-[15px] text-muted-foreground">{summary}</p>
       </header>
 
-      {officialToConfirm > 0 && (
+      {portalTodo > 0 && (
         <Link
-          href="/admin/partite#portale"
+          href="/admin/partite/portale"
           data-tour="dashboard-official-results"
-          className="group mb-6 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm font-semibold text-primary transition-colors hover:border-primary/40"
+          className="group mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning transition-colors hover:border-warning/50"
         >
           <Swords className="h-4 w-4 shrink-0" />
           <span className="flex-1">
-            {officialToConfirm === 1
-              ? "C'è un risultato ufficiale della federazione da confermare."
-              : `Ci sono ${officialToConfirm} risultati ufficiali della federazione da confermare.`}
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      )}
-
-      {calendarMismatches > 0 && (
-        <Link
-          href="/admin/partite#portale"
-          className="group mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning transition-colors hover:border-warning/50"
-        >
-          <CalendarClock className="h-4 w-4 shrink-0" />
-          <span className="flex-1">
-            {calendarMismatches === 1
-              ? "Una partita è diversa dal calendario ufficiale (data, avversaria o campo): controlla Partite."
-              : `${calendarMismatches} partite sono diverse dal calendario ufficiale (data, avversaria o campo): controlla Partite.`}
+            Portale FIPAV, da sistemare: {officialTodoParts(officialData).join(" · ")}.
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>

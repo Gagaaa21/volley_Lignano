@@ -64,8 +64,17 @@ export interface OrphanMatch {
   externalId: string | null;
 }
 
+/** Gara ufficiale con la partita del sito che le corrisponde (abbinata da un admin o riconosciuta da sola). */
+export interface PresentGame {
+  official: OfficialMatch;
+  side: "home" | "away";
+  match: Match;
+}
+
 export interface CalendarImportSet {
   items: CalendarImportItem[];
+  /** Gare della nostra squadra già nel sito, con la partita corrispondente. */
+  present: PresentGame[];
   /** Partite già nel sito con data, ora, avversaria o campo diversi dal portale (non ancora giocate). */
   changes: GameChangeItem[];
   /** Partite del sito (non giocate) che non corrispondono a nessuna gara ufficiale della nostra squadra. */
@@ -118,6 +127,7 @@ export function computeCalendarImport(input: {
   const claimed = new Set<string>(linked.values());
   const items: CalendarImportItem[] = [];
   const changes: GameChangeItem[] = [];
+  const present: PresentGame[] = [];
   let alreadyPresent = 0;
 
   /** Una gara già giocata (o con risultato nel sito) non ha più nulla da correggere. */
@@ -138,6 +148,7 @@ export function computeCalendarImport(input: {
     const linkedId = linked.get(official.externalId);
     if (linkedId) {
       alreadyPresent++;
+      present.push({ official, side, match: byId.get(linkedId)! });
       noteChange(byId.get(linkedId)!, official, side);
       continue;
     }
@@ -146,6 +157,7 @@ export function computeCalendarImport(input: {
     if (same) {
       claimed.add(same.id);
       alreadyPresent++;
+      present.push({ official, side, match: same });
       noteChange(same, official, side);
       continue;
     }
@@ -183,7 +195,7 @@ export function computeCalendarImport(input: {
   }
   orphans.sort((a, b) => a.match.matchDate.localeCompare(b.match.matchDate));
 
-  return { items, changes, orphans, alreadyPresent, total: ours.length };
+  return { items, present, changes, orphans, alreadyPresent, total: ours.length };
 }
 
 /** La partita del sito per una gara ufficiale: dati del portale, senza ritrovo,
