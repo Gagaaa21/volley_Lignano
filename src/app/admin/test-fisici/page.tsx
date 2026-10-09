@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GemTour } from "@/components/tour/clash/GemTour";
 import { getTestFisiciTourSteps } from "@/components/tour/sectionSteps";
 import { TestFisiciHome, type AthleteTestSummary } from "./TestFisiciHome";
+import { TestFisiciTabs } from "./TestFisiciTabs";
 
 export const metadata: Metadata = {
   title: "Test fisici",
@@ -61,6 +62,8 @@ export default async function PhysicalTestsPage() {
           ) : undefined
         }
       />
+
+      {athletes.length > 0 && <TestFisiciTabs active="atlete" />}
 
       {athletes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">

@@ -18,6 +18,7 @@ import {
   groupSquatJumpSessions,
   isBodyMeasureField,
   isSquatJumpField,
+  parseMeasure,
 } from "@/lib/physicalTestFields";
 import { deletePhysicalTestAction, deleteSquatJumpSessionAction } from "../../actions";
 
@@ -156,11 +157,11 @@ export default async function AthletePhysicalTestsPage({
                         <div className="mt-1.5 flex items-center justify-between gap-2">
                           <span className="text-xs text-foreground/40">{formatDateShort(measure.latest!.date)}</span>
                           {measure.previous &&
-                            Number.isFinite(Number(measure.latest!.value)) &&
-                            Number.isFinite(Number(measure.previous.value)) && (
+                            parseMeasure(measure.latest!.value) !== null &&
+                            parseMeasure(measure.previous.value) !== null && (
                               <Delta
-                                current={Number(measure.latest!.value)}
-                                previous={Number(measure.previous.value)}
+                                current={parseMeasure(measure.latest!.value)!}
+                                previous={parseMeasure(measure.previous.value)!}
                                 unit={measure.unit}
                               />
                             )}

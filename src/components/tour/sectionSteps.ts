@@ -271,6 +271,13 @@ export function getTestFisiciTourSteps({
       title: "Si comincia da qui",
       body: "Con «Nuovo test» scegli l'atleta e registri tutto in un colpo solo: misure corporee (già precompilate dall'ultima volta), i 3 Squat Jump e ogni altro test che ti inventi.",
     },
+    hasAthletes && {
+      id: "test-fisici-riepilogo",
+      path,
+      target: "test-fisici-riepilogo",
+      title: "Tutti i fascicoli in un colpo",
+      body: "«Riepilogo» mette tutte le atlete in un'unica tabella: ultimi risultati, un giorno di test o tutte le sessioni. Ordini con un clic, vedi chi salta più in alto e scarichi tutto in CSV. Niente più fascicoli da aprire uno a uno.",
+    },
     hasSearch && {
       id: "test-fisici-search",
       path,

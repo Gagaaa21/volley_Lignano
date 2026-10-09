@@ -70,6 +70,17 @@ export interface SquatJumpSession {
   meanForza: number | null;
 }
 
+/** Numero da un testo libero, anche con la virgola decimale ("50,5"); null se
+ * è vuoto o non è un numero (Number("") e Number(null) darebbero 0, e uno 0
+ * finto falserebbe le medie). */
+export function parseMeasure(text: string | null | undefined): number | null {
+  if (text == null) return null;
+  const normalized = text.trim().replace(/\s+/g, "").replace(",", ".");
+  if (!normalized) return null;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mean(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
@@ -101,9 +112,11 @@ export function groupSquatJumpSessions(tests: PhysicalTest[]): SquatJumpSession[
 
   const sessions: SquatJumpSession[] = [...byDate.entries()].map(([date, trialsMap]) => {
     const trials = [...trialsMap.values()].sort((a, b) => a.trial - b.trial);
-    const meanTempo = mean(trials.map((t) => Number(t.tempo)).filter((n) => Number.isFinite(n)));
-    const meanAltezza = mean(trials.map((t) => Number(t.altezza)).filter((n) => Number.isFinite(n)));
-    const meanForza = mean(trials.map((t) => Number(t.forza)).filter((n) => Number.isFinite(n)));
+    const meanOf = (pick: (t: SquatJumpTrial) => string | null) =>
+      mean(trials.map((t) => parseMeasure(pick(t))).filter((n): n is number => n !== null));
+    const meanTempo = meanOf((t) => t.tempo);
+    const meanAltezza = meanOf((t) => t.altezza);
+    const meanForza = meanOf((t) => t.forza);
     return { date, trials, meanTempo, meanAltezza, meanForza };
   });
 
