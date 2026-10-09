@@ -12,6 +12,7 @@ import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
 import type { MatchInput, MatchLineupInput } from "@/lib/types";
+import { todayIso } from "@/lib/today";
 
 const schema = z
   .object({
@@ -109,7 +110,7 @@ export async function saveMatchAction(
     // Confronto solo sulla data (non sull'ora, per evitare falsi negativi
     // dovuti al fuso orario tra client e server) — chi inserisce un
     // risultato lo fa comunque a partita già conclusa da un pezzo.
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayIso();
     if (parsed.data.matchDate.slice(0, 10) > todayStr) {
       return { error: "Puoi inserire il risultato solo dopo che la partita è stata giocata." };
     }

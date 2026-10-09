@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea, FieldError, FieldHint } from "@/components/ui/Field";
 import { savePhysicalTestAction, type PhysicalTestFormState } from "./actions";
 import type { PhysicalTest } from "@/lib/types";
+import { todayIso } from "@/lib/today";
 
 const initialState: PhysicalTestFormState = {};
 
@@ -30,7 +31,7 @@ export function PhysicalTestForm({
   test?: PhysicalTest;
 }) {
   const [state, formAction] = useActionState(savePhysicalTestAction, initialState);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayIso();
 
   return (
     <form action={formAction} className="space-y-6" noValidate>

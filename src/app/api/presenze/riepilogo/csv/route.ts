@@ -3,6 +3,7 @@ import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { buildCsv } from "@/lib/csv";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { CATEGORY_LABELS, MINIVOLLEY_GROUP_LABELS } from "@/lib/category";
+import { todayIso } from "@/lib/today";
 
 /** Percentuale di presenza per atleta, stessa logica di
  * presenze/atleta/[id]/page.tsx: per il Minivolley un'assenza non ha mai
@@ -19,7 +20,7 @@ export async function GET() {
     repo.listAttendanceSessions({ team }),
   ]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayIso();
   const sessions = allSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
 
   const rows = athletes

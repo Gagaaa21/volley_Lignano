@@ -4,6 +4,7 @@ import { getRepo } from "@/lib/db";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import type { StandingRow } from "@/lib/federation/types";
 import type { AttendanceStatus, Category, MinivolleyGroup, TrainingTeam } from "@/lib/types";
+import { todayIso } from "@/lib/today";
 
 /** Tag usato per invalidare la cache da ogni azione admin che tocca il
  * calendario pubblico (allenamenti, partite, schede collegate a una data,
@@ -53,7 +54,7 @@ export const getPublicCalendarData = unstable_cache(
     // e famiglie devono poter vedere chi era presente a un allenamento, senza
     // login). Espone solo nome e stato: mai note interne o altri campi
     // dell'atleta, e solo per le sedute nel mese visibile.
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayIso();
     const athleteNameById = new Map(athletes.map((a) => [a.id, a.fullName] as const));
     const attendance: PublicAttendanceSession[] = attendanceSessions
       .filter(
@@ -110,7 +111,7 @@ export const getPublicAttendanceTally = unstable_cache(
       repo.listAthletes({ team }),
     ]);
     const athleteById = new Map(athletes.map((a) => [a.id, a] as const));
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayIso();
     const relevantSessions = attendanceSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
 
     const countByAthleteId = new Map<string, number>();

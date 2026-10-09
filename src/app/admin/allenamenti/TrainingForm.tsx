@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { trainingDotClass, TRAINING_COLOR_LABELS } from "@/lib/category";
 import { saveTrainingAction, type TrainingFormState } from "./actions";
 import { DEFAULT_TRAINING_COLOR, TRAINING_COLORS, type TrainingColor, type TrainingRepeat, type TrainingRule, type TrainingTeam } from "@/lib/types";
+import { todayIso } from "@/lib/today";
 
 const initialState: TrainingFormState = {};
 
@@ -44,7 +45,7 @@ export function TrainingForm({
   const [color, setColor] = useState<TrainingColor>(
     (values?.color as TrainingColor | undefined) ?? training?.color ?? DEFAULT_TRAINING_COLOR,
   );
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayIso();
 
   return (
     <form action={formAction} noValidate>

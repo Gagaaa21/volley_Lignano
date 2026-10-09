@@ -23,6 +23,10 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",
+    // Come i telefoni di chi usa il sito: ora italiana, come il server (vedi
+    // src/instrumentation.ts). Con il browser in UTC, tra mezzanotte e le 2
+    // «oggi» e «domani» non coinciderebbero tra server e pagina.
+    timezoneId: "Europe/Rome",
     actionTimeout: 20_000,
     navigationTimeout: 30_000,
     // Permette di puntare a un binario Chromium già scaricato altrove

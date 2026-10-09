@@ -14,6 +14,7 @@ import {
   squatJumpInputName,
   type TestSessionValues,
 } from "@/lib/physicalTestFields";
+import { todayIso } from "@/lib/today";
 
 const initialState: PhysicalTestBatchFormState = {};
 
@@ -68,7 +69,7 @@ export function TestBatchForm({
       ? session.other.map((row) => newAltroRow(row.name, row.value))
       : [newAltroRow()],
   );
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayIso();
 
   // Dopo un errore React azzera i campi non controllati: si riparte da
   // quanto era stato inviato, poi dai valori della sessione (modifica) o da

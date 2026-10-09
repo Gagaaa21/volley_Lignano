@@ -1,10 +1,12 @@
 import type { Match, MatchPrediction, SetScore, TournamentGame } from "@/lib/types";
+import { todayIso } from "@/lib/today";
 
 /** Un pronostico si blocca esattamente all'orario della partita (non solo
  * al giorno, a differenza del gate "isPastMatch" del risultato reale in
  * Partite, che ha senso restare largo perché lì si inserisce DOPO che si è
  * giocato): da quel momento non ha più senso indovinare qualcosa che è già
- * in corso o finito. */
+ * in corso o finito. L'orario della partita è ora italiana senza fuso: sul
+ * server vale perché il server lavora in ora italiana (src/instrumentation.ts). */
 export function isMatchLocked(matchDate: string): boolean {
   return new Date(matchDate).getTime() <= Date.now();
 }
@@ -17,7 +19,7 @@ export function isMatchLocked(matchDate: string): boolean {
  * non si può ancora pronosticare, anche se non è "bloccata" nel senso di
  * isMatchLocked. */
 export function isMatchDayToday(matchDate: string): boolean {
-  return matchDate.slice(0, 10) === new Date().toISOString().slice(0, 10);
+  return matchDate.slice(0, 10) === todayIso();
 }
 
 /** Vero se in questo momento si può inviare o modificare un pronostico per

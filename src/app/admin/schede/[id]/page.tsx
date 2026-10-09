@@ -14,6 +14,7 @@ import { deletePlanAction, removeBlockFromPlanAction, reorderPlanBlockAction } f
 import { isTrainingPlanAIAvailable } from "@/lib/aiTrainingPlanParser";
 import { PlanSplitCheck } from "../PlanSplitCheck";
 import { PlanDetailsForm } from "./PlanDetailsForm";
+import { todayIso } from "@/lib/today";
 
 export const metadata: Metadata = {
   title: "Scheda allenamento",
@@ -41,7 +42,7 @@ export default async function TrainingPlanDetailPage({
   const totalMinutes = planBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
 
   const trainingTitleById = new Map(trainings.map((t) => [t.id, t.title] as const));
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayIso();
   const occurrences = occurrencePlans
     .filter((o) => o.planId === plan.id)
     .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
