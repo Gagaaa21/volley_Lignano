@@ -1,12 +1,24 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { parseMinivolleyBulkLine } from "@/lib/text";
 import type { AthleteInput } from "@/lib/types";
+import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
+
+/** Nomi e gruppi delle atlete compaiono anche sul sito pubblico (presenze e
+ * convocazioni): dopo ogni modifica si aggiornano anche quelle pagine. */
+function revalidateAthletes() {
+  revalidatePath("/admin/presenze");
+  revalidatePath("/admin/presenze/atlete");
+  revalidatePath("/");
+  revalidatePath("/minivolley");
+  revalidatePath("/minivolley/presenze");
+  updateTag(PUBLIC_CALENDAR_TAG);
+}
 
 const schema = z.object({
   fullName: z.string().min(1, "Inserisci nome e cognome."),
@@ -67,8 +79,7 @@ export async function saveAthleteAction(
       await repo.createAthlete(input, session.sub);
     }
 
-    revalidatePath("/admin/presenze");
-    revalidatePath("/admin/presenze/atlete");
+    revalidateAthletes();
   } catch (err) {
     console.error("[saveAthleteAction]", err);
     return { error: "Non è stato possibile salvare l'atleta. Riprova." };
@@ -158,8 +169,7 @@ export async function bulkCreateAthletesAction(
 
     if (inputs.length > 0) await repo.createAthletesBulk(inputs, session.sub);
 
-    revalidatePath("/admin/presenze");
-    revalidatePath("/admin/presenze/atlete");
+    revalidateAthletes();
     return { created: inputs.length, skipped };
   } catch (err) {
     console.error("[bulkCreateAthletesAction]", err);
@@ -173,7 +183,6 @@ export async function deleteAthleteAction(formData: FormData): Promise<void> {
   if (!id) return;
   const repo = await getActiveRepo();
   await repo.deleteAthlete(id);
-  revalidatePath("/admin/presenze");
-  revalidatePath("/admin/presenze/atlete");
+  revalidateAthletes();
   redirect("/admin/presenze/atlete");
 }

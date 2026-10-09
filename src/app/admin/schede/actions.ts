@@ -11,7 +11,18 @@ import { parseTrainingPlanWithAI } from "@/lib/aiTrainingPlanParser";
 import { notifyStaffChange } from "@/lib/push";
 import { formatDateShort } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import type { PlanBlock } from "@/lib/types";
+import type { PlanBlock, TrainingTeam } from "@/lib/types";
+
+/** Una scheda può essere pubblica (collegata a un allenamento del calendario):
+ * dopo ogni modifica si aggiornano anche gli allenamenti e il sito pubblico
+ * della sua squadra, non solo le pagine delle schede. */
+function revalidatePlanEverywhere(planId: string, team: TrainingTeam) {
+  revalidatePath("/admin/schede");
+  revalidatePath(`/admin/schede/${planId}`);
+  revalidatePath("/admin/allenamenti", "layout");
+  revalidatePath(team === "minivolley" ? "/minivolley" : "/");
+  updateTag(PUBLIC_CALENDAR_TAG);
+}
 
 const createSchema = z.object({
   title: z.string().min(1, "Inserisci un titolo per la scheda."),
@@ -168,8 +179,7 @@ export async function updatePlanDetailsAction(
       team: plan.team,
     });
 
-    revalidatePath(`/admin/schede/${id}`);
-    revalidatePath("/admin/schede");
+    revalidatePlanEverywhere(id, plan.team);
     return {};
   } catch (err) {
     console.error("[updatePlanDetailsAction]", err);
@@ -182,8 +192,9 @@ export async function deletePlanAction(formData: FormData): Promise<void> {
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
+  const plan = await repo.getTrainingPlan(id);
   await repo.deleteTrainingPlan(id);
-  revalidatePath("/admin/schede");
+  revalidatePlanEverywhere(id, plan?.team ?? "u14u15");
   redirect("/admin/schede");
 }
 
@@ -203,7 +214,7 @@ export async function removeBlockFromPlanAction(formData: FormData): Promise<voi
     blocks: plan.blocks.filter((b) => b.id !== blockId),
     team: plan.team,
   });
-  revalidatePath(`/admin/schede/${planId}`);
+  revalidatePlanEverywhere(planId, plan.team);
 }
 
 export async function reorderPlanBlockAction(formData: FormData): Promise<void> {
@@ -230,5 +241,5 @@ export async function reorderPlanBlockAction(formData: FormData): Promise<void> 
     blocks: nextBlocks,
     team: plan.team,
   });
-  revalidatePath(`/admin/schede/${planId}`);
+  revalidatePlanEverywhere(planId, plan.team);
 }
