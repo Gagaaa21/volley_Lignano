@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Label, Select, FieldHint, Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
+import { useStageFullscreen } from "./useStageFullscreen";
 import { shortName } from "@/components/matches/VolleyCourt";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { LIVESCORE_INGAME_TOUR_STEPS, LIVESCORE_SETUP_TOUR_STEPS } from "@/components/tour/sectionSteps";
@@ -807,34 +808,10 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
   const [editingNames, setEditingNames] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [pendingServer, setPendingServer] = useState<TeamKey>("A");
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, isSimulated, toggle: toggleFullscreen } = useStageFullscreen(stageRef);
   const { match } = state;
-
-  // Segue lo stato reale dello schermo intero (anche se il coach esce con
-  // Esc invece che dal pulsante), per adattare grafica e pulsante insieme.
-  useEffect(() => {
-    function handleChange() {
-      setIsFullscreen(!!document.fullscreenElement && document.fullscreenElement === stageRef.current);
-    }
-    document.addEventListener("fullscreenchange", handleChange);
-    return () => document.removeEventListener("fullscreenchange", handleChange);
-  }, []);
-
-  async function toggleFullscreen() {
-    if (!stageRef.current) return;
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await stageRef.current.requestFullscreen();
-      }
-    } catch {
-      // Schermo intero non supportato o negato dal browser: il pulsante
-      // resta semplicemente senza effetto, nessun dato in gioco.
-    }
-  }
 
   // Al montaggio, ripristina l'eventuale allenamento salvato di recente
   // (entro LIVE_SCORE_TTL_MS): senza questo la pagina parte sempre vuota,
@@ -908,7 +885,10 @@ export function LiveScoreClient({ athleteNames }: { athleteNames: string[] }) {
         className={cn(
           "hidden sm:block",
           isFullscreen &&
-            "h-screen w-screen overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-0.5 sm:p-1",
+            "overflow-y-auto bg-gradient-to-br from-sea-50 via-background to-sand-50 p-0.5 sm:p-1",
+          // Schermo intero vero: lo riempie il browser. Simulato: il riquadro ricopre la finestra.
+          isFullscreen && !isSimulated && "h-screen w-screen",
+          isSimulated && "fixed inset-0 z-40",
         )}
       >
         <div
