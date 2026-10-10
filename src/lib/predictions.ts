@@ -1,31 +1,55 @@
 import type { Match, MatchPrediction, SetScore, TournamentGame } from "@/lib/types";
+import { format } from "date-fns";
 import { todayIso } from "@/lib/today";
 
-/** Un pronostico si blocca esattamente all'orario della partita (non solo
- * al giorno, a differenza del gate "isPastMatch" del risultato reale in
- * Partite, che ha senso restare largo perché lì si inserisce DOPO che si è
- * giocato): da quel momento non ha più senso indovinare qualcosa che è già
- * in corso o finito. L'orario della partita è ora italiana senza fuso: sul
- * server vale perché il server lavora in ora italiana (src/instrumentation.ts). */
-export function isMatchLocked(matchDate: string): boolean {
-  return new Date(matchDate).getTime() <= Date.now();
+/** Dopo l'inizio della partita i pronostici restano aperti ancora per un'ora
+ * (scelta organizzativa dello staff: chi arriva in palestra a partita già
+ * cominciata fa in tempo a inserire il suo). */
+export const PREDICTION_GRACE_MINUTES = 60;
+
+const MINUTE_MS = 60_000;
+
+/** Vero se i pronostici di una partita sono chiusi per il solo orario: è
+ * passata un'ora dall'inizio. L'orario della partita è ora italiana senza
+ * fuso: sul server vale perché il server lavora in ora italiana
+ * (src/instrumentation.ts). `now` è iniettabile per i test. */
+export function isMatchLocked(matchDate: string, now: number = Date.now()): boolean {
+  return new Date(matchDate).getTime() + PREDICTION_GRACE_MINUTES * MINUTE_MS <= now;
 }
 
-/** Vero se oggi è lo stesso giorno di calendario della partita — confronto
- * solo sulla data, stesso pattern già usato in partite/actions.ts per il
- * risultato reale. Tutte le partite restano visibili nell'elenco "Da
- * pronosticare" fin dall'inizio della stagione, ma si può effettivamente
- * pronosticare solo il giorno stesso (non prima): una partita fra due mesi
- * non si può ancora pronosticare, anche se non è "bloccata" nel senso di
- * isMatchLocked. */
-export function isMatchDayToday(matchDate: string): boolean {
-  return matchDate.slice(0, 10) === todayIso();
+/** Vero se i pronostici sono chiusi: un'ora dopo l'inizio, oppure subito se il
+ * risultato è già stato inserito (finita la partita, indovinare non ha più
+ * senso: chi arriva dopo conoscerebbe già l'esito). */
+export function arePredictionsClosed(match: Match, now: number = Date.now()): boolean {
+  return isMatchLocked(match.matchDate, now) || matchHasResult(match);
 }
 
-/** Vero se in questo momento si può inviare o modificare un pronostico per
- * questa partita: solo il giorno stesso, prima che inizi. */
-export function canPredict(matchDate: string): boolean {
-  return isMatchDayToday(matchDate) && !isMatchLocked(matchDate);
+/** Vero dal primo minuto del giorno della partita: tutte le partite restano
+ * visibili nell'elenco "Da pronosticare" fin dall'inizio della stagione, ma
+ * si può pronosticare solo a partire dal giorno in cui si gioca. Confronto
+ * solo sulla data, come in partite/actions.ts per il risultato reale. */
+export function hasPredictionOpened(matchDate: string, today: string = todayIso()): boolean {
+  return matchDate.slice(0, 10) <= today;
+}
+
+/** Vero se in questo momento si può inviare o modificare un pronostico: dal
+ * giorno della partita fino a un'ora dopo il suo inizio, e non oltre il
+ * risultato. */
+export function canPredict(match: Match, now: number = Date.now()): boolean {
+  return hasPredictionOpened(match.matchDate, todayIso(new Date(now))) && !arePredictionsClosed(match, now);
+}
+
+/** Ora di chiusura, per mostrarla: «19:00», o «00:30» con `nextDay` se la
+ * partita è così tarda che la chiusura cade dopo mezzanotte. */
+export function predictionClosingTime(matchDate: string): { time: string; nextDay: boolean } {
+  const closes = new Date(new Date(matchDate).getTime() + PREDICTION_GRACE_MINUTES * MINUTE_MS);
+  return { time: format(closes, "HH:mm"), nextDay: format(closes, "yyyy-MM-dd") !== matchDate.slice(0, 10) };
+}
+
+/** «alle 19:00» (o «alle 00:30 (dopo mezzanotte)») per le frasi in pagina. */
+export function predictionClosingLabel(matchDate: string): string {
+  const { time, nextDay } = predictionClosingTime(matchDate);
+  return nextDay ? `alle ${time} (dopo mezzanotte)` : `alle ${time}`;
 }
 
 /**

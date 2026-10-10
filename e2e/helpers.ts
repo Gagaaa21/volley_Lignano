@@ -15,6 +15,13 @@ export function localDate(offsetDays = 0): string {
  * spec la assumono già così, non ripetono il cambio password forzato. */
 export const DEV_PASSWORD = "Gaga2112e2eTest";
 
+/** Data e ora "YYYY-MM-DDTHH:mm" fra `offsetMinutes` minuti, in ora italiana come il sito. */
+export function localDateTime(offsetMinutes = 0): string {
+  const d = new Date(Date.now() + offsetMinutes * 60_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export async function login(page: Page, username: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Nome utente").fill(username);
@@ -86,4 +93,13 @@ export async function switchTeam(page: Page, team: "u14u15" | "minivolley") {
  * sullo stesso server demo, mai resettato tra un file e l'altro). */
 export function uniqueName(prefix: string) {
   return `${prefix}${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+
+/** Elimina una partita di prova: la suite gira in sequenza sullo stesso server
+ * demo, e le partite lasciate in giro falserebbero i conteggi dei test dopo. */
+export async function deleteMatchById(page: Page, id: string) {
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.goto(`/admin/partite/${id}`);
+  await page.getByRole("button", { name: "Elimina", exact: true }).click();
+  await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
 }

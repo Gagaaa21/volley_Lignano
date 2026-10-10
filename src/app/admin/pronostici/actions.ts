@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
-import { isMatchDayToday, isMatchLocked } from "@/lib/predictions";
+import { hasPredictionOpened, isMatchLocked, matchHasResult, predictionClosingLabel } from "@/lib/predictions";
 
 export interface PredictionFormState {
   error?: string;
@@ -22,11 +22,16 @@ export async function savePredictionAction(
   const repo = await getActiveRepo();
   const match = await repo.getMatch(matchId);
   if (!match) return { error: "Partita non trovata." };
-  if (isMatchLocked(match.matchDate)) {
-    return { error: "Non puoi più pronosticare o modificare: la partita è già iniziata." };
+  if (matchHasResult(match)) {
+    return { error: "Questa partita ha già il risultato: i pronostici sono chiusi." };
   }
-  if (!isMatchDayToday(match.matchDate)) {
-    return { error: "Puoi pronosticare questa partita solo il giorno stesso in cui si gioca." };
+  if (isMatchLocked(match.matchDate)) {
+    return {
+      error: `I pronostici di questa partita sono chiusi: si chiudevano un'ora dopo l'inizio (${predictionClosingLabel(match.matchDate)}).`,
+    };
+  }
+  if (!hasPredictionOpened(match.matchDate)) {
+    return { error: "Puoi pronosticare questa partita solo a partire dal giorno in cui si gioca." };
   }
 
   if (match.isTournament) {

@@ -11,9 +11,10 @@ import {
   computeLeaderboard,
   computeMatchResults,
   computeTournamentMatchResults,
-  isMatchDayToday,
-  isMatchLocked,
+  arePredictionsClosed,
+  hasPredictionOpened,
   matchHasResult,
+  predictionClosingLabel,
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader, SectionHeading } from "@/components/ui/PageHeader";
@@ -50,8 +51,8 @@ export default async function PronosticiPage() {
   }
 
   const withResult = matches.filter((m) => matchHasResult(m));
-  const upcoming = matches.filter((m) => !isMatchLocked(m.matchDate));
-  const lockedNoResult = matches.filter((m) => isMatchLocked(m.matchDate) && !matchHasResult(m));
+  const upcoming = matches.filter((m) => !arePredictionsClosed(m));
+  const lockedNoResult = matches.filter((m) => arePredictionsClosed(m) && !matchHasResult(m));
 
   const leaderboard = computeLeaderboard(withResult, predictionsByMatch);
 
@@ -77,18 +78,18 @@ export default async function PronosticiPage() {
                   const matchPredictions = predictionsByMatch.get(match.id) ?? [];
                   const mine = matchPredictions.find((p) => p.staffId === session.sub);
                   const count = matchPredictions.length;
-                  const openToday = isMatchDayToday(match.matchDate);
+                  const open = hasPredictionOpened(match.matchDate);
                   return (
                     <MatchRow
                       key={match.id}
                       match={match}
                       status={
-                        <p className={cn("mt-1 text-xs font-semibold", openToday ? "text-success" : "text-muted-foreground")}>
-                          {openToday ? (
+                        <p className={cn("mt-1 text-xs font-semibold", open ? "text-success" : "text-muted-foreground")}>
+                          {open ? (
                             count === 0 ? (
-                              "Aperto oggi · nessun pronostico ancora"
+                              `Aperto fino ${predictionClosingLabel(match.matchDate)} · nessun pronostico ancora`
                             ) : (
-                              `Aperto oggi · ${count} pronostic${count === 1 ? "o" : "i"}`
+                              `Aperto fino ${predictionClosingLabel(match.matchDate)} · ${count} pronostic${count === 1 ? "o" : "i"}`
                             )
                           ) : (
                             <span className="inline-flex items-center gap-1">
@@ -101,11 +102,11 @@ export default async function PronosticiPage() {
                       action={
                         <LinkButton
                           href={`/admin/pronostici/${match.id}`}
-                          variant={openToday && !mine ? "primary" : "outline"}
+                          variant={open && !mine ? "primary" : "outline"}
                           size="sm"
                         >
                           <Target className="h-3.5 w-3.5" />
-                          {openToday ? (mine ? "Modifica" : "Pronostica") : "Dettagli"}
+                          {open ? (mine ? "Modifica" : "Pronostica") : "Dettagli"}
                         </LinkButton>
                       }
                     />

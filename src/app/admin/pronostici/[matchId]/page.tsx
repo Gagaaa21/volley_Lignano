@@ -8,9 +8,10 @@ import { formatDateLong } from "@/lib/format";
 import {
   computeMatchResults,
   computeTournamentMatchResults,
-  isMatchDayToday,
-  isMatchLocked,
+  arePredictionsClosed,
+  hasPredictionOpened,
   matchHasResult,
+  predictionClosingLabel,
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,11 +30,11 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
   const match = await repo.getMatch(matchId);
   if (!match) notFound();
 
-  const locked = isMatchLocked(match.matchDate);
-  const openToday = !locked && isMatchDayToday(match.matchDate);
   const hasResult = matchHasResult(match);
+  const closed = arePredictionsClosed(match);
+  const open = !closed && hasPredictionOpened(match.matchDate);
 
-  const myPrediction = openToday ? await repo.getPrediction(matchId, session.sub) : null;
+  const myPrediction = open ? await repo.getPrediction(matchId, session.sub) : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -53,16 +54,21 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
       />
 
       <Card>
-        {locked ? (
+        {closed ? (
           <CardBody className="pt-5">
             <LockedPredictions matchId={matchId} hasResult={hasResult} />
           </CardBody>
-        ) : openToday ? (
+        ) : open ? (
           <>
             <CardHeader>
               <h2 className="font-display text-base font-semibold text-foreground">
                 {myPrediction ? "Modifica il tuo pronostico" : "Fai il tuo pronostico"}
               </h2>
+              <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-muted-foreground" data-prediction-deadline>
+                <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                Puoi inviarlo o modificarlo fino a un&apos;ora dopo l&apos;inizio della partita, cioè{" "}
+                {predictionClosingLabel(match.matchDate)}.
+              </p>
             </CardHeader>
             <CardBody>
               <PredictionForm
@@ -86,7 +92,7 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
   );
 }
 
-/** Una volta bloccata (partita iniziata), i pronostici di tutti diventano
+/** Una volta chiusi (un'ora dopo l'inizio, o col risultato già inserito), i pronostici di tutti diventano
  * visibili — nessuno può più cambiarli, quindi non c'è più nulla da
  * proteggere nascondendoli. Se il risultato reale è già stato inserito,
  * mostra anche chi ha vinto ogni set (raggruppati per avversaria, per i
@@ -106,7 +112,7 @@ async function LockedPredictions({ matchId, hasResult }: { matchId: string; hasR
     return (
       <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Lock className="h-4 w-4 shrink-0" />
-        Nessun pronostico è stato inviato per questa partita prima che iniziasse.
+        Nessun pronostico è stato inviato per questa partita prima della chiusura.
       </p>
     );
   }
