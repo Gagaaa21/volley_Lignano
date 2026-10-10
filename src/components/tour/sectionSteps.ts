@@ -184,7 +184,7 @@ export const SECTION_PRONOSTICI_STEPS: BaseTourStep[] = [
     path: "/admin/pronostici",
     target: "section-pronostici-open",
     title: "Da pronosticare",
-    body: "Vedi già tutte le partite della stagione, ma puoi pronosticarle solo il giorno stesso in cui si giocano: prima di allora la scheda resta bloccata.",
+    body: "Vedi già tutte le partite della stagione, ma puoi pronosticarle dal giorno in cui si giocano fino a un'ora dopo l'inizio della partita (l'orario di chiusura è scritto accanto a ogni partita): prima di allora la scheda resta bloccata.",
   },
   {
     id: "section-pronostici-results",

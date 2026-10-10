@@ -1,5 +1,6 @@
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
+import { summarizeAttendance } from "@/lib/attendanceSummary";
 import { buildCsv } from "@/lib/csv";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { CATEGORY_LABELS, MINIVOLLEY_GROUP_LABELS } from "@/lib/category";
@@ -23,39 +24,16 @@ export async function GET() {
   const todayStr = todayIso();
   const sessions = allSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
 
-  const rows = athletes
-    .slice()
-    .sort((a, b) => a.fullName.localeCompare(b.fullName))
-    .map((athlete) => {
-      let total: number;
-      let present: number;
-      let excused: number;
-      let unexcused: number;
-      if (isMini) {
-        total = sessions.length;
-        present = sessions.filter((s) => athlete.id in s.records).length;
-        excused = 0;
-        unexcused = 0;
-      } else {
-        const statuses = sessions.filter((s) => athlete.id in s.records).map((s) => s.records[athlete.id]);
-        total = statuses.length;
-        present = statuses.filter((s) => s === "present").length;
-        excused = statuses.filter((s) => s === "excused").length;
-        unexcused = statuses.filter((s) => s === "unexcused").length;
-      }
-      const presencePct = total > 0 ? Math.round((present / total) * 100) : null;
-
-      return [
-        athlete.fullName,
-        athlete.category ? CATEGORY_LABELS[athlete.category] : "",
-        athlete.group ? MINIVOLLEY_GROUP_LABELS[athlete.group] : "",
-        String(total),
-        String(present),
-        presencePct === null ? "" : `${presencePct}%`,
-        isMini ? "" : String(excused),
-        isMini ? "" : String(unexcused),
-      ];
-    });
+  const rows = summarizeAttendance(athletes, sessions, isMini).map(({ athlete, total, present, excused, unexcused, pct }) => [
+    athlete.fullName,
+    athlete.category ? CATEGORY_LABELS[athlete.category] : "",
+    athlete.group ? MINIVOLLEY_GROUP_LABELS[athlete.group] : "",
+    String(total),
+    String(present),
+    pct === null ? "" : `${pct}%`,
+    isMini ? "" : String(excused),
+    isMini ? "" : String(unexcused),
+  ]);
 
   const csv = buildCsv(
     ["Nome e cognome", "Categoria", "Gruppo", "Sedute totali", "Presenze", "% Presenza", "Giustificate", "Non giustificate"],

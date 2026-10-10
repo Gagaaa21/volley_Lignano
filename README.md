@@ -63,10 +63,25 @@ staff (Developer e Admin).
   tabella: ultimi risultati, un giorno di test o tutte le sessioni; ricerca,
   filtro per categoria, ordinamento con un clic sulle intestazioni, variazione
   rispetto alla misura precedente, valore più alto di ogni salto in evidenza,
-  media di quello che si vede e «Scarica CSV». La logica che trasforma le
-  righe `PhysicalTest` in tabella è in `src/lib/physicalTestOverview.ts` (con
-  test unitari); la media dei salti ignora i valori mancanti (non contano come
+  media di quello che si vede, «Scarica CSV» e «Scarica PDF» (stessa tabella,
+  con gli stessi filtri e ordine, che arrivano come parametri dell'indirizzo).
+  La logica che trasforma le righe `PhysicalTest` in tabella è in
+  `src/lib/physicalTestOverview.ts` e `src/lib/physicalTestTable.ts` (con test
+  unitari); la media dei salti ignora i valori mancanti (non contano come
   zero).
+- **PDF da stampare** (`src/lib/pdf/`) — base comune (`report.ts`: intestazione
+  con stemma, tabelle che continuano sulle pagine seguenti, numero di pagina;
+  stessi font del PDF delle formazioni) e tre documenti: il calendario di
+  tutte le partite (pubblico: `/calendario-partite.pdf`, `?cat=U14|U15`, letto
+  dalla cache del sito; staff: `/api/partite/pdf`, in più «da inserire» dove manca il risultato),
+  il riepilogo presenze (`/api/presenze/riepilogo/pdf`) e il riepilogo test
+  fisici (`/api/test-fisici/riepilogo/pdf`). Elenco atlete e storico presenze
+  restano solo in CSV (sono dati da elaborare, non da stampare).
+- **Pronostici** (`src/lib/predictions.ts`) — si aprono il giorno della
+  partita e si chiudono **un'ora dopo l'inizio** (`PREDICTION_GRACE_MINUTES`),
+  o subito se il risultato è già stato inserito; pagina e azione dicono
+  l'orario di chiusura. Dopo la chiusura i pronostici di tutti diventano
+  visibili.
 - **Tema chiaro/scuro** — il sito parte sempre chiaro; da un pulsante con
   sole/luna (testata del sito pubblico e pagina di accesso) o dal menu
   dell'account (area tecnici) si sceglie Chiaro, Scuro o Automatico (segue il
@@ -218,6 +233,7 @@ non deve mai iniziare con `NEXT_PUBLIC_`.
 src/
   app/                    Pagine (App Router)
     page.tsx              Calendario pubblico
+    calendario-partite.pdf/ PDF con tutte le partite (pubblico)
     login/                Login staff
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti

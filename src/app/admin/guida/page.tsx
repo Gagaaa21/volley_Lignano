@@ -62,6 +62,7 @@ const SECTIONS: Section[] = [
       "L'elenco \"Partite registrate\" mostra solo le partite già nel sito. Sopra l'elenco, il riquadro \"Portale FIPAV\" dice se il sito è allineato al calendario e ai risultati ufficiali della federazione e apre la pagina dedicata (anche dalla dashboard, quando c'è qualcosa da sistemare).",
       "La pagina \"Portale FIPAV\" mostra solo ciò che è diverso dal portale, diviso per tipo. \"Risultati da confermare\": partite giocate, \"Conferma risultato\" (o \"Conferma tutti\") compila i set con quelli ufficiali. \"Partite cambiate sul portale\": la federazione ha cambiato data, ora o avversaria di una partita che hai già; \"Aggiorna\" porta il sito a quello del portale (palestra compresa se cambia l'avversaria), ritrovo, note e convocazioni restano. \"Da verificare\": ogni riga fa una domanda, per esempio \"È la stessa partita?\" quando nel sito c'è una partita simile in un altro giorno (\"Sì: collega\" la aggiorna, \"No: aggiungila\" ne crea una nuova), una gara giocata che nel sito manca (\"Aggiungila con il risultato\"), un risultato che hai scritto diverso da quello ufficiale (resta il tuo: \"Tieni il mio\" o \"Usa quello ufficiale\") o una partita del sito che nel calendario ufficiale non c'è (collegala alla gara giusta, segnala come amichevole o eliminala). \"Da aggiungere al sito\": le partite del calendario ufficiale che non hai ancora inserito, già spuntate; è facoltativo e non viene segnalato come errore. In fondo c'è il calendario ufficiale completo con lo stato di ogni gara. \"Ignora\" toglie una gara dalle proposte (si ripristina da \"Gare ignorate\"); \"Aggiorna ora\" rilegge subito il portale.",
       "La classifica del girone, con tutte le squadre e il loro logo (per la nostra c'è lo stemma del sito), compare in fondo alla homepage pubblica insieme alla data dell'ultimo aggiornamento.",
+      "\"Esporta PDF\" (in alto, accanto a \"Esporta CSV\") scarica il calendario di tutte le partite, pronto da stampare, con ritrovo, note e risultati; segue la categoria scelta nell'elenco. Anche chi visita il sito pubblico trova \"Scarica le partite (PDF)\" sotto il titolo della home: la stessa lista (convocazioni e formazioni non ci sono), con in più, per voi, \"Da inserire\" dove manca il risultato.",
     ],
   },
   {
@@ -86,6 +87,7 @@ const SECTIONS: Section[] = [
       "Per U14/U15, dalla schermata principale si sceglie l'allenamento da registrare: ogni atleta è di default \"Presente\", con un tasto per segnarla \"Assente\" e, in quel caso, specificare se l'assenza è giustificata o no.",
       "Per il Minivolley invece si tocca solo chi era presente, raggruppate per CDA: nessuna assenza da segnare, chi non viene toccato resta semplicemente non registrato per quel giorno.",
       "Lo \"Storico\" mostra tutti i registri salvati (modificabili in ogni momento) e, per ogni atleta, la propria percentuale di presenza e la cronologia.",
+      "In fondo a \"Atlete\", sotto \"Esporta PDF\", scarichi il riepilogo presenze da stampare: una riga per atleta con allenamenti, presenze, percentuale e (per U14/U15) assenze giustificate e non; in fondo la presenza media della squadra. L'elenco delle atlete e lo storico dei registri restano in CSV, perché sono dati da elaborare.",
       "Appena salvi un registro, l'elenco nominativo con lo stato di ciascuna atleta compare anche nel dettaglio di quell'allenamento sul calendario pubblico, visibile a chiunque senza bisogno di accedere. Per il Minivolley c'è anche una pagina pubblica dedicata (\"Presenze\" nell'header del sito Minivolley) con il conteggio delle presenze per atleta, raggruppato per CDA.",
     ],
   },
@@ -98,7 +100,7 @@ const SECTIONS: Section[] = [
       "\"Nuovo test\" registra in un colpo solo le misure (peso e lunghezza delle gambe, già precompilate dall'ultima volta), i 3 Squat Jump e ogni altro dato libero. Ogni sessione si può correggere in seguito.",
       "In \"Atlete\" si apre il fascicolo di una atleta: tutte le sue sessioni e come cambiano misure e salti nel tempo.",
       "\"Riepilogo\" mette tutte le atlete in un'unica tabella, senza aprirle una a una. \"Ultimi risultati\" mostra per ognuna l'ultimo valore di ogni misura (con la data, se è di un altro giorno); \"Un giorno\" confronta le atlete provate lo stesso giorno; \"Tutte le sessioni\" le elenca di fila.",
-      "Un clic sull'intestazione di una colonna ordina la tabella. Sotto ogni numero c'è la variazione rispetto alla misura precedente della stessa atleta; in verde il valore più alto di ogni salto. In fondo trovi la media di quello che vedi. \"Scarica CSV\" salva la tabella così com'è, per Excel.",
+      "Un clic sull'intestazione di una colonna ordina la tabella. Sotto ogni numero c'è la variazione rispetto alla misura precedente della stessa atleta; in verde il valore più alto di ogni salto. In fondo trovi la media di quello che vedi. \"Scarica CSV\" salva la tabella così com'è, per Excel; \"Scarica PDF\" la stampa in orizzontale con gli stessi filtri, lo stesso giorno e lo stesso ordine che vedi a schermo.",
     ],
   },
   {
@@ -118,7 +120,7 @@ const SECTIONS: Section[] = [
     title: "Pronostici",
     intro: "Pronostica il punteggio di ogni set insieme al resto dello staff.",
     points: [
-      "Tutte le partite della stagione sono visibili fin da subito, ma si può pronosticare solo il giorno stesso in cui si gioca.",
+      "Tutte le partite della stagione sono visibili fin da subito, ma si può pronosticare solo a partire dal giorno in cui si gioca. I pronostici restano aperti fino a un'ora dopo l'inizio della partita (la pagina indica l'orario di chiusura) e si chiudono prima solo se il risultato è già stato inserito. Dopo la chiusura i pronostici di tutti diventano visibili.",
       "Chi si avvicina di più al risultato reale di un set vince il set: i punti totalizzati compongono la classifica.",
       "Anche le partite dei tornei si pronosticano, una gara alla volta.",
     ],

@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Download } from "lucide-react";
-import { Avatar, type AvatarTone } from "@/components/ui/Avatar";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Download, FileDown } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Button } from "@/components/ui/Button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Select } from "@/components/ui/Field";
 import { buildCsv } from "@/lib/csv";
 import { cn } from "@/lib/cn";
@@ -14,107 +15,23 @@ import {
   OVERVIEW_METRICS,
   formatDelta,
   formatMeasure,
-  latestReading,
-  readingAt,
-  type AthleteSession,
   type MetricReading,
   type OverviewMetric,
-  type OverviewMetricKey,
 } from "@/lib/physicalTestOverview";
-
-export interface OverviewAthlete {
-  id: string;
-  fullName: string;
-  isActive: boolean;
-  /** Categoria (U14/U15) o gruppo (Minivolley), se assegnata. */
-  label: string | null;
-  tone: AvatarTone;
-  /** Sessioni dalla più recente. */
-  sessions: AthleteSession[];
-}
-
-type View = "ultimo" | "giorno" | "tutte";
-type SortColumn = "name" | "date" | OverviewMetricKey;
-interface Sort {
-  column: SortColumn;
-  direction: "asc" | "desc";
-}
-
-interface Row {
-  key: string;
-  athlete: OverviewAthlete;
-  /** Giorno della sessione mostrata; per "ultimo" è quello dell'ultima sessione. */
-  date: string | null;
-  readings: Partial<Record<OverviewMetricKey, MetricReading>>;
-  others: { name: string; value: string }[];
-}
-
-const VIEW_LABELS: Record<View, string> = {
-  ultimo: "Ultimi risultati",
-  giorno: "Un giorno",
-  tutte: "Tutte le sessioni",
-};
-
-const DEFAULT_SORT: Record<View, Sort> = {
-  ultimo: { column: "name", direction: "asc" },
-  giorno: { column: "name", direction: "asc" },
-  tutte: { column: "date", direction: "desc" },
-};
-
-function buildRows(athletes: OverviewAthlete[], view: View, day: string, includeEmpty: boolean): Row[] {
-  const rows: Row[] = [];
-  for (const athlete of athletes) {
-    const { sessions } = athlete;
-    if (view === "ultimo") {
-      if (sessions.length === 0 && !includeEmpty) continue;
-      const readings: Row["readings"] = {};
-      for (const metric of OVERVIEW_METRICS) {
-        const reading = latestReading(sessions, metric.key);
-        if (reading) readings[metric.key] = reading;
-      }
-      rows.push({
-        key: athlete.id,
-        athlete,
-        date: sessions[0]?.date ?? null,
-        readings,
-        others: sessions[0]?.others ?? [],
-      });
-    } else {
-      sessions.forEach((session, index) => {
-        if (view === "giorno" && session.date !== day) return;
-        const readings: Row["readings"] = {};
-        for (const metric of OVERVIEW_METRICS) {
-          const reading = readingAt(sessions, index, metric.key);
-          if (reading) readings[metric.key] = reading;
-        }
-        rows.push({ key: `${athlete.id}_${session.date}`, athlete, date: session.date, readings, others: session.others });
-      });
-    }
-  }
-  return rows;
-}
-
-function sortRows(rows: Row[], sort: Sort): Row[] {
-  const factor = sort.direction === "asc" ? 1 : -1;
-  const byName = (a: Row, b: Row) => a.athlete.fullName.localeCompare(b.athlete.fullName, "it");
-  return [...rows].sort((a, b) => {
-    if (sort.column === "name") return factor * byName(a, b);
-    if (sort.column === "date") {
-      // Senza data (nessun test) sempre in fondo.
-      if (!a.date || !b.date) return a.date === b.date ? byName(a, b) : a.date ? -1 : 1;
-      return factor * a.date.localeCompare(b.date) || byName(a, b);
-    }
-    const av = a.readings[sort.column]?.value;
-    const bv = b.readings[sort.column]?.value;
-    // Chi non ha il valore va in fondo, comunque si ordini.
-    if (av === undefined || bv === undefined) return av === bv ? byName(a, b) : av === undefined ? 1 : -1;
-    return factor * (av - bv) || byName(a, b);
-  });
-}
-
-function mean(values: number[]): number | null {
-  return values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length;
-}
+import {
+  DEFAULT_SORT,
+  VIEW_LABELS,
+  averagesByMetric,
+  bestByMetric,
+  buildRows,
+  filterOverviewAthletes,
+  sortRows,
+  tableParamsToSearch,
+  type OverviewAthlete,
+  type Sort,
+  type SortColumn,
+  type View,
+} from "@/lib/physicalTestTable";
 
 /** Numero per il CSV: punto decimale (la virgola separa le colonne), al massimo due decimali. */
 function csvNumber(value: number | undefined): string {
@@ -243,39 +160,15 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
     );
   }
 
-  const visibleAthletes = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return athletes.filter(
-      (a) => (!q || a.fullName.toLowerCase().includes(q)) && (!label || a.label === label),
-    );
-  }, [athletes, query, label]);
+  const visibleAthletes = useMemo(() => filterOverviewAthletes(athletes, query, label), [athletes, query, label]);
 
   const rows = useMemo(
     () => sortRows(buildRows(visibleAthletes, view, day, includeEmpty), sort),
     [visibleAthletes, view, day, includeEmpty, sort],
   );
 
-  const bestByMetric = useMemo(() => {
-    const best: Partial<Record<OverviewMetricKey, number>> = {};
-    for (const metric of OVERVIEW_METRICS) {
-      if (metric.kind !== "jump") continue;
-      const values = rows.map((r) => r.readings[metric.key]?.value).filter((v): v is number => v !== undefined);
-      // Il "migliore" ha senso solo se c'è da confrontare.
-      if (values.length > 1) best[metric.key] = Math.max(...values);
-    }
-    return best;
-  }, [rows]);
-
-  const averages = useMemo(
-    () =>
-      Object.fromEntries(
-        OVERVIEW_METRICS.map((metric) => [
-          metric.key,
-          mean(rows.map((r) => r.readings[metric.key]?.value).filter((v): v is number => v !== undefined)),
-        ]),
-      ) as Record<OverviewMetricKey, number | null>,
-    [rows],
-  );
+  const best = useMemo(() => bestByMetric(rows), [rows]);
+  const averages = useMemo(() => averagesByMetric(rows), [rows]);
 
   const hasOthers = rows.some((r) => r.others.length > 0);
   const testedCount = rows.filter((r) => r.date !== null).length;
@@ -366,10 +259,28 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
           className="sm:max-w-[16rem]"
         />
 
-        <Button type="button" variant="outline" size="sm" onClick={downloadCsv} disabled={rows.length === 0} className="ml-auto">
-          <Download className="h-4 w-4" />
-          Scarica CSV
-        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {rows.length === 0 ? (
+            <Button type="button" variant="outline" size="sm" disabled>
+              <FileDown className="h-4 w-4" />
+              Scarica PDF
+            </Button>
+          ) : (
+            // Il PDF riproduce la tabella com'è a schermo: stessa vista, giorno, filtri e ordine.
+            <a
+              href={`/api/test-fisici/riepilogo/pdf?${tableParamsToSearch({ view, day, query, label, includeEmpty, sort })}`}
+              data-riepilogo-pdf
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <FileDown className="h-4 w-4" />
+              Scarica PDF
+            </a>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
+            <Download className="h-4 w-4" />
+            Scarica CSV
+          </Button>
+        </div>
       </div>
 
       {view === "ultimo" && athletes.some((a) => a.sessions.length === 0) && (
@@ -457,7 +368,7 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
                         key={metric.key}
                         metric={metric}
                         reading={reading}
-                        isBest={reading !== undefined && bestByMetric[metric.key] === reading.value}
+                        isBest={reading !== undefined && best[metric.key] === reading.value}
                         showDate={view === "ultimo"}
                         rowDate={row.date}
                       />

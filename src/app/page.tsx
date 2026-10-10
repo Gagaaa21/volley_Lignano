@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import Image from "next/image";
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus, FileDown } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
@@ -133,7 +133,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               Under 14 e Under 15 di Lignano Sabbiadoro: orari, luoghi, convocazioni e risultati, sempre
               aggiornati dallo staff.
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <a
                 href="/calendario.ics"
                 data-tour="public-ics-button"
@@ -141,6 +141,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               >
                 <CalendarPlus className="h-[18px] w-[18px]" />
                 Aggiungi al tuo calendario
+              </a>
+              <a
+                href={activeCategory === "all" ? "/calendario-partite.pdf" : `/calendario-partite.pdf?cat=${activeCategory}`}
+                data-public-matches-pdf
+                className={buttonVariants({ variant: "outline", size: "lg" })}
+              >
+                <FileDown className="h-[18px] w-[18px]" />
+                Scarica le partite (PDF)
               </a>
             </div>
           </div>

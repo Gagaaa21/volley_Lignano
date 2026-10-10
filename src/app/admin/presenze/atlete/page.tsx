@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Download, ListPlus, Plus, Users } from "lucide-react";
+import { Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -54,6 +54,13 @@ export default async function AthletesPage() {
             </LinkButton>
             <LinkButton href="/api/presenze/riepilogo/csv" variant="quiet" size="sm">
               <Download className="h-4 w-4" />
+              Riepilogo presenze
+            </LinkButton>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1">
+            <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta PDF</span>
+            <LinkButton href="/api/presenze/riepilogo/pdf" variant="quiet" size="sm">
+              <FileDown className="h-4 w-4" />
               Riepilogo presenze
             </LinkButton>
           </div>

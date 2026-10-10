@@ -3,13 +3,11 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { CATEGORY_LABELS, MINIVOLLEY_GROUP_LABELS } from "@/lib/category";
-import { buildAthleteSessions } from "@/lib/physicalTestOverview";
-import type { PhysicalTest } from "@/lib/types";
+import { buildOverviewAthletes } from "@/lib/physicalTestTable";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TestFisiciTabs } from "../TestFisiciTabs";
-import { RiepilogoTable, type OverviewAthlete } from "./RiepilogoTable";
+import { RiepilogoTable } from "./RiepilogoTable";
 
 export const metadata: Metadata = {
   title: "Riepilogo test fisici",
@@ -24,29 +22,7 @@ export default async function PhysicalTestsOverviewPage() {
     repo.listAthletes({ team }),
   ]);
 
-  const testsByAthlete = new Map<string, PhysicalTest[]>();
-  for (const test of tests) {
-    const list = testsByAthlete.get(test.athleteId);
-    if (list) list.push(test);
-    else testsByAthlete.set(test.athleteId, [test]);
-  }
-
-  const overview: OverviewAthlete[] = athletes
-    .map((athlete) => ({
-      id: athlete.id,
-      fullName: athlete.fullName,
-      isActive: athlete.isActive,
-      label: athlete.category
-        ? CATEGORY_LABELS[athlete.category]
-        : athlete.group
-          ? MINIVOLLEY_GROUP_LABELS[athlete.group]
-          : null,
-      tone: athlete.category === "U14" ? ("u14" as const) : athlete.category === "U15" ? ("u15" as const) : ("neutral" as const),
-      sessions: buildAthleteSessions(testsByAthlete.get(athlete.id) ?? []),
-    }))
-    // Un'atleta non più attiva resta solo se ha dei dati da mostrare.
-    .filter((athlete) => athlete.isActive || athlete.sessions.length > 0)
-    .sort((a, b) => a.fullName.localeCompare(b.fullName, "it"));
+  const overview = buildOverviewAthletes(tests, athletes);
 
   const hasData = overview.some((athlete) => athlete.sessions.length > 0);
 

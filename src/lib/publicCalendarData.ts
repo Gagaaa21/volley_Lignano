@@ -90,6 +90,21 @@ export const getPublicCalendarData = unstable_cache(
   { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
 );
 
+/**
+ * Tutte le partite della stagione per il PDF scaricabile dal sito pubblico
+ * (il calendario normale carica solo il mese visibile). Stessa cache e stesso
+ * tag degli altri dati pubblici: nessuna lettura dal database per ogni
+ * download. Solo U14/U15: il Minivolley non ha partite.
+ */
+export const getPublicMatches = unstable_cache(
+  async (category?: Category) => {
+    const repo = await getRepo();
+    return repo.listMatches({ team: "u14u15", category });
+  },
+  ["public-matches"],
+  { revalidate: 300, tags: [PUBLIC_CALENDAR_TAG] },
+);
+
 export interface PublicAttendanceTallyRow {
   fullName: string;
   count: number;

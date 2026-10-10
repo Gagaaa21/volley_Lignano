@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, Download, Link2, Plus, Swords } from "lucide-react";
+import { CheckCircle2, ChevronRight, Download, FileDown, Link2, Plus, Swords } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -61,6 +61,10 @@ export default async function MatchesListPage({
         help={<SectionTour steps={SECTION_PARTITE_STEPS} />}
         actions={
           <>
+            <LinkButton href={activeCategory === "all" ? "/api/partite/pdf" : `/api/partite/pdf?cat=${activeCategory}`} variant="outline">
+              <FileDown className="h-4 w-4" />
+              Esporta PDF
+            </LinkButton>
             <LinkButton href="/api/partite/csv" variant="outline">
               <Download className="h-4 w-4" />
               Esporta CSV
