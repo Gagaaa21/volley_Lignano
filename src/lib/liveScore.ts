@@ -76,10 +76,13 @@ export function teamColor(key: TeamKey, mode: LiveScoreMode, opponentColor: stri
 
 // ── Disposizione in campo ──────────────────────────────────────────────
 
-/** Quante giocatrici stanno a rete e quante in seconda linea: a 6 tre e tre,
- * a 5 tre e due, a 4 due e due, a 3 due a rete e una dietro, a 2 una e una. */
+/** Giocatrici a rete per formato: a 6 tre e tre, a 5 tre a rete e due dietro,
+ * a 4 due e due, a 3 una a rete e due dietro (a triangolo), a 2 una e una. */
+const FRONT_ROW_SIZE: Record<LiveScorePlayers, number> = { 2: 1, 3: 1, 4: 2, 5: 3, 6: 3 };
+
+/** Quante giocatrici stanno a rete e quante in seconda linea. */
 export function rowSizes(players: LiveScorePlayers): { front: number; back: number } {
-  const front = Math.ceil(players / 2);
+  const front = FRONT_ROW_SIZE[players];
   return { front, back: players - front };
 }
 

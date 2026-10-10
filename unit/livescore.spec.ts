@@ -36,7 +36,8 @@ test.describe("disposizione in campo", () => {
     expect(courtRows(6)).toEqual({ front: [4, 3, 2], back: [5, 6, 1] });
     expect(courtRows(5)).toEqual({ front: [4, 3, 2], back: [5, 1] });
     expect(courtRows(4)).toEqual({ front: [3, 2], back: [4, 1] });
-    expect(courtRows(3)).toEqual({ front: [3, 2], back: [1] });
+    // A 3 a triangolo: una a rete, due dietro.
+    expect(courtRows(3)).toEqual({ front: [2], back: [3, 1] });
     expect(courtRows(2)).toEqual({ front: [2], back: [1] });
   });
 
@@ -53,11 +54,12 @@ test.describe("disposizione in campo", () => {
   });
 
   test("chi passa dalla seconda linea a rete alla rotazione", () => {
-    // A 6 è la posizione 5 (va in 4); a 4 la posizione 4 (va in 3); a 3 e a 2 chi batte.
+    // A 6 è la posizione 5 (va in 4); a 4 la posizione 4 (va in 3); a 3 la posizione 3
+    // (dietro a sinistra, va a rete in 2); a 2 chi batte.
     expect(exitingBackRowIndex(6)).toBe(4);
     expect(exitingBackRowIndex(5)).toBe(4);
     expect(exitingBackRowIndex(4)).toBe(3);
-    expect(exitingBackRowIndex(3)).toBe(0);
+    expect(exitingBackRowIndex(3)).toBe(2);
     expect(exitingBackRowIndex(2)).toBe(0);
   });
 });
@@ -79,6 +81,13 @@ test.describe("punti e rotazione", () => {
     expect(sideOut.teamB.score).toBe(1);
     expect(sideOut.teamB.positions).toEqual(["B2", "B3", "B4", "B1"]);
     expect(sideOut.teamA.positions).toEqual(start.teamA.positions);
+  });
+
+  test("a 3 contro 3 (triangolo): chi è a rete va a battere, chi è dietro a sinistra sale a rete", () => {
+    const start = game(3, { servingTeam: "A" });
+    const sideOut = applyPoint(start, "B");
+    // Prima: 1 B1 dietro a destra, 2 B2 a rete, 3 B3 dietro a sinistra.
+    expect(sideOut.teamB.positions).toEqual(["B2", "B3", "B1"]);
   });
 
   test("senza formazione si contano solo punti e battuta", () => {
