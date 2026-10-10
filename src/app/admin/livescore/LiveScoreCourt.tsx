@@ -2,17 +2,16 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { halfCourtColumns } from "@/lib/liveScore";
+import { halfCourtGrid } from "@/lib/liveScore";
 import type { CourtPosition, LiveScorePlayers } from "@/lib/types";
 
-/** Metà campo su fondo piatto e continuo (nessuna scacchiera): la colonna
- * "campo lungo" (2fr) è sempre sul bordo esterno, quella vicina alla rete
- * (1fr) sempre adiacente al centro — il confine fra le due, marcato da un
- * sottile filo bianco, è la linea dei 3 metri. Le due squadre si guardano
- * l'una con l'altra, quindi la stessa posizione cade specchiata a seconda del
- * lato: l'ordine delle posizioni per colonna viene da halfCourtColumns
- * (src/lib/liveScore.ts), per qualunque numero di giocatrici. A 6: a sinistra
- * rete 4-3-2 e fondo 5-6-1 dall'alto in basso, a destra il contrario. */
+/** Metà campo su fondo piatto e continuo (nessuna scacchiera). La
+ * disposizione delle posizioni dipende dal formato (vedi halfCourtGrid in
+ * src/lib/liveScore.ts): a 6 e a 5 due file, con la fila a rete larga 1/3 e il
+ * fondo 2/3 come le misure reali (il confine, un filo bianco, è la linea dei 3
+ * metri); a 3 un triangolo, a 4 un rombo, a 2 due giocatrici affiancate. Le
+ * due squadre si guardano l'una con l'altra, quindi la stessa posizione cade
+ * specchiata a seconda del lato. */
 function HalfCourt({
   side,
   players,
@@ -24,45 +23,34 @@ function HalfCourt({
   renderCell: (position: CourtPosition) => ReactNode;
   large: boolean;
 }) {
-  const { net, baseline } = halfCourtColumns(players, side);
-  // Ogni metà campo è un quadrato di 9x9m: la fila vicino alla rete occupa
-  // i primi 3m (linea d'attacco), il fondo campo i restanti 6m — colonne in
-  // proporzione 1:2, non a metà, per restare fedeli alle misure reali.
-  const columns = side === "left" ? [baseline, net] : [net, baseline];
+  const { columns, rows, cells } = halfCourtGrid(players, side);
   return (
     <div
       data-court-side={side}
-      className={cn("grid flex-1", side === "left" ? "grid-cols-[2fr_1fr]" : "grid-cols-[1fr_2fr]", large && "h-full")}
+      className={cn("grid flex-1", large && "h-full")}
+      style={{ gridTemplateColumns: columns, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}
     >
-      {columns.map((column, colIdx) => (
+      {cells.map((cell) => (
         <div
-          key={colIdx}
+          key={cell.position}
+          data-court-position={cell.position}
           className={cn(
-            "flex flex-col",
-            // Confine fra le due colonne: la linea dei 3m.
-            colIdx === 0 && "border-r-2 border-white/80",
+            "relative flex flex-col items-center justify-center gap-1.5 px-2 text-center",
+            large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
+            cell.attackLineSide === "right" && "border-r-2 border-white/80",
+            cell.attackLineSide === "left" && "border-l-2 border-white/80",
           )}
+          style={{ gridColumn: cell.column, gridRow: `${cell.row} / span ${cell.rowSpan}` }}
         >
-          {column.map((position) => (
-            <div
-              key={position}
-              data-court-position={position}
-              className={cn(
-                "relative flex flex-1 flex-col items-center justify-center gap-1.5 px-2 text-center",
-                large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute flex items-center justify-center rounded-full bg-white/25 font-bold text-white shadow-sm ring-1 ring-inset ring-white/30",
-                  large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
-                )}
-              >
-                {position}
-              </span>
-              {renderCell(position)}
-            </div>
-          ))}
+          <span
+            className={cn(
+              "absolute flex items-center justify-center rounded-full bg-white/25 font-bold text-white shadow-sm ring-1 ring-inset ring-white/30",
+              large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
+            )}
+          >
+            {cell.position}
+          </span>
+          {renderCell(cell.position)}
         </div>
       ))}
     </div>

@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test";
 import {
   applyPoint,
   closeSet,
-  courtRows,
-  exitingBackRowIndex,
-  halfCourtColumns,
+  frontPositions,
+  halfCourtGrid,
+  hasLiberoOption,
   initialMatch,
   linkCalendarMatch,
   matchWinner,
@@ -31,36 +31,74 @@ function game(players: LiveScorePlayers, overrides: Partial<LiveScoreState> = {}
   };
 }
 
+/** Cella per posizione: [colonna, riga, righe occupate]. */
+function grid(players: LiveScorePlayers, side: "left" | "right") {
+  const { columns, rows, cells } = halfCourtGrid(players, side);
+  return {
+    columns,
+    rows,
+    at: Object.fromEntries(cells.map((c) => [c.position, [c.column, c.row, c.rowSpan]])),
+  };
+}
+
 test.describe("disposizione in campo", () => {
-  test("a rete e in seconda linea, da sinistra a destra, per ogni formato", () => {
-    expect(courtRows(6)).toEqual({ front: [4, 3, 2], back: [5, 6, 1] });
-    expect(courtRows(5)).toEqual({ front: [4, 3, 2], back: [5, 1] });
-    expect(courtRows(4)).toEqual({ front: [3, 2], back: [4, 1] });
-    // A 3 a triangolo: una a rete, due dietro.
-    expect(courtRows(3)).toEqual({ front: [2], back: [3, 1] });
-    expect(courtRows(2)).toEqual({ front: [2], back: [1] });
-  });
-
   test("a 6 il campo resta quello di sempre (le due squadre specchiate)", () => {
-    expect(halfCourtColumns(6, "left")).toEqual({ net: [4, 3, 2], baseline: [5, 6, 1] });
-    expect(halfCourtColumns(6, "right")).toEqual({ net: [2, 3, 4], baseline: [1, 6, 5] });
+    // Sinistra: fondo (2fr) a sinistra, rete (1fr) a destra; dall'alto 4-3-2 a rete, 5-6-1 dietro.
+    expect(grid(6, "left")).toEqual({
+      columns: "2fr 1fr",
+      rows: 3,
+      at: { 4: [2, 1, 1], 3: [2, 2, 1], 2: [2, 3, 1], 5: [1, 1, 1], 6: [1, 2, 1], 1: [1, 3, 1] },
+    });
+    // Destra: rete a sinistra, dall'alto 2-3-4 a rete e 1-6-5 dietro.
+    expect(grid(6, "right")).toEqual({
+      columns: "1fr 2fr",
+      rows: 3,
+      at: { 2: [1, 1, 1], 3: [1, 2, 1], 4: [1, 3, 1], 1: [2, 1, 1], 6: [2, 2, 1], 5: [2, 3, 1] },
+    });
   });
 
-  test("ogni posizione compare una volta sola", () => {
+  test("a 2 le giocatrici sono affiancate", () => {
+    expect(grid(2, "left")).toEqual({ columns: "1fr", rows: 2, at: { 2: [1, 1, 1], 1: [1, 2, 1] } });
+  });
+
+  test("a 3 a triangolo: una a rete al centro, due dietro", () => {
+    expect(grid(3, "left")).toEqual({ columns: "2fr 1fr", rows: 2, at: { 2: [2, 1, 2], 3: [1, 1, 1], 1: [1, 2, 1] } });
+  });
+
+  test("a 4 a rombo: una a rete, due ai lati, una in fondo", () => {
+    expect(grid(4, "left")).toEqual({
+      columns: "1fr 1fr 1fr",
+      rows: 2,
+      at: { 3: [3, 1, 2], 4: [2, 1, 1], 2: [2, 2, 1], 1: [1, 1, 2] },
+    });
+    // Specchiato a destra: la 4 (sinistra di chi guarda la rete) va in basso.
+    expect(grid(4, "right").at).toEqual({ 3: [1, 1, 2], 4: [2, 2, 1], 2: [2, 1, 1], 1: [3, 1, 2] });
+  });
+
+  test("ogni posizione compare una volta sola e nessuna si sovrappone", () => {
     for (const n of [2, 3, 4, 5, 6] as const) {
-      const { net, baseline } = halfCourtColumns(n, "left");
-      expect([...net, ...baseline].sort()).toEqual(Array.from({ length: n }, (_, i) => i + 1));
+      for (const side of ["left", "right"] as const) {
+        const { rows, cells } = halfCourtGrid(n, side);
+        expect(cells.map((c) => c.position).sort()).toEqual(Array.from({ length: n }, (_, i) => i + 1));
+        const taken = new Set<string>();
+        for (const c of cells) {
+          for (let r = c.row; r < c.row + c.rowSpan; r++) {
+            expect(r).toBeLessThanOrEqual(rows);
+            const key = `${c.column}:${r}`;
+            expect(taken.has(key), `${n} ${side} ${key}`).toBe(false);
+            taken.add(key);
+          }
+        }
+      }
     }
   });
 
-  test("chi passa dalla seconda linea a rete alla rotazione", () => {
-    // A 6 è la posizione 5 (va in 4); a 4 la posizione 4 (va in 3); a 3 la posizione 3
-    // (dietro a sinistra, va a rete in 2); a 2 chi batte.
-    expect(exitingBackRowIndex(6)).toBe(4);
-    expect(exitingBackRowIndex(5)).toBe(4);
-    expect(exitingBackRowIndex(4)).toBe(3);
-    expect(exitingBackRowIndex(3)).toBe(2);
-    expect(exitingBackRowIndex(2)).toBe(0);
+  test("posizioni a rete e libero per formato", () => {
+    expect(frontPositions(6)).toEqual([4, 3, 2]);
+    expect(frontPositions(4)).toEqual([3]);
+    expect(frontPositions(3)).toEqual([2]);
+    expect(hasLiberoOption(2)).toBe(false);
+    expect(hasLiberoOption(3)).toBe(true);
   });
 });
 
@@ -90,11 +128,18 @@ test.describe("punti e rotazione", () => {
     expect(sideOut.teamB.positions).toEqual(["B2", "B3", "B1"]);
   });
 
-  test("senza formazione si contano solo punti e battuta", () => {
-    const start = { ...game(6), withLineup: false };
-    const next = applyPoint(start, "B");
-    expect(next.servingTeam).toBe("B");
-    expect(next.teamB.score).toBe(1);
+  test("a 2 contro 2 le due giocatrici si alternano in battuta", () => {
+    const start = game(2, { servingTeam: "A" });
+    const sideOut = applyPoint(start, "B");
+    expect(sideOut.teamB.positions).toEqual(["B2", "B1"]);
+    expect(applyPoint(applyPoint(sideOut, "A"), "B").teamB.positions).toEqual(["B1", "B2"]);
+  });
+
+  test("senza formazione si contano solo i punti, senza seguire chi batte", () => {
+    const start = { ...game(6), withLineup: false, servingTeam: null };
+    const next = applyPoint(applyPoint(start, "B"), "B");
+    expect(next.servingTeam).toBeNull();
+    expect(next.teamB.score).toBe(2);
     expect(next.teamB.positions).toEqual(start.teamB.positions);
   });
 
@@ -129,13 +174,19 @@ test.describe("libero", () => {
     expect(m.teamA.liberoActiveFor).toBeNull();
   });
 
-  test("a 4: esce quando la sostituita passa dalla seconda linea a rete", () => {
+  test("a 4 (rombo): esce quando la sostituita arriva a rete, in posizione 3", () => {
     let m = game(4, { useLibero: true, servingTeam: "B" });
     m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A4", ""], liberoActiveFor: "A4" } };
-    // A conquista la battuta: A4 (dietro a sinistra) va in 3, a rete.
+    // A conquista la battuta: A4 (a sinistra) va in 3, a rete.
     m = applyPoint(m, "A");
     expect(m.teamA.positions[2]).toBe("A4");
     expect(m.teamA.liberoActiveFor).toBeNull();
+  });
+
+  test("nel 2 contro 2 la libero non c'è", () => {
+    let m = game(2, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A1", "A2"] } };
+    expect(applyPoint(m, "B").teamA.liberoActiveFor).toBeNull();
   });
 
   test("senza libero non entra mai, anche se un nome era rimasto scritto", () => {

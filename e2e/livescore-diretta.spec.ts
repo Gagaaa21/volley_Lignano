@@ -40,6 +40,8 @@ test("formati da 2 a 6 giocatrici: il campo e la rotazione si adattano", async (
     await page.getByRole("button", { name: `${n} vs ${n}` }).click();
     await expect(cells(page, "left")).toHaveCount(n);
     await expect(cells(page, "right")).toHaveCount(n);
+    // Nel 2 contro 2 (affiancate, senza seconda linea) la libero non c'è.
+    await expect(page.getByRole("button", { name: "Con libero" })).toHaveCount(n === 2 ? 0 : 1);
   }
   // Senza libero i campi della libero non ci sono; con la libero sì.
   await page.getByRole("button", { name: "Con libero" }).click();
@@ -83,6 +85,8 @@ test("solo punteggio con diretta pubblica: si vede sul sito senza nomi, e si spe
   await page.getByRole("button", { name: "Solo punteggio" }).click();
   await expect(page.locator("[data-court-position]")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "4 vs 4" })).toHaveCount(0);
+  // Senza formazione non si segue chi batte: niente «Chi serve per prima?».
+  await expect(page.getByText("Chi serve per prima?")).toHaveCount(0);
   await page.getByLabel(/Nome avversaria/).fill("Pallavolo Diretta");
   await page.getByText("Diretta sul sito pubblico").click();
   await page.getByRole("button", { name: "Inizia" }).click();

@@ -26,6 +26,7 @@ import {
   MAX_TIMEOUTS_PER_SET,
   applyPoint,
   closeSet,
+  hasLiberoOption,
   initialMatch,
   isTeamEmpty,
   liberoInPlay,
@@ -162,7 +163,7 @@ interface ReducerState {
 
 type Action =
   | { type: "hydrate"; match: LiveScoreState }
-  | { type: "startMatch"; servingTeam: TeamKey }
+  | { type: "startMatch"; servingTeam: TeamKey | null }
   | { type: "point"; winner: TeamKey }
   | { type: "closeSet" }
   | { type: "undo" }
@@ -852,7 +853,7 @@ export function LiveScoreClient({
   const matchWinner = winnerOf(match);
   const tied = match.teamA.score === match.teamB.score;
   const numeric = match.mode === "match";
-  const showLiberoFields = match.withLineup && match.useLibero;
+  const showLiberoFields = match.withLineup && match.useLibero && hasLiberoOption(match.playersPerSide);
   // Senza formazione il tabellone è l'unica cosa da guardare: più grande.
   const bigBoard = isFullscreen || !match.withLineup;
   const publicPath = (match.publicLive ? match.team : team) === "minivolley" ? "/minivolley" : "/";
@@ -900,7 +901,7 @@ export function LiveScoreClient({
                 </div>
                 <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
                   {!match.withLineup
-                    ? "Solo punteggio: niente formazioni né rotazioni, si segnano punti, set e time-out. Scegli chi serve per prima e inizia."
+                    ? "Solo punteggio: niente formazioni né rotazioni, si segnano punti, set e time-out. Premi «Inizia» quando siete pronti."
                     : `${match.mode === "match" ? "Scrivi i numeri di maglia" : "Scegli i nomi"} nelle ${match.playersPerSide} posizioni di ciascuna squadra come sono disposte in campo${showLiberoFields ? ", poi indica le libero." : "."}`}
                 </p>
               </div>
@@ -953,6 +954,7 @@ export function LiveScoreClient({
                       }))}
                     />
                   </SetupOption>
+                  {hasLiberoOption(match.playersPerSide) && (
                   <SetupOption label="Libero">
                     <SegmentedButtons
                       ariaLabel="Libero"
@@ -964,6 +966,7 @@ export function LiveScoreClient({
                       ]}
                     />
                   </SetupOption>
+                  )}
                 </>
               )}
             </div>
@@ -1074,6 +1077,8 @@ export function LiveScoreClient({
               </div>
             )}
 
+            {/* Solo punteggio: chi batte non si segue, quindi non si chiede. */}
+            {match.withLineup && (
             <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
               <Label>Chi serve per prima?</Label>
               <div className="mt-1.5 grid grid-cols-2 gap-2">
@@ -1094,10 +1099,11 @@ export function LiveScoreClient({
                 ))}
               </div>
             </div>
+            )}
 
             <Button
               onClick={() => {
-                dispatch({ type: "startMatch", servingTeam: pendingServer });
+                dispatch({ type: "startMatch", servingTeam: match.withLineup ? pendingServer : null });
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               size="lg"
