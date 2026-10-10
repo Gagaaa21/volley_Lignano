@@ -163,11 +163,18 @@ export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
     body: "\"Chiudi set\" quando il punteggio lo consente, \"Annulla\" per tornare indietro di un'azione, \"Inverti\" per scambiare i lati, \"Nuovo\" per ricominciare da capo.",
   },
   {
+    id: "section-livescore-substitution",
+    path: "/admin/livescore",
+    target: "section-livescore-substitution",
+    title: "Sostituzioni",
+    body: "Scegli chi esce e chi entra: il tabellone conta i cambi del set e chi entra prosegue la rotazione. Puoi anche toccare direttamente la giocatrice in campo.",
+  },
+  {
     id: "section-livescore-formations",
     path: "/admin/livescore",
     target: "section-livescore-formations",
     title: "Cambia le formazioni",
-    body: "Apri questo pannello in qualsiasi momento per correggere un nome, un numero o la libero senza fermare il punteggio.",
+    body: "Apri questo pannello in qualsiasi momento per correggere un nome, un numero o la libero senza fermare il punteggio (senza contarlo come cambio).",
   },
   {
     id: "section-livescore-public-ingame",

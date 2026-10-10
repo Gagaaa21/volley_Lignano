@@ -9,6 +9,8 @@ import {
   linkCalendarMatch,
   matchWinner,
   rotateOnce,
+  substitutePlayer,
+  substitutionProblem,
   toPublicLiveScore,
   withPlayersPerSide,
 } from "@/lib/liveScore";
@@ -197,6 +199,57 @@ test.describe("libero", () => {
   });
 });
 
+test.describe("sostituzioni", () => {
+  test("chi entra prende il posto di chi esce e il cambio si conta nel set", () => {
+    const m = substitutePlayer(game(6), "A", 3, "A9");
+    expect(m.teamA.positions).toEqual(["A1", "A2", "A9", "A4", "A5", "A6"]);
+    expect(m.teamA.substitutionsUsed).toBe(1);
+    expect(m.substitutions).toEqual([{ team: "A", set: 1, position: 3, out: "A3", in: "A9" }]);
+    // Le rotazioni portano con sé chi è entrato.
+    expect(applyPoint({ ...m, servingTeam: "B" }, "A").teamA.positions[1]).toBe("A9");
+  });
+
+  test("i cambi del set si azzerano alla chiusura, l'elenco resta con il numero del set", () => {
+    let m = substitutePlayer(game(6), "B", 1, "B8");
+    m = { ...m, teamA: { ...m.teamA, score: 25 }, teamB: { ...m.teamB, score: 20 } };
+    m = closeSet(m);
+    expect(m.teamB.substitutionsUsed).toBe(0);
+    m = substitutePlayer(m, "B", 2, "B9");
+    expect(m.substitutions.map((s) => s.set)).toEqual([1, 2]);
+  });
+
+  test("chi entra eredita il ruolo della sostituita dalla libero (anche se la libero è dentro per lei)", () => {
+    let m = game(6, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A1", "A4"], liberoActiveFor: "A1" } };
+    m = substitutePlayer(m, "A", 1, "A7");
+    expect(m.teamA.hostNames).toEqual(["A7", "A4"]);
+    expect(m.teamA.liberoActiveFor).toBe("A7");
+  });
+
+  test("cambi non validi: nessuno che entra, già in campo, la libero", () => {
+    let m = game(6, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L" } };
+    expect(substitutionProblem(m, "A", 2, " ")).toBe("Indica chi entra.");
+    expect(substitutionProblem(m, "A", 2, "A5")).toContain("già in campo");
+    expect(substitutionProblem(m, "A", 2, "L")).toContain("libero");
+    expect(substitutePlayer(m, "A", 2, "A5")).toBe(m);
+  });
+
+  test("riempire una posizione vuota non conta come cambio", () => {
+    const base = game(4);
+    const empty = { ...base, teamA: { ...base.teamA, positions: ["A1", "", "A3", "A4"] } };
+    const m = substitutePlayer(empty, "A", 2, "A2");
+    expect(m.teamA.positions[1]).toBe("A2");
+    expect(m.teamA.substitutionsUsed).toBe(0);
+    expect(m.substitutions).toEqual([]);
+  });
+
+  test("le sostituzioni non arrivano mai al sito pubblico", () => {
+    const m = substitutePlayer(game(6, { publicLive: true }), "A", 3, "Riserva Segreta");
+    expect(JSON.stringify(toPublicLiveScore(m, "x"))).not.toContain("Riserva Segreta");
+  });
+});
+
 test("cambiare formato adatta le formazioni e scorda le sostituite non più in campo", () => {
   let m = game(6, { started: false });
   m = { ...m, teamA: { ...m.teamA, hostNames: ["A2", "A6"] } };
@@ -280,7 +333,8 @@ test.describe("salvataggi", () => {
       opponentColor: "#475569",
     };
     const parsed = liveScoreStateSchema.parse(old);
-    expect(parsed).toMatchObject({ playersPerSide: 6, withLineup: true, useLibero: true, publicLive: false });
+    expect(parsed).toMatchObject({ playersPerSide: 6, withLineup: true, useLibero: true, publicLive: false, substitutions: [] });
+    expect(parsed.teamA.substitutionsUsed).toBe(0);
   });
 
   test("una formazione che non corrisponde al numero di giocatrici viene rifiutata", () => {

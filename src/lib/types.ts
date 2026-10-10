@@ -569,6 +569,20 @@ export interface LiveScoreTeamState {
   /** Time-out chiamati in questo set (regolamento: 2 a disposizione per
    * squadra per set). Azzerato alla chiusura del set insieme al punteggio. */
   timeoutsUsed: number;
+  /** Sostituzioni fatte in questo set (nel 6 contro 6 il regolamento ne
+   * consente 6). Azzerate alla chiusura del set. */
+  substitutionsUsed: number;
+}
+
+/** Una sostituzione fatta durante il gioco: chi esce e chi entra, in quale
+ * posizione e in quale set. Solo per lo staff, mai sul sito pubblico. */
+export interface LiveScoreSubstitution {
+  team: "A" | "B";
+  /** Set in cui è avvenuta (1 = primo). */
+  set: number;
+  position: CourtPosition;
+  out: string;
+  in: string;
 }
 
 /** Punteggio finale di un set già chiuso, per lo storico mostrato in
@@ -632,6 +646,8 @@ export interface LiveScoreState {
    * diretta pubblica. */
   matchId: string | null;
   category: Category | null;
+  /** Tutte le sostituzioni della partita, in ordine. */
+  substitutions: LiveScoreSubstitution[];
 }
 
 /** Ciò che il sito pubblico vede della diretta (vedi toPublicLiveScore in

@@ -35,6 +35,12 @@ export const MAX_TIMEOUTS_PER_SET = 2;
 /** Set da vincere per aggiudicarsi la partita (al meglio dei 5). */
 export const SETS_TO_WIN = 3;
 
+/** Sostituzioni consentite per set: 6 nel 6 contro 6; negli altri formati
+ * (giovanili, minivolley) le regole cambiano, quindi solo il conteggio. */
+export function substitutionLimit(players: LiveScorePlayers): number | null {
+  return players === 6 ? 6 : null;
+}
+
 export function teamKeyProp(key: TeamKey): "teamA" | "teamB" {
   return key === "A" ? "teamA" : "teamB";
 }
@@ -229,6 +235,7 @@ export function emptyTeam(label: string, players: LiveScorePlayers = 6): LiveSco
     score: 0,
     setsWon: 0,
     timeoutsUsed: 0,
+    substitutionsUsed: 0,
   };
 }
 
@@ -266,6 +273,7 @@ export function initialMatch(format: Partial<LiveScoreFormat> = {}, team: Traini
     team,
     matchId: null,
     category: null,
+    substitutions: [],
   };
 }
 
@@ -370,8 +378,70 @@ export function closeSet(match: LiveScoreState): LiveScoreState {
       setsWon: match[winnerKey].setsWon + 1,
       liberoActiveFor: null,
       timeoutsUsed: 0,
+      substitutionsUsed: 0,
     },
-    [loserKey]: { ...match[loserKey], score: 0, liberoActiveFor: null, timeoutsUsed: 0 },
+    [loserKey]: { ...match[loserKey], score: 0, liberoActiveFor: null, timeoutsUsed: 0, substitutionsUsed: 0 },
+  };
+}
+
+/** Set in corso (1 = primo). */
+export function currentSet(match: LiveScoreState): number {
+  return match.setHistory.length + 1;
+}
+
+/** Perché una sostituzione non si può fare, o null se va bene. */
+export function substitutionProblem(
+  match: LiveScoreState,
+  key: TeamKey,
+  position: CourtPosition,
+  incoming: string,
+): string | null {
+  const team = match[teamKeyProp(key)];
+  const name = incoming.trim();
+  const outgoing = (team.positions[position - 1] ?? "").trim();
+  if (!name) return "Indica chi entra.";
+  if (name === outgoing) return "È già in campo in quella posizione.";
+  if (team.positions.some((n) => n.trim() === name)) return `${name} è già in campo.`;
+  if (liberoInPlay(match, team) && team.liberoName.trim() === name) {
+    return "La libero entra ed esce da sola: non serve un cambio.";
+  }
+  return null;
+}
+
+/**
+ * Sostituzione durante il gioco: chi entra prende la posizione di chi esce.
+ * Se chi esce era una delle giocatrici che la libero sostituisce, il ruolo
+ * passa a chi entra (e se in quel momento c'era la libero al suo posto, la
+ * libero resta in campo per lei). Conta come cambio del set solo se in quella
+ * posizione c'era davvero qualcuna.
+ */
+export function substitutePlayer(
+  match: LiveScoreState,
+  key: TeamKey,
+  position: CourtPosition,
+  incoming: string,
+): LiveScoreState {
+  if (substitutionProblem(match, key, position, incoming)) return match;
+  const prop = teamKeyProp(key);
+  const team = match[prop];
+  const name = incoming.trim();
+  const outgoing = (team.positions[position - 1] ?? "").trim();
+  const positions = [...team.positions];
+  positions[position - 1] = name;
+  const hostNames = team.hostNames.map((h) => (outgoing && h.trim() === outgoing ? name : h)) as [string, string];
+  const counts = outgoing !== "";
+  return {
+    ...match,
+    [prop]: {
+      ...team,
+      positions,
+      hostNames,
+      liberoActiveFor: outgoing && team.liberoActiveFor === outgoing ? name : team.liberoActiveFor,
+      substitutionsUsed: team.substitutionsUsed + (counts ? 1 : 0),
+    },
+    substitutions: counts
+      ? [...match.substitutions, { team: key, set: currentSet(match), position, out: outgoing, in: name }]
+      : match.substitutions,
   };
 }
 

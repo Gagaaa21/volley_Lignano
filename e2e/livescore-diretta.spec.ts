@@ -65,6 +65,28 @@ test("formati da 2 a 6 giocatrici: il campo e la rotazione si adattano", async (
   await expect(cell(page, "right", 4)).toContainText("21");
   await expect(cell(page, "left", 1)).toContainText("11");
 
+  // Sostituzione dal pulsante «Cambio»: esce la 11 (in battuta), entra la 19.
+  await page.getByRole("button", { name: "Cambio" }).click();
+  const dialog = page.locator("[data-livescore-substitution]");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: /Pos\. 1/ }).click();
+  await dialog.getByLabel("Entra").fill("12");
+  await dialog.getByRole("button", { name: "Conferma cambio" }).click();
+  await expect(dialog).toContainText("già in campo");
+  await dialog.getByLabel("Entra").fill("19");
+  await dialog.getByRole("button", { name: "Conferma cambio" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(cell(page, "left", 1)).toContainText("19");
+  // Un tocco sulla giocatrice in campo apre il cambio con lei già scelta.
+  await cell(page, "right", 3).getByRole("button", { name: /Sostituisci/ }).click();
+  await expect(dialog.getByRole("button", { name: /Pos\. 3/ })).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByLabel("Entra").fill("29");
+  await dialog.getByRole("button", { name: "Conferma cambio" }).click();
+  await expect(cell(page, "right", 3)).toContainText("29");
+  // «Annulla» toglie anche un cambio.
+  await page.getByRole("button", { name: "Annulla" }).click();
+  await expect(cell(page, "right", 3)).toContainText("24");
+
   // Senza la diretta accesa il sito pubblico non vede nulla.
   const res = await page.request.get("/api/livescore/pubblico");
   expect((await res.json()).live).toBeNull();

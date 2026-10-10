@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import {
+  ArrowLeftRight,
   ExternalLink,
   Maximize2,
   Minimize2,
@@ -34,6 +35,8 @@ import {
   matchWinner as winnerOf,
   otherKey,
   readableTextColor,
+  substitutePlayer,
+  substitutionLimit,
   teamColor,
   teamKeyProp,
   withAlpha,
@@ -42,6 +45,7 @@ import {
   type TeamKey,
 } from "@/lib/liveScore";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
+import { SubstitutionDialog } from "./SubstitutionDialog";
 import { useStageFullscreen } from "./useStageFullscreen";
 import { shortName } from "@/components/matches/VolleyCourt";
 import { SectionTour } from "@/components/tour/SectionTour";
@@ -176,6 +180,7 @@ type Action =
   | { type: "setPublicLive"; value: boolean; team: TrainingTeam }
   | { type: "linkMatch"; match: LiveScoreCalendarMatch | null }
   | { type: "toggleTimeout"; team: TeamKey }
+  | { type: "substitute"; team: TeamKey; position: CourtPosition; incoming: string }
   | { type: "setPosition"; team: TeamKey; position: CourtPosition; value: string }
   | { type: "setLiberoName"; team: TeamKey; value: string }
   | { type: "setHostName"; team: TeamKey; index: 0 | 1; value: string }
@@ -258,6 +263,17 @@ function reducer(state: ReducerState, action: Action): ReducerState {
       return { ...state, match: { ...state.match, publicLive: action.value, team: action.team } };
     case "linkMatch":
       return { ...state, match: linkCalendarMatch(state.match, action.match) };
+    case "substitute": {
+      // Come un punto: entra nello storico, così «Annulla» toglie anche un cambio sbagliato.
+      const next = substitutePlayer(state.match, action.team, action.position, action.incoming);
+      if (next === state.match) return state;
+      return {
+        match: next,
+        history: [...state.history, state.match],
+        pointLog: state.pointLog,
+        pointLogHistory: [...state.pointLogHistory, state.pointLog],
+      };
+    }
     case "toggleTimeout": {
       const key = teamKeyProp(action.team);
       const team = state.match[key];
@@ -403,6 +419,7 @@ function renderTeamCell(
   large: boolean,
   numeric: boolean,
   showLibero: boolean,
+  onSubstitute?: (position: CourtPosition) => void,
 ) {
   return function TeamCell(position: CourtPosition) {
     if (editing) {
@@ -458,6 +475,16 @@ function renderTeamCell(
             Libero
           </span>
         )}
+        {/* Un tocco sulla giocatrice apre la sostituzione con lei già scelta. */}
+        {onSubstitute && (
+          <button
+            type="button"
+            onClick={() => onSubstitute(position)}
+            aria-label={`Sostituisci ${name || `posizione ${position}`}`}
+            title="Tocca per una sostituzione"
+            className="absolute inset-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+          />
+        )}
       </>
     );
   };
@@ -476,6 +503,7 @@ function TeamBlock({
   placeholder,
   onLabelChange,
   onToggleTimeout,
+  substitutions,
   large,
 }: {
   team: LiveScoreTeamState;
@@ -488,6 +516,8 @@ function TeamBlock({
   placeholder?: string;
   onLabelChange: (value: string) => void;
   onToggleTimeout: () => void;
+  /** Cambi del set (solo con la formazione): un tocco apre la sostituzione. */
+  substitutions?: { used: number; limit: number | null; onClick: () => void };
   large: boolean;
 }) {
   const accent = getTeamAccent(teamKey, mode, opponentColor);
@@ -535,6 +565,24 @@ function TeamBlock({
           {timeoutMaxed ? <TimerOff className="h-2.5 w-2.5" /> : <Timer className="h-2.5 w-2.5" />}
           {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
         </button>
+        {substitutions && (
+          <button
+            type="button"
+            onClick={substitutions.onClick}
+            title="Cambi in questo set: tocca per una sostituzione"
+            aria-label={`Sostituzione ${team.label}: ${substitutions.used} cambi in questo set`}
+            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition-colors"
+            style={
+              substitutions.limit !== null && substitutions.used >= substitutions.limit
+                ? { background: "#ffffff", color: "var(--destructive)" }
+                : { background: accent.overlay, color: accent.text }
+            }
+          >
+            <ArrowLeftRight className="h-2.5 w-2.5" />
+            {substitutions.used}
+            {substitutions.limit !== null && `/${substitutions.limit}`}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -759,6 +807,8 @@ export function LiveScoreClient({
     pointLogHistory: [],
   }));
   const [editingNames, setEditingNames] = useState(false);
+  /** Sostituzione aperta: squadra e (se toccata in campo) posizione di chi esce. */
+  const [substitution, setSubstitution] = useState<{ team: TeamKey; position: CourtPosition | null } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [pendingServer, setPendingServer] = useState<TeamKey>("A");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -857,6 +907,8 @@ export function LiveScoreClient({
   // Senza formazione il tabellone è l'unica cosa da guardare: più grande.
   const bigBoard = isFullscreen || !match.withLineup;
   const publicPath = (match.publicLive ? match.team : team) === "minivolley" ? "/minivolley" : "/";
+  const subLimit = substitutionLimit(match.playersPerSide);
+  const closeSubstitution = useCallback(() => setSubstitution(null), []);
 
   return (
     <>
@@ -1162,6 +1214,20 @@ export function LiveScoreClient({
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => {
+                      setEditingNames(false);
+                      setSubstitution({ team: "A", position: null });
+                    }}
+                    data-tour="section-livescore-substitution"
+                  >
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    Cambio
+                  </Button>
+                )}
+                {match.withLineup && (
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setEditingNames((v) => !v)}
                     data-tour="section-livescore-formations"
                   >
@@ -1264,6 +1330,11 @@ export function LiveScoreClient({
                   placeholder={match.mode === "match" && leftKey === "B" ? "Nome avversaria" : undefined}
                   onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
                   onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: leftKey })}
+                  substitutions={
+                    match.withLineup
+                      ? { used: leftTeam.substitutionsUsed, limit: subLimit, onClick: () => setSubstitution({ team: leftKey, position: null }) }
+                      : undefined
+                  }
                 />
                 <CenterDisplay
                   leftScore={leftTeam.score}
@@ -1282,6 +1353,11 @@ export function LiveScoreClient({
                   placeholder={match.mode === "match" && rightKey === "B" ? "Nome avversaria" : undefined}
                   onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
                   onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: rightKey })}
+                  substitutions={
+                    match.withLineup
+                      ? { used: rightTeam.substitutionsUsed, limit: subLimit, onClick: () => setSubstitution({ team: rightKey, position: null }) }
+                      : undefined
+                  }
                 />
               </div>
             </div>
@@ -1324,8 +1400,8 @@ export function LiveScoreClient({
                 players={match.playersPerSide}
                 labelA={displayLabel(leftTeam, leftKey)}
                 labelB={displayLabel(rightTeam, rightKey)}
-                renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, numeric, liberoInPlay(match, leftTeam))}
-                renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, numeric, liberoInPlay(match, rightTeam))}
+                renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }))}
+                renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }))}
                 large={isFullscreen}
               />
             )}
@@ -1357,6 +1433,22 @@ export function LiveScoreClient({
           </div>
           )}
         </div>
+        {/* Dentro il riquadro del tabellone, così resta visibile anche a schermo intero. */}
+        {substitution && match.started && match.withLineup && (
+          <SubstitutionDialog
+            key={`${substitution.team}-${substitution.position ?? "none"}`}
+            match={match}
+            initialTeam={substitution.team}
+            initialPosition={substitution.position}
+            athleteNames={athleteNames}
+            teamLabel={(key) => displayLabel(match[teamKeyProp(key)], key)}
+            onConfirm={(teamKey, position, incoming) => {
+              dispatch({ type: "substitute", team: teamKey, position, incoming });
+              setSubstitution(null);
+            }}
+            onClose={closeSubstitution}
+          />
+        )}
       </div>
     </>
   );

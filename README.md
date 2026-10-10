@@ -86,7 +86,10 @@ staff (Developer e Admin).
   tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
   punteggio» senza formazione (e senza seguire chi batte); rotazione e libero
   calcolate per qualunque numero di giocatrici. Disposizioni in
-  `courtLayout`: 2 affiancate, 3 a triangolo, 4 a rombo, 5 e 6 su due file. Lo stato si salva in automatico per 3 ore (riga unica
+  `courtLayout`: 2 affiancate, 3 a triangolo, 4 a rombo, 5 e 6 su due file.
+  Sostituzioni durante il gioco (`substitutePlayer`): contate per set (6 nel
+  6 contro 6), elencate in `substitutions`, annullabili come un punto, mai
+  esposte alla diretta pubblica. Lo stato si salva in automatico per 3 ore (riga unica
   `live_score_state`, campo `data` jsonb: i campi nuovi hanno un valore di
   partenza in `src/lib/liveScoreSchema.ts`, nessuna migrazione). In Partita un
   admin può accendere la **diretta pubblica**: `/api/livescore/pubblico`
