@@ -516,6 +516,28 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
 // Tabellone live (allenamento): un'unica riga fissa, come test_mode_store.
 const LIVE_SCORE_ROW_ID = "current";
 
+/** Tabellone live salvato con l'istante del salvataggio, o null se manca o è
+ * più vecchio di LIVE_SCORE_TTL_MS. */
+async function readLiveScoreSnapshot(): Promise<{ state: LiveScoreState; updatedAt: string } | null> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db
+    .from("live_score_state")
+    .select("data, updated_at")
+    .eq("id", LIVE_SCORE_ROW_ID)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const age = Date.now() - new Date(data.updated_at as string).getTime();
+  if (age > LIVE_SCORE_TTL_MS) {
+    // Oltre le 3 ore non va solo ignorato: la riga va cancellata subito,
+    // altrimenti resterebbe a occupare spazio su Supabase finché
+    // qualcuno non riapre lo strumento (vedi LIVE_SCORE_TTL_MS).
+    await db.from("live_score_state").delete().eq("id", LIVE_SCORE_ROW_ID);
+    return null;
+  }
+  return { state: data.data as LiveScoreState, updatedAt: data.updated_at as string };
+}
+
 export const supabaseRepo: Repo = {
   async listTrainings(filter?: TrainingFilter) {
     const db = getSupabaseAdmin();
@@ -1100,23 +1122,10 @@ export const supabaseRepo: Repo = {
   },
 
   async getLiveScoreState() {
-    const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("live_score_state")
-      .select("data, updated_at")
-      .eq("id", LIVE_SCORE_ROW_ID)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-    const age = Date.now() - new Date(data.updated_at as string).getTime();
-    if (age > LIVE_SCORE_TTL_MS) {
-      // Oltre le 3 ore non va solo ignorato: la riga va cancellata subito,
-      // altrimenti resterebbe a occupare spazio su Supabase finché
-      // qualcuno non riapre lo strumento (vedi LIVE_SCORE_TTL_MS).
-      await db.from("live_score_state").delete().eq("id", LIVE_SCORE_ROW_ID);
-      return null;
-    }
-    return data.data as LiveScoreState;
+    return (await readLiveScoreSnapshot())?.state ?? null;
+  },
+  async getLiveScoreSnapshot() {
+    return readLiveScoreSnapshot();
   },
   async saveLiveScoreState(state: LiveScoreState) {
     const db = getSupabaseAdmin();

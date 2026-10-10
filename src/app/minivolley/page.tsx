@@ -6,6 +6,7 @@ import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicTour } from "@/components/tour/PublicTour";
 import { CalendarSection } from "@/components/calendar/CalendarSection";
+import { LiveScoreBanner } from "@/components/calendar/LiveScoreBanner";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -90,6 +91,7 @@ export default async function MinivolleyPage({
     <div className="flex min-h-screen flex-col">
       <PublicHeader team="minivolley" />
       <PublicTour team="minivolley" />
+      <LiveScoreBanner team="minivolley" />
 
       <section className="auth-stage relative overflow-hidden border-b border-border">
         <Image

@@ -206,6 +206,8 @@ export interface Repo {
   // non c'è nulla di salvato o se il salvataggio è più vecchio di
   // LIVE_SCORE_TTL_MS.
   getLiveScoreState(): Promise<LiveScoreState | null>;
+  /** Come getLiveScoreState, con l'istante dell'ultimo salvataggio (per la diretta pubblica). */
+  getLiveScoreSnapshot(): Promise<{ state: LiveScoreState; updatedAt: string } | null>;
   saveLiveScoreState(state: LiveScoreState): Promise<void>;
   clearLiveScoreState(): Promise<void>;
 }

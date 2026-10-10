@@ -551,10 +551,12 @@ export interface StorageOverview {
  * ricaricamento. */
 export interface LiveScoreTeamState {
   label: string;
-  positions: [string, string, string, string, string, string];
+  /** Un nome (o numero di maglia) per posizione: positions[0] = posizione 1.
+   * Tanti elementi quante le giocatrici in campo (LiveScoreState.playersPerSide). */
+  positions: string[];
   liberoName: string;
-  /** Le due centrali che la libero può sostituire (il regolamento parla
-   * sempre di due giocatrici, mai una sola). */
+  /** Le due giocatrici che la libero può sostituire (nella pallavolo a 6 le
+   * due centrali: il regolamento parla sempre di due, mai una sola). */
   hostNames: [string, string];
   /** Nome della centrale che la libero sta sostituendo in questo momento,
    * o null se in campo giocano loro stesse. Non è deducibile dalla sola
@@ -583,6 +585,11 @@ export interface LiveScoreSetResult {
  * a etichetta fissa — si scrive solo il nome dell'avversaria in Squadra B. */
 export type LiveScoreMode = "training" | "match";
 
+/** Giocatrici in campo per squadra: dal 2 contro 2 al 6 contro 6. */
+export type LiveScorePlayers = 2 | 3 | 4 | 5 | 6;
+
+export const LIVE_SCORE_PLAYER_OPTIONS: LiveScorePlayers[] = [2, 3, 4, 5, 6];
+
 export interface LiveScoreState {
   started: boolean;
   /** "training" o "match" (vedi LiveScoreMode) — scelto in fase di
@@ -606,6 +613,49 @@ export interface LiveScoreState {
    * in modalità "Allenamento" non si usa (Squadra B è sempre giallo acceso,
    * vedi getTeamAccent in LiveScoreClient.tsx). */
   opponentColor: string;
+  /** Giocatrici in campo per squadra (2–6): decide quante posizioni ha la
+   * formazione, come si dispongono in campo e come si ruota. */
+  playersPerSide: LiveScorePlayers;
+  /** false = «solo punteggio»: nessuna formazione, niente campo né rotazioni,
+   * si segnano solo punti, set e time-out. */
+  withLineup: boolean;
+  /** Libero in uso (solo con la formazione): se false i campi della libero
+   * non compaiono e il tabellone non la fa mai entrare. */
+  useLibero: boolean;
+  /** Diretta sul sito pubblico, attivata a mano da un admin (solo in
+   * Partita): il sito mostra punteggio e set, mai nomi o formazioni. */
+  publicLive: boolean;
+  /** Squadra del sito (U14/U15 o Minivolley) su cui mostrare la diretta. */
+  team: TrainingTeam;
+  /** Partita del calendario a cui si riferisce il tabellone (facoltativa):
+   * serve solo a precompilare l'avversaria e a mostrare la categoria nella
+   * diretta pubblica. */
+  matchId: string | null;
+  category: Category | null;
+}
+
+/** Ciò che il sito pubblico vede della diretta (vedi toPublicLiveScore in
+ * src/lib/liveScore.ts): squadre, punteggio, set e chi serve. Mai nomi delle
+ * atlete, numeri di maglia o formazioni. Lignano è sempre «home». */
+export interface PublicLiveScoreTeam {
+  name: string;
+  color: string;
+  score: number;
+  sets: number;
+}
+
+export interface PublicLiveScore {
+  team: TrainingTeam;
+  category: Category | null;
+  home: PublicLiveScoreTeam;
+  away: PublicLiveScoreTeam;
+  serving: "home" | "away" | null;
+  /** Set già chiusi, in ordine. */
+  sets: { home: number; away: number }[];
+  /** Vero quando una delle due squadre ha vinto la partita. */
+  finished: boolean;
+  /** Ultimo salvataggio del tabellone (ISO). */
+  updatedAt: string;
 }
 
 /** Il tabellone live si salva in automatico (per non perdere tutto se la

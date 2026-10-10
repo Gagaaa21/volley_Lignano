@@ -7,6 +7,7 @@ import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicTour } from "@/components/tour/PublicTour";
 import { CalendarSection } from "@/components/calendar/CalendarSection";
 import { CategoryFilter } from "@/components/calendar/CategoryFilter";
+import { LiveScoreBanner } from "@/components/calendar/LiveScoreBanner";
 import { MonthNav } from "@/components/calendar/MonthNav";
 import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
 import { StandingsSection } from "@/components/calendar/StandingsSection";
@@ -113,6 +114,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     <div className="flex min-h-screen flex-col">
       <PublicHeader />
       <PublicTour team="u14u15" />
+      <LiveScoreBanner team="u14u15" />
 
       <section className="auth-stage relative overflow-hidden border-b border-border">
         <Image

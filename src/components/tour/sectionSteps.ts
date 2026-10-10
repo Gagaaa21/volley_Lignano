@@ -114,8 +114,8 @@ export const LIVESCORE_SETUP_TOUR_STEPS: BaseTourStep[] = [
     id: "section-livescore-mode",
     path: "/admin/livescore",
     target: "section-livescore-mode",
-    title: "Allenamento o Partita",
-    body: "In Allenamento inserisci i nomi delle atlete; in Partita i numeri di maglia, con il nome dell'avversaria e il suo colore.",
+    title: "Scegli il formato",
+    body: "Allenamento (nomi) o Partita (numeri di maglia, nome e colore dell'avversaria); con formazione o solo punteggio; da 2 contro 2 a 6 contro 6, con o senza libero.",
   },
   {
     id: "section-livescore-court",
@@ -129,7 +129,14 @@ export const LIVESCORE_SETUP_TOUR_STEPS: BaseTourStep[] = [
     path: "/admin/livescore",
     target: "section-livescore-libero",
     title: "Libero: entra ed esce da sola",
-    body: "Scrivi qui il nome (o il numero) della libero e indica quale centrale sostituisce: da qui in poi il tabellone calcola da solo la rotazione a ogni cambio palla e la fa entrare/uscire al posto giusto, senza bisogno di toccare nulla a mano.",
+    body: "Scrivi qui il nome (o il numero) della libero e indica chi sostituisce: da qui in poi il tabellone calcola da solo la rotazione a ogni cambio palla e la fa entrare/uscire al posto giusto, senza bisogno di toccare nulla a mano.",
+  },
+  {
+    id: "section-livescore-public",
+    path: "/admin/livescore",
+    target: "section-livescore-public",
+    title: "Diretta sul sito",
+    body: "In Partita puoi mostrare il punteggio a tutti sul sito pubblico, come risultato non ufficiale: solo squadre, punti e set, mai nomi o formazioni.",
   },
   {
     id: "section-livescore-start",
@@ -161,6 +168,13 @@ export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
     target: "section-livescore-formations",
     title: "Cambia le formazioni",
     body: "Apri questo pannello in qualsiasi momento per correggere un nome, un numero o la libero senza fermare il punteggio.",
+  },
+  {
+    id: "section-livescore-public-ingame",
+    path: "/admin/livescore",
+    target: "section-livescore-public",
+    title: "Diretta",
+    body: "Accende o spegne la diretta sul sito pubblico. Quando è rossa («In diretta») chi apre il sito vede il punteggio aggiornato ogni pochi secondi.",
   },
   {
     id: "section-livescore-fullscreen",

@@ -82,6 +82,18 @@ staff (Developer e Admin).
   o subito se il risultato è già stato inserito; pagina e azione dicono
   l'orario di chiusura. Dopo la chiusura i pronostici di tutti diventano
   visibili.
+- **Live score** (`/admin/livescore`, regole in `src/lib/liveScore.ts`) —
+  tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
+  punteggio» senza formazione; rotazione e libero calcolate per qualunque
+  numero di giocatrici. Lo stato si salva in automatico per 3 ore (riga unica
+  `live_score_state`, campo `data` jsonb: i campi nuovi hanno un valore di
+  partenza in `src/lib/liveScoreSchema.ts`, nessuna migrazione). In Partita un
+  admin può accendere la **diretta pubblica**: `/api/livescore/pubblico`
+  espone solo squadre, punti, set e chi serve (mai nomi o formazioni), con
+  cache di 3 secondi solo sulla CDN di Vercel (`Vercel-CDN-Cache-Control`,
+  mai nel browser); il riquadro «In diretta» (`LiveScoreBanner`) sulla
+  home U14/U15 o Minivolley lo rilegge ogni 5 secondi mentre la pagina è
+  visibile.
 - **Tema chiaro/scuro** — il sito parte sempre chiaro; da un pulsante con
   sole/luna (testata del sito pubblico e pagina di accesso) o dal menu
   dell'account (area tecnici) si sceglie Chiaro, Scuro o Automatico (segue il
@@ -244,6 +256,7 @@ src/
       guida/               Guida all'area riservata
       cambia-password/    Cambio password (obbligatorio al primo accesso)
     api/push/subscribe/    Iscrizione/cancellazione notifiche push
+    api/livescore/         Tabellone live (staff) e diretta pubblica (pubblico/)
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
     api/federation/logo/   Loghi delle squadre in classifica (solo dal portale FIPAV)
   components/              Componenti UI, layout, calendario, form, PWA

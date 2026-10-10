@@ -2,81 +2,67 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import type { CourtPosition } from "@/lib/types";
-
-/**
- * Le due squadre giocano su lati opposti della rete e si guardano l'una
- * con l'altra: la stessa posizione (es. 2, avanti a destra) cade quindi
- * specchiata rispetto all'asse verticale a seconda di quale squadra la
- * occupa — non un semplice ribaltamento colonna per colonna, ma due
- * ordini davvero distinti. Verificato posizione per posizione su
- * entrambi gli schemi di rotazione reali allegati (uno per squadra):
- * fila vicino alla rete e fila sul fondo campo, dall'alto in basso.
- */
-const LEFT_NET_COL: CourtPosition[] = [4, 3, 2];
-const LEFT_BASELINE_COL: CourtPosition[] = [5, 6, 1];
-const RIGHT_NET_COL: CourtPosition[] = [2, 3, 4];
-const RIGHT_BASELINE_COL: CourtPosition[] = [1, 6, 5];
-
-/** Le sei posizioni di una metà campo, in ordine di lettura riga per riga
- * di una griglia 2 colonne × 3 righe: colonna vicina al centro (rete) e
- * colonna verso il bordo esterno (fondo campo). */
-function halfCourtOrder(side: "left" | "right"): CourtPosition[] {
-  const netCol = side === "left" ? LEFT_NET_COL : RIGHT_NET_COL;
-  const baselineCol = side === "left" ? LEFT_BASELINE_COL : RIGHT_BASELINE_COL;
-  const order: CourtPosition[] = [];
-  for (let row = 0; row < 3; row++) {
-    if (side === "left") order.push(baselineCol[row], netCol[row]);
-    else order.push(netCol[row], baselineCol[row]);
-  }
-  return order;
-}
+import { halfCourtColumns } from "@/lib/liveScore";
+import type { CourtPosition, LiveScorePlayers } from "@/lib/types";
 
 /** Metà campo su fondo piatto e continuo (nessuna scacchiera): la colonna
  * "campo lungo" (2fr) è sempre sul bordo esterno, quella vicina alla rete
  * (1fr) sempre adiacente al centro — il confine fra le due, marcato da un
- * sottile filo bianco, è la linea dei 3 metri. */
+ * sottile filo bianco, è la linea dei 3 metri. Le due squadre si guardano
+ * l'una con l'altra, quindi la stessa posizione cade specchiata a seconda del
+ * lato: l'ordine delle posizioni per colonna viene da halfCourtColumns
+ * (src/lib/liveScore.ts), per qualunque numero di giocatrici. A 6: a sinistra
+ * rete 4-3-2 e fondo 5-6-1 dall'alto in basso, a destra il contrario. */
 function HalfCourt({
   side,
+  players,
   renderCell,
   large,
 }: {
   side: "left" | "right";
+  players: LiveScorePlayers;
   renderCell: (position: CourtPosition) => ReactNode;
   large: boolean;
 }) {
-  const order = halfCourtOrder(side);
+  const { net, baseline } = halfCourtColumns(players, side);
+  // Ogni metà campo è un quadrato di 9x9m: la fila vicino alla rete occupa
+  // i primi 3m (linea d'attacco), il fondo campo i restanti 6m — colonne in
+  // proporzione 1:2, non a metà, per restare fedeli alle misure reali.
+  const columns = side === "left" ? [baseline, net] : [net, baseline];
   return (
     <div
-      className={cn(
-        "grid flex-1 grid-rows-3",
-        // Ogni metà campo è un quadrato di 9x9m: la fila vicino alla rete
-        // occupa i primi 3m (linea d'attacco), il fondo campo i restanti
-        // 6m — colonne in proporzione 1:2, non a metà, per restare fedeli
-        // alle misure reali di un campo di pallavolo.
-        side === "left" ? "grid-cols-[2fr_1fr]" : "grid-cols-[1fr_2fr]",
-        large && "h-full",
-      )}
+      data-court-side={side}
+      className={cn("grid flex-1", side === "left" ? "grid-cols-[2fr_1fr]" : "grid-cols-[1fr_2fr]", large && "h-full")}
     >
-      {order.map((position, idx) => (
+      {columns.map((column, colIdx) => (
         <div
-          key={position}
+          key={colIdx}
           className={cn(
-            "relative flex flex-col items-center justify-center gap-1.5 px-2 text-center",
-            large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
-            // Confine fra colonna campo-lungo e colonna rete: la linea dei 3m.
-            idx % 2 === 0 && "border-r-2 border-white/80",
+            "flex flex-col",
+            // Confine fra le due colonne: la linea dei 3m.
+            colIdx === 0 && "border-r-2 border-white/80",
           )}
         >
-          <span
-            className={cn(
-              "absolute flex items-center justify-center rounded-full bg-white/25 font-bold text-white shadow-sm ring-1 ring-inset ring-white/30",
-              large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
-            )}
-          >
-            {position}
-          </span>
-          {renderCell(position)}
+          {column.map((position) => (
+            <div
+              key={position}
+              data-court-position={position}
+              className={cn(
+                "relative flex flex-1 flex-col items-center justify-center gap-1.5 px-2 text-center",
+                large ? "py-2 sm:py-3" : "min-h-20 py-4 sm:min-h-24 sm:py-5",
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute flex items-center justify-center rounded-full bg-white/25 font-bold text-white shadow-sm ring-1 ring-inset ring-white/30",
+                  large ? "left-2 top-2 h-6 w-6 text-[11px] sm:h-7 sm:w-7 sm:text-xs" : "left-1.5 top-1.5 h-4 w-4 text-[9px]",
+                )}
+              >
+                {position}
+              </span>
+              {renderCell(position)}
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -126,10 +112,13 @@ export function DualLiveScoreCourt({
   renderCellB,
   labelA,
   labelB,
+  players = 6,
   large = false,
   fitHeight = false,
   className,
 }: {
+  /** Giocatrici per squadra (2–6): quante posizioni ha ogni metà campo. */
+  players?: LiveScorePlayers;
   renderCellA: (position: CourtPosition) => ReactNode;
   renderCellB: (position: CourtPosition) => ReactNode;
   /** Nome delle due squadre, mostrato sugli angoli del riquadro che
@@ -215,8 +204,8 @@ export function DualLiveScoreCourt({
          * stare nello spazio verticale reale. */}
         <div className="relative flex aspect-[2/1] w-full items-stretch">
           <div className="relative flex flex-1 overflow-hidden rounded-md border-2 border-white bg-sand-500 sm:border-[3px]">
-            <HalfCourt side="left" renderCell={renderCellA} large={large} />
-            <HalfCourt side="right" renderCell={renderCellB} large={large} />
+            <HalfCourt side="left" players={players} renderCell={renderCellA} large={large} />
+            <HalfCourt side="right" players={players} renderCell={renderCellB} large={large} />
             <Net large={large} />
           </div>
         </div>

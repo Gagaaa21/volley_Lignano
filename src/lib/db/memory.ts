@@ -139,6 +139,20 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     });
   }
 
+  /** Tabellone live salvato, o null se manca o è più vecchio di LIVE_SCORE_TTL_MS. */
+  function readLiveScore() {
+    const saved = store.liveScoreState;
+    if (!saved) return null;
+    const age = Date.now() - new Date(saved.updatedAt).getTime();
+    if (age > LIVE_SCORE_TTL_MS) {
+      // Stessa pulizia della versione Supabase: oltre le 3 ore la riga
+      // viene proprio scartata, non solo ignorata in lettura.
+      store.liveScoreState = null;
+      return null;
+    }
+    return saved;
+  }
+
   return {
     async listTrainings(filter?: TrainingFilter) {
       let result = [...trainings];
@@ -578,16 +592,10 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     },
 
     async getLiveScoreState() {
-      const saved = store.liveScoreState;
-      if (!saved) return null;
-      const age = Date.now() - new Date(saved.updatedAt).getTime();
-      if (age > LIVE_SCORE_TTL_MS) {
-        // Stessa pulizia della versione Supabase: oltre le 3 ore la riga
-        // viene proprio scartata, non solo ignorata in lettura.
-        store.liveScoreState = null;
-        return null;
-      }
-      return saved.state;
+      return readLiveScore()?.state ?? null;
+    },
+    async getLiveScoreSnapshot() {
+      return readLiveScore();
     },
     async saveLiveScoreState(state: LiveScoreState) {
       store.liveScoreState = { state, updatedAt: new Date().toISOString() };

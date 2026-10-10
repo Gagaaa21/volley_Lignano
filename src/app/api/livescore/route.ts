@@ -1,36 +1,8 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff } from "@/lib/auth/guard";
 import { getSession } from "@/lib/auth/session";
-import type { LiveScoreState } from "@/lib/types";
-
-const teamStateSchema = z.object({
-  label: z.string(),
-  positions: z.tuple([z.string(), z.string(), z.string(), z.string(), z.string(), z.string()]),
-  liberoName: z.string(),
-  hostNames: z.tuple([z.string(), z.string()]),
-  liberoActiveFor: z.string().nullable(),
-  score: z.number().int().min(0),
-  setsWon: z.number().int().min(0),
-  timeoutsUsed: z.number().int().min(0),
-});
-
-const setResultSchema = z.object({
-  scoreA: z.number().int().min(0),
-  scoreB: z.number().int().min(0),
-});
-
-const liveScoreStateSchema = z.object({
-  started: z.boolean(),
-  mode: z.enum(["training", "match"]),
-  servingTeam: z.enum(["A", "B"]).nullable(),
-  sidesSwapped: z.boolean(),
-  teamA: teamStateSchema,
-  teamB: teamStateSchema,
-  setHistory: z.array(setResultSchema),
-  opponentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-}) satisfies z.ZodType<LiveScoreState>;
+import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 
 /** Stesso controllo di requireStaffPage("livescore") in guard.ts, ma senza
  * redirect: una Route Handler non può reindirizzare una fetch del client,
