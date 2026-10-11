@@ -99,8 +99,11 @@ staff (Developer e Admin).
   home U14/U15 o Minivolley lo rilegge ogni 5 secondi mentre la pagina è
   visibile.
 - **Scout** (`/admin/scout`, permesso «Scout», regole in `src/lib/scout/`) —
-  si segna punto per punto **chi fa punto e come**, come negli scout dei
-  campionati ufficiali (Data Volley): attacco, muro, ace, oppure l'errore o il
+  si segna la partita scambio per scambio, al **livello** scelto prima di ogni
+  partita (`settings.level`, `levels.ts`): **Base** (chi fa punto e come, come
+  negli scout dei campionati ufficiali con Data Volley), **Con ricezioni** (in
+  più la nostra ricezione, con voto e zona) o **Completo** (ogni tocco, vedi
+  sotto). A livello Base: attacco, muro, ace, oppure l'errore o il
   fallo dell'altra squadra (`rules.ts`: battuta, ricezione, attacco, muro,
   alzata, difesa, rete, invasione, doppia, trattenuta, quattro tocchi,
   rotazione, sanzione), con la giocatrice se si sa. Si salvano **solo gli
@@ -113,13 +116,31 @@ staff (Developer e Admin).
   `src/lib/pdf/scoutPdf.ts`) ricalca le colonne di quello di Lega che si
   possono compilare senza segnare ogni tocco: punti, BP, V-P, ace, errori,
   attacchi vincenti/sbagliati/murati, muri, più «come si è fatto punto»,
-  errori e falli, andamento del punteggio e riepilogo di stagione; non ci sono
-  attacchi tentati né percentuali di attacco e ricezione. Il salvataggio
+  errori e falli, andamento del punteggio e riepilogo di stagione; a livello
+  Base non ci sono attacchi tentati né percentuali di attacco e ricezione
+  (arrivano con i livelli superiori, vedi sotto). Il salvataggio
   (`useScoutSession`) è automatico, tiene una copia nel telefono se cade la
   rete e confronta la versione (`version`) per non sovrascrivere in silenzio
   un altro dispositivo (409 dalla API `/api/scout/[matchId]`). Solo partite di
   U14/U15, non tornei né Minivolley. Un account nuovo ha già il permesso
   «Scout»; per gli Admin esistenti va spuntato dal Centro di controllo.
+  - **Livelli**: `level` sta nel `settings` jsonb dello scout, quindi non serve
+    nessuna migrazione e gli scout salvati prima valgono «base»
+    (`levelOf`, `normalizeSettings`). Con ricezioni e Completo, oltre agli
+    scambi si salvano i **tocchi** (`ScoutTouchEvent`, voti `# + ! - / =`,
+    zona 1-6 facoltativa, regole in `touches.ts`): un voto che chiude lo
+    scambio (errore, ace, attacco a terra, muro vincente) assegna il punto da
+    solo, gli altri lasciano lo scambio aperto (`pending`) finché un altro
+    tocco o un esito scelto a mano lo chiude. `derive.ts` ricostruisce tutto
+    dagli eventi; `effectiveTouches` rende uguali i conti di chi segna a
+    punto e di chi segna ogni tocco. `stats.ts` ricava ricezione, attacchi
+    totali, efficienza, difese, zone e rotazioni (si parte dalla 1ª a ogni set
+    e si avanza a ogni cambio palla: senza formazioni sono indicative). Le
+    colonne del tabellino sono in `columns.ts` e la legenda in `legend.ts`,
+    usate insieme dalla pagina e dal PDF. Inserimento: striscia della
+    ricezione (`ScoutReception.tsx`) e schermata dei tocchi
+    (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
+    solo il punto»); correzione dei tocchi dal Registro.
   - **Numero di maglia**: vive sull'atleta (`Athlete.jerseyNumber`, colonna
     `jersey_number smallint`, 0-99, solo U14/U15, non unico: un omonimo di
     categoria dà solo un avviso). Si scrive in Presenze > Atlete (scheda,
@@ -140,9 +161,12 @@ staff (Developer e Admin).
     volta con lo Scout?»). Il **manuale d'uso in PDF** (`/api/scout/manuale`,
     solo con il permesso «Scout»; il pulsante «Condividi PDF», `ShareManualButton`, lo manda come file con il foglio di condivisione del telefono e sul computer lo scarica) è impaginato da `src/lib/pdf/scoutManualPdf.ts`
     sul testo di `src/lib/scout/manual.ts`, con le schermate commentate in
-    `src/assets/pdf/scout-manual/`. Il testo del manuale usa solo caratteri
-    Latin-1 (lo controlla un test); le schermate si rifanno con le atlete e le
-    partite di prova dell'ambiente demo quando l'interfaccia cambia.
+    `src/assets/pdf/scout-manual/`. I voti e le colonne del tabellino nel
+    manuale non sono scritti a mano: i blocchi `grades` e `legend` li ricavano
+    da `touches.ts` e `legend.ts`, e i rimandi «capitolo N» da `CHAPTER_ORDER`.
+    Il testo del manuale usa solo caratteri Latin-1 (lo controlla un test); le
+    schermate si rifanno con le atlete e le partite di prova dell'ambiente demo
+    quando l'interfaccia cambia.
 - **Tema chiaro/scuro** — il sito parte sempre chiaro; da un pulsante con
   sole/luna (testata del sito pubblico e pagina di accesso) o dal menu
   dell'account (area tecnici) si sceglie Chiaro, Scuro o Automatico (segue il

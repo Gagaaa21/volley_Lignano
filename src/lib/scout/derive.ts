@@ -1,5 +1,15 @@
 import { rallyWinner } from "./rules";
-import { otherSide, type ScoutData, type ScoutEvent, type ScoutFormat, type ScoutHow, type ScoutSettings, type ScoutSide } from "./types";
+import { touchOutcome } from "./touches";
+import {
+  otherSide,
+  type ScoutData,
+  type ScoutEvent,
+  type ScoutFormat,
+  type ScoutHow,
+  type ScoutSettings,
+  type ScoutSide,
+  type ScoutTouch,
+} from "./types";
 
 /**
  * Dalla sequenza di eventi (scambi e fine set) si ricava tutto il resto:
@@ -14,6 +24,7 @@ export interface ScoutScore {
 }
 
 export interface ScoutRally {
+  /** Di uno scambio chiuso da un tocco è l'id di quel tocco; altrimenti quello dell'esito segnato. */
   id: string;
   /** 1 = primo set. */
   set: number;
@@ -29,6 +40,12 @@ export interface ScoutRally {
   server: ScoutSide;
   /** Punteggio del set dopo questo punto. */
   score: ScoutScore;
+  /** I tocchi segnati in questo scambio, in ordine (vuoto nel livello Base). Se lo ha chiuso un tocco, è l'ultimo. */
+  touches: ScoutTouch[];
+  /** Come si è chiuso: dal voto di un tocco («touch») o con l'esito scelto a mano («outcome»). */
+  closedBy: "touch" | "outcome";
+  /** Gli eventi da cui è fatto (i tocchi, più l'esito se segnato a mano): servono a toglierlo o correggerlo per intero. */
+  eventIds: string[];
 }
 
 export interface ScoutSet {
@@ -52,6 +69,8 @@ export interface ScoutView {
   /** Il set in corso, null a partita decisa. */
   current: ScoutSet | null;
   decided: boolean;
+  /** I tocchi dello scambio in corso, segnati ma non ancora chiusi da un punto. */
+  pending: ScoutTouch[];
 }
 
 /** Quanti set al massimo prevede la formula (il decisivo è l'ultimo). */
@@ -88,6 +107,16 @@ function newSet(n: number, firstServer: ScoutSide): ScoutSet {
   };
 }
 
+/** Chi era a muro nell'esito scelto a mano non dice chi attaccava: se l'ultimo tocco segnato è un attacco avversario, è lui. */
+function inferredVictim(actor: ScoutSide, how: ScoutHow, victim: string | null, pending: readonly ScoutTouch[]): string | null {
+  if (how !== "block") return null;
+  if (victim) return victim;
+  for (let i = pending.length - 1; i >= 0; i--) {
+    if (pending[i].skill === "attack" && pending[i].side !== actor) return pending[i].player;
+  }
+  return null;
+}
+
 export function deriveScout(data: Pick<ScoutData, "settings" | "events">): ScoutView {
   const { settings, events } = data;
   const sets: ScoutSet[] = [newSet(1, settings.firstServer)];
@@ -95,33 +124,72 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
   const setsWon: ScoutScore = { us: 0, opp: 0 };
   let cur: ScoutSet | null = sets[0];
   let decided = false;
+  let pending: ScoutTouch[] = [];
+
+  /** Chiude lo scambio in corso con questo esito: i tocchi in sospeso passano allo scambio. */
+  function closeRally(
+    set: ScoutSet,
+    id: string,
+    at: number,
+    outcome: { actor: ScoutSide; how: ScoutHow; player: string | null; victim: string | null },
+    closedBy: ScoutRally["closedBy"],
+  ) {
+    const winner = rallyWinner(outcome.how, outcome.actor);
+    const last: ScoutRally | undefined = set.rallies[set.rallies.length - 1];
+    const score: ScoutScore = { ...set.score, [winner]: set.score[winner] + 1 };
+    const touches = pending;
+    pending = [];
+    const rally: ScoutRally = {
+      id,
+      set: set.n,
+      n: set.rallies.length + 1,
+      at,
+      actor: outcome.actor,
+      winner,
+      how: outcome.how,
+      player: outcome.player,
+      victim: outcome.how === "block" ? outcome.victim : null,
+      server: last ? last.winner : set.firstServer,
+      score,
+      touches,
+      closedBy,
+      eventIds: closedBy === "outcome" ? [...touches.map((t) => t.id), id] : touches.map((t) => t.id),
+    };
+    set.rallies.push(rally);
+    rallies.push(rally);
+    set.score = score;
+    // L'inizio del set è il primo tocco segnato, se ce ne sono: la durata stimata è meno per difetto.
+    set.startedAt ??= touches.length > 0 ? touches[0].at : at;
+    set.endedAt = at;
+  }
 
   for (const event of events) {
     // A partita decisa non si aggiunge altro: eventuali eventi in coda (dati vecchi o a mano) si ignorano.
     if (decided || !cur) break;
-    if (event.type === "rally") {
-      const winner = rallyWinner(event.how, event.actor);
-      const last: ScoutRally | undefined = cur.rallies[cur.rallies.length - 1];
-      const score: ScoutScore = { ...cur.score, [winner]: cur.score[winner] + 1 };
-      const rally: ScoutRally = {
+    if (event.type === "touch") {
+      const touch: ScoutTouch = {
         id: event.id,
-        set: cur.n,
-        n: cur.rallies.length + 1,
         at: event.at,
+        side: event.side,
+        skill: event.skill,
+        player: event.player,
+        grade: event.grade,
+        zone: event.zone,
+      };
+      const outcome = touchOutcome(touch, pending);
+      pending.push(touch);
+      if (outcome) closeRally(cur, event.id, event.at, outcome, "touch");
+    } else if (event.type === "rally") {
+      const outcome = {
         actor: event.actor,
-        winner,
         how: event.how,
         player: event.player,
-        victim: event.how === "block" ? event.victim : null,
-        server: last ? last.winner : cur.firstServer,
-        score,
+        victim: inferredVictim(event.actor, event.how, event.victim, pending),
       };
-      cur.rallies.push(rally);
-      rallies.push(rally);
-      cur.score = score;
-      cur.startedAt ??= event.at;
-      cur.endedAt = event.at;
+      closeRally(cur, event.id, event.at, outcome, "outcome");
     } else {
+      // Fine set: i tocchi di uno scambio rimasto a metà non contano.
+      pending = [];
       cur.closed = true;
       cur.winner = cur.score.us === cur.score.opp ? null : cur.score.us > cur.score.opp ? "us" : "opp";
       if (cur.winner) setsWon[cur.winner] += 1;
@@ -135,7 +203,7 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
     }
   }
 
-  return { sets, rallies, setsWon, current: cur, decided };
+  return { sets, rallies, setsWon, current: cur, decided, pending: cur ? pending : [] };
 }
 
 /** Il set in corso ha raggiunto il limite con due punti di scarto: si può chiuderlo. */

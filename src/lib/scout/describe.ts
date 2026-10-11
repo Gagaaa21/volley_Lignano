@@ -1,7 +1,8 @@
 import type { ScoutRally } from "./derive";
 import { asksPlayer, HOW_META } from "./rules";
 import { cleanNumber } from "./actions";
-import type { ScoutPlayer, ScoutRoster, ScoutSide } from "./types";
+import { GRADE_META, TOUCH_SKILLS } from "./touches";
+import type { ScoutPlayer, ScoutRoster, ScoutSide, ScoutTouch } from "./types";
 
 /** Come si chiamano le due squadre a schermo: sempre dal nostro punto di vista. */
 export function sideLabel(side: ScoutSide, form: "subject" | "possessive" = "subject"): string {
@@ -60,6 +61,13 @@ export function rallyText(rally: Pick<ScoutRally, "winner" | "actor" | "how" | "
     who: !asksPlayer(rally.how) && rally.player === null ? "Squadra" : playerLabel(roster, rally.actor, rally.player),
     victim: rally.how === "block" && rally.victim ? playerLabel(roster, other, rally.victim) : null,
   };
+}
+
+/** Un tocco a parole: «Noi · Ricezione · Anna (4) · Positiva». */
+export function touchLabel(touch: ScoutTouch, roster: ScoutRoster): string {
+  const meta = TOUCH_SKILLS[touch.skill];
+  const grade = meta.gradeLabels[touch.grade] ?? GRADE_META[touch.grade].name;
+  return `${sideLabel(touch.side)} · ${meta.label} · ${playerLabel(roster, touch.side, touch.player)} · ${grade}`;
 }
 
 /** Numeri di maglia scritti a mano: «1 4, 7;9» → ["1", "4", "7", "9"], senza doppioni né valori che non sono numeri. */

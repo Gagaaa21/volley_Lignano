@@ -11,7 +11,8 @@ import { cn } from "@/lib/cn";
 import { cleanNumber, isManualPlayer, manualPlayer, opponentPlayer, usedPlayerIds, type ScoutAction } from "@/lib/scout/actions";
 import { parseJerseyNumbers, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
-import type { ScoutData, ScoutFormat, ScoutPlayer } from "@/lib/scout/types";
+import { LEVEL_META, LEVEL_ORDER, levelOf } from "@/lib/scout/levels";
+import type { ScoutData, ScoutFormat, ScoutLevel, ScoutPlayer } from "@/lib/scout/types";
 
 /** Un'atleta del registro, tra cui scegliere chi gioca questa partita. */
 export interface ScoutAthlete {
@@ -28,6 +29,86 @@ const FORMATS: { value: ScoutFormat; label: string; hint: string }[] = [
   { value: "bo3", label: "2 set su 3", hint: "Vince chi arriva a 2 set; il terzo è a 15." },
   { value: "fixed3", label: "3 set fissi", hint: "Si giocano sempre tutti e tre i set." },
 ];
+
+/**
+ * La scelta del livello, prima di ogni partita: quanto si vuole segnare. Ogni
+ * livello dice cosa si segna, cosa si ottiene e cosa serve, con le stesse parole
+ * del manuale (src/lib/scout/levels.ts).
+ */
+function LevelChoice({ value, onChange }: { value: ScoutLevel; onChange: (level: ScoutLevel) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Livello dello scout" className="grid gap-2.5 lg:grid-cols-3" data-scout-levels>
+      {LEVEL_ORDER.map((level) => {
+        const meta = LEVEL_META[level];
+        const active = value === level;
+        const lists = (
+          <>
+            <LevelList title="Segni" lines={meta.marks} />
+            <LevelList title="Ottieni" lines={meta.gets} />
+            <LevelList title="Serve" lines={meta.needs} muted />
+          </>
+        );
+        return (
+          <div
+            key={level}
+            className={cn(
+              "flex flex-col rounded-2xl border transition-colors",
+              active ? "border-primary bg-primary-soft/60 ring-2 ring-primary/30" : "border-border-subtle bg-surface",
+            )}
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(level)}
+              data-scout-level={level}
+              className="flex w-full flex-col rounded-2xl p-3.5 text-left transition-colors hover:bg-foreground/[0.03] active:translate-y-px"
+            >
+              <span className="flex items-start justify-between gap-2">
+                <span className="font-display text-lg font-extrabold leading-tight text-foreground">{meta.label}</span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border",
+                    active ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface",
+                  )}
+                >
+                  {active && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+              </span>
+              <span className="mt-0.5 text-[13px] font-medium text-muted-foreground">{meta.tagline}</span>
+              <span className="mt-2 flex flex-wrap gap-1.5">
+                <Badge tone="neutral">{meta.taps}</Badge>
+                {level === "ricezioni" && <Badge tone="gold">Per cominciare</Badge>}
+              </span>
+            </button>
+            {/* Sul telefono i dettagli si aprono a richiesta (la scelta si fa prima di ogni partita: non deve occupare tutto lo schermo); sul computer sono sempre in vista. */}
+            <details className="px-3.5 pb-3 lg:hidden" data-scout-level-details={level}>
+              <summary className="cursor-pointer py-1 text-[13px] font-semibold text-primary marker:hidden [&::-webkit-details-marker]:hidden">
+                Cosa segni e cosa ottieni
+              </summary>
+              {lists}
+            </details>
+            <div className="hidden px-3.5 pb-3.5 lg:block">{lists}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LevelList({ title, lines, muted = false }: { title: string; lines: string[]; muted?: boolean }) {
+  return (
+    <>
+      <span className="mt-2.5 block text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{title}</span>
+      <ul className={cn("mt-1 space-y-1 text-[13px] leading-snug", muted ? "text-muted-foreground" : "text-foreground")}>
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
 
 /** Punti di un set: si può scrivere liberamente (anche cancellare e riscrivere), il valore vale solo se è tra 10 e 50. */
 function PointsInput({ id, label, value, onCommit }: { id: string; label: string; value: number; onCommit: (value: number) => void }) {
@@ -229,8 +310,22 @@ export function ScoutSetup({
 
   const oppPlayers = sortPlayers(data.roster.opp);
 
+  const level = levelOf(data.settings);
+
   return (
     <div className="space-y-5" data-scout-setup>
+      <Card data-tour="scout-setup-level">
+        <CardHeader className="pb-3">
+          <CardTitle>Quanto vuoi segnare?</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Scegli il livello di questa partita. Puoi cambiarlo anche dopo: quello che hai già segnato resta.
+          </p>
+        </CardHeader>
+        <CardBody>
+          <LevelChoice value={level} onChange={(next) => dispatch({ type: "settings", patch: { level: next } })} />
+        </CardBody>
+      </Card>
+
       <Card data-tour="scout-setup-roster">
         <CardHeader className="pb-3">
           <CardTitle>Le nostre giocatrici</CardTitle>

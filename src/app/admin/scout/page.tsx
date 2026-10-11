@@ -8,11 +8,13 @@ import { requireStaffPage } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { todayIso } from "@/lib/today";
+import { LEVEL_META } from "@/lib/scout/levels";
 import { isScoutable, summarizeScout, type ScoutSummary } from "@/lib/scout/match";
 import { isScoutTableMissing } from "@/lib/scout/missing";
 import type { MatchScout } from "@/lib/scout/types";
 import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { aggregateSeason, percent } from "@/lib/scout/stats";
+import { ReceptionBars, ReceptionTiles, SideOutByGrade } from "@/components/scout/ScoutDetail";
 import { HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
@@ -92,8 +94,13 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
             <MapPin className="ml-1 h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{match.location}</span>
           </p>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <StatusBadge summary={summary} />
+            {summary.state !== "none" && summary.level !== "base" && (
+              <Badge tone="primary" data-scout-level-badge={summary.level}>
+                {LEVEL_META[summary.level].label}
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -119,7 +126,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
     if (!isScoutTableMissing(error)) throw error;
     return (
       <div>
-        <PageHeader title="Scout" description="Segna punto per punto chi fa punto e come: ne esce il tabellino della partita." />
+        <PageHeader title="Scout" description="Segna la partita punto per punto: ne esce il tabellino, con i numeri di ogni giocatrice." />
         <ScoutSetupNeeded isDev={session.role === "dev"} />
       </div>
     );
@@ -146,7 +153,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
   const header = (
     <PageHeader
       title="Scout"
-      description="Segna punto per punto chi fa punto e come: ne esce il tabellino della partita, con i numeri di ogni giocatrice."
+      description="Segna la partita punto per punto: ne esce il tabellino, con i numeri di ogni giocatrice. Prima di ogni partita scegli quanto segnare: solo i punti, anche le ricezioni, oppure ogni tocco."
       help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
       actions={
         <>
@@ -214,8 +221,33 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
               </CardBody>
             </Card>
 
+            {stats.detailMatches > 0 && stats.analysis.us.receptions > 0 && (
+              <Card data-tour="scout-season-reception" data-scout-season-reception>
+                <CardHeader className="pb-3">
+                  <CardTitle>La ricezione, in stagione</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Solo le {stats.detailMatches} {stats.detailMatches === 1 ? "partita" : "partite"} in cui hai segnato le ricezioni (livelli Con ricezioni e Completo).
+                  </p>
+                </CardHeader>
+                <CardBody className="space-y-6">
+                  <ReceptionTiles analysis={stats.analysis.us} />
+                  <ReceptionBars analysis={stats.analysis.us} players={stats.players} />
+                  <div>
+                    <h3 className="mb-2 font-display text-base font-bold text-foreground">Il cambio palla dipende dalla ricezione</h3>
+                    <SideOutByGrade analysis={stats.analysis.us} />
+                  </div>
+                </CardBody>
+              </Card>
+            )}
+
             <div data-tour="scout-season-players">
-              <PlayerTable side="us" players={stats.players} title="Le nostre giocatrici" matches={matchesByPlayer} />
+              <PlayerTable side="us" players={stats.players} title="Le nostre giocatrici" matches={matchesByPlayer} level={stats.level} />
+              {stats.level !== "base" && (
+                <p className="mt-2 text-xs text-muted-foreground" data-scout-season-note>
+                  Le colonne di ricezione, attacco e difesa contano solo le {stats.detailMatches} {stats.detailMatches === 1 ? "partita" : "partite"} segnate con i tocchi: le altre
+                  non hanno questi numeri. Punti ed errori sommano tutte le partite.
+                </p>
+              )}
             </div>
           </div>
         )}

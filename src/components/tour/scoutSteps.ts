@@ -1,3 +1,4 @@
+import type { ScoutLevel } from "@/lib/scout/types";
 import type { BaseTourStep } from "./engine/types";
 
 /**
@@ -139,6 +140,8 @@ export interface ScoutMatchTourContext {
   canCloseSet: boolean;
   /** Compare il pulsante «Chiudi la partita». */
   canFinish: boolean;
+  /** Il livello della partita: cambiano i pulsanti per segnare e quindi i passi. */
+  level: ScoutLevel;
 }
 
 /**
@@ -200,6 +203,16 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         chapter: C_SETUP,
         title: "Prima di cominciare",
         body: "Questa è la schermata di preparazione. Scorri verso il basso: in ordine trovi le nostre giocatrici, l'avversaria, le regole della gara e il punteggio live sul sito. In fondo c'è il pulsante per cominciare.",
+      },
+      {
+        id: "scout-setup-level",
+        path,
+        target: "scout-setup-level",
+        chapter: C_SETUP,
+        title: "Quanto vuoi segnare?",
+        body: "Per prima cosa scegli il livello di questa partita. Sono tre:\n\n«Base»: segni come finisce ogni scambio (chi fa punto e come). Due o tre tocchi a punto, nessuna esperienza.\n\n«Con ricezioni»: in più, quando batte l'avversaria, segni chi ha ricevuto e con che voto. Sono due tocchi in più solo quando riceviamo.\n\n«Completo»: segni ogni tocco della palla (battuta, ricezione, alzata, attacco, muro, difesa) con il suo voto, come negli scout di Serie A1. Serve una persona dedicata, meglio con un tablet.",
+        example: "Prima partita con lo Scout? Parti da «Base». Quando ti senti sicura/o, prova «Con ricezioni».",
+        tip: "Il livello si sceglie prima di ogni partita ma si può cambiare anche dopo: quello che hai già segnato resta, e il tabellino mostra le colonne del livello usato.",
       },
       {
         id: "scout-setup-roster",
@@ -270,12 +283,94 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       target: null,
       chapter: C_PLAY,
       title: "Come funziona",
-      body: "Per ogni scambio fai al massimo tre tocchi:\n\n1. scegli il pannello della squadra che ha fatto punto e il modo (attacco, muro, ace oppure errore dell'altra squadra);\n2. scegli chi ha compiuto l'azione;\n3. solo dopo un muro: chi attaccava (facoltativo).\n\nIl resto lo calcola lo Scout: punteggio, set, chi batte, break point.",
+      body:
+        context.level === "completo"
+          ? "A livello Completo segni ogni tocco della palla, nell'ordine in cui avviene: battuta, ricezione, alzata, attacco, muro, difesa. Per ogni tocco fai tre scelte: cosa è successo (lo Scout propone il tocco più probabile), chi lo ha fatto e il voto.\n\nQuando un voto chiude lo scambio (un ace, un errore, un attacco a terra, un muro vincente) il punto si assegna da solo e si passa allo scambio dopo."
+          : "Per ogni scambio fai al massimo tre tocchi:\n\n1. scegli il pannello della squadra che ha fatto punto e il modo (attacco, muro, ace oppure errore dell'altra squadra);\n2. scegli chi ha compiuto l'azione;\n3. solo dopo un muro: chi attaccava (facoltativo).\n\nIl resto lo calcola lo Scout: punteggio, set, chi batte, break point.",
       tip: "Segna lo scambio quando l'arbitro assegna il punto, non prima: se sbagli, «Annulla ultimo» rimedia subito.",
     });
   }
 
   steps.push(board(locked ? C_FIX : C_PLAY));
+
+  if (!locked && context.level === "ricezioni") {
+    steps.push({
+      id: "scout-reception",
+      path,
+      target: "scout-reception",
+      chapter: C_PLAY,
+      title: "La ricezione",
+      body: "Quando batte l'avversaria compare qui «Ricezione nostra». Tocca chi ha ricevuto e poi il voto: # perfetta (l'alzatrice ha tutte le opzioni), + positiva, ! neutra, − negativa (alzata obbligata), / scarsa (palla rimandata di là), = errore.\n\nSe vuoi puoi anche scegliere la zona del campo dove è stata ricevuta: serve alla mappa del tabellino. Con «=» il punto va a loro da solo; con gli altri voti lo scambio resta aperto e il punto lo segni con i pulsanti qui sotto, come sempre.",
+      example: "Batte la loro n. 5, la n. 4 ricevuta bene: tocchi 4, poi «+ Positiva». Poi la nostra alzatrice mette giù l'attacco: «Punto nostro», «Attacco», la giocatrice.",
+      tip: "Quando batte la nostra squadra la striscia resta chiusa: la ricezione è solo quella nostra. Se hai sbagliato, «Cambia» (o «Annulla ultimo») la toglie.",
+    });
+  }
+
+  if (!locked && context.level === "completo") {
+    steps.push(
+      {
+        id: "scout-touch-entry",
+        path,
+        target: "scout-touch-entry",
+        chapter: C_PLAY,
+        title: "Lo scambio in corso",
+        body: "Questa è la schermata per segnare i tocchi. In alto, sotto il titolo, compaiono i tocchi già segnati nello scambio: ognuno ha la lettera del fondamentale (S battuta, R ricezione, E alzata, A attacco, B muro, D difesa), il numero di chi l'ha fatto e il voto.\n\nPer ogni nuovo tocco scegli tre cose, dall'alto verso il basso.",
+      },
+      {
+        id: "scout-touch-skill",
+        path,
+        target: "scout-touch-skill",
+        chapter: C_PLAY,
+        title: "1 · Cosa è successo",
+        body: "Il tocco più probabile è già scelto: all'inizio di uno scambio la battuta, dopo la battuta la ricezione dell'altra squadra, poi l'attacco, la difesa, di nuovo l'attacco… Se è quello giusto vai avanti; altrimenti tocca il fondamentale che è successo davvero.",
+        tip: "L'alzata non viene proposta da sola: toccala solo se vuoi segnarla.",
+      },
+      {
+        id: "scout-touch-side",
+        path,
+        target: "scout-touch-side",
+        chapter: C_PLAY,
+        title: "2 · Chi",
+        body: "Qui scegli la squadra («Noi» o «Loro») e sotto la giocatrice: i numeri di maglia, con il nome per le nostre. Dopo una battuta di fila della stessa squadra la battitrice è già scelta: tocca solo il voto.\n\nNon sai chi è? «Non so» e vai avanti. Per l'avversaria puoi scrivere un numero nuovo con «Altro numero di maglia».",
+        warning: "La libero non viene proposta quando segni un muro: non può murare.",
+      },
+      {
+        id: "scout-touch-zone",
+        path,
+        target: null,
+        chapter: C_PLAY,
+        title: "La zona, se vuoi",
+        body: "Per ricezione, difesa e attacco compare «Zona (facoltativa)»: tocca dove è stata ricevuta o difesa la palla, o da dove ha attaccato. Il campo è visto dalla propria metà, con la rete in alto: davanti 4-3-2, dietro 5-6-1.\n\nServe alle mappe del tabellino. Se non hai tempo, salta: non è obbligatoria.",
+      },
+      {
+        id: "scout-touch-grade",
+        path,
+        target: "scout-touch-grade",
+        chapter: C_PLAY,
+        title: "3 · Il voto",
+        body: "I pulsanti cambiano col fondamentale. La battuta ha Ace, In campo, Errore; l'attacco Punto, Continua (la palla è difesa), Murato, Errore; il muro Punto, Tocco, Errore; ricezione, alzata e difesa vanno da «#» perfetta a «=» errore.\n\nTocca il voto e il tocco è segnato: lo Scout ti propone già il tocco dopo.",
+        example: "La n. 7 batte e la palla è in campo: «In campo». Riceve la loro n. 5, bene: «+ Positiva». Attacca la loro n. 11 e la nostra difesa la prende: «Continua»…",
+      },
+      {
+        id: "scout-touch-end",
+        path,
+        target: null,
+        chapter: C_PLAY,
+        title: "Quando finisce lo scambio",
+        body: "Lo scambio finisce da solo con un voto che chiude: l'ace e l'errore in battuta, ogni errore («=»), l'attacco a terra («Punto») e il muro vincente («Punto»). Il punto va a chi lo ha fatto, o all'altra squadra se è un errore, e lo Scout passa allo scambio dopo.\n\nSe l'attacco è fermato dal muro tocca «Murato» sull'attacco e poi, con «Muro», «Punto» e chi ha murato (o «Non so»): lo scambio si chiude lì.",
+        warning: "Un tocco con voto «Continua» o simile non assegna nessun punto: lo scambio resta aperto finché non lo chiude un altro voto.",
+      },
+      {
+        id: "scout-touch-fallback",
+        path,
+        target: "scout-touch-fallback",
+        chapter: C_PLAY,
+        title: "Falli, sanzioni o solo il punto",
+        body: "Per un fallo fischiato dall'arbitro (tocco di rete, invasione, doppia, rotazione…), per una sanzione, o se hai perso il filo e vuoi dire solo come è finito lo scambio, apri questa sezione: sono i pulsanti del livello Base. I tocchi che avevi già segnato restano e il punto si assegna come sempre.",
+        tip: "Meglio un punto segnato senza tocchi che uno scambio rimasto aperto: poi puoi sistemare dal registro.",
+      },
+    );
+  }
 
   if (context.setEnding) {
     steps.push({
@@ -302,7 +397,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     });
   }
 
-  if (!locked) {
+  if (!locked && context.level !== "completo") {
     steps.push(
       {
         id: "scout-entry-us",
@@ -349,6 +444,15 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         body: "Sotto i pannelli leggi l'ultimo punto segnato (per esempio «Ultimo: 12–10 · punto nostro · Attacco · n. 7»). Se hai toccato il pulsante sbagliato, «Annulla ultimo» toglie l'ultimo scambio e il punteggio torna indietro; puoi premerlo più volte di seguito.",
       },
     );
+  } else if (!locked) {
+    steps.push({
+      id: "scout-last",
+      path,
+      target: "scout-last",
+      chapter: C_PLAY,
+      title: "«Annulla ultimo»",
+      body: "Sotto i pulsanti leggi l'ultimo tocco o punto segnato. Se hai toccato quello sbagliato, «Annulla ultimo» toglie l'ultimo tocco: puoi premerlo più volte di seguito, anche per tornare a prima di un punto.",
+    });
   } else {
     steps.push({
       id: "scout-last",
@@ -393,7 +497,10 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     target: "section-scout-log",
     chapter: C_FIX,
     title: "Il registro degli scambi",
-    body: "Qui c'è ogni scambio, dal più recente, raccolto per set. Ogni riga dice a che punteggio si è arrivati, chi ha fatto punto, come e con chi.\n\nTocca la matita di una riga per correggerla: puoi cambiare squadra, modo, giocatrice o togliere lo scambio. Punteggio e battute si ricalcolano da soli per tutti gli scambi successivi.",
+    body:
+      context.level === "base"
+        ? "Qui c'è ogni scambio, dal più recente, raccolto per set. Ogni riga dice a che punteggio si è arrivati, chi ha fatto punto, come e con chi.\n\nTocca la matita di una riga per correggerla: puoi cambiare squadra, modo, giocatrice o togliere lo scambio. Punteggio e battute si ricalcolano da soli per tutti gli scambi successivi."
+        : "Qui c'è ogni scambio, dal più recente, raccolto per set. Ogni riga dice a che punteggio si è arrivati, chi ha fatto punto e come; sotto, i tocchi segnati (lettera del fondamentale, numero di chi l'ha fatto, voto).\n\nTocca la matita per correggere: puoi cambiare chi ha fatto un tocco, il suo voto e la zona, togliere un tocco, aggiungere la ricezione che avevi dimenticato, oppure togliere tutto lo scambio. Punteggio e battute si ricalcolano da soli.",
     example: "Hai segnato un ace della n. 7 ma era della n. 9: matita sulla riga, scegli «n. 9», «Salva».",
   });
 
@@ -406,16 +513,62 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       target: null,
       chapter: C_FIX,
       title: "Sei pronta/o",
-      body: "Riassumendo: scegli il pannello, il modo, la giocatrice. Le prime volte rallenta pure: puoi sempre correggere dal registro. Quando la partita finisce, apri il tabellino.",
+      body:
+        context.level === "completo"
+          ? "Riassumendo: per ogni tocco scegli cosa è successo (di solito è già scelto), chi e il voto. Le prime volte rallenta pure: puoi sempre correggere dal registro o ripiegare sui pulsanti dei punti. Quando la partita finisce, apri il tabellino."
+          : "Riassumendo: scegli il pannello, il modo, la giocatrice. Le prime volte rallenta pure: puoi sempre correggere dal registro. Quando la partita finisce, apri il tabellino.",
       tip: "Per rileggere tutto con calma, o stampare uno schema da tenere a bordo campo, scarica il manuale PDF.",
     });
   }
   return steps;
 }
 
+/** Cosa c'è nel tabellino: le sezioni dei livelli «Con ricezioni» e «Completo» compaiono solo se ci sono dati. */
+export interface ScoutTabellinoTourContext {
+  level: ScoutLevel;
+  /** C'è la sezione «La ricezione». */
+  reception: boolean;
+  /** Ci sono le mappe del campo (difesa e attacco). */
+  zones: boolean;
+  /** Ci sono le rotazioni. */
+  rotations: boolean;
+}
+
 /** Tabellino di una partita: la guida a ogni blocco di numeri. */
-export function getScoutTabellinoTourSteps(matchId: string): BaseTourStep[] {
+export function getScoutTabellinoTourSteps(matchId: string, context: ScoutTabellinoTourContext = { level: "base", reception: false, zones: false, rotations: false }): BaseTourStep[] {
   const path = `${HUB}/${matchId}/tabellino`;
+  const detail: BaseTourStep[] = [];
+  if (context.reception) {
+    detail.push({
+      id: "scout-tab-reception",
+      path,
+      target: "scout-tab-reception",
+      chapter: C_TAB,
+      title: "La ricezione",
+      body: "Com'è andata la ricezione della squadra: in alto la ricezione positiva (# e +), la perfetta (#) e gli errori; poi una barra a colori per tutta la squadra e una per ogni giocatrice; sotto, il cambio palla in base al voto della ricezione e la mappa delle zone.\n\nÈ la parte che mostra meglio se vale la pena allenare la ricezione: di solito dopo una ricezione perfetta si vince lo scambio molto più spesso che dopo una negativa.",
+      tip: "Contano solo le ricezioni che hai segnato: se in uno scambio l'hai saltata, non compare.",
+    });
+  }
+  if (context.zones) {
+    detail.push({
+      id: "scout-tab-zones",
+      path,
+      target: "scout-tab-zones",
+      chapter: C_TAB,
+      title: "Le mappe del campo",
+      body: "Il campo visto dalla propria metà, con la rete in alto. In ogni zona la percentuale di difese riuscite o di attacchi a punto, e quanti tocchi sono stati segnati. Più scuro è il colore, più sono riusciti.",
+    });
+  }
+  if (context.rotations) {
+    detail.push({
+      id: "scout-tab-rotations",
+      path,
+      target: "scout-tab-rotations",
+      chapter: C_TAB,
+      title: "Le rotazioni",
+      body: "Break point e cambio palla in ogni rotazione. La 1ª è quella con cui si comincia il set; si passa alla successiva ogni volta che la squadra recupera la battuta. Se una rotazione ha percentuali molto più basse delle altre, è lì che conviene guardare (chi c'è in campo, come si riceve).",
+    });
+  }
   return [
     {
       id: "scout-tab-result",
@@ -466,13 +619,19 @@ export function getScoutTabellinoTourSteps(matchId: string): BaseTourStep[] {
       title: "Andamento del punteggio",
       body: "Il grafico mostra come si è mosso il punteggio scambio dopo scambio: dove una linea sale in fretta c'è una serie di punti di quella squadra; dove le linee si incrociano la partita è cambiata.",
     },
+    ...detail,
     {
       id: "scout-tab-players",
       path,
       target: "scout-tab-players",
       chapter: C_TAB,
       title: "Le giocatrici",
-      body: "Una riga per ogni giocatrice, per noi e per l'avversaria: punti totali, punti in battuta, ace, errori, attacchi e muri. In fondo, sotto la riga «Squadra», trovi i totali; chi non ha nessuna azione segnata è raccolta in una riga a parte («Senza azioni segnate»).",
+      body:
+        context.level === "base"
+          ? "Una riga per ogni giocatrice, per noi e per l'avversaria: punti totali, punti in battuta, ace, errori, attacchi e muri. In fondo, sotto la riga «Squadra», trovi i totali; chi non ha nessuna azione segnata è raccolta in una riga a parte («Senza azioni segnate»)."
+          : "Una riga per ogni giocatrice, per noi e per l'avversaria. Oltre ai punti, agli ace e agli errori ci sono le colonne dei tocchi che hai segnato: ricezione (totali, positiva %, perfetta %)" +
+            (context.level === "completo" ? ", battute, attacchi (punto %, efficienza), muri e difese" : "") +
+            ". In fondo, sotto la riga «Squadra», trovi i totali.",
     },
     {
       id: "scout-tab-legend",
@@ -480,7 +639,10 @@ export function getScoutTabellinoTourSteps(matchId: string): BaseTourStep[] {
       target: "scout-tab-legend",
       chapter: C_TAB,
       title: "Come leggere le sigle",
-      body: "Qui sotto trovi il significato di ogni sigla del tabellino (Tot, BP, V-P, Ace, Err…). Lo Scout segna come finisce ogni scambio, non ogni tocco: per questo mancano le percentuali di attacco e di ricezione dei tabellini di Lega.",
+      body:
+        context.level === "base"
+          ? "Qui sotto trovi il significato di ogni sigla del tabellino (Tot, BP, V-P, Ace, Err…). A livello Base lo Scout segna come finisce ogni scambio, non ogni tocco: per questo mancano le percentuali di attacco e di ricezione dei tabellini di Lega (le trovi coi livelli «Con ricezioni» e «Completo»)."
+          : "Qui sotto trovi il significato di ogni sigla del tabellino (Tot, BP, V-P, Pos%, Prf%, Eff%…). Le percentuali sono calcolate sui tocchi che hai segnato.",
     },
     {
       id: "scout-tab-pdf",

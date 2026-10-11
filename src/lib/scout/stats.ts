@@ -1,14 +1,156 @@
 import { deriveScout, type ScoutScore, type ScoutSet, type ScoutView } from "./derive";
 import { isManualPlayer } from "./actions";
-import { otherSide, SCOUT_HOWS, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutRoster, type ScoutSide } from "./types";
+import { effectiveLevel, hasTouches, higherLevel } from "./levels";
+import { effectiveTouches, isPositiveGrade } from "./touches";
+import {
+  otherSide,
+  SCOUT_GRADES,
+  SCOUT_HOWS,
+  type ScoutData,
+  type ScoutGrade,
+  type ScoutHow,
+  type ScoutLevel,
+  type ScoutPlayer,
+  type ScoutRoster,
+  type ScoutSide,
+  type ScoutTouch,
+} from "./types";
 
 /**
- * Dal registro degli scambi al tabellino. Si contano solo cose che lo scout
- * «a punto» sa davvero: chi ha fatto punto e come, gli errori, i break point
- * (punti fatti in battuta) e i cambi palla (punti fatti in ricezione). Le
- * percentuali di attacco e ricezione dei tabellini di Lega non si possono
- * calcolare: servirebbe segnare ogni tocco, non solo come finisce lo scambio.
+ * Dal registro degli scambi al tabellino. Il livello Base conta chi ha fatto
+ * punto e come, gli errori, i break point (punti fatti in battuta) e i cambi
+ * palla (punti fatti in ricezione). Con i livelli «Con ricezioni» e «Completo»
+ * si contano anche i tocchi segnati (ricezioni con voto, attacchi, difese…):
+ * i tocchi di uno scambio chiuso a mano («Punto loro: ace») si ricavano dal suo
+ * esito (vedi effectiveTouches), così i due modi di segnare si sommano.
  */
+
+export type GradeCounts = Record<ScoutGrade, number>;
+
+export function emptyGrades(): GradeCounts {
+  return Object.fromEntries(SCOUT_GRADES.map((grade) => [grade, 0])) as GradeCounts;
+}
+
+/** Una zona del campo: quanti tocchi, quanti buoni e quanti persi (per l'attacco: punti, e errori o murati). */
+export interface ZoneCell {
+  total: number;
+  good: number;
+  lost: number;
+}
+
+/** Le sei zone del campo (1-6), vuote. */
+export type ZoneGrid = Record<number, ZoneCell>;
+
+export function emptyZones(): ZoneGrid {
+  return Object.fromEntries([1, 2, 3, 4, 5, 6].map((zone) => [zone, { total: 0, good: 0, lost: 0 }]));
+}
+
+/** I numeri che servono solo ai livelli con i tocchi: tutti zero se non sono stati segnati. */
+export interface PlayerDetail {
+  /** Battute segnate (ace ed errori compresi). */
+  serves: number;
+  /** Ricezioni per voto e il loro totale. */
+  reception: GradeCounts;
+  receptions: number;
+  /** Attacchi segnati: punti, errori, murati e quelli in cui la palla è rimasta in gioco. */
+  attacks: number;
+  /** Tocchi a muro senza punto (i punti a muro sono in `stuffs`). */
+  blockTouches: number;
+  /** Difese riuscite (ogni voto tranne l'errore) e sbagliate. */
+  digs: number;
+  digErrors: number;
+  /** Alzate segnate, e quelle sbagliate. */
+  sets: number;
+  setErrors: number;
+}
+
+export function emptyDetail(): PlayerDetail {
+  return {
+    serves: 0,
+    reception: emptyGrades(),
+    receptions: 0,
+    attacks: 0,
+    blockTouches: 0,
+    digs: 0,
+    digErrors: 0,
+    sets: 0,
+    setErrors: 0,
+  };
+}
+
+export function addDetail(into: PlayerDetail, from: PlayerDetail): PlayerDetail {
+  into.serves += from.serves;
+  into.receptions += from.receptions;
+  into.attacks += from.attacks;
+  into.blockTouches += from.blockTouches;
+  into.digs += from.digs;
+  into.digErrors += from.digErrors;
+  into.sets += from.sets;
+  into.setErrors += from.setErrors;
+  for (const grade of SCOUT_GRADES) into.reception[grade] += from.reception[grade];
+  return into;
+}
+
+export interface RotationRow {
+  /** 1 = la rotazione con cui si comincia il set. */
+  rotation: number;
+  served: number;
+  breakPoints: number;
+  received: number;
+  sideOuts: number;
+}
+
+/** Quello che si ricava dai tocchi per una squadra. */
+export interface SideAnalysis {
+  reception: GradeCounts;
+  receptions: number;
+  /** Per ogni voto della ricezione: quante volte si è ricevuto così e quante volte lo scambio è stato vinto (cambio palla). */
+  sideOutByGrade: Record<ScoutGrade, { total: number; won: number }>;
+  zones: { reception: ZoneGrid; dig: ZoneGrid; attack: ZoneGrid };
+  rotations: RotationRow[];
+}
+
+export function emptyAnalysis(): SideAnalysis {
+  return {
+    reception: emptyGrades(),
+    receptions: 0,
+    sideOutByGrade: Object.fromEntries(SCOUT_GRADES.map((grade) => [grade, { total: 0, won: 0 }])) as SideAnalysis["sideOutByGrade"],
+    zones: { reception: emptyZones(), dig: emptyZones(), attack: emptyZones() },
+    rotations: [1, 2, 3, 4, 5, 6].map((rotation) => ({ rotation, served: 0, breakPoints: 0, received: 0, sideOuts: 0 })),
+  };
+}
+
+export function addAnalysis(into: SideAnalysis, from: SideAnalysis): SideAnalysis {
+  into.receptions += from.receptions;
+  for (const grade of SCOUT_GRADES) {
+    into.reception[grade] += from.reception[grade];
+    into.sideOutByGrade[grade].total += from.sideOutByGrade[grade].total;
+    into.sideOutByGrade[grade].won += from.sideOutByGrade[grade].won;
+  }
+  for (const kind of ["reception", "dig", "attack"] as const) {
+    for (let zone = 1; zone <= 6; zone++) {
+      into.zones[kind][zone].total += from.zones[kind][zone].total;
+      into.zones[kind][zone].good += from.zones[kind][zone].good;
+      into.zones[kind][zone].lost += from.zones[kind][zone].lost;
+    }
+  }
+  from.rotations.forEach((row, i) => {
+    into.rotations[i].served += row.served;
+    into.rotations[i].breakPoints += row.breakPoints;
+    into.rotations[i].received += row.received;
+    into.rotations[i].sideOuts += row.sideOuts;
+  });
+  return into;
+}
+
+/** Quante zone hanno almeno un tocco: se zero, la mappa non si mostra. */
+export function zonedTouches(grid: ZoneGrid): number {
+  return Object.values(grid).reduce((sum, cell) => sum + cell.total, 0);
+}
+
+export function sumDetails(players: Pick<PlayerStats, "detail">[]): PlayerDetail {
+  return players.reduce((total, p) => addDetail(total, p.detail), emptyDetail());
+}
 
 export type HowCounts = Record<ScoutHow, number>;
 
@@ -48,6 +190,8 @@ export interface PlayerStats {
   blocked: number;
   /** Punti fatti meno errori e attacchi murati (il «V-P» del tabellino). */
   balance: number;
+  /** Battute, ricezioni, attacchi, difese… segnati: servono ai livelli con i tocchi. */
+  detail: PlayerDetail;
 }
 
 export interface TeamStats {
@@ -91,6 +235,8 @@ export interface ScoutStats {
   sets: SetSummary[];
   /** Scambi considerati (tutti, o solo quelli del set scelto). */
   rallies: number;
+  /** Ricezioni, zone e rotazioni per squadra (vuoto se non sono stati segnati i tocchi). */
+  analysis: Record<ScoutSide, SideAnalysis>;
 }
 
 // ── singole giocatrici ──────────────────────────────────────────────────
@@ -115,12 +261,14 @@ function emptyPlayer(side: ScoutSide, info: Pick<ScoutPlayer, "id" | "name" | "n
     errors: 0,
     blocked: 0,
     balance: 0,
+    detail: emptyDetail(),
   };
 }
 
 /** Ha fatto o subìto qualcosa: chi non compare in nessuno scambio non entra nel tabellino. */
 export function hasActivity(p: PlayerStats): boolean {
-  return p.points + p.errors + p.blocked > 0;
+  const d = p.detail;
+  return p.points + p.errors + p.blocked + d.serves + d.receptions + d.attacks + d.blockTouches + d.digs + d.sets > 0;
 }
 
 function finishPlayer(p: PlayerStats): PlayerStats {
@@ -248,6 +396,45 @@ export function computeStats(view: ScoutView, roster: ScoutRoster, options: Stat
   }
   /** La riga della giocatrice; se non c'è (o non è in rosa) quella «Non assegnato» della squadra. */
   const lineOf = (side: ScoutSide, id: string | null): PlayerStats => (id !== null ? lines[side].get(id) : undefined) ?? unassigned[side];
+  const analysis: Record<ScoutSide, SideAnalysis> = { us: emptyAnalysis(), opp: emptyAnalysis() };
+
+  /** Un tocco nelle colonne di chi l'ha fatto e nelle mappe della sua squadra. */
+  function countTouch(touch: ScoutTouch) {
+    const line = lineOf(touch.side, touch.player);
+    const d = line.detail;
+    const zones = analysis[touch.side].zones;
+    const lost = touch.grade === "=" || touch.grade === "/";
+    switch (touch.skill) {
+      case "serve":
+        d.serves += 1;
+        break;
+      case "reception":
+        d.reception[touch.grade] += 1;
+        d.receptions += 1;
+        analysis[touch.side].reception[touch.grade] += 1;
+        analysis[touch.side].receptions += 1;
+        if (touch.zone) addToZone(zones.reception, touch.zone, isPositiveGrade(touch.grade), lost);
+        break;
+      case "set":
+        d.sets += 1;
+        if (touch.grade === "=") d.setErrors += 1;
+        break;
+      case "attack":
+        d.attacks += 1;
+        // Un attacco fermato dal muro è un attacco murato (con il muro vincente si riclassifica da solo, vedi effectiveTouches).
+        if (touch.grade === "/") line.blocked += 1;
+        if (touch.zone) addToZone(zones.attack, touch.zone, touch.grade === "#", lost);
+        break;
+      case "block":
+        if (touch.grade === "+") d.blockTouches += 1;
+        break;
+      case "dig":
+        if (touch.grade === "=") d.digErrors += 1;
+        else d.digs += 1;
+        if (touch.zone) addToZone(zones.dig, touch.zone, isPositiveGrade(touch.grade), lost);
+        break;
+    }
+  }
 
   for (const r of rallies) {
     const receiver = otherSide(r.server);
@@ -267,7 +454,6 @@ export function computeStats(view: ScoutView, roster: ScoutRoster, options: Stat
       } else if (r.how === "block") {
         teams[r.actor].block += 1;
         line.stuffs += 1;
-        lineOf(otherSide(r.actor), r.victim).blocked += 1;
       } else {
         teams[r.actor].ace += 1;
         line.aces += 1;
@@ -277,6 +463,34 @@ export function computeStats(view: ScoutView, roster: ScoutRoster, options: Stat
       teams[r.actor].committed[r.how] += 1;
       teams[r.actor].errors += 1;
       addError(line, r.how);
+    }
+
+    const touches = effectiveTouches(r);
+    for (const touch of touches) countTouch(touch);
+    // Il cambio palla in base a come si è ricevuto: la prima ricezione segnata di chi riceveva.
+    const reception = touches.find((t) => t.skill === "reception" && t.side === receiver);
+    if (reception) {
+      const cell = analysis[receiver].sideOutByGrade[reception.grade];
+      cell.total += 1;
+      if (r.winner === receiver) cell.won += 1;
+    }
+  }
+
+  // Le rotazioni: ogni set riparte dalla rotazione 1 e una squadra ruota quando recupera la battuta.
+  for (const set of view.sets) {
+    if (only !== null && set.n !== only) continue;
+    const rotation: Record<ScoutSide, number> = { us: 0, opp: 0 };
+    for (const r of set.rallies) {
+      const serving = analysis[r.server].rotations[rotation[r.server]];
+      serving.served += 1;
+      if (r.winner === r.server) serving.breakPoints += 1;
+      const other = otherSide(r.server);
+      const receiving = analysis[other].rotations[rotation[other]];
+      receiving.received += 1;
+      if (r.winner === other) {
+        receiving.sideOuts += 1;
+        rotation[other] = (rotation[other] + 1) % 6;
+      }
     }
   }
 
@@ -292,7 +506,16 @@ export function computeStats(view: ScoutView, roster: ScoutRoster, options: Stat
     players[side] = hasActivity(extra) ? [...rows, extra] : rows;
   }
 
-  return { us: teams.us, opp: teams.opp, players, sets, rallies: rallies.length };
+  return { us: teams.us, opp: teams.opp, players, sets, rallies: rallies.length, analysis };
+}
+
+/** Un tocco in una zona: `good` se è andato bene, `lost` se è costato la palla. */
+function addToZone(grid: ZoneGrid, zone: number, good: boolean, lost: boolean) {
+  const cell = grid[zone];
+  if (!cell) return;
+  cell.total += 1;
+  if (good) cell.good += 1;
+  if (lost) cell.lost += 1;
 }
 
 /** Comodo per chi ha solo i dati salvati. */
@@ -314,6 +537,15 @@ export interface SeasonStats {
   players: SeasonPlayer[];
   us: TeamStats;
   opp: TeamStats;
+  /**
+   * Partite in cui si sono segnati dei tocchi (ricezioni, attacchi…): i numeri
+   * di dettaglio (ricezione, attacco, difese) contano solo queste, perché in
+   * quelle a «Base» mancano.
+   */
+  detailMatches: number;
+  /** Il livello più alto tra quelle partite: decide quali colonne mostrare. */
+  level: ScoutLevel;
+  analysis: Record<ScoutSide, SideAnalysis>;
 }
 
 const SUMMED_FIELDS = [
@@ -352,6 +584,9 @@ export function aggregateSeason(items: Array<Pick<ScoutData, "settings" | "event
   let us = emptyTeam("us");
   let opp = emptyTeam("opp");
   const players = new Map<string, SeasonPlayer>();
+  const analysis: Record<ScoutSide, SideAnalysis> = { us: emptyAnalysis(), opp: emptyAnalysis() };
+  let detailMatches = 0;
+  let level: ScoutLevel = "base";
 
   for (const item of items) {
     const stats = statsOf(item);
@@ -360,12 +595,20 @@ export function aggregateSeason(items: Array<Pick<ScoutData, "settings" | "event
     rallies += stats.rallies;
     us = addTeamStats(us, stats.us);
     opp = addTeamStats(opp, stats.opp);
+    const detailed = hasTouches(item);
+    if (detailed) {
+      detailMatches += 1;
+      level = higherLevel(level, effectiveLevel(item));
+      addAnalysis(analysis.us, stats.analysis.us);
+      addAnalysis(analysis.opp, stats.analysis.opp);
+    }
 
     for (const line of stats.players.us) {
       if (!hasActivity(line)) continue;
       const key = seasonKey(line);
       const total = players.get(key) ?? { ...emptyPlayer("us", line), matches: 0 };
       for (const field of SUMMED_FIELDS) total[field] += line[field];
+      if (detailed) addDetail(total.detail, line.detail);
       total.matches += 1;
       // Nome e numero più recenti (l'elenco è dalla partita più vecchia alla più nuova).
       total.name = line.name;
@@ -379,5 +622,5 @@ export function aggregateSeason(items: Array<Pick<ScoutData, "settings" | "event
   const rows = [...players.values()].sort(
     (a, b) => Number(a.id === UNASSIGNED_ID) - Number(b.id === UNASSIGNED_ID) || compareLines(a, b),
   );
-  return { matches, rallies, players: rows, us, opp };
+  return { matches, rallies, players: rows, us, opp, detailMatches, level, analysis };
 }

@@ -58,6 +58,23 @@ export interface ScoutRoster {
 /** Formule delle gare regionali FIPAV: al meglio dei 3 set su 5, dei 2 su 3, oppure 3 set obbligatori. */
 export type ScoutFormat = "bo5" | "bo3" | "fixed3";
 
+/**
+ * Quanto si segna in una partita, a scelta prima di cominciare:
+ * - base: come finisce ogni scambio (chi fa punto e come);
+ * - ricezioni: in più, chi riceve la battuta avversaria e con che voto;
+ * - completo: ogni tocco della palla (battuta, ricezione, alzata, attacco, muro, difesa) con il suo voto, come nei tabellini di Lega.
+ */
+export const SCOUT_LEVELS = ["base", "ricezioni", "completo"] as const;
+export type ScoutLevel = (typeof SCOUT_LEVELS)[number];
+
+/** I voti degli scout ufficiali (Data Volley): # perfetto, + positivo, ! neutro, - negativo, / scarso, = errore. */
+export const SCOUT_GRADES = ["#", "+", "!", "-", "/", "="] as const;
+export type ScoutGrade = (typeof SCOUT_GRADES)[number];
+
+/** I sei fondamentali che si segnano tocco per tocco. */
+export const SCOUT_TOUCH_SKILLS = ["serve", "reception", "set", "attack", "block", "dig"] as const;
+export type ScoutTouchSkill = (typeof SCOUT_TOUCH_SKILLS)[number];
+
 export interface ScoutSettings {
   format: ScoutFormat;
   /** Punti per vincere un set (25) — con almeno due punti di scarto. */
@@ -68,6 +85,35 @@ export interface ScoutSettings {
   firstServer: ScoutSide;
   /** Punteggio live sul sito pubblico, acceso a mano: solo squadre, punti e set (risultato non ufficiale), mai nomi né numeri di maglia. */
   publicLive: boolean;
+  /** Quanto si segna (vedi ScoutLevel). Gli scout salvati prima dei livelli non lo hanno: valgono «base». */
+  level: ScoutLevel;
+}
+
+/**
+ * Un tocco della palla con il suo voto. `side` è la squadra che lo compie,
+ * `player` chi (null = non so) e `zone` la zona del campo (1-6) quando la si
+ * indica: per la ricezione e la difesa dove si è toccata la palla, per
+ * l'attacco da dove è partito.
+ */
+export interface ScoutTouch {
+  id: string;
+  /** Istante in cui è stato segnato (ms). */
+  at: number;
+  side: ScoutSide;
+  skill: ScoutTouchSkill;
+  player: string | null;
+  grade: ScoutGrade;
+  zone: number | null;
+}
+
+/**
+ * Un tocco segnato mentre lo scambio è in corso. Se il suo voto chiude lo
+ * scambio (un ace, un errore, un attacco a terra…) lo scambio finisce e dà
+ * punto da solo; altrimenti i tocchi restano «in sospeso» finché lo scambio
+ * non si chiude, con un altro tocco o con l'esito scelto a mano.
+ */
+export interface ScoutTouchEvent extends ScoutTouch {
+  type: "touch";
 }
 
 export interface ScoutRallyEvent {
@@ -92,7 +138,7 @@ export interface ScoutSetEndEvent {
   nextServer: ScoutSide;
 }
 
-export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent;
+export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent | ScoutTouchEvent;
 
 export interface ScoutData {
   settings: ScoutSettings;

@@ -28,6 +28,7 @@ import type {
   TrainingRuleInput,
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
+import { normalizeSettings } from "@/lib/scout/actions";
 import type { MatchScout, SaveMatchScoutResult, ScoutData } from "@/lib/scout/types";
 import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
@@ -280,8 +281,8 @@ type MatchScoutRow = {
 function matchScoutFromRow(row: MatchScoutRow): MatchScout {
   return {
     ...row.data,
-    // Uno scout salvato prima del punteggio live non ha `publicLive`: vale «spento».
-    settings: { ...row.data.settings, publicLive: row.data.settings.publicLive ?? false },
+    // Uno scout salvato prima del punteggio live o dei livelli non ha `publicLive` né `level`: valgono «spento» e «base».
+    settings: normalizeSettings(row.data.settings),
     matchId: row.match_id,
     version: row.version,
     updatedBy: row.updated_by,

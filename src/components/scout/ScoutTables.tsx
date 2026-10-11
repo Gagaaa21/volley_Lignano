@@ -1,21 +1,17 @@
 import { cn } from "@/lib/cn";
 import { ERROR_HOWS, HOW_META } from "@/lib/scout/rules";
+import { columnsFor, formatPercent, signedNumber, totalOf, type Column, type Row } from "@/lib/scout/columns";
 import { hasActivity, pointsFromErrors, type PlayerStats, type SetSummary, type TeamStats } from "@/lib/scout/stats";
-import type { ScoutSide } from "@/lib/scout/types";
+import type { ScoutLevel, ScoutSide } from "@/lib/scout/types";
 
 /**
  * Le parti del tabellino, senza stato: si usano nella pagina del tabellino e
- * si leggono bene anche stampate. Le colonne sono quelle del tabellino di
- * Lega che uno scout «a punto» sa riempire davvero; quelle che richiedono di
- * segnare ogni tocco (attacchi tentati, ricezioni totali, percentuali) non
- * ci sono, e la pagina lo dice.
+ * si leggono bene anche stampate. A livello Base le colonne sono quelle del
+ * tabellino di Lega che uno scout «a punto» sa riempire davvero; coi livelli
+ * «Con ricezioni» e «Completo», che segnano anche i tocchi, si aggiungono la
+ * ricezione (totali, positiva %, perfetta %) e, nel Completo, battute, attacchi
+ * (punto %, efficienza) e difese. Le colonne cambiano da sole col livello.
  */
-
-function signed(value: number): string {
-  if (value > 0) return `+${value}`;
-  if (value < 0) return `−${Math.abs(value)}`;
-  return "0";
-}
 
 function Cell({ value, strong, tone }: { value: number; strong?: boolean; tone?: "plus" | "minus" }) {
   if (value === 0 && !strong) return <span className="text-muted-foreground/45">–</span>;
@@ -37,40 +33,22 @@ const group = "border-l border-border px-2 pt-2 text-center text-[10px] font-ext
 const td = "px-2 py-2 text-center";
 const sep = "border-l border-border";
 
-interface Totals {
-  points: number;
-  bp: number;
-  balance: number;
-  aces: number;
-  serveErrors: number;
-  receptionErrors: number;
-  kills: number;
-  attackErrors: number;
-  blocked: number;
-  stuffs: number;
-  blockErrors: number;
-  otherErrors: number;
-}
-
-function totalsOf(players: PlayerStats[]): Totals {
-  const total: Totals = {
-    points: 0,
-    bp: 0,
-    balance: 0,
-    aces: 0,
-    serveErrors: 0,
-    receptionErrors: 0,
-    kills: 0,
-    attackErrors: 0,
-    blocked: 0,
-    stuffs: 0,
-    blockErrors: 0,
-    otherErrors: 0,
-  };
-  for (const p of players) {
-    for (const key of Object.keys(total) as (keyof Totals)[]) total[key] += p[key];
+function ColumnCell({ column, row, total }: { column: Column; row: Row; total?: boolean }) {
+  const value = column.value(row);
+  const base = cn(td, column.sep && sep);
+  if (column.kind === "pct" || column.kind === "eff") {
+    return <td className={cn(base, total && "font-bold")}>{value === null ? <span className="text-muted-foreground/45">–</span> : formatPercent(value, column.kind === "eff")}</td>;
   }
-  return total;
+  const n = value ?? 0;
+  if (column.kind === "balance") {
+    return <td className={cn(base, n > 0 && "font-semibold text-success", n < 0 && "font-semibold text-destructive")}>{signedNumber(n)}</td>;
+  }
+  if (total) return <td className={base}>{n}</td>;
+  return (
+    <td className={base}>
+      <Cell value={n} strong={column.kind === "strong"} tone={column.kind === "minus" ? "minus" : undefined} />
+    </td>
+  );
 }
 
 /** Il tabellino di una squadra: una riga per giocatrice con almeno un'azione, e la riga del totale. */
@@ -79,25 +57,36 @@ export function PlayerTable({
   players,
   title,
   matches,
+  level = "base",
 }: {
   side: ScoutSide;
   players: PlayerStats[];
   title: string;
   /** Per la stagione: in quante partite ha giocato ognuna (colonna «Part.»). */
   matches?: Map<string, number>;
+  /** Quali colonne mostrare: dal livello della partita. */
+  level?: ScoutLevel;
 }) {
   const active = players.filter(hasActivity);
   const idle = players.filter((p) => !hasActivity(p));
-  const total = totalsOf(players);
+  const total = totalOf(players);
+  const columns = columnsFor(level);
+  const groups: { name: string; span: number }[] = [];
+  for (const column of columns) {
+    const last = groups[groups.length - 1];
+    if (last && last.name === column.group) last.span += 1;
+    else groups.push({ name: column.group, span: 1 });
+  }
+  const minWidth = level === "completo" ? "min-w-[74rem]" : level === "ricezioni" ? "min-w-[54rem]" : "min-w-[46rem]";
 
   return (
-    <section data-scout-table={side} aria-label={title}>
+    <section data-scout-table={side} data-scout-level-table={level} aria-label={title}>
       <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-foreground">
         <span className={cn("h-2.5 w-2.5 rounded-full", side === "us" ? "bg-primary" : "bg-sand-400")} />
         {title}
       </h3>
       <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
-        <table className="tabular w-full min-w-[46rem] border-collapse text-sm">
+        <table className={cn("tabular w-full border-collapse text-sm", minWidth)}>
           <thead className="bg-surface-muted">
             <tr>
               <th rowSpan={2} className={cn(th, "sticky left-0 z-10 w-10 min-w-10 bg-surface-muted pl-3 text-left align-bottom")}>
@@ -111,40 +100,24 @@ export function PlayerTable({
                   Part.
                 </th>
               )}
-              <th colSpan={3} className={group}>
-                Punti
-              </th>
-              <th colSpan={2} className={group}>
-                Battuta
-              </th>
-              <th className={group}>Ricez.</th>
-              <th colSpan={3} className={group}>
-                Attacco
-              </th>
-              <th colSpan={2} className={group}>
-                Muro
-              </th>
-              <th className={group}>Altri</th>
+              {groups.map((g) => (
+                <th key={g.name} colSpan={g.span} className={group}>
+                  {g.name}
+                </th>
+              ))}
             </tr>
             <tr>
-              <th className={cn(th, sep)} title="Punti fatti: attacchi vincenti, muri e ace">Tot</th>
-              <th className={th} title="Punti fatti mentre la propria squadra batteva (break point)">BP</th>
-              <th className={th} title="Punti fatti meno errori e attacchi murati">V‑P</th>
-              <th className={cn(th, sep)} title="Battute vincenti">Ace</th>
-              <th className={th} title="Battute sbagliate">Err</th>
-              <th className={cn(th, sep)} title="Ricezioni sbagliate">Err</th>
-              <th className={cn(th, sep)} title="Attacchi vincenti">Pt</th>
-              <th className={th} title="Attacchi sbagliati">Err</th>
-              <th className={th} title="Attacchi murati dall'avversaria">Mur</th>
-              <th className={cn(th, sep)} title="Muri vincenti">Pt</th>
-              <th className={th} title="Errori a muro">Err</th>
-              <th className={cn(th, sep)} title="Alzate e difese sbagliate, falli fischiati">Err</th>
+              {columns.map((c, i) => (
+                <th key={`${c.group}-${c.label}-${i}`} className={cn(th, c.sep && sep)} title={c.title}>
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {active.length === 0 && (
               <tr>
-                <td colSpan={matches ? 15 : 14} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                <td colSpan={columns.length + (matches ? 3 : 2)} className="px-4 py-6 text-center text-sm text-muted-foreground">
                   Nessuna azione segnata{side === "us" ? " per le nostre giocatrici" : " per l'avversaria"}.
                 </td>
               </tr>
@@ -157,42 +130,9 @@ export function PlayerTable({
                   {p.libero && <span className="ml-1.5 rounded bg-accent px-1 text-[10px] font-bold text-accent-foreground">L</span>}
                 </td>
                 {matches && <td className={td}>{matches.get(p.id) ?? 0}</td>}
-                <td className={cn(td, sep)}>
-                  <Cell value={p.points} strong />
-                </td>
-                <td className={td}>
-                  <Cell value={p.bp} />
-                </td>
-                <td className={cn(td, p.balance > 0 && "font-semibold text-success", p.balance < 0 && "font-semibold text-destructive")}>
-                  {signed(p.balance)}
-                </td>
-                <td className={cn(td, sep)}>
-                  <Cell value={p.aces} />
-                </td>
-                <td className={td}>
-                  <Cell value={p.serveErrors} tone="minus" />
-                </td>
-                <td className={cn(td, sep)}>
-                  <Cell value={p.receptionErrors} tone="minus" />
-                </td>
-                <td className={cn(td, sep)}>
-                  <Cell value={p.kills} />
-                </td>
-                <td className={td}>
-                  <Cell value={p.attackErrors} tone="minus" />
-                </td>
-                <td className={td}>
-                  <Cell value={p.blocked} tone="minus" />
-                </td>
-                <td className={cn(td, sep)}>
-                  <Cell value={p.stuffs} />
-                </td>
-                <td className={td}>
-                  <Cell value={p.blockErrors} tone="minus" />
-                </td>
-                <td className={cn(td, sep)}>
-                  <Cell value={p.otherErrors} tone="minus" />
-                </td>
+                {columns.map((c, i) => (
+                  <ColumnCell key={`${c.group}-${c.label}-${i}`} column={c} row={p} />
+                ))}
               </tr>
             ))}
           </tbody>
@@ -201,18 +141,9 @@ export function PlayerTable({
               <td className="sticky left-0 z-10 bg-surface-muted py-2 pl-3 pr-2 text-left" />
               <td className="sticky left-10 z-10 bg-surface-muted px-2 py-2 text-left">Squadra</td>
               {matches && <td className={td} />}
-              <td className={cn(td, sep)}>{total.points}</td>
-              <td className={td}>{total.bp}</td>
-              <td className={td}>{signed(total.balance)}</td>
-              <td className={cn(td, sep)}>{total.aces}</td>
-              <td className={td}>{total.serveErrors}</td>
-              <td className={cn(td, sep)}>{total.receptionErrors}</td>
-              <td className={cn(td, sep)}>{total.kills}</td>
-              <td className={td}>{total.attackErrors}</td>
-              <td className={td}>{total.blocked}</td>
-              <td className={cn(td, sep)}>{total.stuffs}</td>
-              <td className={td}>{total.blockErrors}</td>
-              <td className={cn(td, sep)}>{total.otherErrors}</td>
+              {columns.map((c, i) => (
+                <ColumnCell key={`${c.group}-${c.label}-${i}`} column={c} row={total} total />
+              ))}
             </tr>
           </tfoot>
         </table>

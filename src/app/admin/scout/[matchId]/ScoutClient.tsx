@@ -28,13 +28,16 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { cn } from "@/lib/cn";
 import { defaultNextServer, deriveScout, isMatchDecided, setTarget, suggestedSetEnd, type ScoutSet, type ScoutView } from "@/lib/scout/derive";
-import { rallyText } from "@/lib/scout/describe";
+import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
+import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
 import { ScoutEntry } from "./ScoutEntry";
 import { ScoutLog } from "./ScoutLog";
+import { ScoutReception } from "./ScoutReception";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
+import { ScoutTouchEntry } from "./ScoutTouchEntry";
 import { useScoutSession, type ScoutConflict, type SyncStatus } from "./useScoutSession";
 import { useWakeLock } from "./useWakeLock";
 
@@ -235,6 +238,7 @@ export function ScoutClient({
     blank,
   });
   const view = useMemo(() => deriveScout(data), [data]);
+  const level = levelOf(data.settings);
   const suggestion = suggestedSetEnd(view, data.settings);
   const locked = view.decided || data.finished;
   const hasRallies = view.rallies.length > 0;
@@ -259,12 +263,15 @@ export function ScoutClient({
         closed: !view.decided && data.finished,
         canCloseSet: canForceClose,
         canFinish,
+        level,
       }),
-    [match.id, inlineSetup, setEnding, view.decided, data.finished, canForceClose, canFinish],
+    [match.id, inlineSetup, setEnding, view.decided, data.finished, canForceClose, canFinish, level],
   );
   const lastEvent = data.events[data.events.length - 1];
-  const lastRally = lastEvent?.type === "rally" ? view.rallies[view.rallies.length - 1] : undefined;
+  // L'ultimo evento ha chiuso uno scambio (un esito scelto a mano, o un tocco con un voto che chiude)? Altrimenti è un tocco in sospeso o la fine di un set.
+  const lastRally = lastEvent && lastEvent.type !== "setEnd" ? view.rallies.find((r) => r.id === lastEvent.id) : undefined;
   const lastText = lastRally ? rallyText(lastRally, data.roster) : null;
+  const lastPending = lastEvent?.type === "touch" && !lastRally ? view.pending[view.pending.length - 1] : undefined;
 
   function closeSet(nextServer: ScoutSide) {
     dispatch({ type: "endSet", nextServer, at: Date.now(), id: newId() });
@@ -326,6 +333,7 @@ export function ScoutClient({
               {match.dateLabel} · {match.time}
               {match.categoryLabel ? ` · ${match.categoryLabel}` : ""}
               {match.isFriendly ? " · Amichevole" : ""} · {match.location}
+              <span data-scout-level-label={level}> · Livello {LEVEL_META[level].label}</span>
             </p>
           </div>
           <LinkButton href={`/admin/scout/${match.id}/tabellino`} variant="outline" size="sm" className="shrink-0" data-scout-tabellino-link data-tour="scout-tabellino">
@@ -400,8 +408,15 @@ export function ScoutClient({
 
       {!inlineSetup && (
         <>
-          <div data-tour="section-scout-entry">
-            <ScoutEntry data={data} locked={locked} dispatch={dispatch} />
+          <div data-tour="section-scout-entry" className="space-y-3">
+            {level === "completo" ? (
+              <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} />
+            ) : (
+              <>
+                {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} />}
+                <ScoutEntry data={data} locked={locked} dispatch={dispatch} />
+              </>
+            )}
           </div>
 
           <div className="flex items-start gap-3" data-scout-last data-tour="scout-last">
@@ -414,6 +429,10 @@ export function ScoutClient({
                   </b>{" "}
                   · punto {lastText.winner === "us" ? "nostro" : "loro"} · {lastText.label}
                   {lastRally.player ? ` · ${lastText.who}` : ""}
+                </p>
+              ) : lastPending ? (
+                <p className="line-clamp-2 text-muted-foreground" data-scout-last-touch>
+                  Ultimo tocco: {touchLabel(lastPending, data.roster)}
                 </p>
               ) : lastEvent ? (
                 <p className="text-muted-foreground">Ultimo: fine del set</p>
@@ -466,7 +485,7 @@ export function ScoutClient({
 
           <section aria-label="Registro degli scambi" data-tour="section-scout-log">
             <h2 className="mb-2.5 font-display text-lg font-bold text-foreground">Registro</h2>
-            <ScoutLog view={view} roster={data.roster} dispatch={dispatch} />
+            <ScoutLog view={view} roster={data.roster} level={level} dispatch={dispatch} />
           </section>
         </>
       )}

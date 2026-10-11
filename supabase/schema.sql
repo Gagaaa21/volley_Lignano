@@ -151,8 +151,11 @@ alter table match_lineups enable row level security;
 -- match_scouts — scout punto per punto di ogni partita: per ogni scambio chi
 -- ha fatto punto e come (attacco, muro, ace) o quale errore/fallo ha regalato
 -- il punto all'avversaria, come negli scout dei campionati ufficiali. Una riga
--- per partita; "data" contiene impostazioni, rosa e registro degli scambi
--- (vedi src/lib/scout). "version" cresce a ogni salvataggio: chi salva dichiara
+-- per partita; "data" contiene impostazioni (anche il livello scelto: base,
+-- ricezioni o completo; senza, vale base), rosa e registro degli eventi: gli
+-- scambi e, ai livelli ricezioni e completo, i tocchi con voto e zona (vedi
+-- src/lib/scout): nessuna colonna in più, quindi nessuna migrazione.
+-- "version" cresce a ogni salvataggio: chi salva dichiara
 -- su quale versione si basa, così due dispositivi non si sovrascrivono in
 -- silenzio. Riservato allo staff: nessuna policy pubblica, come match_lineups.
 -- =========================================================

@@ -71,6 +71,24 @@ const HEADER_SIZE = 8;
 const LINE_FACTOR = 1.28;
 const CELL_PAD_X = 6;
 const CELL_PAD_Y = 4.5;
+
+/** Misure di una tabella: caratteri e margini delle celle. Quella compatta serve ai tabellini con molte colonne. */
+interface TableMetrics {
+  body: number;
+  sub: number;
+  header: number;
+  padX: number;
+  padY: number;
+}
+const TABLE_NORMAL: TableMetrics = { body: BODY_SIZE, sub: SUB_SIZE, header: HEADER_SIZE, padX: CELL_PAD_X, padY: CELL_PAD_Y };
+const TABLE_COMPACT: TableMetrics = { body: 7.5, sub: 6.5, header: 6.5, padX: 2.5, padY: 3.5 };
+export interface PdfTableOptions {
+  emptyText?: string;
+  zebra?: boolean;
+  keepTogether?: boolean;
+  /** Caratteri e margini più piccoli, per le tabelle con tante colonne. */
+  compact?: boolean;
+}
 /** Un paragrafo di queste righe o meno non si spezza tra due pagine; uno più lungo sì, ma con almeno due righe per parte. */
 const KEEP_LINES = 5;
 
@@ -1049,49 +1067,43 @@ export class PdfReport {
     return columns.map((c) => (c.weight / total) * this.contentW);
   }
 
-  private prepareCell(cell: PdfCellInput, width: number): PreparedCell {
+  private prepareCell(cell: PdfCellInput, width: number, m: TableMetrics): PreparedCell {
     const { regular, bold } = this.fonts;
     const input: PdfCell = typeof cell === "string" ? { text: cell } : cell;
-    const innerWidth = width - CELL_PAD_X * 2;
+    const innerWidth = width - m.padX * 2;
     const font = input.bold ? bold : regular;
-    const lines = limitLines(
-      font,
-      wrapLines(font, this.safe(input.text), innerWidth, BODY_SIZE),
-      innerWidth,
-      BODY_SIZE,
-      MAX_CELL_LINES,
-    );
+    const lines = limitLines(font, wrapLines(font, this.safe(input.text), innerWidth, m.body), innerWidth, m.body, MAX_CELL_LINES);
     const subLines = input.sub
-      ? limitLines(regular, wrapLines(regular, this.safe(input.sub), innerWidth, SUB_SIZE), innerWidth, SUB_SIZE, MAX_CELL_LINES)
+      ? limitLines(regular, wrapLines(regular, this.safe(input.sub), innerWidth, m.sub), innerWidth, m.sub, MAX_CELL_LINES)
       : [];
-    const textHeight = Math.max(lines.length, 1) * BODY_SIZE * LINE_FACTOR + subLines.length * SUB_SIZE * LINE_FACTOR;
+    const textHeight = Math.max(lines.length, 1) * m.body * LINE_FACTOR + subLines.length * m.sub * LINE_FACTOR;
     return {
       lines,
       subLines,
       bold: Boolean(input.bold),
       color: toneColor(input.tone, this.palette),
       subColor: input.subTone ? toneColor(input.subTone, this.palette) : MUTED,
-      height: textHeight + CELL_PAD_Y * 2,
+      height: textHeight + m.padY * 2,
     };
   }
 
   /** Intestazioni di colonna: a capo se serve, al massimo su tre righe. */
-  private headerLines(columns: PdfColumn[], widths: number[]): string[][] {
+  private headerLines(columns: PdfColumn[], widths: number[], m: TableMetrics): string[][] {
     const { bold } = this.fonts;
     return columns.map((column, i) => {
-      const inner = widths[i] - CELL_PAD_X * 2;
-      return limitLines(bold, wrapLines(bold, this.safe(column.header), inner, HEADER_SIZE), inner, HEADER_SIZE, 3);
+      const inner = widths[i] - m.padX * 2;
+      return limitLines(bold, wrapLines(bold, this.safe(column.header), inner, m.header), inner, m.header, 3);
     });
   }
 
-  private headerHeight(headerLines: string[][]): number {
-    return Math.max(...headerLines.map((lines) => lines.length), 1) * HEADER_SIZE * LINE_FACTOR + CELL_PAD_Y * 2 + 2;
+  private headerHeight(headerLines: string[][], m: TableMetrics): number {
+    return Math.max(...headerLines.map((lines) => lines.length), 1) * m.header * LINE_FACTOR + m.padY * 2 + 2;
   }
 
-  private drawTableHeader(columns: PdfColumn[], widths: number[]) {
+  private drawTableHeader(columns: PdfColumn[], widths: number[], m: TableMetrics) {
     const { bold } = this.fonts;
-    const lines = this.headerLines(columns, widths);
-    const headerH = this.headerHeight(lines);
+    const lines = this.headerLines(columns, widths, m);
+    const headerH = this.headerHeight(lines, m);
     this.page.drawRectangle({
       x: MARGIN,
       y: this.yOf(this.cursor + headerH),
@@ -1102,17 +1114,17 @@ export class PdfReport {
     let x = MARGIN;
     columns.forEach((column, i) => {
       lines[i].forEach((label, lineIndex) => {
-        const labelWidth = bold.widthOfTextAtSize(label, HEADER_SIZE);
+        const labelWidth = bold.widthOfTextAtSize(label, m.header);
         const textX =
           column.align === "right"
-            ? x + widths[i] - CELL_PAD_X - labelWidth
+            ? x + widths[i] - m.padX - labelWidth
             : column.align === "center"
               ? x + (widths[i] - labelWidth) / 2
-              : x + CELL_PAD_X;
+              : x + m.padX;
         this.page.drawText(label, {
           x: textX,
-          y: this.yOf(this.cursor + CELL_PAD_Y + 1 + HEADER_SIZE + lineIndex * HEADER_SIZE * LINE_FACTOR),
-          size: HEADER_SIZE,
+          y: this.yOf(this.cursor + m.padY + 1 + m.header + lineIndex * m.header * LINE_FACTOR),
+          size: m.header,
           font: bold,
           color: WHITE,
         });
@@ -1123,24 +1135,22 @@ export class PdfReport {
   }
 
   /** Altezza che occuperebbe la tabella (intestazione e tutte le righe), per decidere prima dove metterla. */
-  tableHeight(columns: PdfColumn[], rows: PdfCellInput[][]): number {
+  tableHeight(columns: PdfColumn[], rows: PdfCellInput[][], options: { compact?: boolean } = {}): number {
+    const m = options.compact ? TABLE_COMPACT : TABLE_NORMAL;
     const widths = this.columnWidths(columns);
-    const headerH = this.headerHeight(this.headerLines(columns, widths));
+    const headerH = this.headerHeight(this.headerLines(columns, widths, m), m);
     const bodyH = rows.reduce(
-      (sum, row) => sum + Math.max(...columns.map((_, i) => this.prepareCell(row[i] ?? "", widths[i]).height)),
+      (sum, row) => sum + Math.max(...columns.map((_, i) => this.prepareCell(row[i] ?? "", widths[i], m).height)),
       0,
     );
     return headerH + bodyH;
   }
 
   /** Tabella: l'intestazione si ripete a ogni pagina e una riga non si spezza mai tra due pagine. */
-  table(
-    columns: PdfColumn[],
-    rows: PdfCellInput[][],
-    options: { emptyText?: string; zebra?: boolean; keepTogether?: boolean } = {},
-  ) {
+  table(columns: PdfColumn[], rows: PdfCellInput[][], options: PdfTableOptions = {}) {
+    const m = options.compact ? TABLE_COMPACT : TABLE_NORMAL;
     const widths = this.columnWidths(columns);
-    const headerH = this.headerHeight(this.headerLines(columns, widths));
+    const headerH = this.headerHeight(this.headerLines(columns, widths, m), m);
 
     if (rows.length === 0) {
       this.text(options.emptyText ?? "Nessun dato.", { tone: "muted", gapAfter: 12 });
@@ -1148,7 +1158,7 @@ export class PdfReport {
     }
 
     const prepared = rows.map((row) => {
-      const cells = columns.map((_, i) => this.prepareCell(row[i] ?? "", widths[i]));
+      const cells = columns.map((_, i) => this.prepareCell(row[i] ?? "", widths[i], m));
       return { cells, height: Math.max(...cells.map((c) => c.height)) };
     });
 
@@ -1159,12 +1169,12 @@ export class PdfReport {
       if (total <= pageCapacity) this.ensureSpace(total);
     }
     this.ensureSpace(headerH + prepared[0].height);
-    this.drawTableHeader(columns, widths);
+    this.drawTableHeader(columns, widths, m);
 
     prepared.forEach((row, rowIndex) => {
       if (this.cursor + row.height > this.bottomLimit) {
         this.addPage();
-        this.drawTableHeader(columns, widths);
+        this.drawTableHeader(columns, widths, m);
       }
       const top = this.cursor;
       if (options.zebra !== false && rowIndex % 2 === 1) {
@@ -1179,17 +1189,17 @@ export class PdfReport {
       let x = MARGIN;
       row.cells.forEach((cell, i) => {
         const align = columns[i].align ?? "left";
-        let lineTop = top + CELL_PAD_Y;
+        let lineTop = top + m.padY;
         const drawLine = (text: string, size: number, font: PDFFont, color: RGB) => {
           const width = font.widthOfTextAtSize(text, size);
           const textX =
-            align === "right" ? x + widths[i] - CELL_PAD_X - width : align === "center" ? x + (widths[i] - width) / 2 : x + CELL_PAD_X;
+            align === "right" ? x + widths[i] - m.padX - width : align === "center" ? x + (widths[i] - width) / 2 : x + m.padX;
           this.page.drawText(text, { x: textX, y: this.yOf(lineTop + size), size, font, color });
           lineTop += size * LINE_FACTOR;
         };
         const mainFont = cell.bold ? this.fonts.bold : this.fonts.regular;
-        for (const line of cell.lines) drawLine(line, BODY_SIZE, mainFont, cell.color);
-        for (const line of cell.subLines) drawLine(line, SUB_SIZE, this.fonts.regular, cell.subColor);
+        for (const line of cell.lines) drawLine(line, m.body, mainFont, cell.color);
+        for (const line of cell.subLines) drawLine(line, m.sub, this.fonts.regular, cell.subColor);
         x += widths[i];
       });
       this.page.drawLine({

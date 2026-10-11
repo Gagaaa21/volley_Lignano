@@ -1,3 +1,4 @@
+import { normalizeSettings } from "./actions";
 import { scoutDataSchema } from "./schema";
 import type { MatchScout, ScoutData } from "./types";
 
@@ -11,8 +12,8 @@ import type { MatchScout, ScoutData } from "./types";
 /** Il contenuto che conta di uno scout, senza i dati di salvataggio (versione, autore, data). */
 export function scoutContent(data: ScoutData): ScoutData {
   return {
-    // Uno scout salvato prima del punteggio live non ha `publicLive`: vale «spento».
-    settings: { ...data.settings, publicLive: data.settings.publicLive ?? false },
+    // Uno scout salvato prima del punteggio live o dei livelli non ha `publicLive` né `level`: valgono «spento» e «base».
+    settings: normalizeSettings(data.settings),
     roster: data.roster,
     events: data.events,
     finished: data.finished,

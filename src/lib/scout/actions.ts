@@ -1,15 +1,22 @@
 import { deriveScout } from "./derive";
+import { levelOf } from "./levels";
 import { rallyWinner } from "./rules";
+import { endsRally } from "./touches";
 import {
   otherSide,
+  SCOUT_GRADES,
+  SCOUT_TOUCH_SKILLS,
   type ScoutData,
   type ScoutEvent,
+  type ScoutGrade,
   type ScoutHow,
   type ScoutPlayer,
   type ScoutRallyEvent,
   type ScoutRoster,
   type ScoutSettings,
   type ScoutSide,
+  type ScoutTouchEvent,
+  type ScoutTouchSkill,
 } from "./types";
 
 /**
@@ -25,7 +32,13 @@ export const DEFAULT_SETTINGS: ScoutSettings = {
   lastSetPoints: 15,
   firstServer: "us",
   publicLive: false,
+  level: "base",
 };
+
+/** Impostazioni complete anche per uno scout salvato prima che esistessero i livelli (o il punteggio live). */
+export function normalizeSettings(settings: Omit<ScoutSettings, "publicLive" | "level"> & Partial<Pick<ScoutSettings, "publicLive" | "level">>): ScoutSettings {
+  return { ...settings, publicLive: settings.publicLive ?? false, level: levelOf(settings) };
+}
 
 export function newScoutData(roster: ScoutRoster, settings: Partial<ScoutSettings> = {}): ScoutData {
   return { settings: { ...DEFAULT_SETTINGS, ...settings }, roster, events: [], finished: false };
@@ -62,9 +75,9 @@ export function findPlayer(roster: ScoutRoster, side: ScoutSide, id: string | nu
 export function usedPlayerIds(data: Pick<ScoutData, "events">): Set<string> {
   const used = new Set<string>();
   for (const event of data.events) {
-    if (event.type !== "rally") continue;
+    if (event.type === "setEnd") continue;
     if (event.player) used.add(event.player);
-    if (event.victim) used.add(event.victim);
+    if (event.type === "rally" && event.victim) used.add(event.victim);
   }
   return used;
 }
@@ -122,6 +135,89 @@ export function updateRally(data: ScoutData, id: string, patch: RallyInput): Sco
   return { ...data, events };
 }
 
+// ── tocchi ──────────────────────────────────────────────────────────────
+
+export interface TouchInput {
+  side: ScoutSide;
+  skill: ScoutTouchSkill;
+  player: string | null;
+  grade: ScoutGrade;
+  zone?: number | null;
+}
+
+/** Zona del campo valida (da 1 a 6), altrimenti null. */
+export function cleanZone(zone: number | null | undefined): number | null {
+  return typeof zone === "number" && Number.isInteger(zone) && zone >= 1 && zone <= 6 ? zone : null;
+}
+
+/** Toglie i riferimenti a giocatrici che non sono in rosa e le zone che non esistono. */
+function sanitizeTouch(data: ScoutData, input: TouchInput): Pick<ScoutTouchEvent, "side" | "skill" | "player" | "grade" | "zone"> {
+  const valid = SCOUT_TOUCH_SKILLS.includes(input.skill) && SCOUT_GRADES.includes(input.grade);
+  return {
+    side: input.side,
+    skill: valid ? input.skill : "reception",
+    player: findPlayer(data.roster, input.side, input.player ?? null)?.id ?? null,
+    grade: valid ? input.grade : "!",
+    zone: cleanZone(input.zone),
+  };
+}
+
+/** Segna un tocco: se il suo voto chiude lo scambio, il punto si assegna da solo (vedi touches.ts). */
+export function addTouch(data: ScoutData, input: TouchInput, at: number, id: string): ScoutData {
+  if (isLocked(data)) return data;
+  if (!SCOUT_TOUCH_SKILLS.includes(input.skill) || !SCOUT_GRADES.includes(input.grade)) return data;
+  const event: ScoutTouchEvent = { type: "touch", id, at, ...sanitizeTouch(data, input) };
+  return { ...data, events: [...data.events, event] };
+}
+
+/**
+ * Corregge un tocco già segnato (chi, voto, zona). Il fondamentale e la squadra
+ * non cambiano: per quelli si toglie e si rifà. Il voto cambia solo tra voti
+ * che hanno lo stesso effetto sullo scambio (che lo chiudono entrambi o che
+ * non lo chiudono): trasformare un tocco qualunque in un punto sposterebbe
+ * gli scambi che seguono.
+ */
+export function updateTouch(data: ScoutData, id: string, patch: Partial<Pick<TouchInput, "player" | "grade" | "zone">>): ScoutData {
+  const events: ScoutEvent[] = data.events.map((event) => {
+    if (event.type !== "touch" || event.id !== id) return event;
+    const grade =
+      patch.grade && SCOUT_GRADES.includes(patch.grade) && endsRally(event.skill, patch.grade) === endsRally(event.skill, event.grade)
+        ? patch.grade
+        : event.grade;
+    const next = sanitizeTouch(data, {
+      side: event.side,
+      skill: event.skill,
+      player: patch.player === undefined ? event.player : patch.player,
+      grade,
+      zone: patch.zone === undefined ? event.zone : patch.zone,
+    });
+    return { ...event, ...next };
+  });
+  return { ...data, events };
+}
+
+/** Toglie un solo tocco. */
+export function removeTouch(data: ScoutData, id: string): ScoutData {
+  if (!data.events.some((e) => e.type === "touch" && e.id === id)) return data;
+  return { ...data, events: data.events.filter((e) => e.id !== id), finished: false };
+}
+
+/** Aggiunge un tocco prima dell'evento `before` (per dire a posteriori chi ha ricevuto in uno scambio già chiuso). */
+export function insertTouch(data: ScoutData, before: string, input: TouchInput, at: number, id: string): ScoutData {
+  const index = data.events.findIndex((e) => e.id === before);
+  if (index === -1 || !SCOUT_TOUCH_SKILLS.includes(input.skill) || !SCOUT_GRADES.includes(input.grade)) return data;
+  const event: ScoutTouchEvent = { type: "touch", id, at, ...sanitizeTouch(data, input) };
+  return { ...data, events: [...data.events.slice(0, index), event, ...data.events.slice(index)] };
+}
+
+/** Toglie uno scambio per intero: l'esito scelto a mano e tutti i tocchi che lo compongono. */
+export function removeRally(data: ScoutData, id: string): ScoutData {
+  const rally = deriveScout(data).rallies.find((r) => r.id === id);
+  if (!rally) return data;
+  const gone = new Set(rally.eventIds);
+  return { ...data, events: data.events.filter((e) => !gone.has(e.id)), finished: false };
+}
+
 export function finishMatch(data: ScoutData): ScoutData {
   return data.finished ? data : { ...data, finished: true };
 }
@@ -174,6 +270,11 @@ export type ScoutAction =
   | { type: "undo" }
   | { type: "remove"; id: string }
   | { type: "update"; id: string; patch: RallyInput }
+  | { type: "touch"; input: TouchInput; at: number; id: string }
+  | { type: "updateTouch"; id: string; patch: Partial<Pick<TouchInput, "player" | "grade" | "zone">> }
+  | { type: "removeTouch"; id: string }
+  | { type: "insertTouch"; before: string; input: TouchInput; at: number; id: string }
+  | { type: "removeRally"; id: string }
   | { type: "finish" }
   | { type: "reopen" }
   | { type: "settings"; patch: Partial<ScoutSettings> }
@@ -195,6 +296,16 @@ export function scoutReducer(data: ScoutData, action: ScoutAction): ScoutData {
       return removeEvent(data, action.id);
     case "update":
       return updateRally(data, action.id, action.patch);
+    case "touch":
+      return addTouch(data, action.input, action.at, action.id);
+    case "updateTouch":
+      return updateTouch(data, action.id, action.patch);
+    case "removeTouch":
+      return removeTouch(data, action.id);
+    case "insertTouch":
+      return insertTouch(data, action.before, action.input, action.at, action.id);
+    case "removeRally":
+      return removeRally(data, action.id);
     case "finish":
       return finishMatch(data);
     case "reopen":

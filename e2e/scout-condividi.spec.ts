@@ -95,13 +95,13 @@ test("manuale: dal telefono «Condividi PDF» apre il foglio di condivisione con
 
 test("manuale: se la rete è lenta il pulsante prepara il PDF e al tocco dopo apre il foglio di condivisione", async ({ page }) => {
   test.setTimeout(120_000);
-  // La prima richiesta del PDF (quella che parte da sola) viene tenuta ferma qualche secondo.
+  // La prima richiesta del PDF (quella che parte da sola) viene tenuta ferma qualche secondo; anche la seconda (quella del tocco)
+  // ha un po' di ritardo, sennò con il manuale già pronto sul server «Preparo il PDF» durerebbe troppo poco per essere visto.
   let first = true;
   await page.route("**/api/scout/manuale", async (route) => {
-    if (first) {
-      first = false;
-      await new Promise((resolve) => setTimeout(resolve, 4_000));
-    }
+    const wait = first ? 4_000 : 1_500;
+    first = false;
+    await new Promise((resolve) => setTimeout(resolve, wait));
     await route.continue();
   });
   await openHub(page, { phone: true });

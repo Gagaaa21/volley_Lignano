@@ -4,12 +4,15 @@ import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { deriveScout } from "@/lib/scout/derive";
+import { footnoteFor, legendFor } from "@/lib/scout/legend";
+import { effectiveLevel, LEVEL_META } from "@/lib/scout/levels";
 import { summarizeScout } from "@/lib/scout/match";
 import { isScoutTableMissing } from "@/lib/scout/missing";
 import type { MatchScout } from "@/lib/scout/types";
 import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { requireScoutMatch } from "@/lib/scout/server";
-import { computeStats, percent } from "@/lib/scout/stats";
+import { computeStats, emptyZones, percent, zonedTouches } from "@/lib/scout/stats";
+import { ReceptionBars, ReceptionTiles, RotationsTable, SideOutByGrade, ZoneMaps } from "@/components/scout/ScoutDetail";
 import { ErrorsTable, FlowChart, HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutTabellinoTourSteps } from "@/components/tour/scoutSteps";
@@ -49,6 +52,17 @@ export default async function ScoutTabellinoPage({
   }
   const summary = summarizeScout(scout);
 
+  // Il livello con cui si è segnata la partita decide quali sezioni e colonne ci sono (e quindi i passi della guida).
+  const level = scout ? effectiveLevel(scout) : "base";
+  const view = scout && summary.state !== "none" ? deriveScout(scout) : null;
+  const played = view ? view.sets.filter((set) => set.rallies.length > 0) : [];
+  const requested = Number(setParam);
+  const selected = played.some((set) => set.n === requested) ? requested : null;
+  const stats = scout && view ? computeStats(view, scout.roster, { set: selected }) : null;
+  const showReception = level !== "base" && Boolean(stats && stats.analysis.us.receptions > 0);
+  const showZones = level === "completo" && Boolean(stats && (zonedTouches(stats.analysis.us.zones.dig) > 0 || zonedTouches(stats.analysis.us.zones.attack) > 0));
+  const showRotations = level === "completo" && Boolean(stats && stats.analysis.us.rotations.some((r) => r.served + r.received > 0));
+
   const header = (
     <PageHeader
       back={{ href: "/admin/scout", label: "Scout" }}
@@ -60,7 +74,11 @@ export default async function ScoutTabellinoPage({
       }
       title={`Tabellino ${matchTitle(match)}`}
       description={match.location}
-      help={summary.state !== "none" ? <SectionTour steps={getScoutTabellinoTourSteps(matchId)} /> : undefined}
+      help={
+        summary.state !== "none" ? (
+          <SectionTour steps={getScoutTabellinoTourSteps(matchId, { level, reception: showReception, zones: showZones, rotations: showRotations })} />
+        ) : undefined
+      }
       actions={
         <>
           <LinkButton href={`/admin/scout/${matchId}`} variant="outline">
@@ -83,7 +101,7 @@ export default async function ScoutTabellinoPage({
     />
   );
 
-  if (!scout || summary.state === "none") {
+  if (!scout || !view || !stats || summary.state === "none") {
     return (
       <div className="mx-auto max-w-4xl">
         {header}
@@ -102,11 +120,6 @@ export default async function ScoutTabellinoPage({
     );
   }
 
-  const view = deriveScout(scout);
-  const played = view.sets.filter((set) => set.rallies.length > 0);
-  const requested = Number(setParam);
-  const selected = played.some((set) => set.n === requested) ? requested : null;
-  const stats = computeStats(view, scout.roster, { set: selected });
   const { us, opp } = stats;
 
   const over = summary.state === "done";
@@ -204,6 +217,9 @@ export default async function ScoutTabellinoPage({
           <Badge tone="neutral" className="px-3 py-1">
             {stats.rallies} scambi · {setLabel}
           </Badge>
+          <Badge tone={level === "base" ? "neutral" : "primary"} className="px-3 py-1" data-scout-level-badge={level}>
+            Livello {LEVEL_META[level].label}
+          </Badge>
         </div>
 
         <section aria-label="Break point e cambio palla" className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="scout-tab-bp">
@@ -254,9 +270,73 @@ export default async function ScoutTabellinoPage({
           </CardBody>
         </Card>
 
+        {level !== "base" && !showReception && (
+          <p role="status" className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground" data-scout-no-reception>
+            Questa partita è a livello <b className="text-foreground">{LEVEL_META[level].label}</b>, ma {selected ? "in questo set" : "finora"} non è stata segnata nessuna ricezione.
+            Le troverai qui quando le segni mentre batte l&apos;avversaria.
+          </p>
+        )}
+
+        {showReception && (
+          <Card data-tour="scout-tab-reception" data-scout-reception-card>
+            <CardHeader className="pb-3">
+              <CardTitle>La ricezione</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Com&apos;è andata ogni ricezione della nostra squadra, con il voto che hai segnato (# perfetta, + positiva, ! neutra, − negativa, / scarsa, = errore).
+              </p>
+            </CardHeader>
+            <CardBody className="space-y-6">
+              <ReceptionTiles analysis={stats.analysis.us} />
+              <ReceptionBars analysis={stats.analysis.us} players={stats.players.us} />
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div>
+                  <h3 className="mb-2 font-display text-base font-bold text-foreground">Il cambio palla dipende dalla ricezione</h3>
+                  <p className="mb-3 text-sm text-muted-foreground">Dopo una ricezione di quel voto, quante volte abbiamo vinto lo scambio e preso la battuta.</p>
+                  <SideOutByGrade analysis={stats.analysis.us} />
+                </div>
+                <ZoneMaps analysis={{ ...stats.analysis.us, zones: { ...stats.analysis.us.zones, dig: emptyZones(), attack: emptyZones() } }} full={false} />
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {level === "completo" && (
+          <>
+            {showZones && (
+              <Card data-tour="scout-tab-zones" data-scout-zones-card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Le mappe del campo</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">Dove abbiamo difeso e da dove abbiamo attaccato, nelle zone che hai segnato.</p>
+                </CardHeader>
+                <CardBody>
+                  <ZoneMaps
+                    analysis={{ ...stats.analysis.us, zones: { ...stats.analysis.us.zones, reception: emptyZones() } }}
+                    full
+                  />
+                </CardBody>
+              </Card>
+            )}
+            <Card data-tour="scout-tab-rotations" data-scout-rotations-card>
+              <CardHeader className="pb-3">
+                <CardTitle>Le rotazioni</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Break point e cambio palla in ogni rotazione. La 1ª è quella con cui si comincia il set; si passa alla successiva ogni volta che la squadra recupera la
+                  battuta.
+                </p>
+              </CardHeader>
+              <CardBody>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <RotationsTable analysis={stats.analysis.us} title="Volley Lignano" />
+                  <RotationsTable analysis={stats.analysis.opp} title={match.opponent} />
+                </div>
+              </CardBody>
+            </Card>
+          </>
+        )}
+
         <div className="space-y-6" data-tour="scout-tab-players">
-          <PlayerTable side="us" players={stats.players.us} title="Volley Lignano" />
-          <PlayerTable side="opp" players={stats.players.opp} title={match.opponent} />
+          <PlayerTable side="us" players={stats.players.us} title="Volley Lignano" level={level} />
+          <PlayerTable side="opp" players={stats.players.opp} title={match.opponent} level={level} />
         </div>
 
         <Card className="bg-surface-muted/60 shadow-none" data-tour="scout-tab-legend">
@@ -265,16 +345,7 @@ export default async function ScoutTabellinoPage({
           </CardHeader>
           <CardBody>
             <dl className="grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2">
-              {[
-                ["Tot", "Punti fatti: attacchi vincenti, muri e ace."],
-                ["BP", "Di quei punti, quelli fatti mentre la propria squadra batteva (break point)."],
-                ["V‑P", "Punti fatti meno gli errori e gli attacchi murati."],
-                ["Ace / Err", "Battute vincenti e battute sbagliate."],
-                ["Ricez. Err", "Ricezioni sbagliate: la palla è toccata e finisce fuori o a terra. Se cade senza essere toccata è un ace di chi batte."],
-                ["Attacco", "Attacchi vincenti (Pt), sbagliati (Err) e fermati dal muro avversario (Mur)."],
-                ["Muro", "Muri vincenti (Pt) ed errori a muro (Err)."],
-                ["Altri", "Alzate e difese sbagliate e falli fischiati attribuiti a una giocatrice."],
-              ].map(([term, text]) => (
+              {legendFor(level).map(([term, text]) => (
                 <div key={term}>
                   <dt className="inline font-bold text-foreground">{term}: </dt>
                   <dd className="inline text-muted-foreground">{text}</dd>
@@ -282,9 +353,7 @@ export default async function ScoutTabellinoPage({
               ))}
             </dl>
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              Lo scout segna come finisce ogni scambio (chi fa punto e come), non ogni singolo tocco: per questo mancano attacchi tentati, ricezioni totali e le
-              percentuali di attacco e di ricezione dei tabellini di Lega. Le durate dei set sono stimate dall&apos;ora in cui sono stati segnati il primo e
-              l&apos;ultimo punto.
+              {footnoteFor(level)} Le durate dei set sono stimate dall&apos;ora in cui sono stati segnati il primo tocco o punto e l&apos;ultimo punto.
             </p>
           </CardBody>
         </Card>

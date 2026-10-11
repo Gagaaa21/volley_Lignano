@@ -109,6 +109,21 @@
   --accent-hover: var(--color-sand-200);
   --success-foreground: #ffffff;
   --warning-foreground: #ffffff;
+  /* I voti dello scout (# + ! − / =), dal verde all'errore: sfondo e colore del
+     testo per ognuno, tutti sopra il contrasto 4,5:1. Il simbolo accompagna
+     sempre il colore, che da solo non basta a distinguerli. */
+  --grade-perfect: #12804a;
+  --grade-perfect-ink: #ffffff;
+  --grade-positive: #7ab648;
+  --grade-positive-ink: #10210a;
+  --grade-neutral: #e0b83a;
+  --grade-neutral-ink: #2b2204;
+  --grade-negative: #e0762c;
+  --grade-negative-ink: #2b1203;
+  --grade-poor: #c24630;
+  --grade-poor-ink: #ffffff;
+  --grade-error: #a81f2b;
+  --grade-error-ink: #ffffff;
   /* Aloni colorati dello sfondo di accesso. */
   --stage-glow-a: color-mix(in oklab, var(--color-sea-100) 85%, transparent);
   --stage-glow-b: color-mix(in oklab, var(--color-sand-100) 80%, transparent);
@@ -158,6 +173,18 @@
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  --color-grade-perfect: var(--grade-perfect);
+  --color-grade-perfect-ink: var(--grade-perfect-ink);
+  --color-grade-positive: var(--grade-positive);
+  --color-grade-positive-ink: var(--grade-positive-ink);
+  --color-grade-neutral: var(--grade-neutral);
+  --color-grade-neutral-ink: var(--grade-neutral-ink);
+  --color-grade-negative: var(--grade-negative);
+  --color-grade-negative-ink: var(--grade-negative-ink);
+  --color-grade-poor: var(--grade-poor);
+  --color-grade-poor-ink: var(--grade-poor-ink);
+  --color-grade-error: var(--grade-error);
+  --color-grade-error-ink: var(--grade-error-ink);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
@@ -298,6 +325,18 @@
   --warning: #f2ab4a;
   --warning-soft: #36270f;
   --warning-foreground: #2a1803;
+  --grade-perfect: #3fb97a;
+  --grade-perfect-ink: #06210f;
+  --grade-positive: #8fcb5a;
+  --grade-positive-ink: #12220a;
+  --grade-neutral: #e8c34d;
+  --grade-neutral-ink: #2b2204;
+  --grade-negative: #ee8a42;
+  --grade-negative-ink: #2b1203;
+  --grade-poor: #e0634d;
+  --grade-poor-ink: #2a0a05;
+  --grade-error: #e85a66;
+  --grade-error-ink: #2a070a;
   --border: #223049;
   --border-strong: #31435f;
   --input: #2b3c58;

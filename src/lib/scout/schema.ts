@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { SCOUT_HOWS, type ScoutData } from "./types";
+import { SCOUT_GRADES, SCOUT_HOWS, SCOUT_LEVELS, SCOUT_TOUCH_SKILLS, type ScoutData } from "./types";
 
 /**
  * Forma valida di uno scout salvato (src/app/api/scout). I limiti sono larghi
  * rispetto a una partita vera (al massimo 5 set da 25-30 punti: qualche
- * centinaio di scambi) ma impediscono che una richiesta sbagliata riempia il
- * database.
+ * centinaio di scambi, ognuno con una decina di tocchi nel livello Completo)
+ * ma impediscono che una richiesta sbagliata riempia il database.
  */
 
 const sideSchema = z.enum(["us", "opp"]);
@@ -30,6 +30,17 @@ const rallySchema = z.object({
   victim: z.string().min(1).max(64).nullable(),
 });
 
+const touchSchema = z.object({
+  type: z.literal("touch"),
+  id: z.string().min(1).max(64),
+  at: z.number().int().min(0),
+  side: sideSchema,
+  skill: z.enum(SCOUT_TOUCH_SKILLS),
+  player: z.string().min(1).max(64).nullable(),
+  grade: z.enum(SCOUT_GRADES),
+  zone: z.number().int().min(1).max(6).nullable(),
+});
+
 const setEndSchema = z.object({
   type: z.literal("setEnd"),
   id: z.string().min(1).max(64),
@@ -41,7 +52,7 @@ function uniqueIds(items: { id: string }[]): boolean {
   return new Set(items.map((i) => i.id)).size === items.length;
 }
 
-export const MAX_SCOUT_EVENTS = 1500;
+export const MAX_SCOUT_EVENTS = 6000;
 
 export const scoutDataSchema = z
   .object({
@@ -52,12 +63,14 @@ export const scoutDataSchema = z
       firstServer: sideSchema,
       // Gli scout salvati prima del punteggio live non lo hanno: si leggono come spento.
       publicLive: z.boolean().default(false),
+      // Gli scout salvati prima dei livelli non lo hanno: si leggono come «base».
+      level: z.enum(SCOUT_LEVELS).default("base"),
     }),
     roster: z.object({
       us: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
       opp: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
     }),
-    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema])).max(MAX_SCOUT_EVENTS),
+    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema])).max(MAX_SCOUT_EVENTS),
     finished: z.boolean(),
   })
   .refine((data) => uniqueIds(data.events), { message: "Eventi duplicati." }) satisfies z.ZodType<ScoutData>;
