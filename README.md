@@ -138,7 +138,7 @@ staff (Developer e Admin).
     (`src/components/tour/scoutSteps.ts`, schede ricche con capitolo, esempio,
     consiglio, attenzione; parte da sola con `?guida=1` dal riquadro «Prima
     volta con lo Scout?»). Il **manuale d'uso in PDF** (`/api/scout/manuale`,
-    solo con il permesso «Scout»; lo stesso PDF, senza accesso e non indicizzato, è in `/manuale-scout.pdf`, quello che manda il pulsante «Condividi») è impaginato da `src/lib/pdf/scoutManualPdf.ts`
+    solo con il permesso «Scout»; il pulsante «Condividi PDF», `ShareManualButton`, lo manda come file con il foglio di condivisione del telefono e sul computer lo scarica) è impaginato da `src/lib/pdf/scoutManualPdf.ts`
     sul testo di `src/lib/scout/manual.ts`, con le schermate commentate in
     `src/assets/pdf/scout-manual/`. Il testo del manuale usa solo caratteri
     Latin-1 (lo controlla un test); le schermate si rifanno con le atlete e le

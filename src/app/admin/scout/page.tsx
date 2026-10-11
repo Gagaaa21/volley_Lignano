@@ -19,6 +19,7 @@ import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { ShareManualButton } from "@/components/scout/ShareManualButton";
 import { Badge } from "@/components/ui/Badge";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -149,10 +150,10 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
       actions={
         <>
-          <LinkButton href="/api/scout/manuale" variant="outline" data-tour="scout-manual" data-scout-manual-link>
+          <a href="/api/scout/manuale" download className={buttonVariants({ variant: "outline" })} data-tour="scout-manual" data-scout-manual-link>
             <BookOpen className="h-4 w-4" />
             Manuale d&apos;uso (PDF)
-          </LinkButton>
+          </a>
           <ShareManualButton />
         </>
       }

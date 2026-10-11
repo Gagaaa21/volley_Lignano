@@ -102,7 +102,7 @@ export function getScoutHubTourSteps({ showMatches, season = false }: { showMatc
       target: "scout-manual",
       chapter: C_WELCOME,
       title: "Il manuale in PDF",
-      body: "Se preferisci leggere con calma, o stampare, c'è il manuale d'uso completo: schermate commentate, tutti i casi particolari, il significato di ogni sigla e uno schema da tenere a bordo campo.\n\nCon «Condividi» ne mandi il link a chi non ha l'accesso (per esempio su WhatsApp): il PDF si apre senza accedere.",
+      body: "Se preferisci leggere con calma, o stampare, c'è il manuale d'uso completo: schermate commentate, tutti i casi particolari, il significato di ogni sigla e uno schema da tenere a bordo campo.\n\nCon «Condividi PDF» lo mandi come file a chi vuoi (dal telefono si apre WhatsApp, e-mail e simili; dal computer il file si scarica).",
     },
     {
       id: "scout-hub-before",
