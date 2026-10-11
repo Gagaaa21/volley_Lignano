@@ -276,7 +276,7 @@ function OrphanRow({
           <input type="hidden" name="id" value={match.id} />
           <input type="hidden" name="returnTo" value="/admin/partite/portale" />
           <ConfirmSubmitButton
-            confirmMessage={`Eliminare la partita vs ${match.opponent}? Sparisce dal calendario insieme a convocazioni e formazioni.`}
+            confirmMessage={`Eliminare la partita vs ${match.opponent}? Sparisce dal calendario insieme a convocazioni, formazioni e scout.`}
             variant="danger-ghost"
             size="sm"
             disabled={busy}

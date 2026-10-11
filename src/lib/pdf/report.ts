@@ -53,11 +53,15 @@ const DANGER = rgb(0xc8 / 255, 0x31 / 255, 0x2b / 255);
 const U14 = rgb(0x0f / 255, 0x76 / 255, 0x6e / 255);
 const U15 = rgb(0x6d / 255, 0x28 / 255, 0xd9 / 255);
 const WHITE = rgb(1, 1, 1);
+/** Il colore della squadra avversaria nei grafici (la «sabbia» del sito). */
+const ACCENT = rgb(0xe2 / 255, 0xa8 / 255, 0x42 / 255);
 
 const A4_W = 595.28;
 const A4_H = 841.89;
 const MARGIN = 40;
 const FOOTER_RESERVE = 34;
+/** Spazio che l'intestazione ripetuta occupa in cima a ogni pagina dopo la prima (vedi drawRunningHeader). */
+const RUNNING_HEADER_HEIGHT = 29;
 /** Righe massime per cella: oltre, il testo si tronca con «…» invece di gonfiare la riga. */
 const MAX_CELL_LINES = 8;
 
@@ -86,6 +90,23 @@ export interface PdfCell {
 }
 
 export type PdfCellInput = string | PdfCell;
+
+/**
+ * Un'area libera della pagina per un disegno (es. un grafico). Le coordinate
+ * sono quelle del PDF: l'origine è in basso a sinistra e `y` cresce verso l'alto,
+ * quindi l'area occupa da `top` a `top - height`.
+ */
+export interface PdfCanvas {
+  page: PDFPage;
+  fonts: { regular: PDFFont; bold: PDFFont };
+  colors: { ink: RGB; muted: RGB; border: RGB; primary: RGB; dark: RGB; soft: RGB; accent: RGB };
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Come per ogni testo del documento: sostituisce i caratteri che il font non ha. */
+  safe: (value: string) => string;
+}
 
 export interface PdfReportOptions {
   /** Titolo grande in alto, es. «Calendario partite». */
@@ -454,6 +475,40 @@ export class PdfReport {
     this.cursor += height;
   }
 
+  /** Va a una pagina nuova. */
+  pageBreak() {
+    this.addPage();
+  }
+
+  /** Va a una pagina nuova se non restano almeno `height` punti: serve a non lasciare un titolo da solo in fondo alla pagina. */
+  requireSpace(height: number) {
+    this.ensureSpace(height);
+  }
+
+  /** Riserva `height` punti (a capo pagina se non ci stanno) e lascia disegnare liberamente al suo interno. */
+  canvas(height: number, draw: (canvas: PdfCanvas) => void) {
+    this.ensureSpace(height);
+    draw({
+      page: this.page,
+      fonts: this.fonts,
+      colors: {
+        ink: INK,
+        muted: MUTED,
+        border: BORDER,
+        primary: this.palette.primary,
+        dark: this.palette.dark,
+        soft: this.palette.soft,
+        accent: ACCENT,
+      },
+      left: MARGIN,
+      top: this.yOf(this.cursor),
+      width: this.contentW,
+      height,
+      safe: this.safe,
+    });
+    this.cursor += height + 10;
+  }
+
   private columnWidths(columns: PdfColumn[]): number[] {
     const total = columns.reduce((sum, c) => sum + c.weight, 0);
     return columns.map((c) => (c.weight / total) * this.contentW);
@@ -532,11 +587,22 @@ export class PdfReport {
     this.cursor += headerH;
   }
 
+  /** Altezza che occuperebbe la tabella (intestazione e tutte le righe), per decidere prima dove metterla. */
+  tableHeight(columns: PdfColumn[], rows: PdfCellInput[][]): number {
+    const widths = this.columnWidths(columns);
+    const headerH = this.headerHeight(this.headerLines(columns, widths));
+    const bodyH = rows.reduce(
+      (sum, row) => sum + Math.max(...columns.map((_, i) => this.prepareCell(row[i] ?? "", widths[i]).height)),
+      0,
+    );
+    return headerH + bodyH;
+  }
+
   /** Tabella: l'intestazione si ripete a ogni pagina e una riga non si spezza mai tra due pagine. */
   table(
     columns: PdfColumn[],
     rows: PdfCellInput[][],
-    options: { emptyText?: string; zebra?: boolean } = {},
+    options: { emptyText?: string; zebra?: boolean; keepTogether?: boolean } = {},
   ) {
     const widths = this.columnWidths(columns);
     const headerH = this.headerHeight(this.headerLines(columns, widths));
@@ -551,6 +617,12 @@ export class PdfReport {
       return { cells, height: Math.max(...cells.map((c) => c.height)) };
     });
 
+    // Una tabella che sta in una pagina intera, ma non nello spazio rimasto, comincia in quella nuova.
+    if (options.keepTogether) {
+      const total = headerH + prepared.reduce((sum, row) => sum + row.height, 0);
+      const pageCapacity = this.bottomLimit - (MARGIN + RUNNING_HEADER_HEIGHT);
+      if (total <= pageCapacity) this.ensureSpace(total);
+    }
     this.ensureSpace(headerH + prepared[0].height);
     this.drawTableHeader(columns, widths);
 

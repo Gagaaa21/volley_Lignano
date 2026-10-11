@@ -23,6 +23,7 @@ import type {
   TrainingRuleInput,
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
+import type { MatchScout, MatchScoutInput } from "@/lib/scout/types";
 import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
@@ -51,6 +52,7 @@ export interface MemoryStore {
   trainings: TrainingRule[];
   matches: Match[];
   matchLineups: MatchLineup[];
+  matchScouts: MatchScout[];
   matchPredictions: MatchPrediction[];
   trainingPlans: TrainingPlan[];
   trainingOccurrencePlans: TrainingOccurrencePlan[];
@@ -72,6 +74,7 @@ export function createEmptyStore(): MemoryStore {
     trainings: [],
     matches: [],
     matchLineups: [],
+    matchScouts: [],
     matchPredictions: [],
     trainingPlans: [],
     trainingOccurrencePlans: [],
@@ -102,6 +105,9 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   const trainings = store.trainings;
   const matches = store.matches;
   const matchLineups = store.matchLineups;
+  // Un archivio sandbox salvato prima dello scout non ha questo campo.
+  store.matchScouts ??= [];
+  const matchScouts = store.matchScouts;
   const matchPredictions = store.matchPredictions;
   const trainingPlans = store.trainingPlans;
   const trainingOccurrencePlans = store.trainingOccurrencePlans;
@@ -220,6 +226,8 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx !== -1) matches.splice(idx, 1);
       const lineupIdx = matchLineups.findIndex((l) => l.matchId === id);
       if (lineupIdx !== -1) matchLineups.splice(lineupIdx, 1);
+      const scoutIdx = matchScouts.findIndex((s) => s.matchId === id);
+      if (scoutIdx !== -1) matchScouts.splice(scoutIdx, 1);
       for (let i = federationDecisions.length - 1; i >= 0; i--) {
         if (federationDecisions[i].matchId === id) federationDecisions.splice(i, 1);
       }
@@ -288,6 +296,34 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         matchLineups[idx] = row;
       }
       return row;
+    },
+
+    async listMatchScouts() {
+      return structuredClone(matchScouts);
+    },
+    async getMatchScout(matchId) {
+      const row = matchScouts.find((s) => s.matchId === matchId);
+      return row ? structuredClone(row) : null;
+    },
+    async saveMatchScout(matchId, input: MatchScoutInput, updatedBy, baseVersion) {
+      const idx = matchScouts.findIndex((s) => s.matchId === matchId);
+      const existing = idx === -1 ? null : matchScouts[idx];
+      // Chi salva dichiara la versione su cui si è basato: se è cambiata, non si scrive.
+      if (existing && existing.version !== baseVersion) return { ok: false, current: structuredClone(existing) };
+      const row: MatchScout = {
+        ...structuredClone(input),
+        matchId,
+        version: (existing?.version ?? 0) + 1,
+        updatedBy,
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx === -1) matchScouts.push(row);
+      else matchScouts[idx] = row;
+      return { ok: true, scout: structuredClone(row) };
+    },
+    async deleteMatchScout(matchId) {
+      const idx = matchScouts.findIndex((s) => s.matchId === matchId);
+      if (idx !== -1) matchScouts.splice(idx, 1);
     },
 
     async listPredictions(filter?: { matchId?: string }) {
@@ -609,6 +645,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "training_sessions", rows: trainings },
         { table: "matches", rows: matches },
         { table: "match_lineups", rows: matchLineups },
+        { table: "match_scouts", rows: matchScouts },
         { table: "match_predictions", rows: matchPredictions },
         { table: "training_plans", rows: trainingPlans },
         { table: "training_occurrence_plans", rows: trainingOccurrencePlans },

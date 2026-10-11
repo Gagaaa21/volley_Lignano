@@ -5,6 +5,7 @@ import type {
   FederationSource,
   FederationSourceInput,
 } from "@/lib/federation/types";
+import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/scout/types";
 import type {
   AdminPage,
   Athlete,
@@ -109,6 +110,19 @@ export interface Repo {
     input: MatchLineupInput,
     updatedBy: string | null,
   ): Promise<MatchLineup>;
+
+  // Scout punto per punto delle partite (riservato allo staff). Il salvataggio
+  // dichiara su quale versione si basa (null = prima volta): se nel frattempo
+  // un altro dispositivo ha salvato, non scrive e restituisce la versione attuale.
+  listMatchScouts(): Promise<MatchScout[]>;
+  getMatchScout(matchId: string): Promise<MatchScout | null>;
+  saveMatchScout(
+    matchId: string,
+    input: MatchScoutInput,
+    updatedBy: string | null,
+    baseVersion: number | null,
+  ): Promise<SaveMatchScoutResult>;
+  deleteMatchScout(matchId: string): Promise<void>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

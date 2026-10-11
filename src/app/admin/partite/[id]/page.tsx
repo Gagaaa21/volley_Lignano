@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Binoculars, Trash2 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
+import { isScoutable } from "@/lib/scout/match";
 import { matchTitle } from "@/lib/calendar";
 import { Card, CardBody } from "@/components/ui/Card";
+import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
@@ -18,9 +21,14 @@ export const metadata: Metadata = {
 
 export default async function EditMatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await requireStaff();
   const repo = await getActiveRepo();
   const match = await repo.getMatch(id);
   if (!match) notFound();
+  // Collegamento allo scout della partita, solo a chi ha il permesso (e per le partite che ne hanno uno).
+  const canScout =
+    isScoutable(match) &&
+    (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("scout") ?? false));
   // Solo atlete della stessa squadra della partita.
   const [allAthletes, lineup] = await Promise.all([
     repo.listAthletes({ team: match.team }),
@@ -36,6 +44,14 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         eyebrow={match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL}
         title={matchTitle(match)}
         description={`${formatDateLong(match.matchDate.slice(0, 10))} · ${match.matchDate.slice(11, 16)} · ${match.location}`}
+        actions={
+          canScout ? (
+            <LinkButton href={`/admin/scout/${match.id}`} variant="outline" data-match-scout-link>
+              <Binoculars className="h-4 w-4" />
+              Scout della partita
+            </LinkButton>
+          ) : undefined
+        }
       />
 
       <MatchWorkspace
@@ -55,7 +71,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
       <section className="mt-10 flex flex-col gap-3 rounded-2xl border border-destructive/20 bg-destructive/[0.03] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-bold text-foreground">Elimina partita</p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Sparisce dal calendario insieme a convocazioni e formazioni.</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Sparisce dal calendario insieme a convocazioni, formazioni e scout.</p>
         </div>
         <form action={deleteMatchAction}>
           <input type="hidden" name="id" value={match.id} />

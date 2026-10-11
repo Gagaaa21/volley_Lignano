@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Binoculars,
   CalendarClock,
   ClipboardCheck,
   Compass,
@@ -115,6 +116,23 @@ const SECTIONS: Section[] = [
       "In modalità Partita si usano i numeri di maglia e si sceglie il nome e il colore dell'avversaria (o si collega una partita di oggi del calendario, che li scrive da sola); in Allenamento si usano direttamente i nomi.",
       "Solo in Partita, un admin può accendere la diretta (\"Diretta sul sito pubblico\" prima di iniziare, o il pulsante \"Diretta\" durante il gioco): sul sito pubblico compare il riquadro \"In diretta\" con squadre, punti e set, aggiornato ogni pochi secondi e indicato come risultato non ufficiale. Nomi, numeri di maglia e formazioni non si vedono mai. Si spegne con lo stesso pulsante, con \"Nuovo\" o da sola dopo 3 ore.",
       "Punteggio, set, formazioni e stato della libero restano salvati finché non si preme \"Nuovo\" (al massimo 3 ore).",
+    ],
+  },
+  {
+    page: "scout",
+    icon: Binoculars,
+    title: "Scout",
+    intro: "Segni punto per punto chi fa punto e come: ne esce il tabellino della partita, come nei campionati ufficiali.",
+    points: [
+      "Si apre dall'elenco \"Scout\": ogni partita di campionato o amichevole di U14/U15 ha il suo scout (i tornei e il Minivolley non ce l'hanno). \"Segna i punti\" comincia, \"Continua\" riprende una partita lasciata a metà, \"Tabellino\" e \"PDF\" aprono i risultati.",
+      "Prima di cominciare scegli chi gioca: spunta le atlete (le convocate sono già in cima) e, se vuoi, scrivi il numero di maglia e segna la libero con la \"L\". Poi i numeri dell'avversaria (basta scriverli di seguito, \"1 4 7 9 12\") e le regole: 3 set su 5, 2 su 3 o 3 fissi, i punti per set (25) e dell'ultimo set (15), e chi batte per primo. Si può cambiare tutto anche dopo, ma non togliere chi ha già un'azione.",
+      "Per ogni scambio tocchi come è finito, nella colonna di chi ha fatto punto: \"Punto nostro\" a sinistra, \"Punto loro\" a destra. Attacco, Muro, Ace, oppure l'errore dell'altra squadra (battuta, ricezione, attacco, errore a muro, alzata o difesa sbagliata, e i falli fischiati: tocco di rete, invasione, doppia, trattenuta, quattro tocchi, rotazione, sanzione). Poi scegli chi l'ha fatto: bastano due tocchi. Se non lo sai, \"Non so\".",
+      "Dopo un muro puoi dire anche chi attaccava (si conta come attacco murato). Rotazione e sanzioni sono della squadra, quindi non chiedono chi. La libero non può murare, per questo non compare tra le scelte del muro. Un numero avversario che manca lo scrivi direttamente nella finestra di scelta.",
+      "\"Annulla ultimo\" toglie l'ultimo punto. Per un errore più indietro tocca la matita nel \"Registro\": cambi chi, come e a chi, oppure togli lo scambio; punteggio e battuta si ricalcolano da soli.",
+      "Quando un set arriva al limite con due punti di scarto compare da solo il pulsante per chiuderlo, dove scegli chi batte per primo nel set dopo (di norma si alternano). A partita decisa i pulsanti si fermano. \"Chiudi il set adesso\" e \"Chiudi la partita\" servono per i casi particolari (partita interrotta, set non finito); la partita chiusa a mano si può riaprire.",
+      "Si salva da solo: in alto vedi \"Salvato\". Se cade la rete puoi continuare, i punti restano nel telefono e partono appena torna la connessione. Se due dispositivi modificano la stessa partita, il sito non sovrascrive in silenzio: ti chiede quale versione tenere.",
+      "Il tabellino mostra, per ogni giocatrice, punti (con i break point, cioè quelli fatti mentre la squadra batteva, e il saldo punti fatti meno errori e attacchi murati), ace, errori in battuta e ricezione, attacchi vincenti, sbagliati e murati, muri; poi come ha fatto punto ogni squadra, errori e falli, andamento del punteggio set per set, punti in battuta e cambio palla. Si può guardare tutta la partita o un set, e scaricare il PDF. \"Stagione\" somma tutte le partite scoutizzate.",
+      "Lo scout segna come finisce ogni scambio, non ogni tocco: per questo non ci sono attacchi tentati, ricezioni totali e le percentuali di attacco e ricezione dei tabellini di Lega. La durata dei set è una stima, dall'ora del primo all'ultimo punto segnato.",
     ],
   },
   {

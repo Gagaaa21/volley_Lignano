@@ -90,6 +90,14 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Un tabellone punteggio dal vivo per allenamenti o partite: calcola da solo la rotazione delle giocatrici a ogni cambio palla, gestendo anche gli ingressi e le uscite della libero.",
   },
   {
+    id: "nav-scout",
+    path: "/admin/scout",
+    target: "nav-scout",
+    page: "scout",
+    title: "Scout",
+    body: "Segna punto per punto chi fa punto e come (attacco, muro, ace, errori): ne esce il tabellino della partita, con i numeri di ogni giocatrice e da scaricare in PDF.",
+  },
+  {
     id: "nav-pronostici",
     path: "/admin/pronostici",
     target: "nav-pronostici",

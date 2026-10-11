@@ -67,6 +67,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
     trainings,
     matches,
     matchLineups,
+    matchScouts,
     matchPredictions,
     trainingPlans,
     trainingOccurrencePlans,
@@ -77,6 +78,8 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
     realRepo.listTrainings(),
     realRepo.listMatches(),
     realRepo.listMatchLineups(),
+    // Lo scout ha la sua tabella (da creare su Supabase): finché non c'è, la modalità prova parte comunque, senza scout.
+    realRepo.listMatchScouts().catch(() => []),
     realRepo.listPredictions(),
     realRepo.listTrainingPlans(),
     realRepo.listTrainingOccurrencePlans(),
@@ -89,6 +92,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
   store.trainings = cloneAll(trainings);
   store.matches = cloneAll(matches);
   store.matchLineups = cloneAll(matchLineups);
+  store.matchScouts = cloneAll(matchScouts);
   store.matchPredictions = cloneAll(matchPredictions);
   store.trainingPlans = cloneAll(trainingPlans);
   store.trainingOccurrencePlans = cloneAll(trainingOccurrencePlans);
@@ -116,6 +120,8 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "updateMatch",
   "deleteMatch",
   "saveMatchLineup",
+  "saveMatchScout",
+  "deleteMatchScout",
   "upsertPrediction",
   "createTrainingPlan",
   "updateTrainingPlan",

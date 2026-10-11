@@ -192,6 +192,83 @@ export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
   },
 ];
 
+/** Elenco delle partite dello Scout: l'elenco c'è solo nella vista «Partite» e se esiste almeno una partita. */
+export function getScoutHubTourSteps({ showMatches }: { showMatches: boolean }): BaseTourStep[] {
+  const path = "/admin/scout";
+  const steps: BaseTourStep[] = [
+    {
+      id: "section-scout-tabs",
+      path,
+      target: "section-scout-tabs",
+      title: "Partite e stagione",
+      body: "\"Partite\" elenca le partite da segnare o già segnate; \"Stagione\" somma tutte le partite scoutizzate e mostra i numeri di ogni giocatrice.",
+    },
+  ];
+  if (showMatches) {
+    steps.push({
+      id: "section-scout-matches",
+      path,
+      target: "section-scout-matches",
+      title: "Una partita alla volta",
+      body: "Apri una partita per segnare i punti mentre si gioca. A ogni riga vedi a che punto è lo scout: da segnare, in corso o concluso, con il tabellino e il PDF a un tocco.",
+    });
+  }
+  return steps;
+}
+
+/**
+ * Pagina di una partita dello Scout: il percorso contiene l'id, quindi i passi
+ * si costruiscono per partita. Prima del primo punto la pagina mostra la
+ * preparazione (squadre e regole) al posto dei pulsanti: un passo esiste solo
+ * se il suo elemento è davvero in pagina.
+ */
+export function getScoutMatchTourSteps(matchId: string, { setup }: { setup: boolean }): BaseTourStep[] {
+  const path = `/admin/scout/${matchId}`;
+  const board: BaseTourStep = {
+    id: "section-scout-board",
+    path,
+    target: "section-scout-board",
+    title: "Il tabellone",
+    body: "Mostra il set in corso, il punteggio, chi batte e i set vinti. Si aggiorna da solo a ogni punto che segni.",
+  };
+  if (setup) {
+    return [
+      board,
+      {
+        id: "section-scout-setup",
+        path,
+        target: "section-scout-setup",
+        title: "Prima di cominciare",
+        body: "Spunta le atlete che giocano (e il numero di maglia, se vuoi), scrivi i numeri dell'avversaria e scegli le regole della gara. Non è obbligatorio: puoi anche segnare i punti senza dire chi li fa. Poi \"Comincia a segnare i punti\".",
+      },
+    ];
+  }
+  return [
+    board,
+    {
+      id: "section-scout-entry",
+      path,
+      target: "section-scout-entry",
+      title: "Come segnare un punto",
+      body: "A sinistra i punti nostri, a destra quelli loro. Tocca come è finito lo scambio — attacco, muro, ace oppure errore dell'altra squadra — poi chi l'ha fatto. Bastano due tocchi; se non lo sai, scegli \"Non so\".",
+    },
+    {
+      id: "section-scout-tools",
+      path,
+      target: "section-scout-tools",
+      title: "Squadre, regole e fine set",
+      body: "Da qui cambi le giocatrici, i numeri e le regole della gara. A fine set compare da solo il pulsante per chiuderlo e scegliere chi batte per primo nel set dopo.",
+    },
+    {
+      id: "section-scout-log",
+      path,
+      target: "section-scout-log",
+      title: "Registro e correzioni",
+      body: "Tutti gli scambi, dall'ultimo al primo. Tocca la matita per correggerne uno (chi, come, a chi): punteggio e battuta si ricalcolano da soli. \"Annulla ultimo\" toglie l'ultimo punto.",
+    },
+  ];
+}
+
 export const SECTION_PRONOSTICI_STEPS: BaseTourStep[] = [
   {
     id: "section-pronostici-leaderboard",

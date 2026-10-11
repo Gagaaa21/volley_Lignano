@@ -11,6 +11,7 @@ export type AdminPage =
   | "presenze"
   | "testfisici"
   | "livescore"
+  | "scout"
   | "pronostici"
   | "staff"
   | "guida";
@@ -27,6 +28,7 @@ export const ADMIN_PAGES: AdminPage[] = [
   "presenze",
   "testfisici",
   "livescore",
+  "scout",
   "pronostici",
   "staff",
   "guida",
@@ -46,6 +48,7 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   presenze: "Presenze",
   testfisici: "Test fisici",
   livescore: "Live score",
+  scout: "Scout",
   pronostici: "Pronostici",
   staff: "Staff",
   guida: "Guida",
@@ -56,14 +59,15 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
  * rimossa del tutto — la squadra non gioca partite di campionato con
  * risultato, solo tornei multi-club, già coperti da "Allenamenti"
  * (isTournament). "Pronostici" ne dipende (si pronostica il risultato di
- * una partita) e quindi segue la stessa esclusione. "Test fisici" non si
+ * una partita) e quindi segue la stessa esclusione, come "Scout" (si segna
+ * punto per punto una partita di campionato). "Test fisici" non si
  * applica a questa squadra (atlete troppo piccole per questo tipo di
  * rilevazioni). "Presenze" invece resta disponibile per entrambe le
  * squadre, con la stessa anagrafica di U14/U15 (atlete raggruppate per CDA
  * invece che per categoria) ma un flusso di registrazione diverso per il
  * Minivolley (vedi MiniAttendanceForm): un elenco con spunte ma senza
  * assenze tracciate, solo chi era presente. */
-const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici", "testfisici"];
+const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici", "testfisici", "scout"];
 
 export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
   return team !== "minivolley" || !PAGES_UNAVAILABLE_FOR_MINIVOLLEY.includes(page);

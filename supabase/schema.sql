@@ -148,6 +148,26 @@ alter table match_lineups enable row level security;
 -- Nessuna policy pubblica: le formazioni sono riservate allo staff.
 
 -- =========================================================
+-- match_scouts — scout punto per punto di ogni partita: per ogni scambio chi
+-- ha fatto punto e come (attacco, muro, ace) o quale errore/fallo ha regalato
+-- il punto all'avversaria, come negli scout dei campionati ufficiali. Una riga
+-- per partita; "data" contiene impostazioni, rosa e registro degli scambi
+-- (vedi src/lib/scout). "version" cresce a ogni salvataggio: chi salva dichiara
+-- su quale versione si basa, così due dispositivi non si sovrascrivono in
+-- silenzio. Riservato allo staff: nessuna policy pubblica, come match_lineups.
+-- =========================================================
+create table if not exists match_scouts (
+  match_id uuid primary key references matches(id) on delete cascade,
+  data jsonb not null,
+  version integer not null default 1,
+  updated_by uuid references staff(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+alter table match_scouts enable row level security;
+-- Nessuna policy pubblica: lo scout è riservato allo staff.
+
+-- =========================================================
 -- match_predictions — pronostici sul punteggio di ogni set di una partita
 -- non ancora giocata, uno per (match, membro dello staff). Vedi
 -- src/lib/predictions.ts per come vengono giudicati una volta inseriti i

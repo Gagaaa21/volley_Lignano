@@ -21,7 +21,7 @@ test.describe("Permessi Centro di controllo", () => {
 
     // Toglie tutte le pagine tranne "Guida" (serve per raggiungere
     // /admin/guida e verificarne il filtro).
-    for (const label of ["Allenamenti", "Partite", "Schede", "Presenze", "Live score", "Pronostici", "Staff"]) {
+    for (const label of ["Allenamenti", "Partite", "Schede", "Presenze", "Live score", "Scout", "Pronostici", "Staff"]) {
       const chip = row.locator("label", { hasText: label }).first();
       const input = chip.locator('input[type="checkbox"]');
       if ((await input.count()) > 0 && (await input.isChecked())) {

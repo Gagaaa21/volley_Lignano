@@ -28,6 +28,7 @@ import type {
   TrainingRuleInput,
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
+import type { MatchScout, SaveMatchScoutResult, ScoutData } from "@/lib/scout/types";
 import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
@@ -262,6 +263,24 @@ function matchLineupFromRow(row: MatchLineupRow): MatchLineup {
   return {
     matchId: row.match_id,
     sets: row.sets ?? [],
+    updatedBy: row.updated_by,
+    updatedAt: row.updated_at,
+  };
+}
+
+type MatchScoutRow = {
+  match_id: string;
+  data: ScoutData;
+  version: number;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+function matchScoutFromRow(row: MatchScoutRow): MatchScout {
+  return {
+    ...row.data,
+    matchId: row.match_id,
+    version: row.version,
     updatedBy: row.updated_by,
     updatedAt: row.updated_at,
   };
@@ -513,6 +532,13 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
   return result.data;
 }
 
+async function readMatchScout(matchId: string): Promise<MatchScout | null> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.from("match_scouts").select("*").eq("match_id", matchId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? matchScoutFromRow(data as MatchScoutRow) : null;
+}
+
 // Tabellone live (allenamento): un'unica riga fissa, come test_mode_store.
 const LIVE_SCORE_ROW_ID = "current";
 
@@ -737,6 +763,50 @@ export const supabaseRepo: Repo = {
       .select("*")
       .single();
     return matchLineupFromRow(unwrap(result) as MatchLineupRow);
+  },
+
+  async listMatchScouts() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("match_scouts").select("*");
+    if (error) throw new Error(error.message);
+    return (data as MatchScoutRow[]).map(matchScoutFromRow);
+  },
+  async getMatchScout(matchId) {
+    return readMatchScout(matchId);
+  },
+  async saveMatchScout(matchId, input, updatedBy, baseVersion) {
+    const db = getSupabaseAdmin();
+    const now = new Date().toISOString();
+    const insertFirst = async (): Promise<SaveMatchScoutResult> => {
+      const { data, error } = await db
+        .from("match_scouts")
+        .insert({ match_id: matchId, data: input, version: 1, updated_by: updatedBy, updated_at: now })
+        .select("*")
+        .single();
+      if (!error) return { ok: true, scout: matchScoutFromRow(data as MatchScoutRow) };
+      // 23505 = esiste già: qualcun altro ha creato lo scout prima di noi.
+      if (error.code === "23505") return { ok: false, current: await readMatchScout(matchId) };
+      throw new Error(error.message);
+    };
+    if (baseVersion === null) return insertFirst();
+
+    // Aggiorna solo se la versione è ancora quella su cui si basava chi salva.
+    const { data, error } = await db
+      .from("match_scouts")
+      .update({ data: input, version: baseVersion + 1, updated_by: updatedBy, updated_at: now })
+      .eq("match_id", matchId)
+      .eq("version", baseVersion)
+      .select("*");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) return { ok: true, scout: matchScoutFromRow(data[0] as MatchScoutRow) };
+    const current = await readMatchScout(matchId);
+    // Cancellato nel frattempo: si ricrea con quello che c'è sul dispositivo.
+    return current ? { ok: false, current } : insertFirst();
+  },
+  async deleteMatchScout(matchId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("match_scouts").delete().eq("match_id", matchId);
+    if (error) throw new Error(error.message);
   },
 
   async listPredictions(filter?: { matchId?: string }) {

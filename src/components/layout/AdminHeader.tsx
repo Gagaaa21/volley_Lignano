@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
+  Binoculars,
   BookOpen,
   CalendarClock,
   ChevronDown,
@@ -49,6 +50,7 @@ const NAV_ITEMS: {
   { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze", tourId: "nav-presenze" },
   { href: "/admin/test-fisici", label: "Test fisici", icon: Activity, exact: false, page: "testfisici", tourId: "nav-test-fisici" },
   { href: "/admin/livescore", label: "Live score", icon: Volleyball, exact: false, page: "livescore", tourId: "nav-livescore" },
+  { href: "/admin/scout", label: "Scout", icon: Binoculars, exact: false, page: "scout", tourId: "nav-scout" },
   { href: "/admin/pronostici", label: "Pronostici", icon: Target, exact: false, page: "pronostici", tourId: "nav-pronostici" },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff", tourId: "nav-staff" },
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida", tourId: "nav-guida" },

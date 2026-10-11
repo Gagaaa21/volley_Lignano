@@ -98,6 +98,28 @@ staff (Developer e Admin).
   mai nel browser); il riquadro «In diretta» (`LiveScoreBanner`) sulla
   home U14/U15 o Minivolley lo rilegge ogni 5 secondi mentre la pagina è
   visibile.
+- **Scout** (`/admin/scout`, permesso «Scout», regole in `src/lib/scout/`) —
+  si segna punto per punto **chi fa punto e come**, come negli scout dei
+  campionati ufficiali (Data Volley): attacco, muro, ace, oppure l'errore o il
+  fallo dell'altra squadra (`rules.ts`: battuta, ricezione, attacco, muro,
+  alzata, difesa, rete, invasione, doppia, trattenuta, quattro tocchi,
+  rotazione, sanzione), con la giocatrice se si sa. Si salvano **solo gli
+  scambi** (`events`, riga per partita in `match_scouts`, campo `data` jsonb):
+  punteggi, set vinti, chi batte, break point e cambio palla si ricavano ogni
+  volta (`derive.ts`), quindi correggere o annullare uno scambio non può
+  mandare niente fuori sincrono. Le regole dei set sono quelle FIPAV (25 con 2
+  di scarto, ultimo set a 15; 3 set su 5, 2 su 3 o 3 fissi). Il tabellino
+  (`stats.ts`, pagina `/admin/scout/[matchId]/tabellino` e PDF in
+  `src/lib/pdf/scoutPdf.ts`) ricalca le colonne di quello di Lega che si
+  possono compilare senza segnare ogni tocco: punti, BP, V-P, ace, errori,
+  attacchi vincenti/sbagliati/murati, muri, più «come si è fatto punto»,
+  errori e falli, andamento del punteggio e riepilogo di stagione; non ci sono
+  attacchi tentati né percentuali di attacco e ricezione. Il salvataggio
+  (`useScoutSession`) è automatico, tiene una copia nel telefono se cade la
+  rete e confronta la versione (`version`) per non sovrascrivere in silenzio
+  un altro dispositivo (409 dalla API `/api/scout/[matchId]`). Solo partite di
+  U14/U15, non tornei né Minivolley. Un account nuovo ha già il permesso
+  «Scout»; per gli Admin esistenti va spuntato dal Centro di controllo.
 - **Tema chiaro/scuro** — il sito parte sempre chiaro; da un pulsante con
   sole/luna (testata del sito pubblico e pagina di accesso) o dal menu
   dell'account (area tecnici) si sceglie Chiaro, Scuro o Automatico (segue il
@@ -256,11 +278,13 @@ src/
       partite/             CRUD partite (portale/: confronto con il portale FIPAV)
       schede/              Schede allenamento (blocchi incorporati nella scheda)
       presenze/            Registro presenze, anagrafica atlete, storico
+      scout/               Scout partita: elenco, inserimento punto per punto, tabellino
       staff/               Creazione/modifica account admin
       guida/               Guida all'area riservata
       cambia-password/    Cambio password (obbligatorio al primo accesso)
     api/push/subscribe/    Iscrizione/cancellazione notifiche push
     api/livescore/         Tabellone live (staff) e diretta pubblica (pubblico/)
+    api/scout/             Scout di una partita: lettura, salvataggio con controllo di versione, PDF
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
     api/federation/logo/   Loghi delle squadre in classifica (solo dal portale FIPAV)
   components/              Componenti UI, layout, calendario, form, PWA
@@ -270,6 +294,7 @@ src/
     calendar.ts            Espansione ricorrenza allenamenti + utility
     push.ts                Invio notifiche push (web-push)
     federation/            Lettura classifiche e risultati dal portale FIPAV
+    scout/                 Regole, calcolo del tabellino e salvataggio dello scout
   proxy.ts                 Protezione route /admin (ex "middleware")
   instrumentation.ts       Ora italiana per tutto il server (Vercel gira in UTC)
 public/
