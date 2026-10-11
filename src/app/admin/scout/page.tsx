@@ -17,6 +17,7 @@ import { HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
+import { ShareManualButton } from "@/components/scout/ShareManualButton";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -147,10 +148,13 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       description="Segna punto per punto chi fa punto e come: ne esce il tabellino della partita, con i numeri di ogni giocatrice."
       help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
       actions={
-        <LinkButton href="/api/scout/manuale" variant="outline" data-tour="scout-manual" data-scout-manual-link>
-          <BookOpen className="h-4 w-4" />
-          Manuale d&apos;uso (PDF)
-        </LinkButton>
+        <>
+          <LinkButton href="/api/scout/manuale" variant="outline" data-tour="scout-manual" data-scout-manual-link>
+            <BookOpen className="h-4 w-4" />
+            Manuale d&apos;uso (PDF)
+          </LinkButton>
+          <ShareManualButton />
+        </>
       }
     />
   );

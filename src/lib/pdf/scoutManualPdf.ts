@@ -342,3 +342,12 @@ export async function buildScoutManualPdf(options: { generatedAt?: Date } = {}):
   report.drawOnPage(tocPage, (canvas) => drawToc(canvas, entries));
   return report.finish();
 }
+
+/** Il manuale è lo stesso per tutti: per non rifarlo a ogni download lo si tiene in memoria fino a fine giornata (riporta la data di oggi). */
+let cached: { day: string; bytes: Uint8Array } | null = null;
+
+export async function getScoutManualPdf(): Promise<Uint8Array> {
+  const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Rome" });
+  if (!cached || cached.day !== day) cached = { day, bytes: await buildScoutManualPdf() };
+  return cached.bytes;
+}

@@ -1245,10 +1245,11 @@ export function pdfFilename(base: string): string {
 export function pdfResponse(
   bytes: Uint8Array,
   filename: string,
-  options: { cache?: string; disposition?: "attachment" | "inline" } = {},
+  options: { cache?: string; disposition?: "attachment" | "inline"; headers?: Record<string, string> } = {},
 ): Response {
   return new Response(Buffer.from(bytes), {
     headers: {
+      ...options.headers,
       "Content-Type": "application/pdf",
       "Content-Disposition": `${options.disposition ?? "attachment"}; filename="${filename}"`,
       "Cache-Control": options.cache ?? "no-store",
