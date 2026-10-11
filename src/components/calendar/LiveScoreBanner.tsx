@@ -57,9 +57,10 @@ function ServeMark() {
 
 /**
  * Riquadro «In diretta» del sito pubblico: compare solo quando un admin ha
- * acceso la diretta dal Live score (in Partita) e mostra squadre, punteggio,
- * set e chi serve — mai nomi delle atlete o formazioni. Si aggiorna da solo
- * mentre la pagina è aperta e si ferma quando la scheda non è visibile.
+ * acceso la diretta dal Live score (in Partita) o il «Punteggio live» dello
+ * Scout e mostra squadre, punteggio, set e chi serve — mai nomi delle atlete,
+ * numeri di maglia o formazioni. Si aggiorna da solo mentre la pagina è
+ * aperta e si ferma quando la scheda non è visibile.
  */
 export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);

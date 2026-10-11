@@ -256,6 +256,10 @@ create table if not exists athletes (
   -- 'U14'/'U15'. Sempre null per u14u15. "group" è parola riservata in
   -- SQL, da cui il nome colonna athlete_group.
   athlete_group text check (athlete_group in ('lignano', 'san_michele')),
+  -- Numero di maglia (facoltativo): scritto qui una volta, ripescato da Scout
+  -- e Live score. Non è unico: due atlete possono averlo uguale (categorie
+  -- diverse), l'app lo segnala senza vietarlo.
+  jersey_number smallint check (jersey_number between 0 and 99),
   is_active boolean not null default true,
   notes text,
   created_by uuid references staff(id) on delete set null,
@@ -480,6 +484,15 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 create index if not exists athletes_group_idx on athletes (athlete_group);
+
+-- Numero di maglia dell'atleta (0-99, facoltativo): si scrive una volta
+-- nell'anagrafica e Scout e Live score lo ripescano da lì. Non è unico: due
+-- atlete possono averlo uguale, l'app lo segnala senza vietarlo.
+alter table athletes add column if not exists jersey_number smallint;
+do $$ begin
+  alter table athletes add constraint athletes_jersey_number_check check (jersey_number between 0 and 99);
+exception when duplicate_object then null;
+end $$;
 
 alter table attendance_sessions add column if not exists team text not null default 'u14u15';
 do $$ begin

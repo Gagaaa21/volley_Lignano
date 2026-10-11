@@ -171,7 +171,7 @@ function RallyEditDialog({
   );
 }
 
-function RallyRow({ rally, roster, onEdit }: { rally: ScoutRally; roster: ScoutRoster; onEdit: () => void }) {
+function RallyRow({ rally, roster, onEdit, first }: { rally: ScoutRally; roster: ScoutRoster; onEdit: () => void; first: boolean }) {
   const text = rallyText(rally, roster);
   return (
     <li className="flex items-center gap-3 px-3.5 py-2.5" data-scout-rally={rally.n} data-scout-winner={text.winner}>
@@ -189,7 +189,13 @@ function RallyRow({ rally, roster, onEdit }: { rally: ScoutRally; roster: ScoutR
           {text.victim ? ` · su ${text.victim}` : ""}
         </p>
       </div>
-      <Button variant="quiet" size="icon-sm" onClick={onEdit} aria-label={`Correggi lo scambio ${rally.n}`}>
+      <Button
+        variant="quiet"
+        size="icon-sm"
+        onClick={onEdit}
+        aria-label={`Correggi lo scambio ${rally.n}`}
+        data-tour={first ? "scout-log-edit" : undefined}
+      >
         <Pencil className="h-3.5 w-3.5" />
       </Button>
     </li>
@@ -240,8 +246,8 @@ export function ScoutLog({
             </span>
           </summary>
           <ol className="divide-y divide-border border-t border-border">
-            {[...set.rallies].reverse().map((rally) => (
-              <RallyRow key={rally.id} rally={rally} roster={roster} onEdit={() => setEditingId(rally.id)} />
+            {[...set.rallies].reverse().map((rally, j) => (
+              <RallyRow key={rally.id} rally={rally} roster={roster} onEdit={() => setEditingId(rally.id)} first={i === 0 && j === 0} />
             ))}
           </ol>
         </details>

@@ -29,6 +29,7 @@ import type {
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
 import type { MatchScout, SaveMatchScoutResult, ScoutData } from "@/lib/scout/types";
+import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
@@ -279,6 +280,8 @@ type MatchScoutRow = {
 function matchScoutFromRow(row: MatchScoutRow): MatchScout {
   return {
     ...row.data,
+    // Uno scout salvato prima del punteggio live non ha `publicLive`: vale «spento».
+    settings: { ...row.data.settings, publicLive: row.data.settings.publicLive ?? false },
     matchId: row.match_id,
     version: row.version,
     updatedBy: row.updated_by,
@@ -393,6 +396,8 @@ type AthleteRow = {
   team: Athlete["team"];
   category: Athlete["category"];
   athlete_group: Athlete["group"];
+  /** Assente finché la colonna non è stata creata su Supabase. */
+  jersey_number?: number | null;
   is_active: boolean;
   notes: string | null;
   created_by: string | null;
@@ -420,6 +425,7 @@ function athleteFromRow(row: AthleteRow): Athlete {
     team: row.team,
     category: row.category,
     group: row.athlete_group,
+    jerseyNumber: row.jersey_number ?? null,
     isActive: row.is_active,
     notes: row.notes,
     createdBy: row.created_by,
@@ -428,12 +434,14 @@ function athleteFromRow(row: AthleteRow): Athlete {
   };
 }
 
-function athleteToRow(input: AthleteInput) {
+/** `withJersey` false: si scrive senza il numero di maglia (colonna non ancora creata, vedi isJerseyColumnMissing). */
+function athleteToRow(input: AthleteInput, withJersey = true) {
   return {
     full_name: input.fullName,
     team: input.team,
     category: input.category,
     athlete_group: input.group,
+    ...(withJersey ? { jersey_number: input.jerseyNumber } : {}),
     is_active: input.isActive,
     notes: input.notes,
   };
@@ -808,6 +816,24 @@ export const supabaseRepo: Repo = {
     const { error } = await db.from("match_scouts").delete().eq("match_id", matchId);
     if (error) throw new Error(error.message);
   },
+  async getPublicLiveScout() {
+    const db = getSupabaseAdmin();
+    const since = new Date(Date.now() - LIVE_SCORE_TTL_MS).toISOString();
+    // Si scarica la riga intera solo se il punteggio live è acceso: di norma nessuna riga, una durante una partita.
+    const { data, error } = await db
+      .from("match_scouts")
+      .select("*")
+      .eq("data->settings->>publicLive", "true")
+      .gte("updated_at", since)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const row = (data as MatchScoutRow[] | null)?.[0];
+    if (!row) return null;
+    const scout = matchScoutFromRow(row);
+    const match = await supabaseRepo.getMatch(scout.matchId);
+    return match ? { scout, match } : null;
+  },
 
   async listPredictions(filter?: { matchId?: string }) {
     const db = getSupabaseAdmin();
@@ -1025,31 +1051,41 @@ export const supabaseRepo: Repo = {
   },
   async createAthlete(input, createdBy) {
     const db = getSupabaseAdmin();
-    const result = await db
-      .from("athletes")
-      .insert({ ...athleteToRow(input), created_by: createdBy })
-      .select("*")
-      .single();
+    const insert = (withJersey: boolean) =>
+      db
+        .from("athletes")
+        .insert({ ...athleteToRow(input, withJersey), created_by: createdBy })
+        .select("*")
+        .single();
+    let result = await insert(true);
+    // Colonna del numero di maglia non ancora creata: si salva comunque, senza numero.
+    if (result.error && isJerseyColumnMissing(result.error.message)) result = await insert(false);
     return athleteFromRow(unwrap(result) as AthleteRow);
   },
   async createAthletesBulk(inputs, createdBy) {
     if (inputs.length === 0) return [];
     const db = getSupabaseAdmin();
-    const { data, error } = await db
-      .from("athletes")
-      .insert(inputs.map((input) => ({ ...athleteToRow(input), created_by: createdBy })))
-      .select("*");
-    if (error) throw new Error(error.message);
-    return (data as AthleteRow[]).map(athleteFromRow);
+    const insert = (withJersey: boolean) =>
+      db
+        .from("athletes")
+        .insert(inputs.map((input) => ({ ...athleteToRow(input, withJersey), created_by: createdBy })))
+        .select("*");
+    let result = await insert(true);
+    if (result.error && isJerseyColumnMissing(result.error.message)) result = await insert(false);
+    if (result.error) throw new Error(result.error.message);
+    return (result.data as AthleteRow[]).map(athleteFromRow);
   },
   async updateAthlete(id, input) {
     const db = getSupabaseAdmin();
-    const result = await db
-      .from("athletes")
-      .update({ ...athleteToRow(input), updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select("*")
-      .single();
+    const update = (withJersey: boolean) =>
+      db
+        .from("athletes")
+        .update({ ...athleteToRow(input, withJersey), updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("*")
+        .single();
+    let result = await update(true);
+    if (result.error && isJerseyColumnMissing(result.error.message)) result = await update(false);
     return athleteFromRow(unwrap(result) as AthleteRow);
   },
   async deleteAthlete(id) {

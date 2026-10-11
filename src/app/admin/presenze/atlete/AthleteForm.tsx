@@ -1,13 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, Select, Textarea, FieldError, FormActions, Toggle } from "@/components/ui/Field";
+import { Input, Label, Select, Textarea, FieldError, FieldHint, FormActions, Toggle } from "@/components/ui/Field";
 import { CATEGORY_LABELS, MINIVOLLEY_GROUP_LABELS } from "@/lib/category";
+import { jerseyText, parseJerseyNumber } from "@/lib/jersey";
 import { saveAthleteAction, type AthleteFormState } from "./actions";
-import type { Athlete, TrainingTeam } from "@/lib/types";
+import type { Athlete, Category, TrainingTeam } from "@/lib/types";
+
+/** Un'altra atleta attiva che ha già un numero di maglia: serve ad avvisare se si sceglie lo stesso. */
+export interface TakenJersey {
+  name: string;
+  category: Category | null;
+  jerseyNumber: number;
+}
 
 const initialState: AthleteFormState = {};
 
@@ -21,7 +29,37 @@ function SubmitButton() {
   );
 }
 
-export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: TrainingTeam }) {
+/** Numero di maglia: solo cifre, e se un'altra atleta ha già lo stesso lo dice (senza vietarlo). */
+function JerseyNumberField({ defaultValue, taken }: { defaultValue: number | null; taken: TakenJersey[] }) {
+  const [text, setText] = useState(jerseyText(defaultValue));
+  const parsed = parseJerseyNumber(text);
+  const sharedWith = typeof parsed === "number" ? taken.filter((other) => other.jerseyNumber === parsed) : [];
+  return (
+    <div className="sm:max-w-xs">
+      <Label htmlFor="jerseyNumber">Numero di maglia (opzionale)</Label>
+      <Input
+        id="jerseyNumber"
+        name="jerseyNumber"
+        value={text}
+        onChange={(e) => setText(e.target.value.replace(/\D/g, "").slice(0, 2))}
+        inputMode="numeric"
+        maxLength={2}
+        placeholder="Es. 7"
+        className="w-28 text-center font-bold tabular-nums"
+      />
+      {sharedWith.length > 0 ? (
+        <p role="status" className="mt-1.5 text-xs leading-relaxed text-warning" data-jersey-shared>
+          Il {parsed} ce l&apos;ha già {sharedWith.map((o) => (o.category ? `${o.name} (${o.category})` : o.name)).join(", ")}. Va bene se
+          giocano in categorie diverse; in una stessa partita però due maglie uguali non si possono usare.
+        </p>
+      ) : (
+        <FieldHint>Lo scrivi una volta qui e lo Scout e il Live score lo ritrovano da soli.</FieldHint>
+      )}
+    </div>
+  );
+}
+
+export function AthleteForm({ athlete, team, taken = [] }: { athlete?: Athlete; team: TrainingTeam; taken?: TakenJersey[] }) {
   const [state, formAction] = useActionState(saveAthleteAction, initialState);
 
   return (
@@ -34,14 +72,17 @@ export function AthleteForm({ athlete, team }: { athlete?: Athlete; team: Traini
       </div>
 
       {team === "u14u15" ? (
-        <div className="sm:max-w-xs">
-          <Label htmlFor="category">Categoria (opzionale)</Label>
-          <Select id="category" name="category" defaultValue={athlete?.category ?? ""}>
-            <option value="">Nessuna categoria</option>
-            <option value="U14">{CATEGORY_LABELS.U14}</option>
-            <option value="U15">{CATEGORY_LABELS.U15}</option>
-          </Select>
-        </div>
+        <>
+          <div className="sm:max-w-xs">
+            <Label htmlFor="category">Categoria (opzionale)</Label>
+            <Select id="category" name="category" defaultValue={athlete?.category ?? ""}>
+              <option value="">Nessuna categoria</option>
+              <option value="U14">{CATEGORY_LABELS.U14}</option>
+              <option value="U15">{CATEGORY_LABELS.U15}</option>
+            </Select>
+          </div>
+          <JerseyNumberField defaultValue={athlete?.jerseyNumber ?? null} taken={taken} />
+        </>
       ) : (
         <div className="sm:max-w-xs">
           <Label htmlFor="group">Gruppo (opzionale)</Label>

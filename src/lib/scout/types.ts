@@ -66,6 +66,8 @@ export interface ScoutSettings {
   lastSetPoints: number;
   /** Chi batte per primo nel 1° set. */
   firstServer: ScoutSide;
+  /** Punteggio live sul sito pubblico, acceso a mano: solo squadre, punti e set (risultato non ufficiale), mai nomi né numeri di maglia. */
+  publicLive: boolean;
 }
 
 export interface ScoutRallyEvent {

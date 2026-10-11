@@ -50,6 +50,8 @@ export const scoutDataSchema = z
       setPoints: z.number().int().min(10).max(50),
       lastSetPoints: z.number().int().min(10).max(50),
       firstServer: sideSchema,
+      // Gli scout salvati prima del punteggio live non lo hanno: si leggono come spento.
+      publicLive: z.boolean().default(false),
     }),
     roster: z.object({
       us: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),

@@ -14,8 +14,15 @@ export const metadata: Metadata = {
   title: "Scout partita",
 };
 
-export default async function ScoutMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
+export default async function ScoutMatchPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ matchId: string }>;
+  searchParams: Promise<{ guida?: string }>;
+}) {
   const { matchId } = await params;
+  const { guida } = await searchParams;
   const { session, repo, match } = await requireScoutMatch(matchId);
   let scout: MatchScout | null;
   let athletes: Awaited<ReturnType<typeof repo.listAthletes>>;
@@ -35,16 +42,18 @@ export default async function ScoutMatchPage({ params }: { params: Promise<{ mat
       name: athlete.fullName,
       calledUp: calledUp.has(athlete.id),
       sameCategory: match.category !== null && athlete.category === match.category,
+      // Il numero di maglia si scrive una volta nell'anagrafica atlete e da lì arriva qui.
+      number: athlete.jerseyNumber === null || athlete.jerseyNumber === undefined ? null : String(athlete.jerseyNumber),
     }))
     .sort(
       (a, b) =>
         Number(b.calledUp) - Number(a.calledUp) || Number(b.sameCategory) - Number(a.sameCategory) || a.name.localeCompare(b.name, "it"),
     )
-    .map(({ id, name, calledUp: isCalledUp }) => ({ id, name, calledUp: isCalledUp }));
+    .map(({ id, name, calledUp: isCalledUp, number }) => ({ id, name, calledUp: isCalledUp, number }));
 
-  // Se non esiste ancora uno scout, si parte con le convocate già in rosa (senza numero né libero).
+  // Se non esiste ancora uno scout, si parte con le convocate già in rosa, ognuna col numero dell'anagrafica (libero a parte).
   const blank = newScoutData({
-    us: candidates.filter((athlete) => athlete.calledUp).map((athlete) => ({ id: athlete.id, name: athlete.name, number: null, libero: false })),
+    us: candidates.filter((athlete) => athlete.calledUp).map((athlete) => ({ id: athlete.id, name: athlete.name, number: athlete.number, libero: false })),
     opp: [],
   });
 
@@ -63,6 +72,7 @@ export default async function ScoutMatchPage({ params }: { params: Promise<{ mat
       athletes={candidates}
       initial={scout}
       blank={blank}
+      autoGuide={guida === "1"}
     />
   );
 }

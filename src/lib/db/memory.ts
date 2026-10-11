@@ -325,6 +325,17 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       const idx = matchScouts.findIndex((s) => s.matchId === matchId);
       if (idx !== -1) matchScouts.splice(idx, 1);
     },
+    async getPublicLiveScout() {
+      const recent = Date.now() - LIVE_SCORE_TTL_MS;
+      const live = matchScouts
+        .filter((s) => s.settings.publicLive === true && Date.parse(s.updatedAt) >= recent)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      for (const scout of live) {
+        const match = matches.find((m) => m.id === scout.matchId);
+        if (match) return structuredClone({ scout, match });
+      }
+      return null;
+    },
 
     async listPredictions(filter?: { matchId?: string }) {
       let result = [...matchPredictions];
@@ -496,7 +507,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     },
     async createAthlete(input: AthleteInput, createdBy) {
       const now = new Date().toISOString();
-      const row: Athlete = { ...input, id: uid(), createdBy, createdAt: now, updatedAt: now };
+      const row: Athlete = { ...input, jerseyNumber: input.jerseyNumber ?? null, id: uid(), createdBy, createdAt: now, updatedAt: now };
       athletes.push(row);
       return row;
     },
@@ -504,6 +515,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       const now = new Date().toISOString();
       const rows: Athlete[] = inputs.map((input) => ({
         ...input,
+        jerseyNumber: input.jerseyNumber ?? null,
         id: uid(),
         createdBy,
         createdAt: now,

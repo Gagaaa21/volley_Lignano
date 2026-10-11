@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
+import { AlertTriangle, Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
   title: "Atlete",
 };
 
-export default async function AthletesPage() {
+export default async function AthletesPage({ searchParams }: { searchParams: Promise<{ avviso?: string }> }) {
+  const { avviso } = await searchParams;
   const session = await requireStaff();
   const team = await resolveActiveTeam(session);
   const repo = await getActiveRepo();
@@ -22,7 +23,11 @@ export default async function AthletesPage() {
       <PageHeader
         back={{ href: "/admin/presenze", label: "Presenze" }}
         title="Atlete"
-        description="L'anagrafica usata per registrare le presenze agli allenamenti."
+        description={
+          team === "u14u15"
+            ? "L'anagrafica usata per le presenze, lo Scout e il Live score: qui scrivi anche il numero di maglia di ogni atleta."
+            : "L'anagrafica usata per registrare le presenze agli allenamenti."
+        }
         actions={
           <>
             <LinkButton href="/admin/presenze/atlete/elenco" variant="outline">
@@ -36,6 +41,16 @@ export default async function AthletesPage() {
           </>
         }
       />
+
+      {avviso === "numero" && (
+        <div role="alert" className="mb-6 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <span>
+            L&apos;atleta è stata salvata, ma il numero di maglia no: nel database manca ancora la colonna. Serve il passaggio SQL indicato
+            negli aggiornamenti; dopo potrai scrivere di nuovo il numero.
+          </span>
+        </div>
+      )}
 
       {athletes.length === 0 ? (
         <EmptyState

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Binoculars, ChartNoAxesColumn, FileDown, MapPin, Pencil } from "lucide-react";
+import { Binoculars, BookOpen, ChartNoAxesColumn, FileDown, MapPin, Pencil } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
@@ -15,7 +15,8 @@ import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { aggregateSeason, percent } from "@/lib/scout/stats";
 import { HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
-import { getScoutHubTourSteps } from "@/components/tour/sectionSteps";
+import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
+import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -45,7 +46,7 @@ function StatusBadge({ summary }: { summary: ScoutSummary }) {
   );
 }
 
-function MatchRow({ match, summary }: { match: Match; summary: ScoutSummary }) {
+function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSummary; first: boolean }) {
   const date = parseISO(match.matchDate.slice(0, 10));
   const action: ReactNode =
     summary.state === "none" ? (
@@ -94,7 +95,9 @@ function MatchRow({ match, summary }: { match: Match; summary: ScoutSummary }) {
           </div>
         </div>
       </div>
-      <div className="mt-2.5 pl-[3.75rem] sm:mt-0 sm:pl-0">{action}</div>
+      <div className="mt-2.5 pl-[3.75rem] sm:mt-0 sm:pl-0" data-tour={first ? "scout-hub-action" : undefined}>
+        {action}
+      </div>
     </div>
   );
 }
@@ -142,9 +145,20 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
     <PageHeader
       title="Scout"
       description="Segna punto per punto chi fa punto e come: ne esce il tabellino della partita, con i numeri di ogni giocatrice."
-      help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0 })} />}
+      help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
+      actions={
+        <LinkButton href="/api/scout/manuale" variant="outline" data-tour="scout-manual" data-scout-manual-link>
+          <BookOpen className="h-4 w-4" />
+          Manuale d&apos;uso (PDF)
+        </LinkButton>
+      }
     />
   );
+
+  // La guida passo passo parte su una partita vera: la prossima ancora da segnare, altrimenti la prima in elenco.
+  const guideMatch =
+    [...upcoming, ...played].find((m) => summarizeScout(scoutByMatch.get(m.id) ?? null).state !== "done") ?? upcoming[0] ?? played[0] ?? null;
+  const welcome = <ScoutWelcome guideHref={guideMatch ? `/admin/scout/${guideMatch.id}?guida=1` : null} />;
 
   if (season) {
     // Le partite scoutizzate della stagione, dalla più vecchia: il nome di una giocatrice è quello dell'ultima partita.
@@ -158,6 +172,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
     return (
       <div>
         {header}
+        {welcome}
         {tabs}
         {stats.matches === 0 ? (
           <EmptyState
@@ -167,7 +182,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
           />
         ) : (
           <div className="space-y-8">
-            <section aria-label="Totali della stagione" className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-scout-season>
+            <section aria-label="Totali della stagione" className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-scout-season data-tour="scout-season-totals">
               <StatTile label="Partite scoutizzate" value={stats.matches} hint={`${stats.rallies} scambi`} icon={Binoculars} />
               <StatTile label="Punti fatti" value={stats.us.points} hint={`loro ${stats.opp.points}`} icon={ChartNoAxesColumn} tone="gold" />
               <StatTile
@@ -184,7 +199,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
               />
             </section>
 
-            <Card>
+            <Card data-tour="scout-season-how">
               <CardHeader className="pb-3">
                 <CardTitle>Come facciamo punto, in stagione</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">La somma di tutte le partite scoutizzate, noi contro le avversarie.</p>
@@ -194,19 +209,25 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
               </CardBody>
             </Card>
 
-            <PlayerTable side="us" players={stats.players} title="Le nostre giocatrici" matches={matchesByPlayer} />
+            <div data-tour="scout-season-players">
+              <PlayerTable side="us" players={stats.players} title="Le nostre giocatrici" matches={matchesByPlayer} />
+            </div>
           </div>
         )}
       </div>
     );
   }
 
+  const firstId = (upcoming[0] ?? played[0])?.id;
   const rows = (list: Match[]) =>
-    list.map((match) => <MatchRow key={match.id} match={match} summary={summarizeScout(scoutByMatch.get(match.id) ?? null)} />);
+    list.map((match) => (
+      <MatchRow key={match.id} match={match} summary={summarizeScout(scoutByMatch.get(match.id) ?? null)} first={match.id === firstId} />
+    ));
 
   return (
     <div>
       {header}
+      {welcome}
       {tabs}
       {matches.length === 0 ? (
         <EmptyState

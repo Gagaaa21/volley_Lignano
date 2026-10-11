@@ -71,6 +71,8 @@ const HEADER_SIZE = 8;
 const LINE_FACTOR = 1.28;
 const CELL_PAD_X = 6;
 const CELL_PAD_Y = 4.5;
+/** Un paragrafo di queste righe o meno non si spezza tra due pagine; uno più lungo sì, ma con almeno due righe per parte. */
+const KEEP_LINES = 5;
 
 export interface PdfColumn {
   header: string;
@@ -106,6 +108,33 @@ export interface PdfCanvas {
   height: number;
   /** Come per ogni testo del documento: sostituisce i caratteri che il font non ha. */
   safe: (value: string) => string;
+}
+
+/** Un tipo di riquadro evidenziato nel testo (consiglio, attenzione, esempio, informazione). */
+export type PdfCalloutKind = "tip" | "warning" | "example" | "info";
+
+export interface PdfImageOptions {
+  /** Didascalia sotto l'immagine. */
+  caption?: string;
+  /** Larghezza massima in punti (default: tutta la larghezza utile). */
+  maxWidth?: number;
+  /** Altezza massima in punti (default: poco più di metà pagina). */
+  maxHeight?: number;
+  /** Legenda dei marcatori numerati: sta sempre nella stessa pagina dell'immagine. */
+  legend?: string[];
+}
+
+/** Come si dispone una legenda di marcatori numerati (vedi `layoutLegend`). */
+interface LegendLayout {
+  items: string[];
+  size: number;
+  columns: number;
+  gap: number;
+  columnWidth: number;
+  textIndent: number;
+  perColumn: number;
+  heights: number[];
+  height: number;
 }
 
 export interface PdfReportOptions {
@@ -208,6 +237,81 @@ interface Fonts {
   bold: PDFFont;
 }
 
+/** Un pezzo di riga: il testo e se è in grassetto. */
+interface Run {
+  text: string;
+  bold: boolean;
+}
+
+/** «**grassetto**» dentro una frase: restituisce i pezzi in ordine, alternando normale e grassetto. */
+function parseRuns(value: string): Run[] {
+  return value
+    .split("**")
+    .map((text, i) => ({ text, bold: i % 2 === 1 }))
+    .filter((run) => run.text !== "");
+}
+
+/** Spezza una frase con grassetti in righe larghe al massimo `maxWidth` (a capo sugli spazi e sugli a-capo del testo). */
+function wrapRuns(fonts: Fonts, runs: Run[], maxWidth: number, size: number): Run[][] {
+  const widthOf = (text: string, bold: boolean) => (bold ? fonts.bold : fonts.regular).widthOfTextAtSize(text, size);
+  const lines: Run[][] = [];
+  let line: Run[] = [];
+  let lineWidth = 0;
+  const push = (text: string, bold: boolean) => {
+    const last = line[line.length - 1];
+    if (last && last.bold === bold) last.text += text;
+    else line.push({ text, bold });
+    lineWidth += widthOf(text, bold);
+  };
+  const flush = () => {
+    // Gli spazi in fondo non si disegnano.
+    const last = line[line.length - 1];
+    if (last) last.text = last.text.replace(/\s+$/, "");
+    lines.push(line);
+    line = [];
+    lineWidth = 0;
+  };
+
+  for (const run of runs) {
+    run.text.split("\n").forEach((paragraph, paragraphIndex) => {
+      if (paragraphIndex > 0) flush();
+      for (const token of paragraph.split(/(\s+)/).filter((t) => t !== "")) {
+        const isSpace = /^\s+$/.test(token);
+        if (isSpace) {
+          if (line.length > 0) push(" ", run.bold);
+          continue;
+        }
+        const tokenWidth = widthOf(token, run.bold);
+        if (lineWidth + tokenWidth > maxWidth && line.length > 0) flush();
+        if (tokenWidth <= maxWidth) {
+          push(token, run.bold);
+          continue;
+        }
+        // Parola più larga della riga: la si spezza per caratteri.
+        let piece = "";
+        for (const char of token) {
+          if (piece && widthOf(piece + char, run.bold) > maxWidth - lineWidth) {
+            push(piece, run.bold);
+            flush();
+            piece = "";
+          }
+          piece += char;
+        }
+        if (piece) push(piece, run.bold);
+      }
+    });
+  }
+  if (line.length > 0) flush();
+  return lines;
+}
+
+interface CalloutStyle {
+  bar: RGB;
+  background: RGB;
+  label: string;
+}
+
+
 /** Lettere dei nomi dell'Europa dell'est e del nord che non si scompongono in "lettera + accento". */
 const TRANSLITERATIONS: Record<string, string> = {
   Đ: "D",
@@ -272,6 +376,7 @@ export class PdfReport {
   private readonly options: PdfReportOptions;
   private pages: PDFPage[] = [];
   private page!: PDFPage;
+  private readonly embeddedImages = new WeakMap<Uint8Array, Promise<PDFImage>>();
   /** Posizione verticale corrente, misurata dal bordo alto della pagina. */
   private cursor = 0;
 
@@ -334,8 +439,16 @@ export class PdfReport {
     return this.pageH - MARGIN - FOOTER_RESERVE;
   }
 
-  private ensureSpace(height: number) {
-    if (this.cursor + height > this.bottomLimit) this.addPage();
+  /** Va a una pagina nuova se non restano `height` punti; dice se l'ha fatto. */
+  private ensureSpace(height: number): boolean {
+    if (this.cursor + height <= this.bottomLimit) return false;
+    this.addPage();
+    return true;
+  }
+
+  /** Altezza utile di una pagina intera (sotto l'intestazione ripetuta). */
+  private get pageCapacity() {
+    return this.bottomLimit - (MARGIN + RUNNING_HEADER_HEIGHT);
   }
 
   private yOf(top: number) {
@@ -507,6 +620,428 @@ export class PdfReport {
       safe: this.safe,
     });
     this.cursor += height + 10;
+  }
+
+  /**
+   * Sottotitolo di sezione (più piccolo di `heading`). `keepWith` è lo spazio
+   * che deve restare sotto di lui nella stessa pagina: un titolo non rimane mai
+   * solo in fondo. `gapBefore` è l'aria sopra, che in cima a una pagina nuova si salta.
+   */
+  subheading(title: string, options: { gapBefore?: number; keepWith?: number } = {}) {
+    const gapBefore = options.gapBefore ?? 0;
+    const needed = gapBefore + 18 + (options.keepWith ?? 28);
+    if (!this.ensureSpace(Math.min(needed, this.pageCapacity))) this.cursor += gapBefore;
+    this.page.drawText(this.safe(title), {
+      x: MARGIN,
+      y: this.yOf(this.cursor + 10),
+      size: 10.5,
+      font: this.fonts.bold,
+      color: INK,
+    });
+    this.cursor += 18;
+  }
+
+  /** Altezza di un paragrafo con grassetti nella larghezza data, per decidere prima dove metterlo. */
+  private runsHeight(value: string, width: number, size: number): number {
+    return wrapRuns(this.fonts, parseRuns(this.safe(value)), width, size).length * size * LINE_FACTOR;
+  }
+
+  /**
+   * Altezza delle righe che all'inizio di un paragrafo devono stare insieme
+   * (tutte se è corto, altrimenti le prime tre): serve a decidere prima se un
+   * titolo che lo precede ci sta senza restare solo in fondo alla pagina.
+   */
+  richTextHead(value: string, options: { size?: number; indent?: number; width?: number } = {}): number {
+    const size = options.size ?? 9.5;
+    const width = options.width ?? this.contentW - (options.indent ?? 0);
+    const count = wrapRuns(this.fonts, parseRuns(this.safe(value)), width, size).length;
+    return (count <= KEEP_LINES ? count : 3) * size * LINE_FACTOR;
+  }
+
+  /**
+   * Paragrafo con «**grassetti**» a capo da solo. `indent` sposta tutto il
+   * blocco a destra; `width` lo stringe (es. accanto a un'immagine). Un
+   * paragrafo corto non si spezza tra due pagine, e uno lungo non lascia mai
+   * una riga sola da una parte. `keepWith` è lo spazio che deve restare sotto
+   * un paragrafo corto nella stessa pagina (es. la lista che introduce).
+   */
+  richText(
+    value: string,
+    options: { size?: number; tone?: PdfTone; gapAfter?: number; indent?: number; width?: number; keepWith?: number } = {},
+  ) {
+    const size = options.size ?? 9.5;
+    const indent = options.indent ?? 0;
+    const width = options.width ?? this.contentW - indent;
+    const lines = wrapRuns(this.fonts, parseRuns(this.safe(value)), width, size);
+    const lineHeight = size * LINE_FACTOR;
+    const color = toneColor(options.tone ?? "default", this.palette);
+    if (lines.length <= KEEP_LINES) this.ensureSpace(lines.length * lineHeight + (options.keepWith ?? 0));
+
+    let index = 0;
+    while (index < lines.length) {
+      const remaining = lines.length - index;
+      let take = Math.min(remaining, Math.floor((this.bottomLimit - this.cursor) / lineHeight));
+      // Se il paragrafo continua nella pagina dopo, non si lascia una riga sola né in fondo né in cima.
+      if (take < remaining && remaining - take < 2) take = remaining - 2;
+      if (take < Math.min(2, remaining)) {
+        this.addPage();
+        continue;
+      }
+      for (const line of lines.slice(index, index + take)) {
+        let x = MARGIN + indent;
+        for (const run of line) {
+          const font = run.bold ? this.fonts.bold : this.fonts.regular;
+          this.page.drawText(run.text, { x, y: this.yOf(this.cursor + size), size, font, color });
+          x += font.widthOfTextAtSize(run.text, size);
+        }
+        this.cursor += lineHeight;
+      }
+      index += take;
+      if (index < lines.length) this.addPage();
+    }
+    this.cursor += options.gapAfter ?? 6;
+  }
+
+  /** Elenco puntato: un pallino davanti a ogni voce, che non si spezza tra due pagine. */
+  bullets(items: string[], options: { size?: number; gapAfter?: number } = {}) {
+    const size = options.size ?? 9.5;
+    const textIndent = 14;
+    for (const item of items) {
+      this.ensureSpace(this.runsHeight(item, this.contentW - textIndent, size) + 2);
+      this.page.drawCircle({
+        x: MARGIN + 4,
+        y: this.yOf(this.cursor + size * 0.62),
+        size: 1.8,
+        color: this.palette.primary,
+      });
+      this.richText(item, { size, indent: textIndent, gapAfter: 2.5 });
+    }
+    this.cursor += options.gapAfter ?? 5;
+  }
+
+  /** Elenco numerato: il numero sta in un cerchio colorato, come i marcatori delle schermate. */
+  numbered(items: string[], options: { size?: number; gapAfter?: number } = {}) {
+    const size = options.size ?? 9.5;
+    const textIndent = 20;
+    items.forEach((item, index) => {
+      this.ensureSpace(this.runsHeight(item, this.contentW - textIndent, size) + 4);
+      const centerY = this.yOf(this.cursor + size * 0.62);
+      this.page.drawCircle({ x: MARGIN + 7, y: centerY, size: 7.2, color: this.palette.primary });
+      const label = String(index + 1);
+      const labelWidth = this.fonts.bold.widthOfTextAtSize(label, 8);
+      this.page.drawText(label, { x: MARGIN + 7 - labelWidth / 2, y: centerY - 2.8, size: 8, font: this.fonts.bold, color: WHITE });
+      this.richText(item, { size, indent: textIndent, gapAfter: 3.5 });
+    });
+    this.cursor += options.gapAfter ?? 5;
+  }
+
+  /** Come si dispone un riquadro: righe a capo, altezza, colori. */
+  private layoutCallout(kind: PdfCalloutKind, text: string, options: { title?: string; size?: number }) {
+    const style = this.calloutStyle(kind);
+    const size = options.size ?? 9;
+    const padX = 11;
+    const padY = 8;
+    const barWidth = 3.5;
+    const innerWidth = this.contentW - barWidth - padX * 2;
+    const title = options.title ?? style.label;
+    const titleHeight = title ? size * LINE_FACTOR + 1.5 : 0;
+    const bodyLines = wrapRuns(this.fonts, parseRuns(this.safe(text)), innerWidth, size);
+    const height = padY * 2 + titleHeight + bodyLines.length * size * LINE_FACTOR;
+    return { style, size, padX, padY, barWidth, title, titleHeight, bodyLines, height };
+  }
+
+  /** Altezza che occuperebbe un riquadro, per decidere prima dove metterlo (o se un titolo che lo precede ci sta). */
+  calloutHeight(kind: PdfCalloutKind, text: string, options: { title?: string; size?: number } = {}): number {
+    return this.layoutCallout(kind, text, options).height + 9;
+  }
+
+  /** Riquadro evidenziato (consiglio, attenzione, esempio, informazione), che non si spezza tra due pagine. */
+  callout(kind: PdfCalloutKind, text: string, options: { title?: string; size?: number } = {}) {
+    const { style, size, padX, padY, barWidth, title, titleHeight, bodyLines, height } = this.layoutCallout(kind, text, options);
+    this.ensureSpace(height + 4);
+    const top = this.cursor;
+    this.page.drawRectangle({ x: MARGIN, y: this.yOf(top + height), width: this.contentW, height, color: style.background });
+    this.page.drawRectangle({ x: MARGIN, y: this.yOf(top + height), width: barWidth, height, color: style.bar });
+    let y = top + padY;
+    if (title) {
+      this.page.drawText(this.safe(title), { x: MARGIN + barWidth + padX, y: this.yOf(y + size), size, font: this.fonts.bold, color: style.bar });
+      y += titleHeight;
+    }
+    for (const line of bodyLines) {
+      let x = MARGIN + barWidth + padX;
+      for (const run of line) {
+        const font = run.bold ? this.fonts.bold : this.fonts.regular;
+        this.page.drawText(run.text, { x, y: this.yOf(y + size), size, font, color: INK });
+        x += font.widthOfTextAtSize(run.text, size);
+      }
+      y += size * LINE_FACTOR;
+    }
+    this.cursor += height + 9;
+  }
+
+  private calloutStyle(kind: PdfCalloutKind): CalloutStyle {
+    switch (kind) {
+      case "tip":
+        return { bar: SUCCESS, background: rgb(0.925, 0.976, 0.945), label: "Consiglio" };
+      case "warning":
+        return { bar: rgb(0xb4 / 255, 0x53 / 255, 0x09 / 255), background: rgb(1, 0.957, 0.89), label: "Attenzione" };
+      case "example":
+        return { bar: this.palette.primary, background: this.palette.soft, label: "Esempio" };
+      default:
+        return { bar: MUTED, background: ZEBRA, label: "" };
+    }
+  }
+
+  /** Dove vanno una schermata, la sua didascalia e la sua legenda: si tengono insieme, nella stessa pagina. */
+  private imageLayout(embedded: PDFImage, options: PdfImageOptions) {
+    const maxWidth = Math.min(options.maxWidth ?? this.contentW, this.contentW);
+    const maxHeight = options.maxHeight ?? this.pageH * 0.56;
+    const scale = Math.min(maxWidth / embedded.width, maxHeight / embedded.height);
+    const width = embedded.width * scale;
+    const height = embedded.height * scale;
+    const captionLines = options.caption ? wrapRuns(this.fonts, parseRuns(this.safe(options.caption)), maxWidth, SUB_SIZE + 0.5) : [];
+    const captionHeight = captionLines.length > 0 ? captionLines.length * (SUB_SIZE + 0.5) * LINE_FACTOR + 5 : 0;
+    const legend = options.legend && options.legend.length > 0 ? this.layoutLegend(options.legend, 8.5) : null;
+    const total = height + captionHeight + 10 + (legend ? legend.height + 6 : 0);
+    return { width, height, captionLines, legend, total };
+  }
+
+  /**
+   * Disegna un'immagine (PNG o JPEG) alla larghezza della pagina, con didascalia
+   * e, se c'è, la legenda dei suoi marcatori: a pagina nuova se non ci sta tutto.
+   */
+  async image(bytes: Uint8Array, options: PdfImageOptions = {}) {
+    const embedded = await this.embedImage(bytes);
+    const { width, height, captionLines, legend, total } = this.imageLayout(embedded, options);
+    this.ensureSpace(total);
+    const x = MARGIN + (this.contentW - width) / 2;
+    this.page.drawRectangle({
+      x: x - 0.5,
+      y: this.yOf(this.cursor + height) - 0.5,
+      width: width + 1,
+      height: height + 1,
+      borderColor: BORDER,
+      borderWidth: 0.75,
+    });
+    this.page.drawImage(embedded, { x, y: this.yOf(this.cursor + height), width, height });
+    this.cursor += height + 5;
+    for (const line of captionLines) {
+      let cx = MARGIN + (this.contentW - width) / 2;
+      for (const run of line) {
+        const font = run.bold ? this.fonts.bold : this.fonts.regular;
+        this.page.drawText(run.text, { x: cx, y: this.yOf(this.cursor + SUB_SIZE), size: SUB_SIZE + 0.5, font, color: MUTED });
+        cx += font.widthOfTextAtSize(run.text, SUB_SIZE + 0.5);
+      }
+      this.cursor += (SUB_SIZE + 0.5) * LINE_FACTOR;
+    }
+    this.cursor += captionLines.length > 0 ? 9 : 8;
+    if (legend) this.drawLegend(legend);
+  }
+
+  /** Altezza di un'immagine con didascalia e legenda, per decidere prima se un titolo che la precede ci sta. */
+  async measureImage(bytes: Uint8Array, options: PdfImageOptions = {}): Promise<number> {
+    return this.imageLayout(await this.embedImage(bytes), options).total;
+  }
+
+  /** Dove vanno più immagini affiancate, le loro didascalie e la legenda. */
+  private imageRowLayout(
+    embedded: PDFImage[],
+    items: { caption?: string }[],
+    options: { maxHeight?: number; gap?: number; legend?: string[] },
+  ) {
+    const gap = options.gap ?? 14;
+    const available = this.contentW - gap * (items.length - 1);
+    const maxHeight = options.maxHeight ?? this.pageH * 0.5;
+    // Stessa altezza per tutte; si riduce finché le larghezze ci stanno in riga.
+    const ratioSum = embedded.reduce((sum, img) => sum + img.width / img.height, 0);
+    const height = Math.min(maxHeight, available / ratioSum);
+    const widths = embedded.map((img) => (img.width / img.height) * height);
+    const totalWidth = widths.reduce((sum, w) => sum + w, 0) + gap * (items.length - 1);
+    const captionSize = SUB_SIZE + 0.5;
+    const captions = items.map((item, i) =>
+      item.caption ? wrapRuns(this.fonts, parseRuns(this.safe(item.caption)), Math.max(widths[i], 60), captionSize) : [],
+    );
+    const captionHeight = Math.max(...captions.map((c) => c.length)) * captionSize * LINE_FACTOR + 5;
+    const legend = options.legend && options.legend.length > 0 ? this.layoutLegend(options.legend, 8.5) : null;
+    const total = height + captionHeight + 10 + (legend ? legend.height + 6 : 0);
+    return { gap, height, widths, totalWidth, captionSize, captions, captionHeight, legend, total };
+  }
+
+  /**
+   * Più immagini affiancate (es. schermate del telefono), tutte della stessa
+   * altezza, ognuna con la sua didascalia; la legenda, se c'è, resta con loro.
+   */
+  async imageRow(
+    items: { bytes: Uint8Array; caption?: string }[],
+    options: { maxHeight?: number; gap?: number; legend?: string[] } = {},
+  ) {
+    const embedded = await Promise.all(items.map((item) => this.embedImage(item.bytes)));
+    const { gap, height, widths, totalWidth, captionSize, captions, captionHeight, legend, total } = this.imageRowLayout(
+      embedded,
+      items,
+      options,
+    );
+    this.ensureSpace(total);
+    let x = MARGIN + (this.contentW - totalWidth) / 2;
+    embedded.forEach((img, i) => {
+      this.page.drawRectangle({
+        x: x - 0.5,
+        y: this.yOf(this.cursor + height) - 0.5,
+        width: widths[i] + 1,
+        height: height + 1,
+        borderColor: BORDER,
+        borderWidth: 0.75,
+      });
+      this.page.drawImage(img, { x, y: this.yOf(this.cursor + height), width: widths[i], height });
+      let cy = this.cursor + height + 5;
+      for (const line of captions[i]) {
+        let cx = x;
+        for (const run of line) {
+          const font = run.bold ? this.fonts.bold : this.fonts.regular;
+          this.page.drawText(run.text, { x: cx, y: this.yOf(cy + captionSize), size: captionSize, font, color: MUTED });
+          cx += font.widthOfTextAtSize(run.text, captionSize);
+        }
+        cy += captionSize * LINE_FACTOR;
+      }
+      x += widths[i] + gap;
+    });
+    this.cursor += height + captionHeight + 9;
+    if (legend) this.drawLegend(legend);
+  }
+
+  /** Altezza di una fila di immagini con didascalie e legenda, per decidere prima se un titolo che la precede ci sta. */
+  async measureImageRow(
+    items: { bytes: Uint8Array; caption?: string }[],
+    options: { maxHeight?: number; gap?: number; legend?: string[] } = {},
+  ): Promise<number> {
+    const embedded = await Promise.all(items.map((item) => this.embedImage(item.bytes)));
+    return this.imageRowLayout(embedded, items, options).total;
+  }
+
+  /** Incorpora l'immagine una volta sola, anche se la si misura prima di disegnarla. */
+  private embedImage(bytes: Uint8Array): Promise<PDFImage> {
+    let embedded = this.embeddedImages.get(bytes);
+    if (!embedded) {
+      // PNG comincia con 0x89 'PNG', JPEG con 0xFF 0xD8.
+      embedded = bytes[0] === 0x89 ? this.doc.embedPng(bytes) : this.doc.embedJpg(bytes);
+      this.embeddedImages.set(bytes, embedded);
+    }
+    return embedded;
+  }
+
+  /** Come si dispone una legenda di marcatori numerati: su due colonne se le voci sono più di quattro. */
+  private layoutLegend(items: string[], size: number): LegendLayout {
+    const columns = items.length > 4 ? 2 : 1;
+    const gap = 16;
+    const columnWidth = (this.contentW - gap * (columns - 1)) / columns;
+    const textIndent = 17;
+    const perColumn = Math.ceil(items.length / columns);
+    const heights = items.map((item) => Math.max(this.runsHeight(item, columnWidth - textIndent, size), size * LINE_FACTOR) + 3);
+    const columnHeights = Array.from({ length: columns }, (_, c) =>
+      heights.slice(c * perColumn, (c + 1) * perColumn).reduce((sum, h) => sum + h, 0),
+    );
+    return { items, size, columns, gap, columnWidth, textIndent, perColumn, heights, height: Math.max(...columnHeights) };
+  }
+
+  private drawLegend(layout: LegendLayout) {
+    const { items, size, columns, gap, columnWidth, textIndent, perColumn, heights } = layout;
+    const top = this.cursor;
+    for (let c = 0; c < columns; c++) {
+      let y = top;
+      for (let i = c * perColumn; i < Math.min(items.length, (c + 1) * perColumn); i++) {
+        const x = MARGIN + c * (columnWidth + gap);
+        const centerY = this.yOf(y + size * 0.62);
+        this.page.drawCircle({ x: x + 6, y: centerY, size: 6, color: this.palette.primary });
+        const label = String(i + 1);
+        const labelWidth = this.fonts.bold.widthOfTextAtSize(label, 7.5);
+        this.page.drawText(label, { x: x + 6 - labelWidth / 2, y: centerY - 2.6, size: 7.5, font: this.fonts.bold, color: WHITE });
+        const lines = wrapRuns(this.fonts, parseRuns(this.safe(items[i])), columnWidth - textIndent, size);
+        lines.forEach((line, lineIndex) => {
+          let tx = x + textIndent;
+          for (const run of line) {
+            const font = run.bold ? this.fonts.bold : this.fonts.regular;
+            this.page.drawText(run.text, { x: tx, y: this.yOf(y + lineIndex * size * LINE_FACTOR + size), size, font, color: INK });
+            tx += font.widthOfTextAtSize(run.text, size);
+          }
+        });
+        y += heights[i];
+      }
+    }
+    this.cursor += layout.height + 8;
+  }
+
+  /** Legenda dei marcatori numerati di una schermata: ogni voce con il suo cerchio, su due colonne se sono tante. */
+  legend(items: string[], options: { size?: number } = {}) {
+    const layout = this.layoutLegend(items, options.size ?? 8.5);
+    this.ensureSpace(layout.height + 6);
+    this.drawLegend(layout);
+  }
+
+  /** Titolo di capitolo: comincia su una pagina nuova, con numero grande, titolo e una riga di presentazione. */
+  chapter(number: number, title: string, summary?: string) {
+    this.addPage();
+    const { regular, bold } = this.fonts;
+    const centerY = this.yOf(this.cursor + 20);
+    this.page.drawCircle({ x: MARGIN + 20, y: centerY, size: 20, color: this.palette.primary });
+    const label = String(number);
+    const labelWidth = bold.widthOfTextAtSize(label, 20);
+    this.page.drawText(label, { x: MARGIN + 20 - labelWidth / 2, y: centerY - 7, size: 20, font: bold, color: WHITE });
+    this.page.drawText(this.safe(title), { x: MARGIN + 52, y: this.yOf(this.cursor + 18), size: 19, font: bold, color: INK });
+    this.cursor += 46;
+    if (summary) {
+      const lines = wrapLines(regular, this.safe(summary), this.contentW - 52, 10);
+      for (const line of lines) {
+        this.page.drawText(line, { x: MARGIN + 52, y: this.yOf(this.cursor - 6), size: 10, font: regular, color: MUTED });
+        this.cursor += 10 * LINE_FACTOR;
+      }
+      this.cursor += 2;
+    }
+    this.page.drawLine({
+      start: { x: MARGIN, y: this.yOf(this.cursor) },
+      end: { x: this.pageW - MARGIN, y: this.yOf(this.cursor) },
+      thickness: 1,
+      color: BORDER,
+    });
+    this.cursor += 16;
+  }
+
+  /** Indice (0) della pagina su cui si sta scrivendo: serve a ricordare dove comincia un capitolo. */
+  get currentPageIndex() {
+    return this.pages.length - 1;
+  }
+
+  /** Altezza ancora libera nella pagina corrente. */
+  get remainingSpace() {
+    return this.bottomLimit - this.cursor;
+  }
+
+  /**
+   * Torna a disegnare su una pagina già scritta (es. l'indice, riempito alla
+   * fine quando si conoscono i numeri di pagina). Lo spazio è quello sotto
+   * l'intestazione ripetuta.
+   */
+  drawOnPage(index: number, draw: (canvas: PdfCanvas) => void) {
+    const page = this.pages[index];
+    if (!page) return;
+    const top = MARGIN + RUNNING_HEADER_HEIGHT;
+    draw({
+      page,
+      fonts: this.fonts,
+      colors: {
+        ink: INK,
+        muted: MUTED,
+        border: BORDER,
+        primary: this.palette.primary,
+        dark: this.palette.dark,
+        soft: this.palette.soft,
+        accent: ACCENT,
+      },
+      left: MARGIN,
+      top: this.yOf(top),
+      width: this.contentW,
+      height: this.bottomLimit - top,
+      safe: this.safe,
+    });
   }
 
   private columnWidths(columns: PdfColumn[]): number[] {

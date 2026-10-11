@@ -14,7 +14,9 @@ import {
   teamKeyProp,
   type TeamKey,
 } from "@/lib/liveScore";
+import type { RegistryChoices } from "@/lib/jersey";
 import type { CourtPosition, LiveScoreState } from "@/lib/types";
+import { shortName } from "@/components/matches/VolleyCourt";
 
 /**
  * Sostituzione durante il gioco: si sceglie la squadra, chi esce (tra chi è in
@@ -28,6 +30,7 @@ export function SubstitutionDialog({
   initialTeam,
   initialPosition,
   athleteNames,
+  numberChoices,
   teamLabel,
   onConfirm,
   onClose,
@@ -36,6 +39,8 @@ export function SubstitutionDialog({
   initialTeam: TeamKey;
   initialPosition: CourtPosition | null;
   athleteNames: string[];
+  /** In Partita, i numeri dell'anagrafica da proporre come panchina della nostra squadra. */
+  numberChoices?: RegistryChoices;
   teamLabel: (key: TeamKey) => string;
   onConfirm: (team: TeamKey, position: CourtPosition, incoming: string) => void;
   onClose: () => void;
@@ -67,7 +72,12 @@ export function SubstitutionDialog({
       .map((n) => n.trim())
       .filter(Boolean),
   );
-  const bench = numeric ? [] : athleteNames.filter((name) => !busy.has(name));
+  // In Partita, per la nostra squadra, la panchina arriva dai numeri dell'anagrafica (chi non è già in campo).
+  const registryBench =
+    numeric && teamKey === "A" && numberChoices
+      ? [...numberChoices.calledUp, ...numberChoices.others].filter((r) => !busy.has(r.number))
+      : [];
+  const bench = numeric ? registryBench.map((r) => ({ value: r.number, label: `${r.number} · ${shortName(r.name)}` })) : athleteNames.filter((name) => !busy.has(name)).map((name) => ({ value: name, label: name }));
 
   function chooseTeam(key: TeamKey) {
     setTeamKey(key);
@@ -162,23 +172,23 @@ export function SubstitutionDialog({
           <Label htmlFor="substitution-in">Entra</Label>
           {bench.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
-              {bench.map((name) => (
+              {bench.map((choice) => (
                 <button
-                  key={name}
+                  key={choice.label}
                   type="button"
                   onClick={() => {
-                    setIncoming(name);
+                    setIncoming(choice.value);
                     setError(null);
                   }}
-                  aria-pressed={incoming === name}
+                  aria-pressed={incoming === choice.value}
                   className={cn(
                     "rounded-full border px-3 py-1 text-sm font-semibold transition-colors",
-                    incoming === name
+                    incoming === choice.value
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border-subtle text-foreground/80 hover:bg-muted",
                   )}
                 >
-                  {name}
+                  {choice.label}
                 </button>
               ))}
             </div>
@@ -194,7 +204,15 @@ export function SubstitutionDialog({
               if (e.key === "Enter") confirm();
             }}
             inputMode={numeric ? "numeric" : undefined}
-            placeholder={numeric ? "Numero di maglia" : bench.length > 0 ? "Oppure scrivi un altro nome" : "Nome di chi entra"}
+            placeholder={
+              numeric
+                ? bench.length > 0
+                  ? "Oppure scrivi un altro numero"
+                  : "Numero di maglia"
+                : bench.length > 0
+                  ? "Oppure scrivi un altro nome"
+                  : "Nome di chi entra"
+            }
           />
         </div>
 

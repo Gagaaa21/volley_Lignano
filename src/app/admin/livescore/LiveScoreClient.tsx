@@ -48,6 +48,7 @@ import { DualLiveScoreCourt } from "./LiveScoreCourt";
 import { SubstitutionDialog } from "./SubstitutionDialog";
 import { useStageFullscreen } from "./useStageFullscreen";
 import { shortName } from "@/components/matches/VolleyCourt";
+import { orderRegistryNumbers, type RegistryChoices, type RegistryNumber } from "@/lib/jersey";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { LIVESCORE_INGAME_TOUR_STEPS, LIVESCORE_SETUP_TOUR_STEPS } from "@/components/tour/sectionSteps";
 import {
@@ -75,6 +76,8 @@ export interface LiveScoreCalendarMatch {
   category: Category | null;
   opponent: string;
   isTournament: boolean;
+  /** Le convocate della partita: i loro numeri si propongono per prime. */
+  calledUpAthleteIds: string[];
 }
 
 /** Colore distintivo per squadra, riusato ovunque serva riconoscerle a
@@ -325,6 +328,7 @@ function PositionNameField({
   placeholder,
   compact,
   numeric,
+  numberChoices,
 }: {
   id?: string;
   value: string;
@@ -333,19 +337,71 @@ function PositionNameField({
   placeholder: string;
   compact?: boolean;
   /** Modalità "Partita": numero di maglia invece del nome — niente menù a
-   * tendina con le atlete (le avversarie non ci sono in registro, e anche
-   * per le nostre si scrive il numero, non il nome). */
+   * tendina con i nomi (le avversarie non ci sono in registro, e anche per le
+   * nostre si scrive il numero, non il nome). */
   numeric?: boolean;
+  /** Solo per le nostre in Partita: i numeri scritti nell'anagrafica atlete,
+   * da scegliere invece di ridigitarli (resta «Altro…» per un numero qualsiasi). */
+  numberChoices?: RegistryChoices;
 }) {
   const [forceCustom, setForceCustom] = useState(false);
   const trimmed = value.trim();
-  const isKnownAthlete = trimmed !== "" && athleteNames.includes(trimmed);
+  const numberList = numeric && numberChoices ? [...numberChoices.calledUp, ...numberChoices.others] : [];
+  const isKnownAthlete = trimmed !== "" && (numberList.length > 0 ? numberList.some((o) => o.number === trimmed) : athleteNames.includes(trimmed));
   const showCustomInput = forceCustom || (trimmed !== "" && !isKnownAthlete);
   const selectValue = showCustomInput ? CUSTOM_NAME_OPTION : isKnownAthlete ? trimmed : "";
 
   const fieldClass = compact
     ? "w-full rounded-full bg-white/95 px-2 py-1 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700"
     : "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700 sm:text-xs";
+
+  if (numeric && numberChoices && numberList.length > 0) {
+    const option = (o: RegistryNumber) => (
+      <option key={o.id} value={o.number}>
+        {o.number} · {shortName(o.name)}
+      </option>
+    );
+    return (
+      <div className="w-full space-y-1">
+        <select
+          id={id}
+          value={selectValue}
+          onChange={(e) => {
+            if (e.target.value === CUSTOM_NAME_OPTION) {
+              setForceCustom(true);
+              onChange("");
+              return;
+            }
+            setForceCustom(false);
+            onChange(e.target.value);
+          }}
+          className={fieldClass}
+          data-livescore-registry-select
+        >
+          <option value="">{placeholder}</option>
+          {numberChoices.calledUp.length > 0 ? (
+            <>
+              <optgroup label="Convocate">{numberChoices.calledUp.map(option)}</optgroup>
+              {numberChoices.others.length > 0 && <optgroup label="Altre atlete">{numberChoices.others.map(option)}</optgroup>}
+            </>
+          ) : (
+            numberChoices.others.map(option)
+          )}
+          <option value={CUSTOM_NAME_OPTION}>Altro…</option>
+        </select>
+        {showCustomInput && (
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Numero"
+            inputMode="numeric"
+            autoFocus
+            className={fieldClass}
+          />
+        )}
+      </div>
+    );
+  }
 
   if (numeric || athleteNames.length === 0) {
     return (
@@ -420,6 +476,7 @@ function renderTeamCell(
   numeric: boolean,
   showLibero: boolean,
   onSubstitute?: (position: CourtPosition) => void,
+  numberChoices?: RegistryChoices,
 ) {
   return function TeamCell(position: CourtPosition) {
     if (editing) {
@@ -430,6 +487,7 @@ function renderTeamCell(
           athleteNames={athleteNames}
           placeholder={numeric ? "N." : `Pos. ${position}`}
           numeric={numeric}
+          numberChoices={teamKey === "A" ? numberChoices : undefined}
         />
       );
     }
@@ -648,6 +706,7 @@ function LiberoFields({
   players,
   large,
   numeric,
+  numberChoices,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
@@ -657,6 +716,7 @@ function LiberoFields({
   players: LiveScorePlayers;
   large?: boolean;
   numeric?: boolean;
+  numberChoices?: RegistryChoices;
 }) {
   const filledNames = team.positions.map((n) => n.trim()).filter(Boolean);
   const liberoLabel = numeric ? `Numero libero ${team.label}` : `Nome della libero`;
@@ -674,6 +734,7 @@ function LiberoFields({
         placeholder={large ? `Libero ${team.label} (opzionale)` : liberoLabel}
         compact={large}
         numeric={numeric}
+        numberChoices={teamKey === "A" ? numberChoices : undefined}
       />
       {team.liberoName.trim() && (
         <div className={cn("grid grid-cols-2", large ? "mt-1.5 gap-1.5" : "mt-3 gap-3")}>
@@ -792,10 +853,13 @@ function SetupOption({ label, children }: { label: string; children: ReactNode }
  */
 export function LiveScoreClient({
   athleteNames,
+  registryNumbers,
   team,
   todayMatches,
 }: {
   athleteNames: string[];
+  /** I numeri di maglia dell'anagrafica atlete, da scegliere in Partita per la nostra squadra. */
+  registryNumbers: RegistryNumber[];
   /** Squadra attiva nell'area riservata: su quale sito va la diretta. */
   team: TrainingTeam;
   todayMatches: LiveScoreCalendarMatch[];
@@ -903,6 +967,9 @@ export function LiveScoreClient({
   const matchWinner = winnerOf(match);
   const tied = match.teamA.score === match.teamB.score;
   const numeric = match.mode === "match";
+  // Se la partita è collegata al calendario, le convocate vengono per prime.
+  const linkedMatch = todayMatches.find((m) => m.id === match.matchId) ?? null;
+  const numberChoices = numeric ? orderRegistryNumbers(registryNumbers, linkedMatch?.calledUpAthleteIds ?? [], match.category) : undefined;
   const showLiberoFields = match.withLineup && match.useLibero && hasLiberoOption(match.playersPerSide);
   // Senza formazione il tabellone è l'unica cosa da guardare: più grande.
   const bigBoard = isFullscreen || !match.withLineup;
@@ -1099,8 +1166,8 @@ export function LiveScoreClient({
                   players={match.playersPerSide}
                   labelA={displayLabel(leftTeam, leftKey)}
                   labelB={displayLabel(rightTeam, rightKey)}
-                  renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false)}
-                  renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false)}
+                  renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
+                  renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
                   large={isFullscreen}
                 />
               </div>
@@ -1116,6 +1183,7 @@ export function LiveScoreClient({
                   dispatch={dispatch}
                   players={match.playersPerSide}
                   numeric={numeric}
+                  numberChoices={numberChoices}
                 />
                 <LiberoFields
                   team={match.teamB}
@@ -1125,6 +1193,7 @@ export function LiveScoreClient({
                   dispatch={dispatch}
                   players={match.playersPerSide}
                   numeric={numeric}
+                  numberChoices={numberChoices}
                 />
               </div>
             )}
@@ -1400,8 +1469,8 @@ export function LiveScoreClient({
                 players={match.playersPerSide}
                 labelA={displayLabel(leftTeam, leftKey)}
                 labelB={displayLabel(rightTeam, rightKey)}
-                renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }))}
-                renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }))}
+                renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }), numberChoices)}
+                renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }), numberChoices)}
                 large={isFullscreen}
               />
             )}
@@ -1417,6 +1486,7 @@ export function LiveScoreClient({
                   players={match.playersPerSide}
                   large={isFullscreen}
                   numeric={numeric}
+                  numberChoices={numberChoices}
                 />
                 <LiberoFields
                   team={rightTeam}
@@ -1427,6 +1497,7 @@ export function LiveScoreClient({
                   players={match.playersPerSide}
                   large={isFullscreen}
                   numeric={numeric}
+                  numberChoices={numberChoices}
                 />
               </div>
             )}
@@ -1441,6 +1512,7 @@ export function LiveScoreClient({
             initialTeam={substitution.team}
             initialPosition={substitution.position}
             athleteNames={athleteNames}
+            numberChoices={numberChoices}
             teamLabel={(key) => displayLabel(match[teamKeyProp(key)], key)}
             onConfirm={(teamKey, position, incoming) => {
               dispatch({ type: "substitute", team: teamKey, position, incoming });

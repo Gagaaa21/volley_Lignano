@@ -10,7 +10,13 @@ import type { MatchScout, ScoutData } from "./types";
 
 /** Il contenuto che conta di uno scout, senza i dati di salvataggio (versione, autore, data). */
 export function scoutContent(data: ScoutData): ScoutData {
-  return { settings: data.settings, roster: data.roster, events: data.events, finished: data.finished };
+  return {
+    // Uno scout salvato prima del punteggio live non ha `publicLive`: vale «spento».
+    settings: { ...data.settings, publicLive: data.settings.publicLive ?? false },
+    roster: data.roster,
+    events: data.events,
+    finished: data.finished,
+  };
 }
 
 /** JSON con le chiavi in ordine: il database può riordinarle, il contenuto no. */

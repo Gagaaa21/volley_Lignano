@@ -11,6 +11,8 @@ import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { requireScoutMatch } from "@/lib/scout/server";
 import { computeStats, percent } from "@/lib/scout/stats";
 import { ErrorsTable, FlowChart, HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { getScoutTabellinoTourSteps } from "@/components/tour/scoutSteps";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -58,6 +60,7 @@ export default async function ScoutTabellinoPage({
       }
       title={`Tabellino ${matchTitle(match)}`}
       description={match.location}
+      help={summary.state !== "none" ? <SectionTour steps={getScoutTabellinoTourSteps(matchId)} /> : undefined}
       actions={
         <>
           <LinkButton href={`/admin/scout/${matchId}`} variant="outline">
@@ -65,7 +68,12 @@ export default async function ScoutTabellinoPage({
             {summary.state === "done" ? "Rivedi i punti" : "Segna i punti"}
           </LinkButton>
           {summary.state !== "none" && (
-            <LinkButton href={`/api/scout/${matchId}/pdf${setParam ? `?set=${encodeURIComponent(setParam)}` : ""}`} variant="outline" data-scout-pdf>
+            <LinkButton
+              href={`/api/scout/${matchId}/pdf${setParam ? `?set=${encodeURIComponent(setParam)}` : ""}`}
+              variant="outline"
+              data-scout-pdf
+              data-tour="scout-tab-pdf"
+            >
               <FileDown className="h-4 w-4" />
               Scarica PDF
             </LinkButton>
@@ -122,6 +130,7 @@ export default async function ScoutTabellinoPage({
         <section
           aria-label="Risultato"
           data-scout-result
+          data-tour="scout-tab-result"
           className="overflow-hidden rounded-2xl bg-sea-950 p-5 text-white shadow-[0_14px_32px_-20px_rgba(12,30,42,0.7)] ring-1 ring-sea-950/10 sm:p-6"
         >
           <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/60">
@@ -180,7 +189,7 @@ export default async function ScoutTabellinoPage({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3" data-tour="scout-tab-sets">
           <SegmentedLinks
             ariaLabel="Set da mostrare"
             items={[
@@ -197,7 +206,7 @@ export default async function ScoutTabellinoPage({
           </Badge>
         </div>
 
-        <section aria-label="Break point e cambio palla" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label="Break point e cambio palla" className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="scout-tab-bp">
           <StatTile
             label="Punti in battuta (break point)"
             value={`${percent(us.breakPoints, us.served) ?? 0}%`}
@@ -216,7 +225,7 @@ export default async function ScoutTabellinoPage({
         </section>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+          <Card data-tour="scout-tab-how">
             <CardHeader className="pb-3">
               <CardTitle>Come si è fatto punto</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">I punti di ognuna delle due squadre, divisi per come sono arrivati.</p>
@@ -225,7 +234,7 @@ export default async function ScoutTabellinoPage({
               <HowComparison us={us} opp={opp} />
             </CardBody>
           </Card>
-          <Card>
+          <Card data-tour="scout-tab-errors">
             <CardHeader className="pb-3">
               <CardTitle>Errori e falli</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">Ogni errore o fallo è un punto per l&apos;altra squadra.</p>
@@ -236,7 +245,7 @@ export default async function ScoutTabellinoPage({
           </Card>
         </div>
 
-        <Card>
+        <Card data-tour="scout-tab-flow">
           <CardHeader className="pb-3">
             <CardTitle>Andamento del punteggio</CardTitle>
           </CardHeader>
@@ -245,12 +254,12 @@ export default async function ScoutTabellinoPage({
           </CardBody>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-6" data-tour="scout-tab-players">
           <PlayerTable side="us" players={stats.players.us} title="Volley Lignano" />
           <PlayerTable side="opp" players={stats.players.opp} title={match.opponent} />
         </div>
 
-        <Card className="bg-surface-muted/60 shadow-none">
+        <Card className="bg-surface-muted/60 shadow-none" data-tour="scout-tab-legend">
           <CardHeader className="pb-2">
             <CardTitle>Come leggere il tabellino</CardTitle>
           </CardHeader>

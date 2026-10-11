@@ -123,6 +123,12 @@ export interface Repo {
     baseVersion: number | null,
   ): Promise<SaveMatchScoutResult>;
   deleteMatchScout(matchId: string): Promise<void>;
+  /**
+   * Lo scout con il «Punteggio live» acceso e salvato di recente (entro
+   * LIVE_SCORE_TTL_MS), insieme alla sua partita: serve al sito pubblico per
+   * mostrare il punteggio. Se ce ne sono più d'uno vale l'ultimo salvato.
+   */
+  getPublicLiveScout(): Promise<{ scout: MatchScout; match: Match } | null>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

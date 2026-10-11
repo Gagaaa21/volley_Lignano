@@ -59,3 +59,22 @@ export async function withScoutStore<T>(run: () => Promise<T>): Promise<T | Next
     );
   }
 }
+
+export type ScoutPermission = { ok: true; session: SessionPayload } | { ok: false; response: NextResponse };
+
+/**
+ * Solo il permesso «Scout», senza una partita: per ciò che non riguarda una
+ * partita in particolare (il manuale d'uso in PDF). Stesso controllo di
+ * requireScoutAccess, con uno stato HTTP al posto del redirect.
+ */
+export async function requireScoutPermission(): Promise<ScoutPermission> {
+  const session = await getSession();
+  if (!session) return { ok: false, response: NextResponse.json({ error: "Sessione scaduta: accedi di nuovo." }, { status: 401 }) };
+  if (session.role !== "dev") {
+    const staff = await getOwnStaff(session.sub);
+    if (!staff || !staff.allowedPages.includes("scout")) {
+      return { ok: false, response: NextResponse.json({ error: "Non hai accesso allo Scout." }, { status: 403 }) };
+    }
+  }
+  return { ok: true, session };
+}

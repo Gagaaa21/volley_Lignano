@@ -38,6 +38,7 @@ export default async function AttendanceSessionDetailPage({
         team: session.team,
         category: null,
         group: null,
+        jerseyNumber: null,
         isActive: false,
         notes: null,
         createdBy: null,

@@ -14,13 +14,14 @@ export async function GET() {
     .sort((a, b) => a.fullName.localeCompare(b.fullName))
     .map((a) => [
       a.fullName,
+      a.jerseyNumber === null ? "" : String(a.jerseyNumber),
       a.category ? CATEGORY_LABELS[a.category] : "",
       a.group ? MINIVOLLEY_GROUP_LABELS[a.group] : "",
       a.isActive ? "Sì" : "No",
       a.notes ?? "",
     ]);
 
-  const csv = buildCsv(["Nome e cognome", "Categoria", "Gruppo", "Attiva", "Note"], rows);
+  const csv = buildCsv(["Nome e cognome", "Numero di maglia", "Categoria", "Gruppo", "Attiva", "Note"], rows);
 
   return new Response(csv, {
     headers: {

@@ -6,7 +6,8 @@ import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { parseMinivolleyBulkLine } from "@/lib/text";
-import type { AthleteInput } from "@/lib/types";
+import { nameKey, parseAthleteBulkLine, parseJerseyNumber } from "@/lib/jersey";
+import type { Athlete, AthleteInput } from "@/lib/types";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 
 /** Nomi e gruppi delle atlete compaiono anche sul sito pubblico (presenze e
@@ -39,6 +40,10 @@ export async function saveAthleteAction(
   const session = await requireStaffPage("presenze");
   const rawCategory = formData.get("category")?.toString().trim();
   const rawGroup = formData.get("group")?.toString().trim();
+  const jerseyNumber = parseJerseyNumber(formData.get("jerseyNumber")?.toString());
+  if (jerseyNumber === undefined) {
+    return { error: "Il numero di maglia deve essere un numero da 0 a 99." };
+  }
   const parsed = schema.safeParse({
     fullName: formData.get("fullName")?.toString().trim() ?? "",
     category: rawCategory ? rawCategory : null,
@@ -51,6 +56,7 @@ export async function saveAthleteAction(
   }
 
   const id = formData.get("id")?.toString();
+  let numberLost = false;
 
   // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
   // quanto digitato: si torna al form con un messaggio invece di lasciar
@@ -69,15 +75,15 @@ export async function saveAthleteAction(
       team,
       category: team === "u14u15" ? parsed.data.category : null,
       group: team === "minivolley" ? parsed.data.group : null,
+      // Il numero di maglia serve a Scout e Live score, che non ci sono nel Minivolley.
+      jerseyNumber: team === "u14u15" ? jerseyNumber : null,
       notes: parsed.data.notes ?? null,
       isActive: parsed.data.isActive,
     };
 
-    if (id) {
-      await repo.updateAthlete(id, input);
-    } else {
-      await repo.createAthlete(input, session.sub);
-    }
+    const saved = id ? await repo.updateAthlete(id, input) : await repo.createAthlete(input, session.sub);
+    // Il numero non è stato scritto: sul database manca ancora la colonna.
+    numberLost = input.jerseyNumber !== null && saved.jerseyNumber !== input.jerseyNumber;
 
     revalidateAthletes();
   } catch (err) {
@@ -85,7 +91,7 @@ export async function saveAthleteAction(
     return { error: "Non è stato possibile salvare l'atleta. Riprova." };
   }
 
-  redirect("/admin/presenze/atlete");
+  redirect(numberLost ? "/admin/presenze/atlete?avviso=numero" : "/admin/presenze/atlete");
 }
 
 const bulkSchema = z.object({
@@ -97,6 +103,23 @@ export interface BulkAthleteFormState {
   error?: string;
   created?: number;
   skipped?: number;
+  /** Atlete già in anagrafica a cui l'elenco ha aggiornato il numero di maglia. */
+  numbersUpdated?: number;
+  /** Atlete salvate, ma senza il numero di maglia (manca la colonna sul database). */
+  numbersLost?: boolean;
+}
+
+/** Le stesse informazioni di un'atleta già salvata, da cui ripartire per cambiarne una sola. */
+function asInput(athlete: Athlete): AthleteInput {
+  return {
+    fullName: athlete.fullName,
+    team: athlete.team,
+    category: athlete.category,
+    group: athlete.group,
+    jerseyNumber: athlete.jerseyNumber,
+    isActive: athlete.isActive,
+    notes: athlete.notes,
+  };
 }
 
 export async function bulkCreateAthletesAction(
@@ -139,41 +162,91 @@ export async function bulkCreateAthletesAction(
       team,
       category: null,
       group,
+      jerseyNumber: null,
       notes: null,
       isActive: true,
     }));
   } else {
-    const names = [...new Set(lines)];
-    if (names.length === 0) {
+    // Ogni riga è un nome, con facoltativamente il numero di maglia prima o
+    // dopo (vedi parseAthleteBulkLine). La stessa persona scritta due volte
+    // conta una volta sola, e se solo una delle due righe ha il numero si
+    // tiene quello.
+    const byName = new Map<string, AthleteInput>();
+    for (const line of lines) {
+      const { fullName, jerseyNumber } = parseAthleteBulkLine(line);
+      if (!/\p{L}/u.test(fullName)) continue;
+      const key = nameKey(fullName);
+      const already = byName.get(key);
+      if (already) {
+        if (already.jerseyNumber === null) already.jerseyNumber = jerseyNumber;
+        continue;
+      }
+      byName.set(key, { fullName, team, category: parsed.data.category, group: null, jerseyNumber, notes: null, isActive: true });
+    }
+    inputs = [...byName.values()];
+    if (inputs.length === 0) {
       return { error: "Inserisci almeno un nominativo valido." };
     }
-    inputs = names.map((fullName) => ({
-      fullName,
-      team,
-      category: parsed.data.category,
-      group: null,
-      notes: null,
-      isActive: true,
-    }));
   }
 
   try {
     const repo = await getActiveRepo();
-    // Salta chi è già in anagrafica (stesso nome, senza distinguere
-    // maiuscole/minuscole): incollare due volte lo stesso elenco, o un
-    // nominativo già aggiunto singolarmente, non deve creare doppioni.
-    const existingNames = new Set((await repo.listAthletes({ team })).map((a) => a.fullName.trim().toLowerCase()));
-    const beforeCount = inputs.length;
-    inputs = inputs.filter((i) => !existingNames.has(i.fullName.trim().toLowerCase()));
-    const skipped = beforeCount - inputs.length;
+    // Chi è già in anagrafica (stesso nome, senza distinguere maiuscole/
+    // minuscole) non si crea di nuovo: incollare due volte lo stesso elenco, o
+    // un nominativo già aggiunto singolarmente, non deve creare doppioni. Se
+    // però la riga porta un numero di maglia diverso da quello registrato, il
+    // numero si aggiorna: incollare l'elenco con i numeri è il modo più
+    // rapido per assegnarli a tutte.
+    const existing = new Map((await repo.listAthletes({ team })).map((a) => [nameKey(a.fullName), a]));
+    const toCreate: AthleteInput[] = [];
+    const toRenumber: { athlete: Athlete; jerseyNumber: number }[] = [];
+    for (const input of inputs) {
+      const found = existing.get(nameKey(input.fullName));
+      if (!found) toCreate.push(input);
+      else if (input.jerseyNumber !== null && found.jerseyNumber !== input.jerseyNumber) {
+        toRenumber.push({ athlete: found, jerseyNumber: input.jerseyNumber });
+      }
+    }
+    const skipped = inputs.length - toCreate.length;
 
-    if (inputs.length > 0) await repo.createAthletesBulk(inputs, session.sub);
+    const created = toCreate.length > 0 ? await repo.createAthletesBulk(toCreate, session.sub) : [];
+    const renumbered = await Promise.all(
+      toRenumber.map(({ athlete, jerseyNumber }) => repo.updateAthlete(athlete.id, { ...asInput(athlete), jerseyNumber })),
+    );
+    const numbersLost =
+      created.some((a, i) => toCreate[i]?.jerseyNumber !== null && a.jerseyNumber !== toCreate[i]?.jerseyNumber) ||
+      renumbered.some((a, i) => a.jerseyNumber !== toRenumber[i].jerseyNumber);
 
     revalidateAthletes();
-    return { created: inputs.length, skipped };
+    return { created: toCreate.length, skipped, numbersUpdated: toRenumber.length, numbersLost };
   } catch (err) {
     console.error("[bulkCreateAthletesAction]", err);
     return { error: "Non è stato possibile salvare l'elenco. Riprova." };
+  }
+}
+
+export type SetJerseyResult = { ok: true; jerseyNumber: number | null } | { ok: false; error: string };
+
+/** Cambia il solo numero di maglia di un'atleta, dall'elenco (campo accanto al nome). */
+export async function setAthleteJerseyAction(id: string, value: string): Promise<SetJerseyResult> {
+  const session = await requireStaffPage("presenze");
+  const jerseyNumber = parseJerseyNumber(value);
+  if (jerseyNumber === undefined) return { ok: false, error: "Scrivi un numero da 0 a 99." };
+  try {
+    const repo = await getActiveRepo();
+    const team = await resolveActiveTeam(session);
+    const athlete = await repo.getAthlete(id);
+    if (!athlete || athlete.team !== team || athlete.team !== "u14u15") return { ok: false, error: "Atleta non trovata." };
+    if (athlete.jerseyNumber === jerseyNumber) return { ok: true, jerseyNumber };
+    const saved = await repo.updateAthlete(id, { ...asInput(athlete), jerseyNumber });
+    if (saved.jerseyNumber !== jerseyNumber) {
+      return { ok: false, error: "Il numero non è stato registrato: nel database manca ancora la colonna del numero di maglia." };
+    }
+    revalidatePath("/admin/presenze/atlete");
+    return { ok: true, jerseyNumber };
+  } catch (err) {
+    console.error("[setAthleteJerseyAction]", err);
+    return { ok: false, error: "Non è stato possibile salvare il numero. Riprova." };
   }
 }
 

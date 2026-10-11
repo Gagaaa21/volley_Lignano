@@ -3,13 +3,23 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { isVisible, locateTarget, measure } from "./helpers";
-import type { BaseTourStep, Rect } from "./types";
+import { isRichStep, type BaseTourStep, type Rect } from "./types";
+
+/** Aria lasciata sopra l'elemento evidenziato quando lo si porta in cima allo schermo per una scheda ricca. */
+const RICH_TOP_GAP = 16;
+
+/** Il menu fisso in cima all'area riservata: coprirebbe l'elemento portato in alto, quindi ci si ferma sotto di lui. */
+function stickyHeaderBottom(): number {
+  const header = document.querySelector<HTMLElement>("header.page-header");
+  return header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+}
 
 interface UseTourEngineOptions {
   /** Chiamato quando il tour finisce (ultimo "Avanti", "Fine", "Salta il
    * tour", X, o Escape) — es. per segnare il tour visto o salvarlo in
-   * localStorage. Non chiamato per una semplice chiusura di passo. */
-  onFinish?: () => void;
+   * localStorage. Non chiamato per una semplice chiusura di passo.
+   * `completed` è vero solo se si è arrivati in fondo (non se è stato saltato). */
+  onFinish?: (completed: boolean) => void;
   /** Chiamato prima di cambiare passo (Avanti/Indietro) — usato dal tour
    * admin per richiudere il menu mobile aperto da locateTarget, irrilevante
    * (e innocuo) per i sapori senza quel menu. */
@@ -37,14 +47,14 @@ export function useTourEngine<T extends BaseTourStep>(steps: T[], options?: UseT
     setActive(true);
   }
 
-  function finish() {
+  function finish(completed = false) {
     setActive(false);
-    options?.onFinish?.();
+    options?.onFinish?.(completed);
   }
 
   function goNext() {
     options?.onBeforeStepChange?.();
-    if (stepIndex + 1 >= steps.length) finish();
+    if (stepIndex + 1 >= steps.length) finish(true);
     else setStepIndex(stepIndex + 1);
   }
 
@@ -85,7 +95,12 @@ export function useTourEngine<T extends BaseTourStep>(steps: T[], options?: UseT
         goNext();
         return;
       }
-      el.scrollIntoView({ block: "center", behavior: "auto" });
+      // Le guide lunghe hanno una scheda alta: l'elemento va portato in cima allo schermo, così sotto di lui
+      // (o, su telefono, sopra il pannello in basso) resta il posto per la scheda.
+      const rich = isRichStep(step);
+      // «instant»: il sito ha lo scorrimento dolce (scroll-smooth), che farebbe misurare l'elemento prima che arrivi.
+      el.scrollIntoView({ block: rich ? "start" : "center", behavior: "instant" });
+      if (rich) window.scrollBy({ top: -(stickyHeaderBottom() + RICH_TOP_GAP), behavior: "instant" });
       setRect(measure(el));
       requestAnimationFrame(() => setSkipTransition(false));
     });
@@ -122,7 +137,7 @@ export function useTourEngine<T extends BaseTourStep>(steps: T[], options?: UseT
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") finish();
+      if (e.key === "Escape") finish(false);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => {
@@ -145,6 +160,6 @@ export function useTourEngine<T extends BaseTourStep>(steps: T[], options?: UseT
     start,
     goNext,
     goBack,
-    skip: finish,
+    skip: () => finish(false),
   };
 }

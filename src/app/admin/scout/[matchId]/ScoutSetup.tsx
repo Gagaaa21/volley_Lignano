@@ -5,7 +5,7 @@ import { Check, Plus, UserPlus, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { FieldHint, Input, Label } from "@/components/ui/Field";
+import { FieldHint, Input, Label, Toggle } from "@/components/ui/Field";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { cn } from "@/lib/cn";
 import { cleanNumber, isManualPlayer, manualPlayer, opponentPlayer, usedPlayerIds, type ScoutAction } from "@/lib/scout/actions";
@@ -19,6 +19,8 @@ export interface ScoutAthlete {
   name: string;
   /** È tra le convocate della partita. */
   calledUp: boolean;
+  /** Il numero di maglia scritto nell'anagrafica atlete (null = non ancora assegnato). */
+  number: string | null;
 }
 
 const FORMATS: { value: ScoutFormat; label: string; hint: string }[] = [
@@ -57,6 +59,7 @@ function PlayerRow({
   used,
   calledUp,
   duplicateNumber,
+  registryNumber,
   onToggle,
   onNumber,
   onLibero,
@@ -68,6 +71,8 @@ function PlayerRow({
   used: boolean;
   calledUp: boolean;
   duplicateNumber: boolean;
+  /** Il numero scritto nell'anagrafica, se questa riga non ne ha ancora uno. */
+  registryNumber?: string | null;
   onToggle: () => void;
   onNumber: (value: string) => void;
   onLibero: () => void;
@@ -99,6 +104,18 @@ function PlayerRow({
       {calledUp && <Badge tone="primary" className="hidden shrink-0 sm:inline-flex">Convocata</Badge>}
       {inRoster && player && (
         <>
+          {registryNumber && !player.number && (
+            <button
+              type="button"
+              onClick={() => onNumber(registryNumber)}
+              title="Usa il numero scritto nell'anagrafica atlete"
+              aria-label={`${name}: usa il numero ${registryNumber} dell'anagrafica`}
+              data-scout-use-registry
+              className="h-7 shrink-0 rounded-full border border-primary/30 bg-primary-soft px-2.5 text-xs font-bold text-primary transition-colors hover:bg-primary/15"
+            >
+              Usa il {registryNumber}
+            </button>
+          )}
           <input
             value={player.number ?? ""}
             onChange={(e) => onNumber(e.target.value)}
@@ -167,7 +184,13 @@ export function ScoutSetup({
 
   function toggleAthlete(a: ScoutAthlete) {
     if (rosterById.has(a.id)) dispatch({ type: "removePlayer", side: "us", id: a.id });
-    else dispatch({ type: "addPlayer", side: "us", player: { id: a.id, name: a.name, number: null, libero: false } });
+    else dispatch({ type: "addPlayer", side: "us", player: { id: a.id, name: a.name, number: a.number, libero: false } });
+  }
+
+  /** Giocatrici già in rosa senza numero a cui l'anagrafica ne assegna uno. */
+  const fillable = athletes.filter((a) => a.number && rosterById.has(a.id) && !rosterById.get(a.id)?.number);
+  function fillFromRegistry() {
+    for (const a of fillable) dispatch({ type: "updatePlayer", side: "us", id: a.id, patch: { number: a.number } });
   }
 
   function addManual() {
@@ -196,6 +219,7 @@ export function ScoutSetup({
         used={used.has(a.id)}
         calledUp={a.calledUp}
         duplicateNumber={isDuplicate(player)}
+        registryNumber={a.number}
         onToggle={() => toggleAthlete(a)}
         onNumber={(value) => dispatch({ type: "updatePlayer", side: "us", id: a.id, patch: { number: cleanNumber(value) } })}
         onLibero={() => dispatch({ type: "updatePlayer", side: "us", id: a.id, patch: { libero: !player?.libero } })}
@@ -207,12 +231,20 @@ export function ScoutSetup({
 
   return (
     <div className="space-y-5" data-scout-setup>
-      <Card>
+      <Card data-tour="scout-setup-roster">
         <CardHeader className="pb-3">
           <CardTitle>Le nostre giocatrici</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Spunta chi gioca e scrivi il numero di maglia (se vuoi). Non è obbligatorio: puoi anche segnare i punti senza dire chi li fa.
+            Spunta chi gioca. Il numero di maglia arriva da solo dall&apos;anagrafica atlete (lo scrivi lì una volta); qui lo puoi
+            cambiare solo per questa partita. Non è obbligatorio: puoi anche segnare i punti senza dire chi li fa.
           </p>
+          {fillable.length > 1 && (
+            <div className="mt-2.5">
+              <Button variant="outline" size="sm" onClick={fillFromRegistry} data-scout-fill-registry>
+                Compila i numeri dall&apos;anagrafica ({fillable.length})
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardBody className="space-y-3">
           {athletes.length === 0 && extras.length === 0 && (
@@ -294,7 +326,7 @@ export function ScoutSetup({
         </CardBody>
       </Card>
 
-      <Card>
+      <Card data-tour="scout-setup-opp">
         <CardHeader className="pb-3">
           <CardTitle>L&apos;avversaria</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -349,7 +381,7 @@ export function ScoutSetup({
         </CardBody>
       </Card>
 
-      <Card>
+      <Card data-tour="scout-setup-rules">
         <CardHeader className="pb-3">
           <CardTitle>Regole della gara</CardTitle>
         </CardHeader>
@@ -397,6 +429,24 @@ export function ScoutSetup({
             />
             <FieldHint>Dal 2° set si sceglie a fine set (di norma si alternano).</FieldHint>
           </div>
+        </CardBody>
+      </Card>
+
+      <Card data-tour="section-scout-live">
+        <CardHeader className="pb-3">
+          <CardTitle>Punteggio live sul sito</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Chi apre il sito della squadra vede la partita in diretta, come con il Live score.
+          </p>
+        </CardHeader>
+        <CardBody>
+          <Toggle
+            label="Mostra il punteggio sul sito pubblico"
+            description="Solo le due squadre, i punti, i set e chi batte (risultato non ufficiale): mai nomi, numeri di maglia o dettagli degli scambi. Compare dal primo punto segnato e lo spegni quando vuoi."
+            checked={data.settings.publicLive}
+            onChange={(e) => dispatch({ type: "settings", patch: { publicLive: e.target.checked } })}
+            data-scout-public-live
+          />
         </CardBody>
       </Card>
     </div>

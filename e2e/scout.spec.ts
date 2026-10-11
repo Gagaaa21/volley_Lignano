@@ -505,11 +505,15 @@ test("scout: un Admin senza il permesso non lo vede né lo raggiunge", async ({ 
   expect(denied.status()).toBe(403);
   const deniedPdf = await page.request.get(`/api/scout/${matchId}/pdf`);
   expect(deniedPdf.status()).toBe(403);
+  // Anche il manuale d'uso in PDF è riservato a chi ha il permesso.
+  const deniedManual = await page.request.get("/api/scout/manuale");
+  expect(deniedManual.status()).toBe(403);
 
   // Senza accesso (nessuna sessione) lo Scout non esiste: 401.
   await logout(page);
   const anonymous = await page.request.get(`/api/scout/${matchId}`);
   expect(anonymous.status()).toBe(401);
+  expect((await page.request.get("/api/scout/manuale")).status()).toBe(401);
 
   await loginAsDev(page);
   await deleteMatchById(page, matchId);

@@ -419,6 +419,10 @@ export interface Athlete {
    * "u14u15". Opzionale anche dentro Minivolley (assegnabile in un secondo
    * momento), come già avviene per category. */
   group: MinivolleyGroup | null;
+  /** Numero di maglia (0-99), scritto una volta qui e ripescato da Scout e
+   * Live score. Facoltativo: due atlete possono averne uno uguale (categorie
+   * diverse, stagioni diverse), l'anagrafica lo segnala ma non lo vieta. */
+  jerseyNumber: number | null;
   isActive: boolean;
   notes: string | null;
   createdBy: string | null;
@@ -655,8 +659,9 @@ export interface LiveScoreState {
 }
 
 /** Ciò che il sito pubblico vede della diretta (vedi toPublicLiveScore in
- * src/lib/liveScore.ts): squadre, punteggio, set e chi serve. Mai nomi delle
- * atlete, numeri di maglia o formazioni. Lignano è sempre «home». */
+ * src/lib/liveScore.ts e toPublicScoutScore in src/lib/scout/publicScore.ts):
+ * squadre, punteggio, set e chi serve. Mai nomi delle atlete, numeri di maglia
+ * o formazioni. Lignano è sempre «home». */
 export interface PublicLiveScoreTeam {
   name: string;
   color: string;

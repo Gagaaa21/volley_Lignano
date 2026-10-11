@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
+  BookOpen,
   ChartNoAxesColumn,
   Check,
   CloudOff,
   Flag,
   Loader2,
+  Radio,
   RotateCcw,
   Settings2,
   TriangleAlert,
@@ -17,7 +19,7 @@ import {
 } from "lucide-react";
 import { ScoutBoard } from "@/components/scout/ScoutBoard";
 import { SectionTour } from "@/components/tour/SectionTour";
-import { getScoutMatchTourSteps } from "@/components/tour/sectionSteps";
+import { getScoutMatchTourSteps } from "@/components/tour/scoutSteps";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -58,7 +60,7 @@ function SyncBadge({ status, onRetry }: { status: SyncStatus; onRetry: () => voi
   const meta = SYNC_META[status];
   const Icon = status === "saved" ? Check : status === "saving" ? Loader2 : status === "offline" ? CloudOff : TriangleAlert;
   return (
-    <div className="flex items-center gap-1.5" data-scout-sync={status} aria-live="polite">
+    <div className="flex items-center gap-1.5" data-scout-sync={status} data-tour="scout-sync" aria-live="polite">
       <Badge tone={meta.tone} className="px-2.5 py-1">
         <Icon className={cn("h-3.5 w-3.5", status === "saving" && "animate-spin")} />
         {meta.text}
@@ -164,7 +166,7 @@ function SetEndPanel({
   const winnerName = winner === "us" ? "noi" : "loro";
 
   return (
-    <Card className="border-primary/30 bg-primary-soft/40" data-scout-set-end>
+    <Card className="border-primary/30 bg-primary-soft/40" data-scout-set-end data-tour="scout-set-end">
       <CardBody className="space-y-3 pt-4 sm:pt-5">
         <div>
           <p className="font-display text-base font-bold text-foreground">
@@ -217,11 +219,14 @@ export function ScoutClient({
   athletes,
   initial,
   blank,
+  autoGuide = false,
 }: {
   match: ScoutMatchInfo;
   athletes: ScoutAthlete[];
   initial: MatchScout | null;
   blank: ScoutData;
+  /** Apre la guida passo passo appena la pagina è pronta (link «Avvia la guida» dell'elenco partite). */
+  autoGuide?: boolean;
 }) {
   const { data, dispatch, status, message, conflict, resolveConflict, reset, retryNow } = useScoutSession({
     matchId: match.id,
@@ -239,10 +244,23 @@ export function ScoutClient({
   const [closingSet, setClosingSet] = useState(false);
   // Prima del primo punto la preparazione sta in pagina al posto dei pulsanti (vedi più sotto): la guida segue.
   const inlineSetup = setupOpen && data.events.length === 0;
-  const tourSteps = useMemo(() => getScoutMatchTourSteps(match.id, { setup: inlineSetup }), [match.id, inlineSetup]);
 
   const cur = view.current;
   const canForceClose = !locked && cur !== null && cur.rallies.length > 0 && !suggestion;
+  const setEnding = !locked && Boolean(suggestion);
+  const canFinish = !locked && hasRallies;
+  const tourSteps = useMemo(
+    () =>
+      getScoutMatchTourSteps(match.id, {
+        setup: inlineSetup,
+        setEnding,
+        decided: view.decided,
+        closed: !view.decided && data.finished,
+        canCloseSet: canForceClose,
+        canFinish,
+      }),
+    [match.id, inlineSetup, setEnding, view.decided, data.finished, canForceClose, canFinish],
+  );
   const lastEvent = data.events[data.events.length - 1];
   const lastRally = lastEvent?.type === "rally" ? view.rallies[view.rallies.length - 1] : undefined;
   const lastText = lastRally ? rallyText(lastRally, data.roster) : null;
@@ -279,8 +297,26 @@ export function ScoutClient({
             Scout
           </Link>
           <div className="flex items-center gap-1.5">
+            {data.settings.publicLive && (
+              <Badge tone="danger" className="px-2.5 py-1" title="Il punteggio è visibile a tutti sul sito" data-scout-live-badge>
+                <Radio className="h-3.5 w-3.5" />
+                Live sul sito
+              </Badge>
+            )}
             <SyncBadge status={status} onRetry={retryNow} />
-            <SectionTour steps={tourSteps} />
+            <LinkButton
+              href="/api/scout/manuale"
+              variant="quiet"
+              size="icon-sm"
+              className="rounded-full"
+              aria-label="Scarica il manuale d'uso dello Scout (PDF)"
+              title="Manuale d'uso (PDF)"
+              data-tour="scout-manual"
+              data-scout-manual
+            >
+              <BookOpen className="h-[18px] w-[18px]" />
+            </LinkButton>
+            <SectionTour steps={tourSteps} autoStart={autoGuide} />
           </div>
         </div>
         <div className="flex items-end justify-between gap-3">
@@ -292,7 +328,7 @@ export function ScoutClient({
               {match.isFriendly ? " · Amichevole" : ""} · {match.location}
             </p>
           </div>
-          <LinkButton href={`/admin/scout/${match.id}/tabellino`} variant="outline" size="sm" className="shrink-0" data-scout-tabellino-link>
+          <LinkButton href={`/admin/scout/${match.id}/tabellino`} variant="outline" size="sm" className="shrink-0" data-scout-tabellino-link data-tour="scout-tabellino">
             <ChartNoAxesColumn className="h-4 w-4" />
             Tabellino
           </LinkButton>
@@ -319,7 +355,7 @@ export function ScoutClient({
       </div>
 
       {view.decided && (
-        <Card className="border-success/30 bg-success-soft/50" data-scout-over>
+        <Card className="border-success/30 bg-success-soft/50" data-scout-over data-tour="scout-over">
           <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 sm:pt-5">
             <p className="font-display text-base font-bold text-foreground">
               Partita finita {view.setsWon.us}–{view.setsWon.opp} {view.setsWon.us > view.setsWon.opp ? "per noi" : "per loro"}.
@@ -333,7 +369,7 @@ export function ScoutClient({
       )}
 
       {!view.decided && data.finished && (
-        <Card data-scout-over>
+        <Card data-scout-over data-tour="scout-over">
           <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 sm:pt-5">
             <p className="font-display text-base font-bold text-foreground">Partita chiusa a mano.</p>
             <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reopen" })}>
@@ -356,7 +392,7 @@ export function ScoutClient({
             <p className="mt-0.5 text-sm text-muted-foreground">Scegli chi gioca e le regole della gara. Si può cambiare anche dopo.</p>
           </div>
           {setup}
-          <Button onClick={() => setSetupOpen(false)} data-scout-start>
+          <Button onClick={() => setSetupOpen(false)} data-scout-start data-tour="scout-start">
             Comincia a segnare i punti
           </Button>
         </section>
@@ -368,7 +404,7 @@ export function ScoutClient({
             <ScoutEntry data={data} locked={locked} dispatch={dispatch} />
           </div>
 
-          <div className="flex items-start gap-3" data-scout-last>
+          <div className="flex items-start gap-3" data-scout-last data-tour="scout-last">
             <div className="min-w-0 flex-1 pt-1.5 text-sm leading-snug">
               {lastRally && lastText ? (
                 <p className="line-clamp-2 text-muted-foreground">
@@ -402,6 +438,18 @@ export function ScoutClient({
             <Button variant="outline" size="xs" onClick={() => setSetupOpen(true)} data-scout-open-setup>
               <Settings2 className="h-3.5 w-3.5" />
               Squadre e regole
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              aria-pressed={data.settings.publicLive}
+              onClick={() => dispatch({ type: "settings", patch: { publicLive: !data.settings.publicLive } })}
+              title="Mostra o nascondi il punteggio sul sito pubblico (solo punti e set, mai nomi)"
+              data-scout-live-toggle
+              data-tour="scout-live-toggle"
+            >
+              <Radio className="h-3.5 w-3.5" />
+              {data.settings.publicLive ? "Spegni il live sul sito" : "Punteggio live sul sito"}
             </Button>
             {canForceClose && !closingSet && (
               <Button variant="outline" size="xs" onClick={() => setClosingSet(true)}>

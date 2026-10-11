@@ -120,6 +120,29 @@ staff (Developer e Admin).
   un altro dispositivo (409 dalla API `/api/scout/[matchId]`). Solo partite di
   U14/U15, non tornei né Minivolley. Un account nuovo ha già il permesso
   «Scout»; per gli Admin esistenti va spuntato dal Centro di controllo.
+  - **Numero di maglia**: vive sull'atleta (`Athlete.jerseyNumber`, colonna
+    `jersey_number smallint`, 0-99, solo U14/U15, non unico: un omonimo di
+    categoria dà solo un avviso). Si scrive in Presenze > Atlete (scheda,
+    «Aggiungi in elenco» con il numero prima o dopo il nome, casella «N°»
+    nell'elenco: parser e regole in `src/lib/jersey.ts`) e da lì lo ripescano la
+    preparazione dello Scout («Usa il N», «Compila i numeri dall'anagrafica») e
+    il Live score in Partita (elenco «numero · nome» per i giocatori in campo e
+    per i cambi). Se la colonna non c'è ancora su Supabase, atlete e partite
+    funzionano lo stesso: il salvataggio riprova senza il numero e lo dice.
+  - **Punteggio live pubblico**: lo Scout ha `settings.publicLive` (interruttore
+    nella preparazione e pulsante «Punteggio live sul sito»). `/api/livescore/
+    pubblico` unisce il Live score e lo Scout acceso (`getPublicLiveScout`,
+    `src/lib/scout/publicScore.ts`): mai nomi né numeri, solo squadre, punti,
+    set e chi batte; se sono accesi entrambi vince il più recente.
+  - **Guida e manuale**: la guida passo passo è il tour dello Scout
+    (`src/components/tour/scoutSteps.ts`, schede ricche con capitolo, esempio,
+    consiglio, attenzione; parte da sola con `?guida=1` dal riquadro «Prima
+    volta con lo Scout?»). Il **manuale d'uso in PDF** (`/api/scout/manuale`,
+    solo con il permesso «Scout») è impaginato da `src/lib/pdf/scoutManualPdf.ts`
+    sul testo di `src/lib/scout/manual.ts`, con le schermate commentate in
+    `src/assets/pdf/scout-manual/`. Il testo del manuale usa solo caratteri
+    Latin-1 (lo controlla un test); le schermate si rifanno con le atlete e le
+    partite di prova dell'ambiente demo quando l'interfaccia cambia.
 - **Tema chiaro/scuro** — il sito parte sempre chiaro; da un pulsante con
   sole/luna (testata del sito pubblico e pagina di accesso) o dal menu
   dell'account (area tecnici) si sceglie Chiaro, Scuro o Automatico (segue il
@@ -284,7 +307,7 @@ src/
       cambia-password/    Cambio password (obbligatorio al primo accesso)
     api/push/subscribe/    Iscrizione/cancellazione notifiche push
     api/livescore/         Tabellone live (staff) e diretta pubblica (pubblico/)
-    api/scout/             Scout di una partita: lettura, salvataggio con controllo di versione, PDF
+    api/scout/             Scout di una partita: lettura, salvataggio con controllo di versione, PDF, manuale d'uso (manuale/)
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
     api/federation/logo/   Loghi delle squadre in classifica (solo dal portale FIPAV)
   components/              Componenti UI, layout, calendario, form, PWA
@@ -294,7 +317,8 @@ src/
     calendar.ts            Espansione ricorrenza allenamenti + utility
     push.ts                Invio notifiche push (web-push)
     federation/            Lettura classifiche e risultati dal portale FIPAV
-    scout/                 Regole, calcolo del tabellino e salvataggio dello scout
+    scout/                 Regole, calcolo del tabellino, salvataggio e manuale d'uso (manual.ts) dello scout
+    jersey.ts              Numero di maglia: lettura dei numeri nelle righe incollate, avvisi sui doppioni
   proxy.ts                 Protezione route /admin (ex "middleware")
   instrumentation.ts       Ora italiana per tutto il server (Vercel gira in UTC)
 public/

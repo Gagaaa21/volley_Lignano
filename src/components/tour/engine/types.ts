@@ -13,5 +13,19 @@ export interface BaseTourStep {
   path: string;
   target: string | null;
   title: string;
+  /** Testo del passo; in una guida lunga può avere più paragrafi, separati da una riga vuota. */
   body: string;
+  /** Guide lunghe: il capitolo a cui appartiene il passo (piccola etichetta sopra il titolo). */
+  chapter?: string;
+  /** Un esempio concreto, in un riquadro a parte. */
+  example?: string;
+  /** Un consiglio utile, in un riquadro a parte. */
+  tip?: string;
+  /** Un'attenzione: qualcosa che è facile sbagliare, in un riquadro a parte. */
+  warning?: string;
+}
+
+/** Un passo «ricco» (con capitolo, esempio, consiglio o attenzione) usa la scheda ampia, che scorre se il testo è lungo. */
+export function isRichStep(step: BaseTourStep): boolean {
+  return Boolean(step.chapter || step.example || step.tip || step.warning);
 }

@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { deleteAthleteAction } from "../actions";
 import { AthleteForm } from "../AthleteForm";
+import { takenJerseys } from "../taken";
 
 export const metadata: Metadata = {
   title: "Modifica atleta",
@@ -19,6 +20,7 @@ export default async function EditAthletePage({ params }: { params: Promise<{ id
   const repo = await getActiveRepo();
   const athlete = await repo.getAthlete(id);
   if (!athlete) notFound();
+  const taken = takenJerseys(await repo.listAthletes({ team: athlete.team }), athlete.id);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -30,7 +32,7 @@ export default async function EditAthletePage({ params }: { params: Promise<{ id
 
       <Card>
         <CardBody className="pt-6">
-          <AthleteForm athlete={athlete} team={athlete.team} />
+          <AthleteForm athlete={athlete} team={athlete.team} taken={taken} />
         </CardBody>
       </Card>
 

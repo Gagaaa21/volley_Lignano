@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS: ScoutSettings = {
   setPoints: 25,
   lastSetPoints: 15,
   firstServer: "us",
+  publicLive: false,
 };
 
 export function newScoutData(roster: ScoutRoster, settings: Partial<ScoutSettings> = {}): ScoutData {

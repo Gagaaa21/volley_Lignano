@@ -50,6 +50,7 @@ function athlete(id: string, fullName: string, overrides: Partial<Athlete> = {})
     team: "u14u15",
     category: "U14",
     group: null,
+    jerseyNumber: null,
     isActive: true,
     notes: null,
     createdBy: null,

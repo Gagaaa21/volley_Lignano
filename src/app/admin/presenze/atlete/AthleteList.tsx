@@ -9,17 +9,28 @@ import { Avatar, type AvatarTone } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { MINIVOLLEY_GROUPS, type Athlete, type TrainingTeam } from "@/lib/types";
+import { JerseyEditor } from "./JerseyEditor";
+
+/** Chi ha lo stesso numero di maglia nella stessa categoria (solo atlete attive): chiave «categoria:numero». */
+function jerseyKey(athlete: Athlete): string | null {
+  return athlete.jerseyNumber === null ? null : `${athlete.category ?? "-"}:${athlete.jerseyNumber}`;
+}
 
 function AthleteGroup({
   label,
   dotClass,
   tone,
   athletes,
+  withJersey,
+  namesByJersey,
 }: {
   label: string;
   dotClass: string;
   tone: AvatarTone;
   athletes: Athlete[];
+  /** Mostra il numero di maglia (solo U14/U15: nel Minivolley non serve). */
+  withJersey: boolean;
+  namesByJersey: Map<string, string[]>;
 }) {
   if (athletes.length === 0) return null;
   return (
@@ -48,6 +59,17 @@ function AthleteGroup({
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
             </Link>
+            {withJersey && (
+              <JerseyEditor
+                key={`${athlete.id}-${athlete.jerseyNumber ?? "x"}`}
+                athleteId={athlete.id}
+                name={athlete.fullName}
+                value={athlete.jerseyNumber}
+                sharedWith={
+                  athlete.isActive ? (namesByJersey.get(jerseyKey(athlete) ?? "") ?? []).filter((name) => name !== athlete.fullName) : []
+                }
+              />
+            )}
             <Link
               href={`/admin/presenze/atlete/${athlete.id}`}
               aria-label={`Modifica ${athlete.fullName}`}
@@ -78,6 +100,17 @@ export function AthleteList({ athletes, team }: { athletes: Athlete[]; team: Tra
     return athletes.filter((a) => a.fullName.toLowerCase().includes(q));
   }, [athletes, query]);
 
+  // I numeri uguali si cercano su tutta l'anagrafica, non solo su quanto filtrato dalla ricerca.
+  const namesByJersey = useMemo(() => {
+    const byKey = new Map<string, string[]>();
+    for (const athlete of athletes) {
+      const key = athlete.isActive ? jerseyKey(athlete) : null;
+      if (key) byKey.set(key, [...(byKey.get(key) ?? []), athlete.fullName]);
+    }
+    return byKey;
+  }, [athletes]);
+  const withJersey = team === "u14u15";
+
   return (
     <div>
       {athletes.length > 5 && (
@@ -97,18 +130,24 @@ export function AthleteList({ athletes, team }: { athletes: Athlete[]; team: Tra
                 dotClass={categoryDotClass("U14")}
                 tone="u14"
                 athletes={filtered.filter((a) => a.category === "U14")}
+                withJersey={withJersey}
+                namesByJersey={namesByJersey}
               />
               <AthleteGroup
                 label={categoryLabel("U15")}
                 dotClass={categoryDotClass("U15")}
                 tone="u15"
                 athletes={filtered.filter((a) => a.category === "U15")}
+                withJersey={withJersey}
+                namesByJersey={namesByJersey}
               />
               <AthleteGroup
                 label={categoryLabel(null)}
                 dotClass={categoryDotClass(null)}
                 tone="neutral"
                 athletes={filtered.filter((a) => a.category === null)}
+                withJersey={withJersey}
+                namesByJersey={namesByJersey}
               />
             </>
           ) : (
@@ -120,6 +159,8 @@ export function AthleteList({ athletes, team }: { athletes: Athlete[]; team: Tra
                   dotClass={groupDotClass(g)}
                   tone="primary"
                   athletes={filtered.filter((a) => a.group === g)}
+                  withJersey={withJersey}
+                  namesByJersey={namesByJersey}
                 />
               ))}
               <AthleteGroup
@@ -127,6 +168,8 @@ export function AthleteList({ athletes, team }: { athletes: Athlete[]; team: Tra
                 dotClass={groupDotClass(null)}
                 tone="neutral"
                 athletes={filtered.filter((a) => a.group === null)}
+                withJersey={withJersey}
+                namesByJersey={namesByJersey}
               />
             </>
           )}

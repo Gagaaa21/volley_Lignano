@@ -301,6 +301,7 @@ export function ScoutEntry({
     return (
       <div
         data-scout-panel={scorer}
+        data-tour={`scout-entry-${scorer}`}
         className={cn(
           "min-w-0 rounded-2xl border border-t-4 bg-card p-2.5 shadow-card sm:p-3.5",
           scorer === "us" ? "border-border border-t-primary" : "border-border border-t-sand-400",
