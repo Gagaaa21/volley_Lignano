@@ -8,6 +8,7 @@ import { requireScoutMatch } from "@/lib/scout/server";
 import type { MatchScout } from "@/lib/scout/types";
 import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { ScoutClient } from "./ScoutClient";
+import type { SavedScoutLineup } from "./ScoutLineupEditor";
 import type { ScoutAthlete } from "./ScoutSetup";
 
 export const metadata: Metadata = {
@@ -26,8 +27,13 @@ export default async function ScoutMatchPage({
   const { session, repo, match } = await requireScoutMatch(matchId);
   let scout: MatchScout | null;
   let athletes: Awaited<ReturnType<typeof repo.listAthletes>>;
+  let lineup: Awaited<ReturnType<typeof repo.getMatchLineup>>;
   try {
-    [scout, athletes] = await Promise.all([repo.getMatchScout(matchId), repo.listAthletes({ team: match.team })]);
+    [scout, athletes, lineup] = await Promise.all([
+      repo.getMatchScout(matchId),
+      repo.listAthletes({ team: match.team }),
+      repo.getMatchLineup(matchId),
+    ]);
   } catch (error) {
     if (!isScoutTableMissing(error)) throw error;
     return <ScoutSetupNeeded isDev={session.role === "dev"} />;
@@ -57,6 +63,13 @@ export default async function ScoutMatchPage({
     opp: [],
   });
 
+  // Le formazioni preparate in Partite (una per set): in Scout si possono usare per cominciare in un tocco.
+  const savedLineups: SavedScoutLineup[] = (lineup?.sets ?? []).map((set) => ({
+    athleteIds: set.slots.map((slot) => slot.athleteId),
+    roles: set.slots.map((slot) => slot.role),
+    liberoId: set.liberoIds[0] ?? null,
+  }));
+
   return (
     <ScoutClient
       key={match.id}
@@ -70,6 +83,7 @@ export default async function ScoutMatchPage({
         isFriendly: match.isFriendly,
       }}
       athletes={candidates}
+      savedLineups={savedLineups}
       initial={scout}
       blank={blank}
       autoGuide={guida === "1"}

@@ -142,6 +142,8 @@ export interface ScoutMatchTourContext {
   canFinish: boolean;
   /** Il livello della partita: cambiano i pulsanti per segnare e quindi i passi. */
   level: ScoutLevel;
+  /** Si segue la formazione in campo: compare la striscia «In campo». */
+  followsLineup?: boolean;
 }
 
 /**
@@ -241,6 +243,15 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         body: "Di solito basta il numero di maglia. Scrivili separati da uno spazio (per esempio 1 4 7 9 12) e premi «Aggiungi»: compaiono come bollini, con una X per toglierli.\n\nNon conosci i numeri? Nessun problema: quando segni un punto che riguarda una loro giocatrice puoi scrivere un numero nuovo al volo.",
       },
       {
+        id: "scout-setup-lineup",
+        path,
+        target: "scout-setup-lineup",
+        chapter: C_SETUP,
+        title: "La formazione in campo (se vuoi)",
+        body: "È facoltativa e funziona come nel Live score: scegli chi gioca nelle posizioni da 1 a 6 (la 1 è chi batte, poi si ruota in senso orario), la libero e le due giocatrici che sostituisce (di solito le centrali). Per l'avversaria scrivi i numeri di seguito e premi Invio. Se hai già preparato la formazione in «Partite», un pulsante la porta qui.\n\nPoi «Conferma la formazione»: da quel momento lo Scout segue da solo le rotazioni e i cambi, propone chi batte e ti fa scegliere le giocatrici tra quelle in campo.",
+        tip: "Non ti serve? Salta: puoi attivarla anche a partita iniziata con «Segui la formazione».",
+      },
+      {
         id: "scout-setup-rules",
         path,
         target: "scout-setup-rules",
@@ -293,6 +304,18 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
 
   steps.push(board(locked ? C_FIX : C_PLAY));
 
+  if (!locked && context.followsLineup) {
+    steps.push({
+      id: "scout-court-strip",
+      path,
+      target: "scout-court-strip",
+      chapter: C_PLAY,
+      title: "Chi è in campo",
+      body: "Le due squadre con le sei posizioni: davanti 4-3-2, dietro 5-6-1 (la rete è in alto). Il pallone verde segna chi batte; la libero compare in scuro al posto della centrale che sostituisce. Quando una squadra conquista la battuta ruota da sola (sotto il nome vedi la rotazione: la 1ª è quella di partenza).\n\nCon «Cambio» registri una sostituzione: scegli chi esce e chi entra; se non è regolare (per esempio più di 6 cambi in un set) ti avvisa, ma puoi confermare lo stesso. «Formazione» riapre la scheda per correggere o riscrivere chi è in campo.",
+      tip: "Quando scegli «chi», le giocatrici in campo sono per prime, con la loro posizione: quelle in panchina restano in fondo, più chiare.",
+    });
+  }
+
   if (!locked && context.level === "ricezioni") {
     steps.push({
       id: "scout-reception",
@@ -314,7 +337,16 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: "scout-touch-entry",
         chapter: C_PLAY,
         title: "Lo scambio in corso",
-        body: "Questa è la schermata per segnare i tocchi. In alto, sotto il titolo, compaiono i tocchi già segnati nello scambio: ognuno ha la lettera del fondamentale (S battuta, R ricezione, E alzata, A attacco, B muro, D difesa), il numero di chi l'ha fatto e il voto.\n\nPer ogni nuovo tocco scegli tre cose, dall'alto verso il basso.",
+        body: "Questa è la schermata per segnare i tocchi. In alto vedi il percorso della palla: i tocchi già segnati (la lettera del fondamentale: S battuta, R ricezione, E alzata, A attacco, B muro, D difesa, il numero di chi l'ha fatto e il voto), quello che tocca adesso (pieno e colorato: azzurro se tocca a noi, sabbia se tocca a loro) e le fasi che di solito seguono (tratteggiate). Quando la palla passa dall'altra parte compare la rete.\n\nNel riquadro «Ora tocca a» c'è scritto di chi è il turno e perché. Per ogni nuovo tocco scegli tre cose, dall'alto verso il basso.",
+      },
+      {
+        id: "scout-phase-help",
+        path,
+        target: "scout-phase-help",
+        chapter: C_PLAY,
+        title: "Come si alternano le fasi",
+        body: "Se non ricordi l'ordine, qui è spiegato in sei passi: battuta, ricezione, alzata e attacco, muro e difesa, di qua e di là, il punto. In breve: batte una squadra, l'altra riceve, alza e attacca; la prima può murare e poi difende, alza e attacca a sua volta; si va avanti così finché un voto chiude lo scambio. Chi vince lo scambio senza aver battuto conquista la battuta (e ruota).",
+        tip: "Dopo la ricezione o la difesa lo Scout propone l'attacco; se in questa partita segni anche le alzate, propone prima l'alzata.",
       },
       {
         id: "scout-touch-skill",
@@ -322,8 +354,8 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: "scout-touch-skill",
         chapter: C_PLAY,
         title: "1 · Cosa è successo",
-        body: "Il tocco più probabile è già scelto: all'inizio di uno scambio la battuta, dopo la battuta la ricezione dell'altra squadra, poi l'attacco, la difesa, di nuovo l'attacco… Se è quello giusto vai avanti; altrimenti tocca il fondamentale che è successo davvero.",
-        tip: "L'alzata non viene proposta da sola: toccala solo se vuoi segnarla.",
+        body: "Il tocco più probabile è già scelto (è lo stesso del riquadro «Ora tocca a»): all'inizio di uno scambio la battuta, dopo la battuta la ricezione dell'altra squadra, poi l'attacco, la difesa, di nuovo l'attacco… Se è quello giusto vai avanti; altrimenti tocca il fondamentale che è successo davvero: quello consigliato porta l'etichetta «prossimo».",
+        tip: "L'alzata viene proposta solo dopo che ne hai segnata una: finché non ti serve, toccala solo quando vuoi segnarla.",
       },
       {
         id: "scout-touch-side",
@@ -525,6 +557,8 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
 
 /** Cosa c'è nel tabellino: le sezioni dei livelli «Con ricezioni» e «Completo» compaiono solo se ci sono dati. */
 export interface ScoutTabellinoTourContext {
+  /** Nel tabellino ci sono le formazioni di partenza e i cambi. */
+  lineups?: boolean;
   level: ScoutLevel;
   /** C'è la sezione «La ricezione». */
   reception: boolean;
@@ -620,6 +654,18 @@ export function getScoutTabellinoTourSteps(matchId: string, context: ScoutTabell
       body: "Il grafico mostra come si è mosso il punteggio scambio dopo scambio: dove una linea sale in fretta c'è una serie di punti di quella squadra; dove le linee si incrociano la partita è cambiata.",
     },
     ...detail,
+    ...(context.lineups
+      ? [
+          {
+            id: "scout-tab-lineups",
+            path,
+            target: "scout-tab-lineups",
+            chapter: C_TAB,
+            title: "Formazioni e cambi",
+            body: "Per ogni set, chi era in campo all'inizio (posizioni da 1 a 6, con la libero a parte) per noi e, se l'hai scritta, per l'avversaria; sotto, i cambi fatti, con il punteggio al momento del cambio. Compare solo se in partita hai seguito la formazione.",
+          } satisfies BaseTourStep,
+        ]
+      : []),
     {
       id: "scout-tab-players",
       path,

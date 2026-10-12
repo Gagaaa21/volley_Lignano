@@ -153,7 +153,8 @@ alter table match_lineups enable row level security;
 -- il punto all'avversaria, come negli scout dei campionati ufficiali. Una riga
 -- per partita; "data" contiene impostazioni (anche il livello scelto: base,
 -- ricezioni o completo; senza, vale base), rosa e registro degli eventi: gli
--- scambi e, ai livelli ricezioni e completo, i tocchi con voto e zona (vedi
+-- scambi e, ai livelli ricezioni e completo, i tocchi con voto e zona; se si
+-- segue la formazione in campo, anche le formazioni e i cambi (vedi
 -- src/lib/scout): nessuna colonna in più, quindi nessuna migrazione.
 -- "version" cresce a ogni salvataggio: chi salva dichiara
 -- su quale versione si basa, così due dispositivi non si sovrascrivono in

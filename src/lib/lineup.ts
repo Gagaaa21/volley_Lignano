@@ -37,11 +37,6 @@ export function liberoUsable(lineup: Pick<CourtLineup, "liberoName">, players: n
   return useLibero && hasLiberoOption(players as 2 | 3 | 4 | 5 | 6) && clean(lineup.liberoName) !== "";
 }
 
-export function isHost(lineup: Pick<CourtLineup, "hostNames">, name: string): boolean {
-  const trimmed = clean(name);
-  return trimmed !== "" && lineup.hostNames.some((h) => clean(h) === trimmed);
-}
-
 /**
  * Chi la libero sostituisce adesso: la prima delle due sostituite che sta in
  * seconda linea. In posizione 1 resta lei a battere se la squadra sta

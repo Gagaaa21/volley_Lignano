@@ -5,7 +5,7 @@
  *   punti di scarto: se si è sul 24-24 si va avanti finché uno non stacca di due;
  * - la partita è al meglio dei 5 set (3 vinti), dei 3 (2 vinti) oppure di 3 set
  *   da giocare tutti;
- * - ogni set comincia con la battuta alternata (chi ha battato per primo nel
+ * - ogni set comincia con la battuta alternata (chi ha battuto per primo nel
  *   set appena chiuso batte per secondo nel successivo); solo nel set decisivo
  *   si rifà il sorteggio;
  * - a ogni set le squadre cambiano campo; nel set decisivo si cambia anche
@@ -13,8 +13,6 @@
  */
 
 export type MatchFormat = "bo5" | "bo3" | "fixed3";
-
-export const MATCH_FORMATS: MatchFormat[] = ["bo5", "bo3", "fixed3"];
 
 export const MATCH_FORMAT_LABELS: Record<MatchFormat, string> = {
   bo5: "Al meglio dei 5 set",

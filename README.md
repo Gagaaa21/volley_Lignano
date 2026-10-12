@@ -87,9 +87,33 @@ staff (Developer e Admin).
   punteggio» senza formazione (e senza seguire chi batte); rotazione e libero
   calcolate per qualunque numero di giocatrici. Disposizioni in
   `courtLayout`: 2 affiancate, 3 a triangolo, 4 a rombo, 5 e 6 su due file.
-  Sostituzioni durante il gioco (`substitutePlayer`): contate per set (6 nel
-  6 contro 6), elencate in `substitutions`, annullabili come un punto, mai
-  esposte alla diretta pubblica. Lo stato si salva in automatico per 3 ore (riga unica
+  Le regole della pallavolo stanno in funzioni pure, comuni a Live score e
+  Scout, e hanno i loro test (`unit/livescore.spec.ts`):
+  - `src/lib/volleyRules.ts`: formati (**3 set su 5**, **2 set su 3**, **3 set
+    fissi**; in Allenamento anche **Libera**, senza limiti di punti: chiude i
+    set chi segna), 25 punti con 2 di scarto (15 nel set decisivo; si cambiano
+    da «Punti» in impostazione, anche per i 3 set fissi, dove l'ultimo va a
+    15 o a 25 secondo la gara), cambio campo a ogni set e a 8 punti nel
+    decisivo.
+  - `src/lib/lineup.ts`: rotazione (solo quando si conquista la battuta),
+    **libero** (ricavata da dove stanno le giocatrici: sostituisce la
+    centrale in seconda linea, non batte mai, quindi in posizione 1 entra
+    solo quando la squadra riceve, ed esce quando la centrale ruota a rete) e
+    **cambi** (`substitutionRuleWarning`: 6 per set, titolare che rientra solo
+    al suo posto, riserva che esce solo per la titolare; sono avvertimenti,
+    non divieti: un infortunio fa eccezione).
+  Il tabellone **guida la gara** (`LiveScoreStatus.tsx`): chiede il
+  sorteggio per chi batte per primo, a set vinto propone la chiusura
+  (`suggestedSetEnd`, pulsante «Chiudi il set»), poi mostra la scheda del
+  nuovo set con il **cambio campo**, chi batte per primo (si alterna a ogni
+  set; nel set decisivo si rifà il sorteggio) e la **formazione di partenza
+  rimessa com'era** (`startPositions`); avvisa del set point, del match
+  point e del cambio campo a 8 nel set decisivo. Con le frecce ← e → della
+  tastiera si segna il punto della squadra a sinistra o a destra, con ⌫ si
+  annulla; il formato scelto si ricorda sul dispositivo. Sostituzioni durante
+  il gioco (`substitutePlayer`): contate per set, elencate in
+  `substitutions`, annullabili come un punto, mai esposte alla diretta
+  pubblica. Lo stato si salva in automatico per 3 ore (riga unica
   `live_score_state`, campo `data` jsonb: i campi nuovi hanno un valore di
   partenza in `src/lib/liveScoreSchema.ts`, nessuna migrazione). In Partita un
   admin può accendere la **diretta pubblica**: `/api/livescore/pubblico`
@@ -141,6 +165,32 @@ staff (Developer e Admin).
     ricezione (`ScoutReception.tsx`) e schermata dei tocchi
     (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
     solo il punto»); correzione dei tocchi dal Registro.
+  - **Formazione in campo** (facoltativa, come nel Live score): si scrive
+    nella preparazione (`ScoutLineupEditor.tsx`, o dal pulsante «Segui la
+    formazione») o si riprende da quella salvata in Partita («Usa la
+    formazione salvata del 1° set»): chi gioca nelle sei posizioni, la libero
+    e le due centrali che sostituisce. Due eventi in più nello scout,
+    `lineup` e `sub` (`types.ts`, `schema.ts`, `actions.ts`): `derive.ts` li
+    legge con lo stesso motore di `src/lib/lineup.ts` (stessa rotazione, stessa
+    libero, stessi avvertimenti sui cambi) e ricava `ScoutView.court`, la
+    formazione di ogni squadra a ogni scambio. Ogni set riparte dalla
+    formazione con cui era cominciato. Si può seguire solo la nostra squadra,
+    tutte e due o nessuna: senza formazione lo Scout funziona come prima.
+    Aiuti in `src/lib/scout/court.ts` (chi batte, panchina, ordine «prima chi è
+    in campo», avvertimento sul cambio, formazioni di partenza e cambi per il
+    tabellino). Schermate: striscia «In campo» (`ScoutCourtStrip.tsx`, con i
+    cambi), scelta di chi ha fatto l'azione con le giocatrici in campo per
+    prime, formazioni di partenza e cambi nel tabellino
+    (`src/components/scout/ScoutLineups.tsx`) e nel PDF
+    (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
+    `data` jsonb, e gli scout vecchi si leggono come prima.
+  - **Fasi di gioco**: nei livelli Con ricezioni e Completo la schermata dice
+    sempre **di chi è il turno e quale fase viene adesso** (battuta,
+    ricezione, alzata, attacco, muro, difesa). Il percorso della palla e il
+    riquadro «Ora tocca a» (`ScoutPhaseBanner.tsx`) leggono
+    `suggestNext`/`flowAfter`/`describeNext` in `touches.ts`; i sei passi
+    dell'alternanza, uguali in app e nel manuale, sono in `phases.ts`
+    (`PHASE_STEPS`, `PHASE_FLOW`). Test in `unit/scout-phases.spec.ts`.
   - **Numero di maglia**: vive sull'atleta (`Athlete.jerseyNumber`, colonna
     `jersey_number smallint`, 0-99, solo U14/U15, non unico: un omonimo di
     categoria dà solo un avviso). Si scrive in Presenze > Atlete (scheda,
@@ -343,6 +393,9 @@ src/
     federation/            Lettura classifiche e risultati dal portale FIPAV
     scout/                 Regole, calcolo del tabellino, salvataggio e manuale d'uso (manual.ts) dello scout
     jersey.ts              Numero di maglia: lettura dei numeri nelle righe incollate, avvisi sui doppioni
+    liveScore.ts           Stato e regole del tabellone live (set, cambio campo, battuta)
+    volleyRules.ts         Regole dei set e delle formule di gara, comuni a Live score e Scout
+    lineup.ts              Rotazione, libero e cambi della formazione in campo, comuni a Live score e Scout
   proxy.ts                 Protezione route /admin (ex "middleware")
   instrumentation.ts       Ora italiana per tutto il server (Vercel gira in UTC)
 public/

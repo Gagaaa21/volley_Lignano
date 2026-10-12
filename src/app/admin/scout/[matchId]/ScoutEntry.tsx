@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
+import { orderByCourt } from "@/lib/scout/court";
+import type { ScoutCourt, ScoutCourts } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { asksPlayer, canDo, ERROR_HOWS, HOW_META } from "@/lib/scout/rules";
@@ -85,11 +87,17 @@ function PlayerButton({
   player,
   side,
   roster,
+  position,
+  benched,
   onPick,
 }: {
   player: ScoutPlayer;
   side: ScoutSide;
   roster: ScoutPlayer[];
+  /** Posizione in campo (1…6) se se ne segue la formazione. */
+  position?: number | null;
+  /** In panchina (si segue la formazione e non è in campo). */
+  benched?: boolean;
   onPick: () => void;
 }) {
   const ours = side === "us";
@@ -98,8 +106,17 @@ function PlayerButton({
       type="button"
       onClick={onPick}
       data-scout-pick={player.id}
-      className="relative flex min-h-[4.25rem] min-w-0 flex-col items-center justify-center rounded-xl border border-border-subtle bg-surface px-1.5 py-2 text-center transition-colors hover:bg-muted active:translate-y-px"
+      data-scout-on-court={position ?? undefined}
+      className={cn(
+        "relative flex min-h-[4.25rem] min-w-0 flex-col items-center justify-center rounded-xl border border-border-subtle bg-surface px-1.5 py-2 text-center transition-colors hover:bg-muted active:translate-y-px",
+        benched && "border-dashed opacity-60",
+      )}
     >
+      {position ? (
+        <span className="absolute left-1.5 top-1 text-[10px] font-bold leading-none text-muted-foreground/80" title={`In campo, posizione ${position}`}>
+          {position}
+        </span>
+      ) : null}
       <span className="tabular font-display text-2xl font-extrabold leading-none text-foreground">
         {player.number ?? (ours ? player.name.trim().slice(0, 1).toUpperCase() : "?")}
       </span>
@@ -121,6 +138,7 @@ function PlayerPicker({
   onPick,
   onPickNew,
   onClose,
+  court,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
@@ -130,9 +148,12 @@ function PlayerPicker({
   onPick: (id: string | null) => void;
   onPickNew: (number: string) => void;
   onClose: () => void;
+  /** Chi è in campo, se se ne segue la formazione: vengono per prime, con la loro posizione. */
+  court?: ScoutCourt | null;
 }) {
   const [typed, setTyped] = useState("");
   const sorted = sortPlayers(players);
+  const ordered = orderByCourt(players, court ?? null);
 
   function submitNumber() {
     const [first] = parseJerseyNumbers(typed);
@@ -143,8 +164,16 @@ function PlayerPicker({
     <Sheet title={title} subtitle={subtitle} onClose={onClose} testId={`player-${side}`}>
       {sorted.length > 0 ? (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {sorted.map((player) => (
-            <PlayerButton key={player.id} player={player} side={side} roster={sorted} onPick={() => onPick(player.id)} />
+          {ordered.map(({ player, position }) => (
+            <PlayerButton
+              key={player.id}
+              player={player}
+              side={side}
+              roster={sorted}
+              position={position}
+              benched={Boolean(court) && position === null}
+              onPick={() => onPick(player.id)}
+            />
           ))}
         </div>
       ) : (
@@ -262,11 +291,14 @@ export function ScoutEntry({
   data,
   locked,
   dispatch,
+  courts,
 }: {
   data: ScoutData;
   /** Partita decisa o chiusa: non si aggiunge altro. */
   locked: boolean;
   dispatch: (action: ScoutAction) => void;
+  /** Chi è in campo per ogni squadra di cui si segue la formazione. */
+  courts?: ScoutCourts;
 }) {
   const [step, setStep] = useState<Step | null>(null);
   const close = () => setStep(null);
@@ -363,6 +395,7 @@ export function ScoutEntry({
           }
           side={step.actor}
           players={eligible(step.actor, step.how)}
+          court={courts?.[step.actor]}
           unknownLabel="Non so / non indicare"
           onPick={(id) => pickPlayer(step.actor, step.how, id)}
           onPickNew={(number) => pickNewOpponent(number, (id) => pickPlayer(step.actor, step.how, id))}
@@ -376,6 +409,7 @@ export function ScoutEntry({
           subtitle="Il muro ha fermato l'attacco di… (facoltativo)"
           side={otherSide(step.actor)}
           players={data.roster[otherSide(step.actor)]}
+          court={courts?.[otherSide(step.actor)]}
           unknownLabel="Non so / salta"
           onPick={(id) => commit({ actor: step.actor, how: "block", player: step.player, victim: id })}
           onPickNew={(number) =>

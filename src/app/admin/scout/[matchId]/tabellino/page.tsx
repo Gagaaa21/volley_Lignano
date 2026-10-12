@@ -16,6 +16,8 @@ import { ReceptionBars, ReceptionTiles, RotationsTable, SideOutByGrade, ZoneMaps
 import { ErrorsTable, FlowChart, HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutTabellinoTourSteps } from "@/components/tour/scoutSteps";
+import { ScoutLineups } from "@/components/scout/ScoutLineups";
+import { lineupSummary } from "@/lib/scout/court";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -62,6 +64,8 @@ export default async function ScoutTabellinoPage({
   const showReception = level !== "base" && Boolean(stats && stats.analysis.us.receptions > 0);
   const showZones = level === "completo" && Boolean(stats && (zonedTouches(stats.analysis.us.zones.dig) > 0 || zonedTouches(stats.analysis.us.zones.attack) > 0));
   const showRotations = level === "completo" && Boolean(stats && stats.analysis.us.rotations.some((r) => r.served + r.received > 0));
+  const lineups = view && scout ? lineupSummary(view, scout.roster, selected) : null;
+  const showLineups = Boolean(lineups && (lineups.starts.length > 0 || lineups.subs.length > 0));
 
   const header = (
     <PageHeader
@@ -76,7 +80,7 @@ export default async function ScoutTabellinoPage({
       description={match.location}
       help={
         summary.state !== "none" ? (
-          <SectionTour steps={getScoutTabellinoTourSteps(matchId, { level, reception: showReception, zones: showZones, rotations: showRotations })} />
+          <SectionTour steps={getScoutTabellinoTourSteps(matchId, { level, reception: showReception, zones: showZones, rotations: showRotations, lineups: showLineups })} />
         ) : undefined
       }
       actions={
@@ -333,6 +337,8 @@ export default async function ScoutTabellinoPage({
             </Card>
           </>
         )}
+
+        {lineups && <ScoutLineups {...lineups} opponent={match.opponent} />}
 
         <div className="space-y-6" data-tour="scout-tab-players">
           <PlayerTable side="us" players={stats.players.us} title="Volley Lignano" level={level} />

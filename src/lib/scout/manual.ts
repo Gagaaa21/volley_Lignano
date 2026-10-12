@@ -1,4 +1,6 @@
 import { LEVEL_META, LEVEL_ORDER } from "./levels";
+import { PHASE_STEPS } from "./phases";
+import { TOUCH_SKILLS } from "./touches";
 import type { ScoutLevel, ScoutTouchSkill } from "./types";
 
 /**
@@ -55,8 +57,10 @@ export const CHAPTER_ORDER = [
   "livelli",
   "prima-di-cominciare",
   "preparare",
+  "formazione",
   "segnare",
   "ricezioni",
+  "fasi",
   "completo",
   "fine-set",
   "correggere",
@@ -123,6 +127,14 @@ export const GLOSSARY: { term: string; text: string }[] = [
   { term: "Errore", text: "Un'azione sbagliata che regala il punto all'altra squadra (battuta, ricezione, attacco, muro, alzata o difesa sbagliati)." },
   { term: "Fallo", text: "Un'infrazione fischiata dall'arbitro: tocco di rete, invasione, doppia, trattenuta, quattro tocchi, rotazione. Il punto va all'altra squadra." },
   { term: "Fondamentale", text: "Ognuno dei gesti del gioco: battuta, ricezione, alzata, attacco, muro, difesa." },
+  {
+    term: "Formazione",
+    text: "Chi gioca in ognuna delle sei posizioni del campo (la 1 è chi batte, poi 2, 3, 4, 5, 6 in senso orario), più la libero. Nello Scout si può segnare all'inizio di ogni set: da lì rotazioni, libero e cambi si seguono da soli.",
+  },
+  {
+    term: "Cambio (sostituzione)",
+    text: "Una giocatrice entra al posto di un'altra. Nel 6 contro 6 se ne possono fare 6 per set; una titolare può rientrare solo al suo posto e al posto di chi l'ha sostituita. La libero non conta: entra ed esce da sola.",
+  },
   { term: "Invasione", text: "Fallo: una giocatrice supera la linea centrale o passa sotto la rete e interferisce con il gioco." },
   { term: "Libero", text: "Giocatrice con la maglia di colore diverso, specializzata in difesa e ricezione. Non può murare né tentare di murare." },
   {
@@ -138,7 +150,7 @@ export const GLOSSARY: { term: string; text: string }[] = [
   },
   {
     term: "Rotazione",
-    text: "Dopo aver recuperato la battuta, le giocatrici cambiano posizione in senso orario. Sbagliare l'ordine di battuta o la posizione è un fallo di squadra. Nel tabellino Completo la 1ª rotazione è quella con cui comincia il set e si passa alla successiva a ogni cambio palla.",
+    text: "Dopo aver recuperato la battuta, le giocatrici cambiano posizione in senso orario. Sbagliare l'ordine di battuta o la posizione è un fallo di squadra. Nel tabellino Completo la 1ª rotazione è quella con cui comincia il set e si passa alla successiva a ogni cambio palla; se segui la formazione, lo Scout ruota la squadra da solo.",
   },
   { term: "Sanzione", text: "Penalità dell'arbitro (cartellino) che assegna il punto all'avversaria." },
   { term: "Scambio", text: "Dalla battuta al punto assegnato: lo Scout ne registra uno alla volta. Si chiama anche azione o rally." },
@@ -156,6 +168,19 @@ export const GLOSSARY: { term: string; text: string }[] = [
     text: "Una delle sei parti del campo, numerate come in pallavolo: davanti 4, 3, 2 (vicino alla rete) e dietro 5, 6, 1. Si indica, se si vuole, per ricezione, difesa e attacco.",
   },
 ];
+
+
+function phaseRows(): string[][] {
+  const labels = (skill: ScoutTouchSkill) => TOUCH_SKILLS[skill].grades.map((g) => `${TOUCH_SKILLS[skill].gradeLabels[g]}`).join(", ");
+  return [
+    ["Battuta", "Chi ha la battuta", labels("serve"), "In campo: riceve l'altra squadra. Ace o errore: lo scambio finisce."],
+    ["Ricezione", "La squadra che non batte", labels("reception"), "Alzata e attacco di chi ha ricevuto. Scarsa (/): la palla torna di là."],
+    ["Alzata (facoltativa)", "Chi ha ricevuto o difeso", labels("set"), "L'attacco della stessa squadra."],
+    ["Attacco", "Chi ha alzato", labels("attack"), "Punto o errore: finisce. Continua: difende l'altra. Murato: si segna il muro."],
+    ["Muro", "La squadra che subisce l'attacco", labels("block"), "Punto: finisce. Tocco: difende chi ha murato."],
+    ["Difesa", "Chi ha subito l'attacco o ha murato", labels("dig"), "Alzata e attacco di chi ha difeso. Di là (/): attacca l'altra squadra."],
+  ];
+}
 
 export const SCOUT_MANUAL: ManualChapter[] = [
   {
@@ -373,7 +398,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       },
       {
         type: "p",
-        text: "Tocca **Segna i punti**. La prima volta si apre la **preparazione**, in quattro parti una sotto l'altra: il livello, le giocatrici, l'avversaria e le regole. Non è obbligatorio compilare tutto, e puoi cambiare ogni cosa anche a partita iniziata.",
+        text: "Tocca **Segna i punti**. La prima volta si apre la **preparazione**, in più parti una sotto l'altra: il livello, le giocatrici, l'avversaria, la formazione in campo (facoltativa) e le regole. Non è obbligatorio compilare tutto, e puoi cambiare ogni cosa anche a partita iniziata.",
       },
       { type: "sub", title: "Il livello" },
       {
@@ -416,6 +441,11 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "p",
         text: "Di solito basta il **numero di maglia**. Scrivi i numeri separati da uno spazio (per esempio «1 4 7 9 12») e tocca **Aggiungi**: compaiono come bollini colorati, con una X per toglierli. Se non conosci i numeri, lasciali: quando segni un punto che riguarda una loro giocatrice puoi scrivere il numero al volo.",
+      },
+      { type: "sub", title: "La formazione in campo (facoltativa)" },
+      {
+        type: "p",
+        text: `Sotto l'avversaria c'è la scheda **«Formazione in campo»**: ti serve se vuoi che lo Scout segua da solo le rotazioni, la libero e i cambi. Se non ti serve, saltala. Come si usa è nel ${cap("formazione")}.`,
       },
       { type: "sub", title: "Le regole della gara" },
       {
@@ -465,6 +495,106 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "p",
         text: "Tocca **«Comincia a segnare i punti»**: al posto della preparazione compaiono i pulsanti per segnare, quelli del livello che hai scelto. La preparazione resta sempre raggiungibile da **«Squadre e regole»**.",
+      },
+    ],
+  },
+  {
+    id: "formazione",
+    title: "La formazione in campo (facoltativa)",
+    summary: "Chi gioca, la libero, le rotazioni e i cambi: come nel Live score.",
+    blocks: [
+      {
+        type: "p",
+        text: "Di solito lo Scout non sa **chi è in campo**: sei tu a dirgli, a ogni punto, chi ha agito. Se scrivi la **formazione** (chi gioca nelle sei posizioni, la libero e le due giocatrici che sostituisce) lo Scout diventa più preciso e più veloce. Funziona con tutti i livelli ed è **facoltativa**: puoi scriverla solo per la nostra squadra, per tutte e due o per nessuna.",
+      },
+      { type: "sub", title: "Cosa ottieni" },
+      {
+        type: "bullets",
+        items: [
+          "**Rotazioni da sole**: la squadra ruota quando conquista la battuta, come in campo. Sai sempre in che rotazione siete (la 1ª è quella di partenza) e chi batte.",
+          "**Libero al posto giusto**: entra al posto della centrale in seconda linea e esce quando la centrale ruota a rete. Non batte mai: se in battuta c'è una centrale, batte lei e la libero entra quando la squadra riceve.",
+          "**«Chi» più veloce**: tra le giocatrici da scegliere compaiono per prime quelle in campo, con la loro posizione; chi è in panchina resta in fondo, più chiara. Nella battuta è già scelta chi batte.",
+          "**Cambi**: li registri con un pulsante, lo Scout conta quelli del set e ti avvisa se non sono regolari.",
+          "**Tabellino e PDF**: in più trovi le formazioni di partenza di ogni set e i cambi.",
+        ],
+      },
+      { type: "sub", title: "Come si scrive" },
+      {
+        type: "steps",
+        items: [
+          "Nella preparazione (o da **«Squadre e regole»** o dal pulsante **«Segui la formazione»** sotto i pannelli) trovi la scheda **«Formazione in campo»**.",
+          "Nel campo **«Noi»** scegli chi gioca in ogni posizione, dalla **1** (chi batte) alla **6**, poi in senso orario. Nel campo **«Loro»** scrivi i numeri di maglia di seguito, premendo **Invio** per passare alla posizione dopo.",
+          "Scegli la **libero** e le due **centrali** (le giocatrici che la libero sostituisce). Per le avversarie sono facoltative.",
+          "Tocca **«Conferma la formazione»**. Se hai già preparato la formazione nella sezione **Partite**, **«Usa la formazione salvata del 1° set»** la riempie da sola, con libero e centrali.",
+        ],
+      },
+      {
+        type: "image",
+        file: "formazione-editor.png",
+        caption: "La scheda «Formazione in campo»: le due squadre, la libero e le centrali.",
+        legend: [
+          "Nostra squadra: per ogni posizione scegli la giocatrice (la 1 è chi batte).",
+          "Avversaria: scrivi i numeri di maglia, con Invio vai alla posizione dopo.",
+          "La libero di oggi, tra chi non è in campo.",
+          "Le due centrali: sono le giocatrici che la libero sostituisce in seconda linea.",
+          "Conferma: da qui lo Scout segue rotazioni e cambi.",
+        ],
+        maxHeight: 520,
+      },
+      { type: "sub", title: "In partita: la striscia «In campo»" },
+      {
+        type: "p",
+        text: "Sopra i pulsanti per segnare compare **«In campo»** con le due squadre. Le sei posizioni sono disposte come in campo, con la rete in alto: davanti 4-3-2, dietro 5-6-1. Il **pallone verde** sta su chi batte; la **libero** è in scuro, al posto della centrale che sostituisce. Sotto il nome di ogni squadra vedi la **rotazione**: la 1ª è quella di partenza e si passa alla successiva ogni volta che la squadra recupera la battuta.",
+      },
+      {
+        type: "image",
+        file: "formazione-in-campo.png",
+        caption: "La striscia «In campo»: nostra squadra, avversaria, rotazione e cambi.",
+        legend: [
+          "Le sei posizioni di una squadra, come in campo (rete in alto).",
+          "Il pallone verde: chi batte.",
+          "La libero, in scuro, al posto della centrale che sostituisce.",
+          "«Cambio»: registra una sostituzione di quella squadra.",
+          "«Formazione»: riapre la scheda per correggere o riscrivere chi è in campo.",
+        ],
+        maxHeight: 250,
+      },
+      { type: "sub", title: "I cambi" },
+      {
+        type: "p",
+        text: "Tocca **«Cambio»** sotto la squadra: scegli **chi esce** (tra le sei in campo) e **chi entra** (dalla panchina; per le avversarie puoi scrivere un numero nuovo), poi **«Conferma cambio»**. Chi entra continua la rotazione al posto di chi è uscita e, se era una delle due sostituite dalla libero, ne prende il ruolo. Lo Scout conta i cambi del set (6 al massimo nel 6 contro 6) e li mostra anche nel registro, dove si possono togliere.",
+      },
+      {
+        type: "image",
+        file: "formazione-cambio.png",
+        caption: "La finestra del cambio.",
+        legend: [
+          "Chi esce: le sei posizioni, con il numero di chi c'è (la libero compare dove sostituisce).",
+          "Chi entra: la panchina.",
+          "Conferma. Se il cambio non è regolare compare prima un avvertimento, ma puoi confermare lo stesso.",
+        ],
+        maxHeight: 300,
+      },
+      {
+        type: "callout",
+        kind: "info",
+        title: "Quando un cambio non è regolare",
+        text: "Lo Scout avvisa (senza vietare: un infortunio fa eccezione) se in un set si superano i 6 cambi, se una titolare rientra in un posto diverso dal suo o al posto di una giocatrice che non l'ha sostituita, se una riserva già uscita rientra o se una riserva viene sostituita da chi non è la titolare per cui era entrata.",
+      },
+      { type: "sub", title: "Set dopo set" },
+      {
+        type: "bullets",
+        items: [
+          "A ogni nuovo set ogni squadra **riparte dalla formazione con cui aveva cominciato** il set prima, con la libero ricalcolata: non devi riscrivere niente se non cambi.",
+          "Per cambiare la formazione di partenza, scrivila dal pulsante **«Formazione»** **prima del primo punto** del set.",
+          "Se la scrivi **a set cominciato** è una correzione: sistema chi è in campo adesso (le rotazioni fatte restano) senza cambiare la formazione di partenza.",
+          "**«Annulla ultimo»** toglie anche una formazione o un cambio appena fatti.",
+        ],
+      },
+      {
+        type: "callout",
+        kind: "tip",
+        text: "Non vuoi più seguire una squadra? In «Formazione in campo» tocca **«Non seguire la formazione»**: da quel momento si torna a scegliere «chi» tra tutte le giocatrici, come prima.",
       },
     ],
   },
@@ -676,6 +806,77 @@ export const SCOUT_MANUAL: ManualChapter[] = [
     ],
   },
   {
+    id: "fasi",
+    title: "Come si alternano le fasi",
+    summary: "Battuta, ricezione, alzata, attacco, muro e difesa: di chi è il turno e cosa viene dopo.",
+    blocks: [
+      {
+        type: "p",
+        text: "Uno scambio è una **palla che va avanti e indietro sopra la rete**. A ogni passaggio c'è una **fase** (battuta, ricezione, alzata, attacco, muro, difesa) e il turno è di una delle due squadre. Se segui la palla tocco per tocco (livelli **Con ricezioni** e **Completo**) lo Scout ti dice sempre **di chi è il turno e quale fase viene adesso**, così non devi ricordare l'ordine.",
+      },
+      { type: "sub", title: "L'ordine delle fasi" },
+      {
+        type: "steps",
+        items: PHASE_STEPS.map((step) => `**${step.title}.** ${step.text}`),
+      },
+      { type: "sub", title: "Chi fa cosa, fase per fase" },
+      {
+        type: "table",
+        columns: [
+          { header: "Fase", weight: 2.2 },
+          { header: "Di chi è il turno", weight: 2.6 },
+          { header: "I voti che segni", weight: 3.2 },
+          { header: "E poi", weight: 4.6 },
+        ],
+        rows: phaseRows(),
+        keepTogether: true,
+      },
+      { type: "sub", title: "Cosa vedi nello Scout" },
+      {
+        type: "p",
+        text: "Nel livello **Completo**, in cima a «Scambio in corso», c'è il **percorso della palla**: i tocchi già segnati (con la lettera del fondamentale, il numero di chi l'ha fatto e il voto), quello che **tocca adesso** (pieno e colorato: azzurro se tocca a noi, sabbia se tocca a loro) e le fasi che di solito seguono, **tratteggiate**. Quando la palla passa dall'altra parte tra due fasi compare la **rete** (il trattino verticale). Sotto, il riquadro **«Ora tocca a»** dice di chi è il turno, la fase e il perché.",
+      },
+      {
+        type: "image",
+        file: "completo-fasi.png",
+        caption: "Il percorso della palla: dopo la battuta e la ricezione loro, tocca all'attacco loro.",
+        legend: [
+          "Il percorso: i tocchi segnati, quello di adesso e quelli che seguiranno (tratteggiati); il trattino tra due fasi è la rete.",
+          "«Ora tocca a»: di chi è il turno, la fase e perché. Con la formazione, nella battuta compare anche chi batte.",
+          "«Come si alternano le fasi»: lo stesso testo di questo capitolo, a portata di mano.",
+        ],
+        maxHeight: 250,
+      },
+      {
+        type: "bullets",
+        items: [
+          "Dopo la ricezione o la difesa lo Scout propone l'**attacco**. Se in questa partita segni anche le **alzate**, propone prima l'alzata.",
+          "Un voto «scarso» (/) su ricezione, alzata o difesa vuol dire che **la palla è tornata di là**: tocca all'attacco dell'altra squadra.",
+          "Un attacco **«Continua»** vuol dire che è stato difeso: tocca alla difesa dell'altra squadra. Un attacco **«Murato»** apre la fase del muro dell'altra squadra.",
+          "Se il percorso proposto non è quello che è successo, tocca la fase giusta: la scelta vale per quel tocco e poi lo Scout riparte dalla successiva.",
+          "Nel livello **Con ricezioni** non segui ogni fase: una striscia a tre passi (battuta, ricezione, punto) ti dice a che punto sei. Nel **Base** segni solo come finisce lo scambio.",
+        ],
+      },
+      { type: "sub", title: "Un esempio" },
+      {
+        type: "table",
+        columns: [
+          { header: "Cosa succede", weight: 5 },
+          { header: "Cosa segni", weight: 4 },
+          { header: "Cosa propone lo Scout dopo", weight: 4 },
+        ],
+        rows: [
+          ["La nostra n. 7 batte e la palla è in campo.", "Battuta, Noi, n. 7, In campo", "Ricezione loro"],
+          ["La loro n. 5 riceve bene.", "Ricezione, Loro, n. 5, Positiva (+)", "Attacco loro"],
+          ["La loro n. 11 attacca e la nostra difesa la prende.", "Attacco, Loro, n. 11, Continua", "Difesa nostra"],
+          ["La nostra n. 4 difende.", "Difesa, Noi, n. 4, Positiva (+)", "Attacco nostro"],
+          ["La nostra n. 9 attacca e fa punto.", "Attacco, Noi, n. 9, Punto", "Scambio chiuso: punto a noi, nuovo scambio"],
+        ],
+        keepTogether: true,
+      },
+    ],
+  },
+  {
     id: "completo",
     title: "Segnare ogni tocco (livello Completo)",
     summary: "Come si segue la palla tocco per tocco, con voti, zone e tutti i casi.",
@@ -709,8 +910,8 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "bullets",
         items: [
-          "Lo Scout propone da solo il **tocco più probabile**: è già evidenziato, con un puntino blu. Se è un altro, tocca quello giusto.",
-          "Per la **battuta** e per l'**alzata** propone la stessa giocatrice dell'ultima volta. Per le avversarie puoi scrivere al volo un numero che non c'è, nella casella «Altro numero di maglia».",
+          `Lo Scout propone da solo il **tocco più probabile**: è già scelto e porta l'etichetta «prossimo» se non lo è. Se è un altro, tocca quello giusto. Come si alternano le fasi è nel ${cap("fasi")}.`,
+          "Per la **battuta** propone chi batte (se segui la formazione, la giocatrice in posizione 1; altrimenti la stessa dell'ultima volta) e per l'**alzata** la stessa giocatrice dell'ultima volta. Per le avversarie puoi scrivere al volo un numero che non c'è, nella casella «Altro numero di maglia».",
           "La **zona** è facoltativa (per ricezione, difesa e attacco): si sceglie aprendo il riquadro che compare sotto i numeri di maglia.",
           "Se il voto chiude lo scambio (vedi più sotto) il punto è assegnato; altrimenti lo Scout passa al tocco successivo.",
         ],
@@ -1242,6 +1443,16 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "p",
         text: "Sì: **«Squadre e regole»** e poi **«Quanto vuoi segnare?»**. Quello che hai già segnato resta, e da lì in poi segni al nuovo livello.",
       },
+      { type: "sub", title: "Devo scrivere la formazione?" },
+      {
+        type: "p",
+        text: `No, è facoltativa e vale anche solo per una squadra. Se la scrivi, lo Scout ruota da solo, sa chi batte, ti fa scegliere «chi» tra le giocatrici in campo e tiene i cambi (${cap("formazione")}).`,
+      },
+      { type: "sub", title: "Non capisco di chi è il turno." },
+      {
+        type: "p",
+        text: `Nel livello Completo guarda il riquadro **«Ora tocca a»**: dice di chi è il turno, quale fase è e perché; sopra c'è il percorso della palla con le fasi che seguono (${cap("fasi")}).`,
+      },
       { type: "sub", title: "Ho segnato un punto alla squadra sbagliata." },
       { type: "p", text: "Se è l'ultimo, **«Annulla ultimo»**. Se è più indietro, trovi lo scambio nel **registro** e tocchi la matita: cambi squadra o modo, oppure lo togli." },
       { type: "sub", title: "Ho dimenticato di segnare una ricezione." },
@@ -1258,7 +1469,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Le mappe e le rotazioni sono precise?" },
       {
         type: "p",
-        text: "Le mappe contano solo i tocchi con la zona. Le rotazioni si ricavano dall'ordine delle battute, senza la formazione: sono indicative, e confrontabili se parti sempre con la stessa formazione.",
+        text: "Le mappe contano solo i tocchi con la zona. Le rotazioni si ricavano dall'ordine delle battute: la 1ª è quella con cui comincia il set e si passa alla successiva ogni volta che la squadra recupera la battuta. Senza la formazione sono indicative (non sai chi c'è in ogni rotazione) e confrontabili se parti sempre con la stessa formazione; con la formazione sono esatte e il tabellino elenca anche chi c'era in campo.",
       },
       { type: "sub", title: "Il punteggio dello Scout non coincide con quello dell'arbitro." },
       { type: "p", text: "Significa che uno scambio è mancante o in più. Scorri il registro dall'ultimo scambio: di solito si trova guardando i punteggi riga per riga. Prima di correggere, controlla con l'arbitro quale dei due è giusto." },

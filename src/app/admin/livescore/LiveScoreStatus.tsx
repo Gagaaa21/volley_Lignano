@@ -74,7 +74,7 @@ export function StatusStrip({ match, numeric }: { match: LiveScoreState; numeric
   const pointKey = matchPoint ?? setPoint;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-center gap-1.5" data-livescore-status>
+    <div className="flex shrink-0 flex-wrap items-center justify-center gap-1.5" data-livescore-status data-tour="section-livescore-status">
       <Chip data-livescore-set>
         <Flag className="h-3 w-3 text-muted-foreground" />
         {set}° set{target !== null && <span className="font-medium text-muted-foreground">· si vince a {target}</span>}

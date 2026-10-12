@@ -1,7 +1,7 @@
 import { substitutionRuleWarning } from "@/lib/lineup";
 import { playerLabel, sortPlayers } from "./describe";
 import type { ScoutCourt, ScoutView } from "./derive";
-import type { ScoutData, ScoutPlayer, ScoutSide } from "./types";
+import type { ScoutData, ScoutPlayer, ScoutRoster, ScoutSide } from "./types";
 
 /**
  * Piccoli aiuti per le schermate che usano la formazione in campo (vedi
@@ -75,4 +75,70 @@ export function substitutionWarningFor(
 /** Cambi fatti da una squadra nel set in corso. */
 export function substitutionsUsed(view: ScoutView, side: ScoutSide): number {
   return view.current?.subs.filter((sub) => sub.side === side).length ?? 0;
+}
+
+// ── tabellino e PDF ─────────────────────────────────────────────────────
+
+/** Come si scrive una giocatrice nelle tabelle: il numero di maglia (per noi, in mancanza, il nome). */
+function tableLabel(roster: ScoutRoster, side: ScoutSide, id: string | null | undefined): string {
+  if (!id) return "–";
+  const player = roster[side].find((p) => p.id === id);
+  if (!player) return "?";
+  return player.number ?? (side === "us" ? player.name : "?");
+}
+
+/** La formazione con cui è cominciato un set, per una squadra. */
+export interface StartingLineupRow {
+  set: number;
+  side: ScoutSide;
+  /** Chi era in posizione 1…6 (numeri di maglia). */
+  positions: string[];
+  libero: string | null;
+}
+
+export interface SubstitutionRow {
+  set: number;
+  side: ScoutSide;
+  position: number;
+  out: string;
+  in: string;
+  score: { us: number; opp: number };
+}
+
+/**
+ * Formazioni di partenza e cambi di ogni set, per il tabellino (solo i set
+ * giocati, o uno solo). Vuoto se non si è mai seguita la formazione.
+ */
+export function lineupSummary(
+  view: ScoutView,
+  roster: ScoutRoster,
+  only: number | null = null,
+): { starts: StartingLineupRow[]; subs: SubstitutionRow[] } {
+  const starts: StartingLineupRow[] = [];
+  const subs: SubstitutionRow[] = [];
+  for (const set of view.sets) {
+    if (set.rallies.length === 0 || (only !== null && set.n !== only)) continue;
+    for (const side of ["us", "opp"] as const) {
+      const court = set.lineups[side];
+      if (court) {
+        starts.push({
+          set: set.n,
+          side,
+          positions: court.positions.map((id) => tableLabel(roster, side, id)),
+          libero: court.libero ? tableLabel(roster, side, court.libero) : null,
+        });
+      }
+    }
+    for (const sub of set.subs) {
+      subs.push({
+        set: set.n,
+        side: sub.side,
+        position: sub.position,
+        out: tableLabel(roster, sub.side, sub.out),
+        in: tableLabel(roster, sub.side, sub.in),
+        score: sub.score,
+      });
+    }
+  }
+  return { starts, subs };
 }

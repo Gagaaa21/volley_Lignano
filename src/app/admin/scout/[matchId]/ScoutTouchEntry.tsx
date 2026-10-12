@@ -6,11 +6,13 @@ import { cn } from "@/lib/cn";
 import { opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
 import { currentServer, type ScoutView } from "@/lib/scout/derive";
 import { newId } from "@/lib/scout/id";
+import { serverId } from "@/lib/scout/court";
 import { canDo } from "@/lib/scout/rules";
-import { suggestNext, TOUCH_SKILL_ORDER, TOUCH_SKILLS } from "@/lib/scout/touches";
+import { describeNext, TOUCH_SKILL_ORDER, TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutData, ScoutGrade, ScoutSide, ScoutTouchSkill } from "@/lib/scout/types";
 import { ScoutEntry } from "./ScoutEntry";
-import { GradeButtons, PlayerChips, TouchChip, ZonePicker } from "./ScoutInputParts";
+import { GradeButtons, PlayerChips, ZonePicker } from "./ScoutInputParts";
+import { ScoutPhaseBanner } from "./ScoutPhaseBanner";
 
 /**
  * Livello «Completo»: si segna ogni tocco della palla, nell'ordine in cui
@@ -48,7 +50,8 @@ function lastSetterPlayer(view: ScoutView, side: ScoutSide): string | null | und
 }
 
 function defaultPlayer(view: ScoutView, skill: ScoutTouchSkill, side: ScoutSide): string | null | undefined {
-  if (skill === "serve") return lastServerPlayer(view, side);
+  // Con la formazione, batte chi è in posizione 1; senza, si propone chi ha battuto per ultima.
+  if (skill === "serve") return serverId(view, side) ?? lastServerPlayer(view, side);
   if (skill === "set") return lastSetterPlayer(view, side);
   return undefined;
 }
@@ -75,7 +78,10 @@ export function ScoutTouchEntry({
 }) {
   const key = `${view.rallies.length}:${view.pending.length}`;
   const server = currentServer(view) ?? "us";
-  const suggestion = suggestNext(view.pending, server);
+  // Se in questa partita si segnano anche le alzate, dopo la ricezione e la difesa si propone l'alzata.
+  const tracksSets = view.pending.some((t) => t.skill === "set") || view.rallies.some((r) => r.touches.some((t) => t.skill === "set"));
+  const hint = describeNext(view.pending, server, tracksSets);
+  const suggestion = hint.next;
   const [chosen, setChosen] = useState<Selection | null>(null);
   const sel = chosen && chosen.key === key ? chosen : null;
 
@@ -136,17 +142,7 @@ export function ScoutTouchEntry({
               {locked ? "Partita finita." : open ? `${view.pending.length} ${view.pending.length === 1 ? "tocco segnato" : "tocchi segnati"}` : `Batte ${serving === "us" ? "la nostra squadra" : "l'avversaria"}`}
             </p>
           </div>
-          <ol className="flex min-h-[1.75rem] flex-wrap items-center gap-1.5" aria-label="Tocchi dello scambio" data-scout-pending>
-            {view.pending.length === 0 ? (
-              <li className="text-xs text-muted-foreground">Comincia dalla battuta: scegli chi batte e come è andata.</li>
-            ) : (
-              view.pending.map((touch) => (
-                <li key={touch.id}>
-                  <TouchChip touch={touch} roster={data.roster} />
-                </li>
-              ))
-            )}
-          </ol>
+          <ScoutPhaseBanner pending={view.pending} roster={data.roster} hint={hint} serverId={serverId(view, server)} locked={locked} />
         </header>
 
         <div>
@@ -171,7 +167,11 @@ export function ScoutTouchEntry({
                 >
                   <span className="font-display text-base font-extrabold leading-none">{TOUCH_SKILLS[id].letter}</span>
                   <span className="mt-0.5 max-w-full truncate text-[11px] font-semibold leading-tight">{TOUCH_SKILLS[id].label}</span>
-                  {suggested && !on && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" title="Il prossimo tocco più probabile" />}
+                  {suggested && !on && (
+                    <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-1.5 text-[9px] font-bold uppercase leading-4 tracking-wide text-primary-foreground" title="Il prossimo tocco più probabile">
+                      prossimo
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -208,6 +208,7 @@ export function ScoutTouchEntry({
             onSelect={(next) => select({ player: next })}
             onAddNumber={side === "opp" ? addOpponent : undefined}
             ariaLabel={`Chi: ${meta.label.toLowerCase()} ${side === "us" ? "nostra" : "loro"}`}
+            court={view.court[side]}
           />
         </div>
 
@@ -247,7 +248,7 @@ export function ScoutTouchEntry({
           Per un tocco di rete, un&apos;invasione, una sanzione, o se hai perso il filo dello scambio: chiudi lo scambio dicendo solo come è finito. I tocchi già segnati restano.
         </p>
         <div className="mt-3">
-          <ScoutEntry data={data} locked={locked} dispatch={dispatch} />
+          <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} />
         </div>
       </details>
     </>

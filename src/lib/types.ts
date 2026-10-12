@@ -675,7 +675,7 @@ export interface LiveScoreState {
   substitutions: LiveScoreSubstitution[];
   /** Formula della gara e punti per set. */
   rules: LiveScoreRules;
-  /** Chi ha battato per primo nel set in corso: la battuta si alterna a ogni
+  /** Chi ha battuto per primo nel set in corso: la battuta si alterna a ogni
    * set. null se non si segue la battuta o se va ancora scelta (set decisivo). */
   setFirstServer: "A" | "B" | null;
   /** Nel set decisivo: il cambio campo a 8 punti è già stato fatto. */

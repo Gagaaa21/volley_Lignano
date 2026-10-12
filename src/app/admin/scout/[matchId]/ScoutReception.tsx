@@ -12,6 +12,7 @@ import { TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutData, ScoutGrade } from "@/lib/scout/types";
 import { GradeDot } from "@/components/scout/GradeChart";
 import { GradeButtons, PlayerChips, ZonePicker } from "./ScoutInputParts";
+import { FlowSteps } from "./ScoutPhaseBanner";
 
 /**
  * Livello «Con ricezioni»: sopra i pulsanti dei punti, mentre batte
@@ -66,6 +67,17 @@ export function ScoutReception({
           <b className="font-bold text-foreground">Ricezione</b> ·{" "}
           {locked ? "partita finita." : "batte la nostra squadra: la segni quando battono loro."}
         </p>
+        {!locked && (
+          <div className="mt-2">
+            <FlowSteps
+              steps={[
+                { label: "Battuta nostra", state: "now" },
+                { label: "Ricevono loro (non si segna)", state: "todo" },
+                { label: "Punto, qui sotto", state: "todo" },
+              ]}
+            />
+          </div>
+        )}
       </section>
     );
   }
@@ -87,6 +99,15 @@ export function ScoutReception({
             Cambia
           </Button>
         </div>
+        <div className="mt-2">
+          <FlowSteps
+            steps={[
+              { label: "Battuta loro", state: "done" },
+              { label: "Ricezione nostra", state: "done" },
+              { label: "Punto, qui sotto", state: "now" },
+            ]}
+          />
+        </div>
         <p className="mt-2 text-xs text-muted-foreground">Ora segna il punto qui sotto, come sempre.</p>
       </section>
     );
@@ -97,6 +118,15 @@ export function ScoutReception({
       <div>
         <h2 className="font-display text-[17px] font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
         <p className="mt-1 text-xs text-muted-foreground">Battono loro. Tocca chi ha ricevuto e poi il voto; per l&apos;errore (=) il punto va a loro.</p>
+        <div className="mt-2">
+          <FlowSteps
+            steps={[
+              { label: "Battuta loro", state: "done" },
+              { label: "Ricezione nostra", state: "now" },
+              { label: "Punto, qui sotto", state: "todo" },
+            ]}
+          />
+        </div>
       </div>
 
       <div>
@@ -107,6 +137,7 @@ export function ScoutReception({
           selected={current.player}
           onSelect={(player) => setChoice({ ...current, player })}
           ariaLabel="Chi ha ricevuto"
+          court={view.court.us}
         />
       </div>
 

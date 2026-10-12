@@ -115,21 +115,21 @@ export const LIVESCORE_SETUP_TOUR_STEPS: BaseTourStep[] = [
     path: "/admin/livescore",
     target: "section-livescore-mode",
     title: "Scegli il formato",
-    body: "Allenamento (nomi) o Partita (numeri di maglia, nome e colore dell'avversaria); con formazione o solo punteggio; da 2 contro 2 a 6 contro 6, con o senza libero.",
+    body: "Allenamento (nomi) o Partita (numeri di maglia, nome e colore dell'avversaria). La formula dice come si vince: 3 set su 5, 2 su 3 o 3 fissi (il tabellone conosce i punti di ogni set, 25 e 15 nell'ultimo, che puoi cambiare da «Punti», e quando la partita finisce) oppure libera, senza limiti. Poi con formazione o solo punteggio, da 2 contro 2 a 6 contro 6, con o senza libero.",
   },
   {
     id: "section-livescore-court",
     path: "/admin/livescore",
     target: "section-livescore-court",
     title: "Disponi le due squadre",
-    body: "Tocca ogni posizione per assegnare chi gioca lì, seguendo la disposizione reale in campo.",
+    body: "Scrivi chi gioca in ogni posizione, come nel foglio di posizione: la 1 è chi batte, poi si ruota in senso orario. Scrivi un numero e premi Invio per passare alla posizione dopo. In Partita, se hai già preparato la formazione in «Partite», un pulsante la porta qui.",
   },
   {
     id: "section-livescore-libero",
     path: "/admin/livescore",
     target: "section-livescore-libero",
     title: "Libero: entra ed esce da sola",
-    body: "Scrivi qui il nome (o il numero) della libero e indica chi sostituisce: da qui in poi il tabellone calcola da solo la rotazione a ogni cambio palla e la fa entrare/uscire al posto giusto, senza bisogno di toccare nulla a mano.",
+    body: "Scrivi qui il nome (o il numero) della libero e indica le due giocatrici che sostituisce (di solito le centrali). Il tabellone la fa entrare quando una di loro va in seconda linea e uscire quando ruota a rete; la libero non batte mai: se in battuta c'è una centrale, batte lei e la libero entra quando la squadra riceve.",
   },
   {
     id: "section-livescore-public",
@@ -149,18 +149,25 @@ export const LIVESCORE_SETUP_TOUR_STEPS: BaseTourStep[] = [
 
 export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
   {
+    id: "section-livescore-status",
+    path: "/admin/livescore",
+    target: "section-livescore-status",
+    title: "Chi batte e a che punto siamo",
+    body: "Qui vedi a che set sei e a quanti punti finisce, chi batte adesso (con la giocatrice in posizione 1), chi batterebbe se ricevesse e vincesse lo scambio, e quando una squadra ha il set point o il match point.",
+  },
+  {
     id: "section-livescore-score",
     path: "/admin/livescore",
     target: "section-livescore-score",
     title: "Segna un punto",
-    body: "Un tocco sul pulsante della squadra che ha vinto lo scambio: punteggio e servizio si aggiornano da soli, rotazione compresa.",
+    body: "Un tocco sul pulsante della squadra che ha vinto lo scambio: punteggio e servizio si aggiornano da soli, rotazione compresa. Da computer puoi usare le frecce ← e → (squadra a sinistra o a destra) e Backspace per annullare.",
   },
   {
     id: "section-livescore-toolbar",
     path: "/admin/livescore",
     target: "section-livescore-toolbar",
     title: "Le azioni della partita",
-    body: "\"Chiudi set\" quando il punteggio lo consente, \"Annulla\" per tornare indietro di un'azione, \"Inverti\" per scambiare i lati, \"Nuovo\" per ricominciare da capo.",
+    body: "A fine set (di norma 25 punti con due di scarto, il decisivo a 15) compare la scheda «Chiudi il set»: un tocco e il tabellone cambia campo, rimette le formazioni di partenza e passa la battuta all'altra squadra (nel set decisivo la scegli tu, e a 8 punti ti avvisa del cambio campo). \"Annulla\" torna indietro di un'azione, \"Inverti\" scambia i lati, \"Nuovo\" ricomincia da capo.",
   },
   {
     id: "section-livescore-substitution",

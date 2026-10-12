@@ -5,14 +5,17 @@ import { Check, Plus, UserPlus, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { FieldHint, Input, Label, Toggle } from "@/components/ui/Field";
+import { FieldHint, Input, Toggle } from "@/components/ui/Field";
+import { PointsInput } from "@/components/ui/PointsInput";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { cn } from "@/lib/cn";
 import { cleanNumber, isManualPlayer, manualPlayer, opponentPlayer, usedPlayerIds, type ScoutAction } from "@/lib/scout/actions";
 import { parseJerseyNumbers, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { LEVEL_META, LEVEL_ORDER, levelOf } from "@/lib/scout/levels";
+import type { ScoutView } from "@/lib/scout/derive";
 import type { ScoutData, ScoutFormat, ScoutLevel, ScoutPlayer } from "@/lib/scout/types";
+import { ScoutLineupEditor, type SavedScoutLineup } from "./ScoutLineupEditor";
 
 /** Un'atleta del registro, tra cui scegliere chi gioca questa partita. */
 export interface ScoutAthlete {
@@ -107,29 +110,6 @@ function LevelList({ title, lines, muted = false }: { title: string; lines: stri
         ))}
       </ul>
     </>
-  );
-}
-
-/** Punti di un set: si può scrivere liberamente (anche cancellare e riscrivere), il valore vale solo se è tra 10 e 50. */
-function PointsInput({ id, label, value, onCommit }: { id: string; label: string; value: number; onCommit: (value: number) => void }) {
-  const [text, setText] = useState(String(value));
-  return (
-    <div>
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        inputMode="numeric"
-        value={text}
-        onChange={(e) => {
-          const next = e.target.value.replace(/\D/g, "").slice(0, 2);
-          setText(next);
-          const parsed = Number(next);
-          if (next !== "" && parsed >= 10 && parsed <= 50) onCommit(parsed);
-        }}
-        onBlur={() => setText(String(value))}
-        aria-invalid={text !== "" && (Number(text) < 10 || Number(text) > 50)}
-      />
-    </div>
   );
 }
 
@@ -240,11 +220,16 @@ function PlayerRow({
  */
 export function ScoutSetup({
   data,
+  view,
   athletes,
+  savedLineups,
   dispatch,
 }: {
   data: ScoutData;
+  view: ScoutView;
   athletes: ScoutAthlete[];
+  /** Le formazioni salvate in Partite, una per set. */
+  savedLineups: SavedScoutLineup[];
   dispatch: (action: ScoutAction) => void;
 }) {
   const [manualName, setManualName] = useState("");
@@ -475,6 +460,8 @@ export function ScoutSetup({
           )}
         </CardBody>
       </Card>
+
+      <ScoutLineupEditor data={data} view={view} athletes={athletes} saved={savedLineups} dispatch={dispatch} />
 
       <Card data-tour="scout-setup-rules">
         <CardHeader className="pb-3">

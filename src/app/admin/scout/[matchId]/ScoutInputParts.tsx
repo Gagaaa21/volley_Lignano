@@ -6,6 +6,8 @@ import { GRADE_FILL, GradeDot } from "@/components/scout/GradeChart";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
+import { orderByCourt } from "@/lib/scout/court";
+import type { ScoutCourt } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { gradeSymbol, TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutGrade, ScoutPlayer, ScoutRoster, ScoutSide, ScoutTouch, ScoutTouchSkill } from "@/lib/scout/types";
@@ -28,6 +30,7 @@ export function PlayerChips({
   onSelect,
   onAddNumber,
   ariaLabel,
+  court,
 }: {
   side: ScoutSide;
   players: ScoutPlayer[];
@@ -36,6 +39,8 @@ export function PlayerChips({
   /** Solo per l'avversaria: aggiunge al volo un numero di maglia che non c'è ancora. */
   onAddNumber?: (number: string) => void;
   ariaLabel: string;
+  /** Chi è in campo, se se ne segue la formazione: le giocatrici in campo vengono per prime, con la loro posizione. */
+  court?: ScoutCourt | null;
 }) {
   const [typed, setTyped] = useState("");
   const sorted = sortPlayers(players);
@@ -51,8 +56,9 @@ export function PlayerChips({
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6" role="group" aria-label={ariaLabel}>
-        {sorted.map((player) => {
+        {orderByCourt(players, court ?? null).map(({ player, position }) => {
           const active = selected === player.id;
+          const benched = Boolean(court) && position === null;
           return (
             <button
               key={player.id}
@@ -60,6 +66,7 @@ export function PlayerChips({
               aria-pressed={active}
               onClick={() => onSelect(player.id)}
               data-scout-who={player.id}
+              data-scout-on-court={position ?? undefined}
               className={cn(
                 "relative flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors active:translate-y-px",
                 active
@@ -67,8 +74,14 @@ export function PlayerChips({
                     ? "border-primary bg-primary-soft ring-2 ring-primary/30"
                     : "border-sand-400 bg-accent ring-2 ring-sand-400/40"
                   : "border-border-subtle bg-surface hover:bg-muted",
+                benched && !active && "border-dashed opacity-60",
               )}
             >
+              {position !== null && (
+                <span className="absolute left-1 top-0.5 text-[9px] font-bold leading-none text-muted-foreground/80" title={`In campo, posizione ${position}`}>
+                  {position}
+                </span>
+              )}
               <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">
                 {player.number ?? (ours ? player.name.trim().slice(0, 1).toUpperCase() : "?")}
               </span>

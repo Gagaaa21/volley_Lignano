@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { PDFDocument } from "pdf-lib";
+import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
+import { lineupSummary } from "@/lib/scout/court";
+import type { Match } from "@/lib/types";
 import {
   addPlayer,
   addRally,
@@ -260,3 +264,63 @@ test.describe("salvataggio", () => {
     expect(deriveScout(data).court.us?.positions[0]).toBe("u7");
   });
 });
+
+test.describe("tabellino e PDF", () => {
+  test("il riepilogo dà le formazioni di partenza di ogni set e i cambi, anche per un solo set", () => {
+    let data = withLineups(roster());
+    data = point(data, "us");
+    data = substitute(data, "us", 2, "u7", at(data), id());
+    data = point(data, "opp");
+    data = point(data, "us"); // 2-1: il set non è in parità e si può chiudere
+    data = endSet(data, "opp", at(data), id());
+    data = point(data, "us");
+    const view = deriveScout(data);
+    const all = lineupSummary(view, data.roster);
+    expect(all.starts.map((row) => `${row.set}-${row.side}`)).toEqual(["1-us", "1-opp", "2-us", "2-opp"]);
+    expect(all.starts[0]).toMatchObject({ positions: ["1", "2", "3", "4", "5", "6"], libero: "20" });
+    // Le avversarie si leggono per numero di maglia.
+    expect(all.starts[1].positions).toEqual(["1", "2", "3", "4", "5", "6"]);
+    expect(all.subs).toEqual([{ set: 1, side: "us", position: 2, out: "2", in: "7", score: { us: 1, opp: 0 } }]);
+    const second = lineupSummary(view, data.roster, 2);
+    expect(second.starts.every((row) => row.set === 2)).toBe(true);
+    expect(second.subs).toEqual([]);
+    // Senza formazione non c'è niente da mostrare.
+    expect(lineupSummary(deriveScout(point(roster(), "us")), roster().roster)).toEqual({ starts: [], subs: [] });
+  });
+
+  test("il PDF con formazioni e cambi si genera", async () => {
+    let data = withLineups(roster());
+    for (let i = 0; i < 10; i++) data = point(data, i % 3 === 0 ? "opp" : "us");
+    data = substitute(data, "us", 3, "u7", at(data), id());
+    data = endSet(data, "opp", at(data), id());
+    data = point(data, "us");
+    const bytes = await buildScoutPdf({ match: pdfMatch(), scout: data, set: null, generatedAt: new Date("2026-10-17T12:00:00Z") });
+    expect(Buffer.from(bytes.slice(0, 5)).toString("latin1")).toBe("%PDF-");
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(0);
+  });
+});
+
+function pdfMatch(): Match {
+  return {
+    id: "m1",
+    team: "u14u15",
+    category: "U15",
+    opponent: "Pallavolo Degano",
+    isHome: true,
+    location: "Palestra Comunale",
+    matchDate: "2026-10-17T18:00",
+    isFriendly: false,
+    isTournament: false,
+    meetingTime: null,
+    meetingLocation: null,
+    notes: null,
+    calledUpAthleteIds: [],
+    setScores: null,
+    resultSetsWon: null,
+    resultSetsLost: null,
+    tournamentGames: null,
+    createdBy: null,
+    createdAt: "",
+    updatedAt: "",
+  };
+}

@@ -15,6 +15,7 @@ import {
   Settings2,
   TriangleAlert,
   Undo2,
+  Users,
   X,
 } from "lucide-react";
 import { ScoutBoard } from "@/components/scout/ScoutBoard";
@@ -33,7 +34,9 @@ import { newId } from "@/lib/scout/id";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
+import { ScoutCourtStrip } from "./ScoutCourtStrip";
 import { ScoutEntry } from "./ScoutEntry";
+import type { SavedScoutLineup } from "./ScoutLineupEditor";
 import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
@@ -221,12 +224,15 @@ function SetEndPanel({
 export function ScoutClient({
   match,
   athletes,
+  savedLineups,
   initial,
   blank,
   autoGuide = false,
 }: {
   match: ScoutMatchInfo;
   athletes: ScoutAthlete[];
+  /** Le formazioni salvate in Partite, una per set. */
+  savedLineups: SavedScoutLineup[];
   initial: MatchScout | null;
   blank: ScoutData;
   /** Apre la guida passo passo appena la pagina è pronta (link «Avvia la guida» dell'elenco partite). */
@@ -245,15 +251,18 @@ export function ScoutClient({
   // Finché la partita è in corso lo schermo non si spegne.
   useWakeLock(!locked);
 
-  const [setupOpen, setSetupOpen] = useState(data.events.length === 0);
+  // Si è già giocato? Una formazione o un cambio scritti prima del primo punto non contano: la preparazione resta aperta.
+  const hasPlay = data.events.some((event) => event.type === "rally" || event.type === "touch" || event.type === "setEnd");
+  const [setupOpen, setSetupOpen] = useState(!hasPlay);
   const [closingSet, setClosingSet] = useState(false);
   // Prima del primo punto la preparazione sta in pagina al posto dei pulsanti (vedi più sotto): la guida segue.
-  const inlineSetup = setupOpen && data.events.length === 0;
+  const inlineSetup = setupOpen && !hasPlay;
 
   const cur = view.current;
   const canForceClose = !locked && cur !== null && cur.rallies.length > 0 && !suggestion;
   const setEnding = !locked && Boolean(suggestion);
   const canFinish = !locked && hasRallies;
+  const followsLineup = Boolean(view.court.us || view.court.opp);
   const tourSteps = useMemo(
     () =>
       getScoutMatchTourSteps(match.id, {
@@ -264,8 +273,9 @@ export function ScoutClient({
         canCloseSet: canForceClose,
         canFinish,
         level,
+        followsLineup,
       }),
-    [match.id, inlineSetup, setEnding, view.decided, data.finished, canForceClose, canFinish, level],
+    [match.id, inlineSetup, setEnding, view.decided, data.finished, canForceClose, canFinish, level, followsLineup],
   );
   const lastEvent = data.events[data.events.length - 1];
   // L'ultimo evento ha chiuso uno scambio (un esito scelto a mano, o un tocco con un voto che chiude)? Altrimenti è un tocco in sospeso o la fine di un set.
@@ -290,7 +300,7 @@ export function ScoutClient({
     else window.alert("Non sono riuscito a cancellare: controlla la connessione e riprova.");
   }
 
-  const setup = <ScoutSetup data={data} athletes={athletes} dispatch={dispatch} />;
+  const setup = <ScoutSetup data={data} view={view} athletes={athletes} savedLineups={savedLineups} dispatch={dispatch} />;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -409,12 +419,13 @@ export function ScoutClient({
       {!inlineSetup && (
         <>
           <div data-tour="section-scout-entry" className="space-y-3">
+            <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} />
             {level === "completo" ? (
               <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} />
             ) : (
               <>
                 {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} />}
-                <ScoutEntry data={data} locked={locked} dispatch={dispatch} />
+                <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} />
               </>
             )}
           </div>
@@ -434,6 +445,10 @@ export function ScoutClient({
                 <p className="line-clamp-2 text-muted-foreground" data-scout-last-touch>
                   Ultimo tocco: {touchLabel(lastPending, data.roster)}
                 </p>
+              ) : lastEvent?.type === "lineup" ? (
+                <p className="text-muted-foreground">Ultimo: formazione {lastEvent.side === "us" ? "nostra" : "loro"}</p>
+              ) : lastEvent?.type === "sub" ? (
+                <p className="text-muted-foreground">Ultimo: cambio {lastEvent.side === "us" ? "nostro" : "loro"}</p>
               ) : lastEvent ? (
                 <p className="text-muted-foreground">Ultimo: fine del set</p>
               ) : (
@@ -458,6 +473,18 @@ export function ScoutClient({
               <Settings2 className="h-3.5 w-3.5" />
               Squadre e regole
             </Button>
+            {!followsLineup && !locked && (
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => setSetupOpen(true)}
+                title="Segna chi gioca nelle sei posizioni e la libero: rotazioni e cambi si seguono da soli"
+                data-scout-follow-lineup
+              >
+                <Users className="h-3.5 w-3.5" />
+                Segui la formazione
+              </Button>
+            )}
             <Button
               variant="outline"
               size="xs"
@@ -490,7 +517,7 @@ export function ScoutClient({
         </>
       )}
 
-      {setupOpen && data.events.length > 0 && (
+      {setupOpen && hasPlay && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-sea-950/45 backdrop-blur-[2px] sm:items-center sm:p-4"
           onClick={() => setSetupOpen(false)}

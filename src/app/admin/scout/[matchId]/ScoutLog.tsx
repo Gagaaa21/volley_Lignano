@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Label, Select } from "@/components/ui/Field";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import type { ScoutAction } from "@/lib/scout/actions";
-import type { ScoutRally, ScoutView } from "@/lib/scout/derive";
+import type { ScoutRally, ScoutSet, ScoutView } from "@/lib/scout/derive";
 import { playerLabel, rallyText, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { recordsReceptions } from "@/lib/scout/levels";
@@ -390,6 +390,43 @@ function RallyRow({ rally, roster, onEdit, first }: { rally: ScoutRally; roster:
   );
 }
 
+/** La formazione di partenza e i cambi di un set, sopra gli scambi (i cambi si possono togliere). */
+function SetLineupNotes({ set, roster, dispatch }: { set: ScoutSet; roster: ScoutRoster; dispatch: (action: ScoutAction) => void }) {
+  const starters = (side: ScoutSide) => {
+    const court = set.lineups[side];
+    if (!court) return null;
+    const names = court.positions.map((id) => (id ? (roster[side].find((p) => p.id === id)?.number ?? "?") : "–")).join(" · ");
+    return (
+      <p data-scout-set-start={side}>
+        <b className="text-foreground">Partenza {side === "us" ? "noi" : "loro"}</b> <span className="text-muted-foreground">(posizioni 1–6)</span>: {names}
+        {court.libero ? <span className="text-muted-foreground"> · libero {roster[side].find((p) => p.id === court.libero)?.number ?? "?"}</span> : null}
+      </p>
+    );
+  };
+  const hasStarters = set.lineups.us || set.lineups.opp;
+  if (!hasStarters && set.subs.length === 0) return null;
+  return (
+    <div className="space-y-1.5 border-t border-border bg-surface-muted/40 px-3.5 py-2.5 text-[13px] leading-snug text-foreground" data-scout-set-notes={set.n}>
+      {starters("us")}
+      {starters("opp")}
+      {set.subs.map((sub) => (
+        <p key={sub.id} className="flex items-start gap-2" data-scout-sub={sub.id}>
+          <ArrowLeftRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1">
+            <b>Cambio {sub.side === "us" ? "nostro" : "loro"}</b> · pos. {sub.position}: esce {playerLabel(roster, sub.side, sub.out)}, entra {playerLabel(roster, sub.side, sub.in)}{" "}
+            <span className="tabular text-muted-foreground">
+              (sul {sub.score.us}–{sub.score.opp})
+            </span>
+          </span>
+          <Button variant="danger-ghost" size="icon-sm" onClick={() => dispatch({ type: "remove", id: sub.id })} aria-label="Togli questo cambio">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export function ScoutLog({
   view,
   roster,
@@ -435,6 +472,7 @@ export function ScoutLog({
               {set.rallies.length} scambi
             </span>
           </summary>
+          <SetLineupNotes set={set} roster={roster} dispatch={dispatch} />
           <ol className="divide-y divide-border border-t border-border">
             {[...set.rallies].reverse().map((rally, j) => (
               <RallyRow key={rally.id} rally={rally} roster={roster} onEdit={() => setEditingId(rally.id)} first={i === 0 && j === 0} />

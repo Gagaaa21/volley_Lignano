@@ -5,6 +5,7 @@ import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { PdfReport, type PdfCanvas, type PdfCell, type PdfCellInput, type PdfColumn } from "@/lib/pdf/report";
 import { cellText, columnsFor, totalOf, type Column, type Row } from "@/lib/scout/columns";
+import { lineupSummary, type StartingLineupRow, type SubstitutionRow } from "@/lib/scout/court";
 import { deriveScout } from "@/lib/scout/derive";
 import { footnoteFor, legendFor } from "@/lib/scout/legend";
 import { effectiveLevel, LEVEL_META } from "@/lib/scout/levels";
@@ -471,6 +472,51 @@ function rotationSection(report: PdfReport, analysis: Record<"us" | "opp", SideA
   if (used(analysis.opp)) tableSection(report, `Le rotazioni · ${opponent}`, "stesse regole, per l'avversaria", columns, rows(analysis.opp));
 }
 
+function lineupSections(report: PdfReport, starts: StartingLineupRow[], subs: SubstitutionRow[], opponent: string) {
+  if (starts.length > 0) {
+    tableSection(
+      report,
+      "Formazioni di partenza",
+      "chi era in campo all'inizio di ogni set, dalla posizione 1 (in battuta) alla 6",
+      [
+        { header: "Set", weight: 0.8, align: "center" },
+        { header: "Squadra", weight: 2.6 },
+        ...[1, 2, 3, 4, 5, 6].map((p): PdfColumn => ({ header: String(p), weight: 0.9, align: "center" })),
+        { header: "Libero", weight: 1.1, align: "center" },
+      ],
+      starts.map((row): PdfCellInput[] => [
+        { text: `${row.set}°`, bold: true },
+        row.side === "us" ? "Volley Lignano" : opponent,
+        ...row.positions.map((label): PdfCellInput => ({ text: label, bold: true })),
+        row.libero ? { text: row.libero, bold: true } : dash,
+      ]),
+    );
+  }
+  if (subs.length > 0) {
+    tableSection(
+      report,
+      "Cambi",
+      "i cambi fatti durante i set",
+      [
+        { header: "Set", weight: 0.8, align: "center" },
+        { header: "Squadra", weight: 2.6 },
+        { header: "Posizione", weight: 1.2, align: "center" },
+        { header: "Esce", weight: 1, align: "center" },
+        { header: "Entra", weight: 1, align: "center" },
+        { header: "Punteggio", weight: 1.3, align: "center" },
+      ],
+      subs.map((sub): PdfCellInput[] => [
+        { text: `${sub.set}°`, bold: true },
+        sub.side === "us" ? "Volley Lignano" : opponent,
+        String(sub.position),
+        sub.out,
+        { text: sub.in, bold: true },
+        `${sub.score.us}-${sub.score.opp}`,
+      ]),
+    );
+  }
+}
+
 export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdfInput): Promise<Uint8Array> {
   const view = deriveScout(scout);
   const played = view.sets.filter((s) => s.rallies.length > 0);
@@ -558,6 +604,9 @@ export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdf
   if (level !== "base") receptionSections(report, match.opponent, stats.analysis, stats.players.us, level);
   if (level !== "base") zoneSection(report, stats.analysis.us, level);
   if (level === "completo") rotationSection(report, stats.analysis, match.opponent);
+
+  const lineups = lineupSummary(view, scout.roster, selected);
+  lineupSections(report, lineups.starts, lineups.subs, match.opponent);
 
   playerSection(report, "Volley Lignano", "us", stats.players.us, level);
   playerSection(report, match.opponent, "opp", stats.players.opp, level);

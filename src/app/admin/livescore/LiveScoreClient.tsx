@@ -19,7 +19,9 @@ import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Label, Select, FieldHint, Input, Toggle } from "@/components/ui/Field";
 import { SegmentedButtons } from "@/components/ui/Segmented";
+import { PointsInput } from "@/components/ui/PointsInput";
 import { MATCH_FORMAT_LABELS, MATCH_FORMAT_SHORT_LABELS } from "@/lib/volleyRules";
+import { courtOccupant } from "@/lib/lineup";
 import { cn } from "@/lib/cn";
 import { CATEGORY_LABELS } from "@/lib/category";
 import {
@@ -134,6 +136,8 @@ const LIVESCORE_API = "/api/livescore";
 /** Ultimo formato scelto su questo dispositivo (tipo, formazione, giocatrici,
  * libero): una comodità per non reimpostarlo a ogni nuova partita. */
 const FORMAT_STORAGE_KEY = "vl-livescore-format";
+/** Il minimo che il tabellone accetta come limite di un set (lo stesso del salvataggio: vedi liveScoreSchema). */
+const MIN_SET_POINTS = 5;
 /** Tempo di inattività prima di salvare in automatico, per non fare una
  * richiesta a ogni singolo tasto premuto mentre si scrive un nome. */
 const AUTOSAVE_DELAY_MS = 900;
@@ -165,9 +169,9 @@ function readSavedFormat(): Partial<LiveScoreFormat> {
       ["free", "bo5", "bo3", "fixed3"].includes(rules.format) &&
       Number.isInteger(rules.setPoints) &&
       Number.isInteger(rules.lastSetPoints) &&
-      rules.setPoints >= 5 &&
+      rules.setPoints >= MIN_SET_POINTS &&
       rules.setPoints <= 50 &&
-      rules.lastSetPoints >= 5 &&
+      rules.lastSetPoints >= MIN_SET_POINTS &&
       rules.lastSetPoints <= 50
     ) {
       format.rules = { format: rules.format, setPoints: rules.setPoints, lastSetPoints: rules.lastSetPoints };
@@ -511,18 +515,6 @@ function PositionNameField({
   );
 }
 
-function cellDisplay(
-  position: CourtPosition,
-  team: LiveScoreTeamState,
-  showLibero: boolean,
-): { name: string; isLibero: boolean } {
-  const nameAtPosition = (team.positions[position - 1] ?? "").trim();
-  if (showLibero && team.liberoActiveFor && nameAtPosition === team.liberoActiveFor) {
-    return { name: team.liberoName.trim(), isLibero: true };
-  }
-  return { name: nameAtPosition, isLibero: false };
-}
-
 function renderTeamCell(
   team: LiveScoreTeamState,
   teamKey: TeamKey,
@@ -549,7 +541,7 @@ function renderTeamCell(
         />
       );
     }
-    const { name, isLibero } = cellDisplay(position, team, showLibero);
+    const { name, isLibero } = courtOccupant(team, position, showLibero);
     const isServer = position === 1 && isServing;
     return (
       <>
@@ -902,10 +894,9 @@ function SetupOption({ label, children }: { label: string; children: ReactNode }
 
 /**
  * Tabellone live per allenamenti e partite: pensato per tablet o computer a
- * bordo campo (vedi il gate `sm:hidden` più sotto), mai per telefono — due
- * mezzi campo e due tabelloni leggibili non ci stanno in una manciata di
- * centimetri. Funziona dal 2 contro 2 al 6 contro 6, con o senza libero, o
- * anche senza formazione (solo punteggio). Formazioni, punteggio, set e stato
+ * bordo campo, ma si usa anche dal telefono (campo e pulsanti dei punti si
+ * adattano alla larghezza). Funziona dal 2 contro 2 al 6 contro 6, con o senza
+ * libero, o anche senza formazione (solo punteggio). Formazioni, punteggio, set e stato
  * della libero si salvano in automatico per qualche ora (vedi
  * LIVE_SCORE_TTL_MS), così un ricaricamento accidentale non fa perdere il
  * gioco in corso; lo storico punti (per l'annulla) resta invece solo in
@@ -1089,7 +1080,8 @@ export function LiveScoreClient({
           {!match.started ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-              <div className="min-w-0 flex-1">
+              {/* Sul telefono il pulsante va sotto il titolo, che così non si spezza su tre righe. */}
+              <div className="min-w-[min(100%,18rem)] flex-1">
                 <p className="eyebrow mb-2">
                   <Volleyball className="h-3 w-3" />
                   Live score
@@ -1143,6 +1135,35 @@ export function LiveScoreClient({
                   ]}
                 />
               </SetupOption>
+              {match.rules.format !== "free" && (
+                <SetupOption label="Punti">
+                  <div className="flex items-start gap-2" data-livescore-points>
+                    <div className="w-24">
+                      <PointsInput
+                        id="livescore-set-points"
+                        label="Per set"
+                        value={match.rules.setPoints}
+                        min={MIN_SET_POINTS}
+                        onCommit={(setPoints) => dispatch({ type: "setRules", rules: { setPoints } })}
+                      />
+                    </div>
+                    <div className="w-24">
+                      <PointsInput
+                        id="livescore-last-set-points"
+                        label="Ultimo set"
+                        value={match.rules.lastSetPoints}
+                        min={MIN_SET_POINTS}
+                        onCommit={(lastSetPoints) => dispatch({ type: "setRules", rules: { lastSetPoints } })}
+                      />
+                    </div>
+                  </div>
+                  {match.rules.format === "fixed3" && (
+                    <p className="mt-1.5 max-w-[14rem] text-xs leading-snug text-muted-foreground">
+                      Con 3 set fissi il regolamento della gara stabilisce se il 3° va a 15 o a 25.
+                    </p>
+                  )}
+                </SetupOption>
+              )}
               <SetupOption label="Formazione">
                 <SegmentedButtons
                   ariaLabel="Formazione"

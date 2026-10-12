@@ -282,6 +282,13 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
         victim: inferredVictim(event.actor, event.how, event.victim, pending),
       };
       closeRally(cur, event.id, event.at, outcome, "outcome");
+    } else if (event.type === "lineup" && event.positions.every((id) => !id)) {
+      // Nessuna giocatrice: la squadra non si segue più (la formazione si «svuota»).
+      courts[event.side] = null;
+      if (cur.rallies.length === 0) {
+        starts[event.side] = null;
+        rotations[event.side] = 0;
+      }
     } else if (event.type === "lineup") {
       // La formazione di una squadra: a set non cominciato è quella di partenza, dopo corregge dove stanno ora.
       const lineup = refreshLibero(
@@ -346,7 +353,7 @@ export function suggestedSetEnd(view: ScoutView, settings: ScoutSettings): { win
   return { winner: cur.score.us > cur.score.opp ? "us" : "opp", score: cur.score };
 }
 
-/** Di norma i set si alternano: chi ha battato per primo nel set appena chiuso batte per secondo nel successivo. */
+/** Di norma i set si alternano: chi ha battuto per primo nel set appena chiuso batte per secondo nel successivo. */
 export function defaultNextServer(set: Pick<ScoutSet, "firstServer">): ScoutSide {
   return otherSide(set.firstServer);
 }
