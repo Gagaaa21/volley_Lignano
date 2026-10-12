@@ -48,6 +48,27 @@ const setEndSchema = z.object({
   nextServer: sideSchema,
 });
 
+const idOrNull = z.string().min(1).max(64).nullable();
+
+const lineupSchema = z.object({
+  type: z.literal("lineup"),
+  id: z.string().min(1).max(64),
+  at: z.number().int().min(0),
+  side: sideSchema,
+  positions: z.array(idOrNull).length(6),
+  libero: idOrNull,
+  hosts: z.tuple([idOrNull, idOrNull]),
+});
+
+const subSchema = z.object({
+  type: z.literal("sub"),
+  id: z.string().min(1).max(64),
+  at: z.number().int().min(0),
+  side: sideSchema,
+  position: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
+  player: z.string().min(1).max(64),
+});
+
 function uniqueIds(items: { id: string }[]): boolean {
   return new Set(items.map((i) => i.id)).size === items.length;
 }
@@ -70,7 +91,7 @@ export const scoutDataSchema = z
       us: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
       opp: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
     }),
-    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema])).max(MAX_SCOUT_EVENTS),
+    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema])).max(MAX_SCOUT_EVENTS),
     finished: z.boolean(),
   })
   .refine((data) => uniqueIds(data.events), { message: "Eventi duplicati." }) satisfies z.ZodType<ScoutData>;

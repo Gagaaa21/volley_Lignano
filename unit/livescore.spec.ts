@@ -1,17 +1,29 @@
 import { expect, test } from "@playwright/test";
 import {
   applyPoint,
+  changeSides,
+  chooseFirstServer,
   closeSet,
+  currentSetTarget,
   frontPositions,
   halfCourtGrid,
   hasLiberoOption,
   initialMatch,
   linkCalendarMatch,
+  matchPointFor,
   matchWinner,
+  needsFirstServer,
+  reconcileLibero,
   rotateOnce,
+  setPointFor,
+  sideChangeNeeded,
+  startMatch,
   substitutePlayer,
   substitutionProblem,
+  substitutionWarning,
+  suggestedSetEnd,
   toPublicLiveScore,
+  withMode,
   withPlayersPerSide,
 } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
@@ -27,8 +39,9 @@ function game(players: LiveScorePlayers, overrides: Partial<LiveScoreState> = {}
     ...base,
     started: true,
     servingTeam: "A",
-    teamA: { ...base.teamA, positions: names("A") },
-    teamB: { ...base.teamB, label: "Pallavolo Città", positions: names("B") },
+    setFirstServer: "A",
+    teamA: { ...base.teamA, positions: names("A"), startPositions: names("A") },
+    teamB: { ...base.teamB, label: "Pallavolo Città", positions: names("B"), startPositions: names("B") },
     ...overrides,
   };
 }
@@ -151,7 +164,8 @@ test.describe("punti e rotazione", () => {
     m = closeSet(m);
     expect(m.setHistory).toEqual([{ scoreA: 25, scoreB: 20 }]);
     expect(m.teamA.setsWon).toBe(1);
-    expect(m.servingTeam).toBeNull();
+    // Il set dopo comincia con l'altra squadra in battuta.
+    expect(m.servingTeam).toBe("B");
     expect(matchWinner(m)).toBeNull();
     expect(matchWinner({ ...m, teamB: { ...m.teamB, setsWon: 3 } })).toBe("B");
   });
@@ -219,11 +233,20 @@ test.describe("sostituzioni", () => {
   });
 
   test("chi entra eredita il ruolo della sostituita dalla libero (anche se la libero è dentro per lei)", () => {
-    let m = game(6, { useLibero: true });
+    // A riceve: la libero è dentro al posto di A1, in posizione 1.
+    let m = game(6, { useLibero: true, servingTeam: "B", setFirstServer: "B" });
     m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A1", "A4"], liberoActiveFor: "A1" } };
     m = substitutePlayer(m, "A", 1, "A7");
     expect(m.teamA.hostNames).toEqual(["A7", "A4"]);
     expect(m.teamA.liberoActiveFor).toBe("A7");
+  });
+
+  test("se la sostituta della centrale va in battuta, batte lei: la libero non c'è", () => {
+    let m = game(6, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A1", "A4"] } };
+    m = substitutePlayer(m, "A", 1, "A7");
+    expect(m.teamA.hostNames).toEqual(["A7", "A4"]);
+    expect(m.teamA.liberoActiveFor).toBeNull();
   });
 
   test("cambi non validi: nessuno che entra, già in campo, la libero", () => {
@@ -335,11 +358,281 @@ test.describe("salvataggi", () => {
     const parsed = liveScoreStateSchema.parse(old);
     expect(parsed).toMatchObject({ playersPerSide: 6, withLineup: true, useLibero: true, publicLive: false, substitutions: [] });
     expect(parsed.teamA.substitutionsUsed).toBe(0);
+    // Prima delle regole dei set non c'erano limiti: si chiude a mano come allora.
+    expect(parsed.rules).toEqual({ format: "free", setPoints: 25, lastSetPoints: 15 });
+    expect(parsed).toMatchObject({ setFirstServer: null, sideChangeDone: false });
+    expect(parsed.teamA.startPositions).toEqual([]);
   });
 
   test("una formazione che non corrisponde al numero di giocatrici viene rifiutata", () => {
     const m = game(4);
     expect(liveScoreStateSchema.safeParse(m).success).toBe(true);
     expect(liveScoreStateSchema.safeParse({ ...m, playersPerSide: 6 }).success).toBe(false);
+  });
+});
+
+// ── Set, formula e battuta ─────────────────────────────────────────────
+
+/** Punteggio del set in corso. */
+function at(a: number, b: number, overrides: Partial<LiveScoreState> = {}, players: LiveScorePlayers = 6): LiveScoreState {
+  const m = game(players, overrides);
+  return { ...m, teamA: { ...m.teamA, score: a }, teamB: { ...m.teamB, score: b } };
+}
+
+/** Chiude il set con un punteggio da set vinto da `winner`. */
+function closeWith(m: LiveScoreState, winner: "A" | "B"): LiveScoreState {
+  const a = winner === "A" ? 25 : 20;
+  const b = winner === "B" ? 25 : 20;
+  return closeSet({ ...m, teamA: { ...m.teamA, score: a }, teamB: { ...m.teamB, score: b } });
+}
+
+test.describe("fine del set", () => {
+  test("si vince a 25 con due punti di scarto; ai vantaggi si va avanti", () => {
+    expect(suggestedSetEnd(at(24, 22))).toBeNull();
+    expect(suggestedSetEnd(at(25, 23))).toBe("A");
+    expect(suggestedSetEnd(at(25, 24))).toBeNull();
+    expect(suggestedSetEnd(at(24, 24))).toBeNull();
+    expect(suggestedSetEnd(at(26, 24))).toBe("A");
+    expect(suggestedSetEnd(at(27, 29))).toBe("B");
+    expect(suggestedSetEnd(at(10, 25))).toBe("B");
+  });
+
+  test("il set decisivo si gioca a 15", () => {
+    const m = at(14, 12, { setHistory: [{ scoreA: 25, scoreB: 20 }, { scoreA: 20, scoreB: 25 }, { scoreA: 25, scoreB: 20 }, { scoreA: 20, scoreB: 25 }] });
+    expect(currentSetTarget(m)).toBe(15);
+    expect(suggestedSetEnd(m)).toBeNull();
+    expect(suggestedSetEnd({ ...m, teamA: { ...m.teamA, score: 15 } })).toBe("A");
+    // Il 4° set è ancora a 25.
+    expect(currentSetTarget({ ...m, setHistory: m.setHistory.slice(0, 3) })).toBe(25);
+  });
+
+  test("la formula libera (allenamento) non suggerisce nulla e non ha un limite", () => {
+    const free = at(40, 3, { rules: { format: "free", setPoints: 25, lastSetPoints: 15 } });
+    expect(currentSetTarget(free)).toBeNull();
+    expect(suggestedSetEnd(free)).toBeNull();
+    expect(setPointFor(free)).toBeNull();
+    expect(sideChangeNeeded({ ...free, setHistory: [1, 2, 3, 4].map(() => ({ scoreA: 25, scoreB: 0 })) })).toBe(false);
+  });
+
+  test("set point e match point", () => {
+    expect(setPointFor(at(24, 22))).toBe("A");
+    expect(setPointFor(at(22, 24))).toBe("B");
+    expect(setPointFor(at(24, 24))).toBeNull();
+    expect(setPointFor(at(24, 23))).toBe("A"); // un punto e fa 25-23
+    expect(setPointFor(at(24, 24))).toBeNull(); // 25-24 non basta: serve il +2
+    expect(setPointFor(at(25, 24))).toBe("A");
+    expect(setPointFor(at(20, 10))).toBeNull();
+    // Match point: il set da vincere è il 3° di A.
+    const m = at(24, 20);
+    expect(matchPointFor(m)).toBeNull();
+    const twoSets = { ...m, teamA: { ...m.teamA, setsWon: 2, score: 24 }, setHistory: [{ scoreA: 25, scoreB: 20 }, { scoreA: 25, scoreB: 22 }] };
+    expect(matchPointFor(twoSets)).toBe("A");
+  });
+
+  test("un set finito non ha altri set point e la partita finita non ne ha affatto", () => {
+    expect(setPointFor(at(25, 22))).toBeNull();
+    const done = at(24, 20, { teamA: { ...at(24, 20).teamA, setsWon: 3, score: 24 } });
+    expect(setPointFor(done)).toBeNull();
+    expect(suggestedSetEnd(done)).toBeNull();
+  });
+});
+
+test.describe("partita secondo la formula", () => {
+  test("al meglio dei 5: servono 3 set", () => {
+    const m = game(6);
+    expect(matchWinner({ ...m, teamA: { ...m.teamA, setsWon: 2 } })).toBeNull();
+    expect(matchWinner({ ...m, teamA: { ...m.teamA, setsWon: 3 }, setHistory: [1, 2, 3].map(() => ({ scoreA: 25, scoreB: 10 })) })).toBe("A");
+  });
+
+  test("al meglio dei 3: bastano 2 set", () => {
+    const m = game(6, { rules: { format: "bo3", setPoints: 25, lastSetPoints: 15 } });
+    expect(matchWinner({ ...m, teamB: { ...m.teamB, setsWon: 2 }, setHistory: [1, 2].map(() => ({ scoreA: 10, scoreB: 25 })) })).toBe("B");
+    expect(matchWinner({ ...m, teamB: { ...m.teamB, setsWon: 1 } })).toBeNull();
+  });
+
+  test("tre set obbligatori: si giocano tutti e vince chi ne ha di più", () => {
+    const m = game(6, { rules: { format: "fixed3", setPoints: 25, lastSetPoints: 25 } });
+    // Dopo due set vinti dalla stessa squadra la partita non è ancora finita.
+    const twoNil = { ...m, teamA: { ...m.teamA, setsWon: 2 }, setHistory: [1, 2].map(() => ({ scoreA: 25, scoreB: 10 })) };
+    expect(matchWinner(twoNil)).toBeNull();
+    const done = { ...twoNil, teamB: { ...twoNil.teamB, setsWon: 1 }, setHistory: [...twoNil.setHistory, { scoreA: 10, scoreB: 25 }] };
+    expect(matchWinner(done)).toBe("A");
+    // L'ultimo dei tre usa il suo limite, e non c'è un set decisivo con il cambio campo a 8.
+    expect(currentSetTarget({ ...twoNil, setHistory: [1, 2].map(() => ({ scoreA: 25, scoreB: 10 })) })).toBe(25);
+    expect(sideChangeNeeded({ ...twoNil, teamA: { ...twoNil.teamA, score: 9 } })).toBe(false);
+  });
+
+  test("senza formula il vincitore è chi arriva a 3 set, come sempre", () => {
+    const m = game(6, { rules: { format: "free", setPoints: 25, lastSetPoints: 15 } });
+    expect(matchWinner({ ...m, teamA: { ...m.teamA, setsWon: 3 } })).toBe("A");
+    expect(matchWinner({ ...m, teamA: { ...m.teamA, setsWon: 2 } })).toBeNull();
+  });
+});
+
+test.describe("cambio di set", () => {
+  test("le squadre cambiano campo, tornano alla formazione di partenza e la battuta passa all'altra", () => {
+    let m = initialMatch({ mode: "match", playersPerSide: 6, withLineup: true, useLibero: false }, "u14u15");
+    const names = (p: string) => ["1", "2", "3", "4", "5", "6"].map((n) => `${p}${n}`);
+    m = { ...m, teamA: { ...m.teamA, positions: names("A") }, teamB: { ...m.teamB, label: "Città", positions: names("B") } };
+    m = startMatch(m, "A");
+    expect(m.setFirstServer).toBe("A");
+    // Qualche rotazione: B conquista la battuta (ruota), poi A (ruota), poi B ancora.
+    m = applyPoint(applyPoint(applyPoint(m, "B"), "A"), "B");
+    expect(m.teamB.positions).not.toEqual(names("B"));
+    expect(m.teamA.positions).not.toEqual(names("A"));
+
+    const next = closeWith(m, "B");
+    expect(next.sidesSwapped).toBe(true);
+    expect(next.servingTeam).toBe("B");
+    expect(next.setFirstServer).toBe("B");
+    expect(next.teamA.positions).toEqual(names("A"));
+    expect(next.teamB.positions).toEqual(names("B"));
+    expect(next.teamA.score).toBe(0);
+    expect(next.teamB.setsWon).toBe(1);
+    expect(next.sideChangeDone).toBe(false);
+    // Il punto sbagliato di un primo scambio non fa ruotare chi batte già.
+    const first = applyPoint(next, "B");
+    expect(first.teamB.positions).toEqual(names("B"));
+    expect(first.teamB.score).toBe(1);
+  });
+
+  test("la battuta si alterna a ogni set e nel set decisivo va sorteggiata", () => {
+    let m = game(6);
+    m = closeWith(m, "A");
+    expect(m.servingTeam).toBe("B");
+    m = closeWith(m, "B");
+    expect(m.servingTeam).toBe("A");
+    m = closeWith(m, "A");
+    expect(m.servingTeam).toBe("B");
+    m = closeWith(m, "B"); // 2-2: si va al 5°
+    expect(m.servingTeam).toBeNull();
+    expect(m.setFirstServer).toBeNull();
+    expect(needsFirstServer(m)).toBe(true);
+    expect(currentSetTarget(m)).toBe(15);
+    // Si sceglie chi batte; lo si può correggere finché il set è a 0-0.
+    m = chooseFirstServer(m, "B");
+    expect(m).toMatchObject({ servingTeam: "B", setFirstServer: "B" });
+    expect(needsFirstServer(m)).toBe(false);
+    m = chooseFirstServer(m, "A");
+    expect(m.servingTeam).toBe("A");
+    const played = applyPoint(m, "A");
+    expect(chooseFirstServer(played, "B")).toBe(played);
+  });
+
+  test("a partita finita non si prepara nessun altro set", () => {
+    let m = game(6);
+    m = { ...m, teamA: { ...m.teamA, setsWon: 2 }, setHistory: [{ scoreA: 25, scoreB: 20 }, { scoreA: 25, scoreB: 20 }] };
+    const done = closeWith(m, "A");
+    expect(matchWinner(done)).toBe("A");
+    expect(done.servingTeam).toBeNull();
+    expect(done.sidesSwapped).toBe(false);
+    expect(needsFirstServer(done)).toBe(false);
+  });
+
+  test("senza formazione si cambiano i campi ma non si segue la battuta", () => {
+    const m = { ...game(6), withLineup: false, servingTeam: null as null, setFirstServer: null as null };
+    const next = closeWith(m, "A");
+    expect(next.sidesSwapped).toBe(true);
+    expect(next.servingTeam).toBeNull();
+    expect(needsFirstServer(next)).toBe(false);
+  });
+
+  test("nel set decisivo si cambia campo la prima volta che una squadra arriva a 8", () => {
+    const deciding = [1, 2, 3, 4].map((i) => (i % 2 ? { scoreA: 25, scoreB: 20 } : { scoreA: 20, scoreB: 25 }));
+    let m = at(7, 3, { setHistory: deciding });
+    expect(sideChangeNeeded(m)).toBe(false);
+    m = { ...m, teamA: { ...m.teamA, score: 8 } };
+    expect(sideChangeNeeded(m)).toBe(true);
+    const swapped = changeSides(m);
+    expect(swapped.sidesSwapped).toBe(true);
+    expect(sideChangeNeeded(swapped)).toBe(false);
+    // Non negli altri set.
+    expect(sideChangeNeeded(at(20, 10))).toBe(false);
+    expect(sideChangeNeeded(at(8, 3, { setHistory: deciding.slice(0, 3) }))).toBe(false);
+  });
+});
+
+test.describe("libero calcolata dalle posizioni", () => {
+  test("la centrale in seconda linea ha subito la libero al suo posto, se non batte", () => {
+    let m = game(6, { useLibero: true, started: false });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A6", "A3"] } };
+    // A6 in posizione 6 (fondo), A3 a rete: la libero entra per A6 già alla partenza.
+    expect(startMatch(m, "A").teamA.liberoActiveFor).toBe("A6");
+    expect(startMatch(m, "B").teamA.liberoActiveFor).toBe("A6");
+  });
+
+  test("in posizione 1 batte la centrale: la libero entra solo se la squadra riceve", () => {
+    let m = game(6, { useLibero: true, started: false });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A1", "A4"] } };
+    expect(startMatch(m, "A").teamA.liberoActiveFor).toBeNull();
+    expect(startMatch(m, "B").teamA.liberoActiveFor).toBe("A1");
+  });
+
+  test("correggere una posizione o le centrali riallinea la libero", () => {
+    let m = game(6, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["", ""] } };
+    expect(reconcileLibero(m).teamA.liberoActiveFor).toBeNull();
+    m = { ...m, teamA: { ...m.teamA, hostNames: ["A5", ""] } };
+    expect(reconcileLibero(m).teamA.liberoActiveFor).toBe("A5");
+  });
+
+  test("a set nuovo la libero riparte da dove sono tornate le giocatrici", () => {
+    let m = game(6, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, liberoName: "L", hostNames: ["A1", "A4"] } };
+    m = applyPoint(m, "B"); // A riceve: dentro la libero per A1
+    expect(m.teamA.liberoActiveFor).toBe("A1");
+    const next = closeWith(m, "B");
+    // B batte per primo nel set dopo: A riceve, con A1 di nuovo in posizione 1 → libero dentro.
+    expect(next.servingTeam).toBe("B");
+    expect(next.teamA.positions[0]).toBe("A1");
+    expect(next.teamA.liberoActiveFor).toBe("A1");
+  });
+});
+
+test.describe("scelta del tipo", () => {
+  test("Partita è al meglio dei 5, Allenamento libero; una formula scelta a mano resta", () => {
+    const training = initialMatch({ mode: "training" }, "u14u15");
+    expect(training.rules.format).toBe("free");
+    const match = withMode(training, "match");
+    expect(match.rules.format).toBe("bo5");
+    expect(withMode(match, "training").rules.format).toBe("free");
+    const custom = { ...match, rules: { ...match.rules, format: "bo3" as const } };
+    expect(withMode(custom, "training").rules.format).toBe("bo3");
+    // A partita iniziata il tipo non cambia più.
+    expect(withMode({ ...match, started: true }, "training").mode).toBe("match");
+  });
+});
+
+test.describe("regole dei cambi (avvertimenti)", () => {
+  const withScore = (m: LiveScoreState) => ({ ...m, teamA: { ...m.teamA, score: 3 }, teamB: { ...m.teamB, score: 1 } });
+
+  test("una titolare può rientrare solo al suo posto e al posto di chi l'ha sostituita", () => {
+    let m = withScore(game(6));
+    m = substitutePlayer(m, "A", 3, "R1"); // esce A3, entra R1
+    expect(substitutionWarning(m, "A", 3, "A3")).toBeNull(); // rientra al suo posto per R1: regolare
+    expect(substitutionWarning(m, "A", 2, "A3")).toContain("solo al suo posto");
+  });
+
+  test("una riserva già uscita non può rientrare, e una riserva può uscire solo per la sua titolare", () => {
+    let m = withScore(game(6));
+    m = substitutePlayer(m, "A", 3, "R1");
+    expect(substitutionWarning(m, "A", 3, "R2")).toContain("può essere sostituita solo da lei");
+    m = substitutePlayer(m, "A", 3, "A3"); // A3 rientra: R1 è uscita
+    expect(substitutionWarning(m, "A", 4, "R1")).toContain("una riserva non può rientrare");
+  });
+
+  test("al massimo 6 cambi per set", () => {
+    let m = withScore(game(6));
+    for (let i = 1; i <= 6; i++) m = substitutePlayer(m, "A", ((i % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6, `X${i}`);
+    expect(m.teamA.substitutionsUsed).toBe(6);
+    expect(substitutionWarning(m, "A", 2, "Y1")).toContain("6 cambi");
+  });
+
+  test("solo nel 6 contro 6, e non per riempire una posizione vuota", () => {
+    const four = game(4);
+    expect(substitutionWarning(four, "A", 2, "Z")).toBeNull();
+    const base = game(6);
+    const empty = { ...base, teamA: { ...base.teamA, positions: ["A1", "", "A3", "A4", "A5", "A6"] } };
+    expect(substitutionWarning(empty, "A", 2, "A9")).toBeNull();
   });
 });

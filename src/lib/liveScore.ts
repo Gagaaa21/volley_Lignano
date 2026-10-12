@@ -3,18 +3,36 @@ import type {
   CourtPosition,
   LiveScoreMode,
   LiveScorePlayers,
+  LiveScoreRules,
   LiveScoreState,
   LiveScoreTeamState,
   PublicLiveScore,
   TrainingTeam,
 } from "@/lib/types";
+import { resizePositions } from "@/lib/courtLayout";
+import { afterRally, liberoUsable, refreshLibero, substituteLineup, substitutionProblemFor, substitutionRuleWarning } from "@/lib/lineup";
+import {
+  DEFAULT_LAST_SET_POINTS,
+  DEFAULT_SET_POINTS,
+  isDecidingSet,
+  isMatchDecided,
+  isSetWon,
+  setPointHolder,
+  setsToWin,
+  sideChangeDue,
+  targetForSet,
+} from "@/lib/volleyRules";
 
 /**
  * Regole del tabellone live (src/app/admin/livescore), separate dalla pagina
- * per poterle provare da sole: punti, rotazione, libero, chiusura del set e ciò
+ * per poterle provare da sole: punti, rotazione, libero, set e partita, e ciò
  * che il sito pubblico può vedere della diretta. Valgono per ogni formato, dal
- * 2 contro 2 al 6 contro 6.
+ * 2 contro 2 al 6 contro 6. Le regole di campo (rotazione, libero) stanno in
+ * lineup.ts, quelle dei set in volleyRules.ts: sono le stesse dello Scout.
  */
+
+// La disposizione in campo e la rotazione stanno in courtLayout.ts (le usa anche lo Scout).
+export * from "@/lib/courtLayout";
 
 export type TeamKey = "A" | "B";
 
@@ -32,8 +50,8 @@ export const DEFAULT_OPPONENT_COLOR = "#475569";
 export const HOME_TEAM_LABEL = "Volley Lignano";
 /** Time-out a disposizione di ciascuna squadra per set. */
 export const MAX_TIMEOUTS_PER_SET = 2;
-/** Set da vincere per aggiudicarsi la partita (al meglio dei 5). */
-export const SETS_TO_WIN = 3;
+/** Senza formula (allenamento libero) la partita si chiude a 3 set vinti, come sempre. */
+const FREE_SETS_TO_WIN = 3;
 
 /** Sostituzioni consentite per set: 6 nel 6 contro 6; negli altri formati
  * (giovanili, minivolley) le regole cambiano, quindi solo il conteggio. */
@@ -80,149 +98,6 @@ export function teamColor(key: TeamKey, mode: LiveScoreMode, opponentColor: stri
   return key === "A" ? HOME_COLOR : mode === "match" ? opponentColor : TRAINING_AWAY_COLOR;
 }
 
-// ── Disposizione in campo ──────────────────────────────────────────────
-
-/**
- * Dove sta ogni posizione, vista da chi guarda la rete: `depth` 0 è la fila a
- * rete (più alta = più lontana), `lateral` va da sinistra a destra, `span` è
- * quante «corsie» laterali occupa (per centrare una giocatrice tra due).
- */
-export interface CourtSlot {
-  position: CourtPosition;
-  depth: number;
-  lateral: number;
-  span: number;
-}
-
-export interface CourtLayout {
-  /** Larghezza relativa di ogni fila, dalla rete al fondo. */
-  depthWeights: number[];
-  /** Quante corsie laterali ha la metà campo. */
-  lanes: number;
-  slots: CourtSlot[];
-  /** Linea dei 3 metri tra la fila a rete e il fondo (solo con due file). */
-  attackLine: boolean;
-}
-
-const slot = (position: CourtPosition, depth: number, lateral: number, span = 1): CourtSlot => ({
-  position,
-  depth,
-  lateral,
-  span,
-});
-
-/**
- * Le disposizioni dei vari formati. Numerazione come nella pallavolo a 6: la 1
- * è chi batte, e a ogni rotazione ognuna passa al numero prima (la 2 va in 1,
- * la 1 nell'ultimo) girando in senso orario.
- * - 6: rete 4-3-2, fondo 5-6-1.
- * - 5: rete 4-3-2, fondo 5-1.
- * - 4: a rombo — 3 a rete, 4 a sinistra, 2 a destra, 1 in fondo.
- * - 3: a triangolo — 2 a rete, 3 dietro a sinistra, 1 dietro a destra.
- * - 2: affiancate — 2 a sinistra, 1 a destra (battono a turno).
- */
-const COURT_LAYOUTS: Record<LiveScorePlayers, CourtLayout> = {
-  6: {
-    depthWeights: [1, 2],
-    lanes: 3,
-    attackLine: true,
-    slots: [slot(4, 0, 0), slot(3, 0, 1), slot(2, 0, 2), slot(5, 1, 0), slot(6, 1, 1), slot(1, 1, 2)],
-  },
-  5: {
-    depthWeights: [1, 2],
-    lanes: 6,
-    attackLine: true,
-    slots: [slot(4, 0, 0, 2), slot(3, 0, 2, 2), slot(2, 0, 4, 2), slot(5, 1, 0, 3), slot(1, 1, 3, 3)],
-  },
-  4: {
-    depthWeights: [1, 1, 1],
-    lanes: 2,
-    attackLine: false,
-    slots: [slot(3, 0, 0, 2), slot(4, 1, 0), slot(2, 1, 1), slot(1, 2, 0, 2)],
-  },
-  3: {
-    depthWeights: [1, 2],
-    lanes: 2,
-    attackLine: true,
-    slots: [slot(2, 0, 0, 2), slot(3, 1, 0), slot(1, 1, 1)],
-  },
-  2: {
-    depthWeights: [1],
-    lanes: 2,
-    attackLine: false,
-    slots: [slot(2, 0, 0), slot(1, 0, 1)],
-  },
-};
-
-export function courtLayout(players: LiveScorePlayers): CourtLayout {
-  return COURT_LAYOUTS[players];
-}
-
-/** Una cella della metà campo nel tabellone orizzontale (rete al centro). */
-export interface HalfCourtCell {
-  position: CourtPosition;
-  /** Colonna e riga della griglia CSS (da 1). */
-  column: number;
-  row: number;
-  rowSpan: number;
-  /** Lato della cella su cui passa la linea dei 3 metri, se c'è. */
-  attackLineSide: "left" | "right" | null;
-}
-
-/**
- * La metà campo pronta da disegnare. La squadra a sinistra guarda verso destra
- * (rete a destra, la sua sinistra in alto); quella a destra guarda verso
- * sinistra, e tutto si capovolge.
- */
-export function halfCourtGrid(
-  players: LiveScorePlayers,
-  side: "left" | "right",
-): { columns: string; rows: number; cells: HalfCourtCell[] } {
-  const layout = courtLayout(players);
-  const depths = layout.depthWeights.length;
-  const weights = side === "left" ? [...layout.depthWeights].reverse() : layout.depthWeights;
-  const cells = layout.slots.map((s) => {
-    const column = side === "left" ? depths - s.depth : s.depth + 1;
-    const row = side === "left" ? s.lateral + 1 : layout.lanes - s.lateral - s.span + 1;
-    const isBackRow = layout.attackLine && s.depth === 1;
-    return {
-      position: s.position,
-      column,
-      row,
-      rowSpan: s.span,
-      attackLineSide: isBackRow ? (side === "left" ? "right" : "left") : null,
-    } satisfies HalfCourtCell;
-  });
-  return { columns: weights.map((w) => `${w}fr`).join(" "), rows: layout.lanes, cells };
-}
-
-/** Le posizioni «a rete»: la libero, se c'è, esce quando chi sostituisce ci
- * arriva. A 4 (rombo) solo la 3, a 3 (triangolo) solo la 2. */
-export function frontPositions(players: LiveScorePlayers): CourtPosition[] {
-  return courtLayout(players)
-    .slots.filter((s) => s.depth === 0)
-    .map((s) => s.position);
-}
-
-/** Nel 2 contro 2 le giocatrici sono affiancate, senza seconda linea: la libero non c'è. */
-export function hasLiberoOption(players: LiveScorePlayers): boolean {
-  return players > 2;
-}
-
-/** Una rotazione: chi era in posizione 2 diventa la nuova battitrice
- * (posizione 1), chi era in posizione 1 va nell'ultima, e così via — il giro
- * in senso orario della pallavolo, con qualunque numero di giocatrici. */
-export function rotateOnce(positions: string[]): string[] {
-  if (positions.length === 0) return positions;
-  return [...positions.slice(1), positions[0]];
-}
-
-/** Porta la formazione a `players` posizioni, tenendo i nomi già scritti
- * nelle posizioni che restano. */
-export function resizePositions(positions: string[], players: LiveScorePlayers): string[] {
-  return Array.from({ length: players }, (_, i) => positions[i] ?? "");
-}
-
 // ── Stato iniziale ─────────────────────────────────────────────────────
 
 export function emptyTeam(label: string, players: LiveScorePlayers = 6): LiveScoreTeamState {
@@ -232,10 +107,20 @@ export function emptyTeam(label: string, players: LiveScorePlayers = 6): LiveSco
     liberoName: "",
     hostNames: ["", ""],
     liberoActiveFor: null,
+    startPositions: [],
     score: 0,
     setsWon: 0,
     timeoutsUsed: 0,
     substitutionsUsed: 0,
+  };
+}
+
+/** Formula di partenza: una partita è al meglio dei 5 set, un allenamento non ha limiti. */
+export function defaultRules(mode: LiveScoreMode): LiveScoreRules {
+  return {
+    format: mode === "match" ? "bo5" : "free",
+    setPoints: DEFAULT_SET_POINTS,
+    lastSetPoints: DEFAULT_LAST_SET_POINTS,
   };
 }
 
@@ -246,6 +131,8 @@ export interface LiveScoreFormat {
   playersPerSide: LiveScorePlayers;
   withLineup: boolean;
   useLibero: boolean;
+  /** Formula e punti per set; se manca valgono quelli del tipo (partita o allenamento). */
+  rules?: LiveScoreRules;
 }
 
 export const DEFAULT_FORMAT: LiveScoreFormat = {
@@ -274,6 +161,9 @@ export function initialMatch(format: Partial<LiveScoreFormat> = {}, team: Traini
     matchId: null,
     category: null,
     substitutions: [],
+    rules: format.rules ?? defaultRules(mode),
+    setFirstServer: null,
+    sideChangeDone: false,
   };
 }
 
@@ -286,16 +176,75 @@ export function isTeamEmpty(team: LiveScoreTeamState): boolean {
   );
 }
 
-// ── Punti e set ────────────────────────────────────────────────────────
-
-function isHost(team: LiveScoreTeamState, name: string): boolean {
-  const trimmed = name.trim();
-  return trimmed !== "" && team.hostNames.some((h) => h.trim() === trimmed);
+/** Passa da Allenamento a Partita (o viceversa) in impostazione: le etichette
+ * cambiano, la diretta e il collegamento al calendario esistono solo in
+ * Partita, e la formula segue il tipo (al meglio dei 5 in Partita, libera in
+ * allenamento) se non è già stata cambiata a mano. */
+export function withMode(match: LiveScoreState, mode: LiveScoreMode): LiveScoreState {
+  if (match.started) return match;
+  const isMatch = mode === "match";
+  const format =
+    isMatch && match.rules.format === "free"
+      ? "bo5"
+      : !isMatch && match.rules.format === "bo5"
+        ? "free"
+        : match.rules.format;
+  return {
+    ...match,
+    mode,
+    teamA: { ...match.teamA, label: isMatch ? HOME_TEAM_LABEL : "Squadra A" },
+    teamB: { ...match.teamB, label: isMatch ? "" : "Squadra B" },
+    publicLive: isMatch && match.publicLive,
+    matchId: isMatch ? match.matchId : null,
+    category: isMatch ? match.category : null,
+    rules: { ...match.rules, format },
+  };
 }
+
+// ── Libero e formazioni ────────────────────────────────────────────────
 
 /** La libero conta solo se è in uso e ha un nome. */
 export function liberoInPlay(match: LiveScoreState, team: LiveScoreTeamState): boolean {
-  return match.withLineup && match.useLibero && hasLiberoOption(match.playersPerSide) && team.liberoName.trim() !== "";
+  return match.withLineup && liberoUsable(team, match.playersPerSide, match.useLibero);
+}
+
+/** Riallinea la libero di entrambe alle posizioni attuali (dopo aver cambiato una posizione, la libero o le sostituite). */
+export function reconcileLibero(match: LiveScoreState): LiveScoreState {
+  if (!match.started || !match.withLineup) return match;
+  const useLibero = match.useLibero;
+  const players = match.playersPerSide;
+  return {
+    ...match,
+    teamA: refreshLibero(match.teamA, players, useLibero, match.servingTeam === "A"),
+    teamB: refreshLibero(match.teamB, players, useLibero, match.servingTeam === "B"),
+  };
+}
+
+// ── Partenza e punti ───────────────────────────────────────────────────
+
+/**
+ * Comincia la partita: chi batte per prima (solo con la formazione), la
+ * formazione di partenza del 1° set e la libero già dove deve stare (la
+ * centrale in seconda linea, che non batte, ha subito la libero al suo posto).
+ */
+export function startMatch(match: LiveScoreState, servingTeam: TeamKey | null): LiveScoreState {
+  const serving = match.withLineup ? servingTeam : null;
+  const prepare = (team: LiveScoreTeamState, key: TeamKey): LiveScoreTeamState =>
+    refreshLibero(
+      { ...team, startPositions: match.withLineup ? [...team.positions] : [] },
+      match.playersPerSide,
+      match.withLineup && match.useLibero,
+      serving === key,
+    );
+  return {
+    ...match,
+    started: true,
+    servingTeam: serving,
+    setFirstServer: serving,
+    sideChangeDone: false,
+    teamA: prepare(match.teamA, "A"),
+    teamB: prepare(match.teamB, "B"),
+  };
 }
 
 /**
@@ -303,91 +252,178 @@ export function liberoInPlay(match: LiveScoreState, team: LiveScoreTeamState): b
  *
  * Regolamento pallavolo: si ruota solo quando una squadra CONQUISTA la
  * battuta (vinceva la palla ricevendo), non quando la mantiene vincendo
- * mentre già serviva. La libero non è mai la prima a servire quando una delle
- * giocatrici che sostituisce arriva in battuta: serve lei stessa finché la sua
- * squadra continua a vincere, e solo quando PERDE il punto da battitrice
- * (side-out) la libero entra al suo posto — da quel momento la sostituisce per
- * tutta la sua permanenza in seconda linea, finché non ruota di nuovo a rete,
- * dove rientra di persona. Senza formazione si tiene solo il punteggio, senza
- * seguire chi batte.
+ * mentre già serviva. La libero non batte mai: se in battuta c'è una delle
+ * giocatrici che sostituisce, batte lei stessa e la libero entra al suo posto
+ * solo quando la sua squadra torna a ricevere; esce quando chi sostituisce
+ * ruota a rete (vedi lineup.ts). Senza formazione si tiene solo il punteggio,
+ * senza seguire chi batte.
  */
 export function applyPoint(match: LiveScoreState, winner: TeamKey): LiveScoreState {
-  const winnerKey = teamKeyProp(winner);
-  const winnerTeam: LiveScoreTeamState = { ...match[winnerKey], score: match[winnerKey].score + 1 };
-
-  if (match.servingTeam === winner) {
-    // Stava già servendo e ha vinto: nessuna rotazione, nessun cambio libero.
-    return { ...match, [winnerKey]: winnerTeam };
-  }
+  const winnerProp = teamKeyProp(winner);
+  const loserProp = teamKeyProp(otherKey(winner));
+  // La formazione con cui comincia il set si ricorda al primo punto: a fine set si torna lì.
+  const fresh = match.teamA.score + match.teamB.score === 0;
+  const remember = (team: LiveScoreTeamState): LiveScoreTeamState =>
+    fresh && match.withLineup ? { ...team, startPositions: [...team.positions] } : team;
+  const winnerTeam: LiveScoreTeamState = { ...remember(match[winnerProp]), score: match[winnerProp].score + 1 };
+  const loserTeam = remember(match[loserProp]);
 
   if (!match.withLineup) {
     // Solo punteggio: chi batte non si segue.
-    return { ...match, servingTeam: null, [winnerKey]: winnerTeam };
+    return { ...match, servingTeam: null, [winnerProp]: winnerTeam };
   }
 
-  const loserKeyName = otherKey(winner);
-  const loserKey = teamKeyProp(loserKeyName);
-  let loserTeam: LiveScoreTeamState = { ...match[loserKey] };
-
-  if (match.servingTeam === loserKeyName && liberoInPlay(match, loserTeam)) {
-    // Side-out: la squadra che stava servendo perde il punto. Se in
-    // battuta (posizione 1) c'era una delle giocatrici sostituite dalla
-    // libero, da ora la libero entra al suo posto.
-    const server = (loserTeam.positions[0] ?? "").trim();
-    if (isHost(loserTeam, server) && loserTeam.liberoActiveFor !== server) {
-      loserTeam = { ...loserTeam, liberoActiveFor: server };
-    }
-  }
-
-  // La squadra che vince conquista la battuta e ruota: se chi aveva la
-  // libero al suo posto arriva a rete, rientra in campo di persona.
-  const positions = rotateOnce(winnerTeam.positions);
-  const replaced = winnerTeam.liberoActiveFor;
-  const replacedAt = replaced ? positions.findIndex((n) => n.trim() === replaced) + 1 : 0;
-  const backAtNet = replacedAt > 0 && frontPositions(match.playersPerSide).includes(replacedAt as CourtPosition);
-  const rotatedWinner: LiveScoreTeamState = {
-    ...winnerTeam,
-    positions,
-    liberoActiveFor: backAtNet ? null : replaced,
-  };
-
-  return {
-    ...match,
-    servingTeam: winner,
-    [winnerKey]: rotatedWinner,
-    [loserKey]: loserTeam,
-  };
+  const result = afterRally({
+    players: match.playersPerSide,
+    useLibero: match.useLibero,
+    winner: winnerTeam,
+    loser: loserTeam,
+    // Se non si sa chi batteva (non dovrebbe succedere: va scelto prima) non si ruota.
+    winnerWasServing: match.servingTeam === winner || match.servingTeam === null,
+  });
+  return { ...match, servingTeam: winner, [winnerProp]: result.winner, [loserProp]: result.loser };
 }
 
-/** Chiude il set corrente: vince chi ha più punti (a pari punti non si
- * chiude). Il punteggio finale resta in `setHistory`, poi punteggio e
- * time-out si azzerano, la libero esce per entrambe e il coach sceglie di
- * nuovo chi serve per prima. */
-export function closeSet(match: LiveScoreState): LiveScoreState {
-  if (match.teamA.score === match.teamB.score) return match;
-  const winner: TeamKey = match.teamA.score > match.teamB.score ? "A" : "B";
-  const winnerKey = teamKeyProp(winner);
-  const loserKey = teamKeyProp(otherKey(winner));
-  return {
-    ...match,
-    servingTeam: null,
-    setHistory: [...match.setHistory, { scoreA: match.teamA.score, scoreB: match.teamB.score }],
-    [winnerKey]: {
-      ...match[winnerKey],
-      score: 0,
-      setsWon: match[winnerKey].setsWon + 1,
-      liberoActiveFor: null,
-      timeoutsUsed: 0,
-      substitutionsUsed: 0,
-    },
-    [loserKey]: { ...match[loserKey], score: 0, liberoActiveFor: null, timeoutsUsed: 0, substitutionsUsed: 0 },
-  };
-}
+// ── Set e partita ──────────────────────────────────────────────────────
 
 /** Set in corso (1 = primo). */
 export function currentSet(match: LiveScoreState): number {
   return match.setHistory.length + 1;
 }
+
+/** A quanti punti finisce il set in corso; null con la formula libera (si chiude a mano). */
+export function currentSetTarget(match: LiveScoreState): number | null {
+  const { format } = match.rules;
+  if (format === "free") return null;
+  return targetForSet({ ...match.rules, format }, currentSet(match));
+}
+
+/** Chi ha vinto la partita: con la formula libera, chi arriva a 3 set. */
+export function matchWinner(match: LiveScoreState): TeamKey | null {
+  const a = match.teamA.setsWon;
+  const b = match.teamB.setsWon;
+  const { format } = match.rules;
+  if (format === "free") {
+    if (a >= FREE_SETS_TO_WIN) return "A";
+    if (b >= FREE_SETS_TO_WIN) return "B";
+    return null;
+  }
+  if (!isMatchDecided(format, a, b, match.setHistory.length) || a === b) return null;
+  return a > b ? "A" : "B";
+}
+
+/** Il set in corso è vinto per regolamento (limite raggiunto con due punti di scarto): si può chiuderlo. */
+export function suggestedSetEnd(match: LiveScoreState): TeamKey | null {
+  const target = currentSetTarget(match);
+  if (target === null || !match.started || matchWinner(match)) return null;
+  const { score: a } = match.teamA;
+  const { score: b } = match.teamB;
+  return isSetWon(a, b, target) ? (a > b ? "A" : "B") : null;
+}
+
+/** Chi, vincendo il prossimo punto, vincerebbe il set (null se nessuno). */
+export function setPointFor(match: LiveScoreState): TeamKey | null {
+  const target = currentSetTarget(match);
+  if (target === null || matchWinner(match)) return null;
+  const holder = setPointHolder(match.teamA.score, match.teamB.score, target);
+  return holder === "a" ? "A" : holder === "b" ? "B" : null;
+}
+
+/** Come setPointFor, ma quel set deciderebbe anche la partita. */
+export function matchPointFor(match: LiveScoreState): TeamKey | null {
+  const holder = setPointFor(match);
+  if (!holder) return null;
+  const { format } = match.rules;
+  const needed = format === "free" ? FREE_SETS_TO_WIN : setsToWin(format);
+  // Con 3 set obbligatori la partita si decide solo all'ultimo.
+  if (needed === null) return currentSet(match) >= 3 ? holder : null;
+  return match[teamKeyProp(holder)].setsWon + 1 >= needed ? holder : null;
+}
+
+/** Nel set decisivo, a 8 punti, le squadre cambiano campo. */
+export function sideChangeNeeded(match: LiveScoreState): boolean {
+  const { format } = match.rules;
+  if (format === "free" || !match.started || matchWinner(match)) return false;
+  return sideChangeDue(format, currentSet(match), match.teamA.score, match.teamB.score, match.sideChangeDone);
+}
+
+/** Cambio campo: le squadre si scambiano di lato (solo resa visiva, la rotazione non cambia). */
+export function changeSides(match: LiveScoreState): LiveScoreState {
+  return { ...match, sidesSwapped: !match.sidesSwapped, sideChangeDone: match.sideChangeDone || sideChangeNeeded(match) };
+}
+
+/** Il set in corso è ancora a 0-0 (si può ancora cambiare chi batte). */
+export function isSetFresh(match: LiveScoreState): boolean {
+  return match.teamA.score === 0 && match.teamB.score === 0;
+}
+
+/** Chi batte per primo nel set successivo: si alterna a ogni set, e nel set decisivo si sorteggia (null = da scegliere). */
+export function nextSetFirstServer(match: LiveScoreState): TeamKey | null {
+  if (!match.withLineup || !match.setFirstServer) return null;
+  const { format } = match.rules;
+  if (format !== "free" && isDecidingSet(format, currentSet(match) + 1)) return null;
+  return otherKey(match.setFirstServer);
+}
+
+/** Tocca a chi sceglie chi batte per primo: partita cominciata, con la formazione, e nessuno ha ancora battuto. */
+export function needsFirstServer(match: LiveScoreState): boolean {
+  return match.started && match.withLineup && match.servingTeam === null && matchWinner(match) === null;
+}
+
+/** Sceglie (o corregge) chi batte per primo, finché il set è a 0-0. */
+export function chooseFirstServer(match: LiveScoreState, key: TeamKey): LiveScoreState {
+  if (!match.started || !match.withLineup || !isSetFresh(match)) return match;
+  return reconcileLibero({ ...match, servingTeam: key, setFirstServer: key });
+}
+
+/**
+ * Chiude il set corrente: vince chi ha più punti (a pari punti non si
+ * chiude). Il punteggio finale resta in `setHistory`, poi punteggio e
+ * time-out si azzerano. Se la partita non è finita comincia il set dopo:
+ * le squadre cambiano campo, ognuna torna alla formazione di partenza, la
+ * battuta passa all'altra squadra (nel set decisivo si sorteggia: la sceglie il
+ * coach) e la libero si riallinea.
+ */
+export function closeSet(match: LiveScoreState): LiveScoreState {
+  if (match.teamA.score === match.teamB.score) return match;
+  const winner: TeamKey = match.teamA.score > match.teamB.score ? "A" : "B";
+  const winnerProp = teamKeyProp(winner);
+  const loserProp = teamKeyProp(otherKey(winner));
+  const reset = (team: LiveScoreTeamState, won: boolean): LiveScoreTeamState => ({
+    ...team,
+    score: 0,
+    setsWon: team.setsWon + (won ? 1 : 0),
+    liberoActiveFor: null,
+    timeoutsUsed: 0,
+    substitutionsUsed: 0,
+  });
+  const closed: LiveScoreState = {
+    ...match,
+    servingTeam: null,
+    setHistory: [...match.setHistory, { scoreA: match.teamA.score, scoreB: match.teamB.score }],
+    [winnerProp]: reset(match[winnerProp], true),
+    [loserProp]: reset(match[loserProp], false),
+  };
+  // Partita finita: tutto resta com'è, nessun set da preparare.
+  if (matchWinner(closed)) return closed;
+
+  const first = nextSetFirstServer(match);
+  const restore = (team: LiveScoreTeamState, key: TeamKey): LiveScoreTeamState => {
+    const positions = team.startPositions.length === match.playersPerSide ? [...team.startPositions] : team.positions;
+    return refreshLibero({ ...team, positions }, match.playersPerSide, match.withLineup && match.useLibero, first === key);
+  };
+  return {
+    ...closed,
+    sidesSwapped: !match.sidesSwapped,
+    sideChangeDone: false,
+    servingTeam: first,
+    setFirstServer: first,
+    teamA: restore(closed.teamA, "A"),
+    teamB: restore(closed.teamB, "B"),
+  };
+}
+
+// ── Sostituzioni ───────────────────────────────────────────────────────
 
 /** Perché una sostituzione non si può fare, o null se va bene. */
 export function substitutionProblem(
@@ -397,23 +433,39 @@ export function substitutionProblem(
   incoming: string,
 ): string | null {
   const team = match[teamKeyProp(key)];
-  const name = incoming.trim();
-  const outgoing = (team.positions[position - 1] ?? "").trim();
-  if (!name) return "Indica chi entra.";
-  if (name === outgoing) return "È già in campo in quella posizione.";
-  if (team.positions.some((n) => n.trim() === name)) return `${name} è già in campo.`;
-  if (liberoInPlay(match, team) && team.liberoName.trim() === name) {
-    return "La libero entra ed esce da sola: non serve un cambio.";
-  }
-  return null;
+  return substitutionProblemFor(team, position, incoming, liberoInPlay(match, team));
+}
+
+/**
+ * Avvertimento (non un divieto) quando un cambio non rispetta le regole delle
+ * sostituzioni nel 6 contro 6 (vedi substitutionRuleWarning in lineup.ts).
+ * Null se va tutto bene.
+ */
+export function substitutionWarning(
+  match: LiveScoreState,
+  key: TeamKey,
+  position: CourtPosition,
+  incoming: string,
+): string | null {
+  if (!match.withLineup || match.playersPerSide !== 6) return null;
+  const team = match[teamKeyProp(key)];
+  const set = currentSet(match);
+  const starters = team.startPositions.length === team.positions.length && !isSetFresh(match) ? team.startPositions : team.positions;
+  return substitutionRuleWarning({
+    incoming,
+    outgoing: team.positions[position - 1] ?? "",
+    position,
+    subs: match.substitutions.filter((s) => s.team === key && s.set === set),
+    starters,
+    limit: substitutionLimit(match.playersPerSide),
+  });
 }
 
 /**
  * Sostituzione durante il gioco: chi entra prende la posizione di chi esce.
  * Se chi esce era una delle giocatrici che la libero sostituisce, il ruolo
- * passa a chi entra (e se in quel momento c'era la libero al suo posto, la
- * libero resta in campo per lei). Conta come cambio del set solo se in quella
- * posizione c'era davvero qualcuna.
+ * passa a chi entra. Conta come cambio del set solo se in quella posizione
+ * c'era davvero qualcuna.
  */
 export function substitutePlayer(
   match: LiveScoreState,
@@ -424,31 +476,18 @@ export function substitutePlayer(
   if (substitutionProblem(match, key, position, incoming)) return match;
   const prop = teamKeyProp(key);
   const team = match[prop];
-  const name = incoming.trim();
-  const outgoing = (team.positions[position - 1] ?? "").trim();
-  const positions = [...team.positions];
-  positions[position - 1] = name;
-  const hostNames = team.hostNames.map((h) => (outgoing && h.trim() === outgoing ? name : h)) as [string, string];
-  const counts = outgoing !== "";
+  const { lineup, outgoing, counts } = substituteLineup(team, position, incoming, {
+    players: match.playersPerSide,
+    useLibero: match.withLineup && match.useLibero,
+    isServing: match.servingTeam === key,
+  });
   return {
     ...match,
-    [prop]: {
-      ...team,
-      positions,
-      hostNames,
-      liberoActiveFor: outgoing && team.liberoActiveFor === outgoing ? name : team.liberoActiveFor,
-      substitutionsUsed: team.substitutionsUsed + (counts ? 1 : 0),
-    },
+    [prop]: { ...lineup, substitutionsUsed: team.substitutionsUsed + (counts ? 1 : 0) },
     substitutions: counts
-      ? [...match.substitutions, { team: key, set: currentSet(match), position, out: outgoing, in: name }]
+      ? [...match.substitutions, { team: key, set: currentSet(match), position, out: outgoing, in: incoming.trim() }]
       : match.substitutions,
   };
-}
-
-export function matchWinner(match: LiveScoreState): TeamKey | null {
-  if (match.teamA.setsWon >= SETS_TO_WIN) return "A";
-  if (match.teamB.setsWon >= SETS_TO_WIN) return "B";
-  return null;
 }
 
 /** Cambia il numero di giocatrici: le formazioni si adattano, la libero resta
@@ -458,7 +497,7 @@ export function withPlayersPerSide(match: LiveScoreState, players: LiveScorePlay
     const positions = resizePositions(team.positions, players);
     const names = new Set(positions.map((n) => n.trim()).filter(Boolean));
     const hostNames = team.hostNames.map((h) => (names.has(h.trim()) ? h : "")) as [string, string];
-    return { ...team, positions, hostNames, liberoActiveFor: null };
+    return { ...team, positions, hostNames, liberoActiveFor: null, startPositions: [] };
   };
   return { ...match, playersPerSide: players, teamA: resizeTeam(match.teamA), teamB: resizeTeam(match.teamB) };
 }

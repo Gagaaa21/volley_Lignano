@@ -138,7 +138,37 @@ export interface ScoutSetEndEvent {
   nextServer: ScoutSide;
 }
 
-export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent | ScoutTouchEvent;
+/**
+ * Chi sta in campo, come nel Live score (facoltativo, anche solo per una
+ * squadra): le sei giocatrici nelle posizioni 1…6 (la 1 è chi batte, poi in
+ * senso orario), la libero e le due giocatrici (di solito le centrali) che la
+ * libero sostituisce in seconda linea. Messa all'inizio di un set è la
+ * formazione di partenza; a set cominciato corregge dove stanno ora.
+ */
+export interface ScoutLineupEvent {
+  type: "lineup";
+  id: string;
+  at: number;
+  side: ScoutSide;
+  /** `ScoutPlayer.id` in posizione 1…6 (null = nessuna). */
+  positions: (string | null)[];
+  libero: string | null;
+  hosts: [string | null, string | null];
+}
+
+/** Un cambio: `player` entra al posto di chi è in quella posizione. */
+export interface ScoutSubEvent {
+  type: "sub";
+  id: string;
+  at: number;
+  side: ScoutSide;
+  /** Posizione 1…6 di chi esce. */
+  position: 1 | 2 | 3 | 4 | 5 | 6;
+  /** `ScoutPlayer.id` di chi entra. */
+  player: string;
+}
+
+export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent | ScoutTouchEvent | ScoutLineupEvent | ScoutSubEvent;
 
 export interface ScoutData {
   settings: ScoutSettings;

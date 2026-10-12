@@ -30,7 +30,9 @@ function HalfCourt({
       className={cn("grid flex-1", large && "h-full")}
       style={{ gridTemplateColumns: columns, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}
     >
-      {cells.map((cell) => (
+      {/* Nel DOM le posizioni vanno in ordine (1, 2, 3…) comunque siano disposte sul campo:
+       * con Tab o Invio una formazione si scrive di seguito, dalla battitrice in poi. */}
+      {[...cells].sort((a, b) => a.position - b.position).map((cell) => (
         <div
           key={cell.position}
           data-court-position={cell.position}

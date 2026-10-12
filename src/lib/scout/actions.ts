@@ -10,11 +10,13 @@ import {
   type ScoutEvent,
   type ScoutGrade,
   type ScoutHow,
+  type ScoutLineupEvent,
   type ScoutPlayer,
   type ScoutRallyEvent,
   type ScoutRoster,
   type ScoutSettings,
   type ScoutSide,
+  type ScoutSubEvent,
   type ScoutTouchEvent,
   type ScoutTouchSkill,
 } from "./types";
@@ -76,6 +78,14 @@ export function usedPlayerIds(data: Pick<ScoutData, "events">): Set<string> {
   const used = new Set<string>();
   for (const event of data.events) {
     if (event.type === "setEnd") continue;
+    if (event.type === "lineup") {
+      for (const id of [...event.positions, event.libero, ...event.hosts]) if (id) used.add(id);
+      continue;
+    }
+    if (event.type === "sub") {
+      used.add(event.player);
+      continue;
+    }
     if (event.player) used.add(event.player);
     if (event.type === "rally" && event.victim) used.add(event.victim);
   }
@@ -230,6 +240,74 @@ export function updateSettings(data: ScoutData, settings: Partial<ScoutSettings>
   return { ...data, settings: { ...data.settings, ...settings } };
 }
 
+// ── formazione e cambi ──────────────────────────────────────────────────
+
+export interface LineupInput {
+  /** Chi è in posizione 1…6 (id della rosa, null = nessuna). */
+  positions: (string | null)[];
+  libero: string | null;
+  hosts: [string | null, string | null];
+}
+
+/** Tiene solo giocatrici della rosa, ognuna una volta sola; la libero non sta tra le sei e le sostituite sono tra le sei. */
+function sanitizeLineup(data: ScoutData, side: ScoutSide, input: LineupInput): Pick<ScoutLineupEvent, "positions" | "libero" | "hosts"> {
+  const taken = new Set<string>();
+  const pick = (id: string | null | undefined): string | null => {
+    const found = findPlayer(data.roster, side, id ?? null)?.id ?? null;
+    if (!found || taken.has(found)) return null;
+    taken.add(found);
+    return found;
+  };
+  const positions = Array.from({ length: 6 }, (_, i) => pick(input.positions[i]));
+  const libero = pick(input.libero);
+  const onCourt = new Set(positions.filter((id): id is string => id !== null));
+  const hostSeen = new Set<string>();
+  const host = (id: string | null): string | null => {
+    if (!id || !onCourt.has(id) || hostSeen.has(id)) return null;
+    hostSeen.add(id);
+    return id;
+  };
+  return { positions, libero, hosts: [host(input.hosts[0]), host(input.hosts[1])] };
+}
+
+/**
+ * Scrive la formazione di una squadra. Se subito prima (senza altri scambi, tocchi o cambi in mezzo) c'era già
+ * una formazione della stessa squadra, la sostituisce: così correggerla più volte non riempie il registro.
+ */
+export function setLineup(data: ScoutData, side: ScoutSide, input: LineupInput, at: number, id: string): ScoutData {
+  if (isLocked(data)) return data;
+  const event: ScoutLineupEvent = { type: "lineup", id, at, side, ...sanitizeLineup(data, side, input) };
+  const events = [...data.events];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const previous = events[i];
+    if (previous.type !== "lineup") break;
+    if (previous.side === side) {
+      events.splice(i, 1);
+      break;
+    }
+  }
+  return { ...data, events: [...events, event] };
+}
+
+/** Un cambio: `player` entra al posto di chi sta in quella posizione (serve la formazione di quella squadra). */
+export function substitute(
+  data: ScoutData,
+  side: ScoutSide,
+  position: ScoutSubEvent["position"],
+  player: string,
+  at: number,
+  id: string,
+): ScoutData {
+  if (isLocked(data)) return data;
+  if (!findPlayer(data.roster, side, player)) return data;
+  const court = deriveScout(data).court[side];
+  if (!court) return data;
+  // Chi entra non può essere già in campo né essere la libero (la libero entra e esce da sola).
+  if (court.positions.includes(player) || court.libero === player) return data;
+  if (!court.positions[position - 1]) return data;
+  return { ...data, events: [...data.events, { type: "sub", id, at, side, position, player }] };
+}
+
 // ── rosa ────────────────────────────────────────────────────────────────
 
 export function addPlayer(data: ScoutData, side: ScoutSide, player: ScoutPlayer): ScoutData {
@@ -275,6 +353,8 @@ export type ScoutAction =
   | { type: "removeTouch"; id: string }
   | { type: "insertTouch"; before: string; input: TouchInput; at: number; id: string }
   | { type: "removeRally"; id: string }
+  | { type: "lineup"; side: ScoutSide; input: LineupInput; at: number; id: string }
+  | { type: "sub"; side: ScoutSide; position: ScoutSubEvent["position"]; player: string; at: number; id: string }
   | { type: "finish" }
   | { type: "reopen" }
   | { type: "settings"; patch: Partial<ScoutSettings> }
@@ -306,6 +386,10 @@ export function scoutReducer(data: ScoutData, action: ScoutAction): ScoutData {
       return insertTouch(data, action.before, action.input, action.at, action.id);
     case "removeRally":
       return removeRally(data, action.id);
+    case "lineup":
+      return setLineup(data, action.side, action.input, action.at, action.id);
+    case "sub":
+      return substitute(data, action.side, action.position, action.player, action.at, action.id);
     case "finish":
       return finishMatch(data);
     case "reopen":

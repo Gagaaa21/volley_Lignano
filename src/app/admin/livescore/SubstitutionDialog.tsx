@@ -11,6 +11,7 @@ import {
   liberoInPlay,
   substitutionLimit,
   substitutionProblem,
+  substitutionWarning,
   teamKeyProp,
   type TeamKey,
 } from "@/lib/liveScore";
@@ -64,6 +65,10 @@ export function SubstitutionDialog({
   const limit = substitutionLimit(match.playersPerSide);
   const setSubstitutions = match.substitutions.filter((s) => s.team === teamKey && s.set === set);
   const showLibero = liberoInPlay(match, team);
+  const warning =
+    position !== null && incoming.trim() !== "" && !substitutionProblem(match, teamKey, position, incoming)
+      ? substitutionWarning(match, teamKey, position, incoming)
+      : null;
 
   // In Allenamento le due squadre pescano dallo stesso registro: in panchina
   // c'è chi non è in campo in nessuna delle due (né fa la libero).
@@ -219,6 +224,11 @@ export function SubstitutionDialog({
         {error && (
           <p role="alert" className="mt-3 text-sm font-semibold text-destructive">
             {error}
+          </p>
+        )}
+        {!error && warning && (
+          <p data-livescore-sub-warning className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-medium text-amber-950 ring-1 ring-amber-500/40">
+            Attenzione: {warning} Puoi confermare lo stesso (per esempio per un infortunio).
           </p>
         )}
 

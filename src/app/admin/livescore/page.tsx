@@ -25,13 +25,20 @@ export default async function LiveScorePage() {
     .map((a) => ({ id: a.id, number: String(a.jerseyNumber), name: a.fullName, category: a.category }));
   // Le partite di oggi, da collegare al tabellone in Partita: precompilano
   // l'avversaria e danno la categoria alla diretta pubblica.
-  const todayMatches: LiveScoreCalendarMatch[] = matches.map((m) => ({
+  // Le formazioni salvate in Partite (una per set): in Partita si possono usare per partire più in fretta.
+  const lineups = await Promise.all(matches.map((m) => repo.getMatchLineup(m.id)));
+  const todayMatches: LiveScoreCalendarMatch[] = matches.map((m, i) => ({
     id: m.id,
     time: m.matchDate.slice(11, 16),
     category: m.category,
     opponent: m.opponent,
     isTournament: m.isTournament,
     calledUpAthleteIds: m.calledUpAthleteIds,
+    lineups: (lineups[i]?.sets ?? []).map((set) => ({
+      athleteIds: set.slots.map((slot) => slot.athleteId),
+      roles: set.slots.map((slot) => slot.role),
+      liberoId: set.liberoIds[0] ?? null,
+    })),
   }));
 
   return (

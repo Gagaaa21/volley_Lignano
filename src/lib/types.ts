@@ -1,3 +1,5 @@
+import type { MatchFormat } from "@/lib/volleyRules";
+
 export type StaffRole = "dev" | "admin";
 
 /** Ogni sezione dell'area riservata che un Developer può nascondere a un
@@ -572,6 +574,11 @@ export interface LiveScoreTeamState {
    * battuta (posizione 1) e ha perso il punto, quindi va tracciato come
    * stato a sé (vedi applyPoint in LiveScoreClient.tsx). */
   liberoActiveFor: string | null;
+  /** La formazione con cui è cominciato il set in corso (le posizioni al
+   * momento della prima battuta): a fine set la squadra torna qui, per ripartire
+   * dalla formazione di partenza e non dall'ultima rotazione. Vuoto finché il
+   * set non è cominciato. */
+  startPositions: string[];
   score: number;
   setsWon: number;
   /** Time-out chiamati in questo set (regolamento: 2 a disposizione per
@@ -611,6 +618,16 @@ export type LiveScoreMode = "training" | "match";
 export type LiveScorePlayers = 2 | 3 | 4 | 5 | 6;
 
 export const LIVE_SCORE_PLAYER_OPTIONS: LiveScorePlayers[] = [2, 3, 4, 5, 6];
+
+/** Formula e limiti dei set (regole in lib/volleyRules.ts). `free` = nessun
+ * limite: il set si chiude a mano, come in un allenamento. */
+export interface LiveScoreRules {
+  format: "free" | MatchFormat;
+  /** Punti per vincere un set (25), con almeno due punti di scarto. */
+  setPoints: number;
+  /** Punti del set decisivo (15). */
+  lastSetPoints: number;
+}
 
 export interface LiveScoreState {
   started: boolean;
@@ -656,6 +673,13 @@ export interface LiveScoreState {
   category: Category | null;
   /** Tutte le sostituzioni della partita, in ordine. */
   substitutions: LiveScoreSubstitution[];
+  /** Formula della gara e punti per set. */
+  rules: LiveScoreRules;
+  /** Chi ha battato per primo nel set in corso: la battuta si alterna a ogni
+   * set. null se non si segue la battuta o se va ancora scelta (set decisivo). */
+  setFirstServer: "A" | "B" | null;
+  /** Nel set decisivo: il cambio campo a 8 punti è già stato fatto. */
+  sideChangeDone: boolean;
 }
 
 /** Ciò che il sito pubblico vede della diretta (vedi toPublicLiveScore in

@@ -32,7 +32,7 @@ const SCENARIOS = {
 /** Il riquadro del live score ricopre tutta la finestra? */
 async function stageFillsWindow(page: Page) {
   return page.evaluate(() => {
-    const stage = document.querySelector("div.hidden.sm\\:block") as HTMLElement;
+    const stage = document.querySelector("[data-livescore-stage]") as HTMLElement;
     const r = stage.getBoundingClientRect();
     return r.x === 0 && r.y === 0 && Math.round(r.width) === innerWidth && Math.round(r.height) === innerHeight;
   });

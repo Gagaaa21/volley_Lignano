@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Label, Select, FieldHint, Input, Toggle } from "@/components/ui/Field";
 import { SegmentedButtons } from "@/components/ui/Segmented";
+import { MATCH_FORMAT_LABELS, MATCH_FORMAT_SHORT_LABELS } from "@/lib/volleyRules";
 import { cn } from "@/lib/cn";
 import { CATEGORY_LABELS } from "@/lib/category";
 import {
@@ -26,26 +27,34 @@ import {
   HOME_TEAM_LABEL,
   MAX_TIMEOUTS_PER_SET,
   applyPoint,
+  changeSides,
+  chooseFirstServer,
   closeSet,
+  currentSet,
   hasLiberoOption,
   initialMatch,
+  isSetFresh,
   isTeamEmpty,
   liberoInPlay,
   linkCalendarMatch,
   matchWinner as winnerOf,
+  needsFirstServer,
   otherKey,
-  readableTextColor,
+  reconcileLibero,
+  startMatch,
   substitutePlayer,
   substitutionLimit,
-  teamColor,
+  suggestedSetEnd,
   teamKeyProp,
-  withAlpha,
+  withMode,
   withPlayersPerSide,
   type LiveScoreFormat,
   type TeamKey,
 } from "@/lib/liveScore";
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
+import { displayLabel, getTeamAccent } from "./accent";
 import { SubstitutionDialog } from "./SubstitutionDialog";
+import { SetEndCard, SetStartCard, SideChangeCard, StatusStrip } from "./LiveScoreStatus";
 import { useStageFullscreen } from "./useStageFullscreen";
 import { shortName } from "@/components/matches/VolleyCourt";
 import { orderRegistryNumbers, type RegistryChoices, type RegistryNumber } from "@/lib/jersey";
@@ -57,10 +66,12 @@ import {
   type CourtPosition,
   type LiveScoreMode,
   type LiveScorePlayers,
+  type LiveScoreRules,
   type LiveScoreSetResult,
   type LiveScoreState,
   type LiveScoreTeamState,
   type TrainingTeam,
+  type VolleyRole,
 } from "@/lib/types";
 
 /** Scorciatoie rapide nel selettore colore avversaria, per non dover aprire
@@ -78,31 +89,35 @@ export interface LiveScoreCalendarMatch {
   isTournament: boolean;
   /** Le convocate della partita: i loro numeri si propongono per prime. */
   calledUpAthleteIds: string[];
+  /** Le formazioni salvate in Partite, una per set (vuote se non ce n'è). */
+  lineups: SavedSetLineup[];
 }
 
-/** Colore distintivo per squadra, riusato ovunque serva riconoscerle a
- * colpo d'occhio: tabellone, storico set, ultimi punti, pulsanti "Punto".
- * Squadra A è sempre il blu del club (fisso). Squadra B è il giallo acceso
- * in allenamento (fisso), oppure il colore scelto dal coach per l'avversaria
- * vera in Partita — per questo entrambe sono espresse come colori concreti
- * (non classi Tailwind), col testo calcolato per restare sempre leggibile. */
-type TeamAccent = { background: string; text: string; textSoft: string; overlay: string; dot: string; glow: string };
+/** Formazione di un set salvata nella sezione Partite: chi sta in ogni posizione, la libero e i ruoli. */
+export interface SavedSetLineup {
+  /** Atleta in posizione 1…6 (null = vuota). */
+  athleteIds: (string | null)[];
+  /** Ruolo scelto per ogni posizione (le centrali sono «MB»). */
+  roles: (VolleyRole | null)[];
+  liberoId: string | null;
+}
 
-function getTeamAccent(teamKey: TeamKey, mode: LiveScoreMode, opponentColor: string): TeamAccent {
-  const hex = teamColor(teamKey, mode, opponentColor);
-  const text = readableTextColor(hex);
-  const isLightBg = text !== "#ffffff";
+/** La formazione salvata di un set, scritta con i numeri di maglia dell'anagrafica (null se non c'è o non ha nessun numero). */
+function savedLineupFor(
+  match: LiveScoreCalendarMatch,
+  setIndex: number,
+  registry: RegistryNumber[],
+): { positions: string[]; libero: string; hosts: [string, string] } | null {
+  const saved = match.lineups[setIndex];
+  if (!saved || saved.athleteIds.every((id) => !id)) return null;
+  const numberOf = (id: string | null) => (id ? (registry.find((r) => r.id === id)?.number ?? "") : "");
+  const positions = saved.athleteIds.map(numberOf);
+  if (positions.every((n) => n === "")) return null;
+  const centrals = saved.roles.flatMap((role, i) => (role === "MB" && positions[i] ? [positions[i]] : []));
   return {
-    background: hex,
-    text,
-    // Varianti più tenui dello stesso testo, per elementi secondari (label
-    // "Set", pillola time-out a riposo) — calcolate sul chiaro/scuro dello
-    // sfondo invece che fisse, dato che lo sfondo può essere qualunque
-    // colore scelto dal coach.
-    textSoft: isLightBg ? "rgba(13,25,38,0.65)" : "rgba(255,255,255,0.8)",
-    overlay: isLightBg ? "rgba(13,25,38,0.12)" : "rgba(255,255,255,0.22)",
-    dot: hex,
-    glow: withAlpha(hex, 0.4),
+    positions,
+    libero: numberOf(saved.liberoId),
+    hosts: [centrals[0] ?? "", centrals[1] ?? ""],
   };
 }
 
@@ -114,12 +129,6 @@ const SOFT_PILL = "bg-surface-muted text-foreground";
 
 const POINT_BUTTON_BASE =
   "inline-flex items-center justify-center gap-2 rounded-xl font-bold uppercase tracking-wide shadow-sm transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
-
-/** Etichetta di una squadra da mostrare, con un fallback quando è ancora
- * vuota (es. nome avversaria non ancora scritto in modalità Partita). */
-function displayLabel(team: LiveScoreTeamState, key: TeamKey): string {
-  return team.label.trim() || (key === "A" ? "Squadra A" : "Squadra B");
-}
 
 const LIVESCORE_API = "/api/livescore";
 /** Ultimo formato scelto su questo dispositivo (tipo, formazione, giocatrici,
@@ -137,6 +146,7 @@ function formatOf(match: LiveScoreState): LiveScoreFormat {
     playersPerSide: match.playersPerSide,
     withLineup: match.withLineup,
     useLibero: match.useLibero,
+    rules: match.rules,
   };
 }
 
@@ -149,6 +159,19 @@ function readSavedFormat(): Partial<LiveScoreFormat> {
     if (LIVE_SCORE_PLAYER_OPTIONS.includes(raw.playersPerSide as LiveScorePlayers)) format.playersPerSide = raw.playersPerSide;
     if (typeof raw.withLineup === "boolean") format.withLineup = raw.withLineup;
     if (typeof raw.useLibero === "boolean") format.useLibero = raw.useLibero;
+    const rules = raw.rules;
+    if (
+      rules &&
+      ["free", "bo5", "bo3", "fixed3"].includes(rules.format) &&
+      Number.isInteger(rules.setPoints) &&
+      Number.isInteger(rules.lastSetPoints) &&
+      rules.setPoints >= 5 &&
+      rules.setPoints <= 50 &&
+      rules.lastSetPoints >= 5 &&
+      rules.lastSetPoints <= 50
+    ) {
+      format.rules = { format: rules.format, setPoints: rules.setPoints, lastSetPoints: rules.lastSetPoints };
+    }
     return format;
   } catch {
     return {};
@@ -177,6 +200,9 @@ type Action =
   | { type: "toggleSides" }
   | { type: "newMatch" }
   | { type: "setMode"; mode: LiveScoreMode }
+  | { type: "setRules"; rules: Partial<LiveScoreRules> }
+  | { type: "chooseFirstServer"; team: TeamKey }
+  | { type: "applySavedLineup"; team: TeamKey; positions: string[]; libero: string; hosts: [string, string] }
   | { type: "setPlayers"; players: LiveScorePlayers }
   | { type: "setWithLineup"; value: boolean }
   | { type: "setUseLibero"; value: boolean }
@@ -196,12 +222,14 @@ function reducer(state: ReducerState, action: Action): ReducerState {
       return { match: action.match, history: [], pointLog: [], pointLogHistory: [] };
     case "startMatch":
       return {
-        match: { ...state.match, started: true, servingTeam: action.servingTeam },
+        match: startMatch(state.match, action.servingTeam),
         history: [],
         pointLog: [],
         pointLogHistory: [],
       };
     case "point":
+      // Set finito, sorteggio da fare o partita chiusa: i punti restano fermi finché non si decide.
+      if (suggestedSetEnd(state.match) || needsFirstServer(state.match) || winnerOf(state.match)) return state;
       return {
         match: applyPoint(state.match, action.winner),
         history: [...state.history, state.match],
@@ -230,26 +258,39 @@ function reducer(state: ReducerState, action: Action): ReducerState {
       };
     }
     case "toggleSides":
-      return { ...state, match: { ...state.match, sidesSwapped: !state.match.sidesSwapped } };
+      // Anche il cambio campo a metà set decisivo passa da qui: così non resta «da fare».
+      return { ...state, match: changeSides(state.match) };
     case "newMatch":
       // Il formato resta quello scelto; la diretta pubblica invece si spegne:
       // va riattivata apposta per la partita successiva.
       return { match: initialMatch(formatOf(state.match), state.match.team), history: [], pointLog: [], pointLogHistory: [] };
-    case "setMode": {
+    case "setMode":
+      return { ...state, match: withMode(state.match, action.mode) };
+    case "setRules": {
       if (state.match.started) return state;
-      const isMatch = action.mode === "match";
+      return { ...state, match: { ...state.match, rules: { ...state.match.rules, ...action.rules } } };
+    }
+    case "chooseFirstServer": {
+      const next = chooseFirstServer(state.match, action.team);
+      if (next === state.match) return state;
+      // Come un punto: «Annulla» riporta alla scelta precedente (utile nel sorteggio del set decisivo).
+      return {
+        match: next,
+        history: [...state.history, state.match],
+        pointLog: state.pointLog,
+        pointLogHistory: [...state.pointLogHistory, state.pointLog],
+      };
+    }
+    case "applySavedLineup": {
+      const key = teamKeyProp(action.team);
+      const team = state.match[key];
+      const positions = Array.from({ length: state.match.playersPerSide }, (_, i) => action.positions[i] ?? "");
       return {
         ...state,
-        match: {
+        match: reconcileLibero({
           ...state.match,
-          mode: action.mode,
-          teamA: { ...state.match.teamA, label: isMatch ? HOME_TEAM_LABEL : "Squadra A" },
-          teamB: { ...state.match.teamB, label: isMatch ? "" : "Squadra B" },
-          // La diretta e il collegamento al calendario esistono solo in Partita.
-          publicLive: isMatch && state.match.publicLive,
-          matchId: isMatch ? state.match.matchId : null,
-          category: isMatch ? state.match.category : null,
-        },
+          [key]: { ...team, positions, liberoName: action.libero, hostNames: action.hosts },
+        }),
       };
     }
     case "setPlayers":
@@ -288,18 +329,18 @@ function reducer(state: ReducerState, action: Action): ReducerState {
       const team = state.match[key];
       const positions = [...team.positions];
       positions[action.position - 1] = action.value;
-      return { ...state, match: { ...state.match, [key]: { ...team, positions } } };
+      return { ...state, match: reconcileLibero({ ...state.match, [key]: { ...team, positions } }) };
     }
     case "setLiberoName": {
       const key = teamKeyProp(action.team);
-      return { ...state, match: { ...state.match, [key]: { ...state.match[key], liberoName: action.value } } };
+      return { ...state, match: reconcileLibero({ ...state.match, [key]: { ...state.match[key], liberoName: action.value } }) };
     }
     case "setHostName": {
       const key = teamKeyProp(action.team);
       const team = state.match[key];
       const hostNames = [...team.hostNames] as [string, string];
       hostNames[action.index] = action.value;
-      return { ...state, match: { ...state.match, [key]: { ...team, hostNames } } };
+      return { ...state, match: reconcileLibero({ ...state.match, [key]: { ...team, hostNames } }) };
     }
     case "setLabel": {
       const key = teamKeyProp(action.team);
@@ -310,6 +351,17 @@ function reducer(state: ReducerState, action: Action): ReducerState {
     default:
       return state;
   }
+}
+
+/** Invio in un campo di posizione: passa alla posizione dopo (dall'ultima della prima squadra alla prima
+ * dell'altra), così una formazione si scrive di seguito senza toccare ogni cella. */
+function focusNextOnEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== "Enter") return;
+  const fields = Array.from(document.querySelectorAll<HTMLElement>("[data-court-position] input, [data-court-position] select"));
+  const index = fields.indexOf(e.currentTarget);
+  if (index < 0) return;
+  e.preventDefault();
+  fields[index + 1]?.focus();
 }
 
 const CUSTOM_NAME_OPTION = "__altro__";
@@ -395,7 +447,9 @@ function PositionNameField({
             onChange={(e) => onChange(e.target.value)}
             placeholder="Numero"
             inputMode="numeric"
+            enterKeyHint="next"
             autoFocus
+            onKeyDown={focusNextOnEnter}
             className={fieldClass}
           />
         )}
@@ -411,6 +465,8 @@ function PositionNameField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode={numeric ? "numeric" : undefined}
+        enterKeyHint="next"
+        onKeyDown={focusNextOnEnter}
         className={fieldClass}
       />
     );
@@ -445,7 +501,9 @@ function PositionNameField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Scrivi il nome"
+          enterKeyHint="next"
           autoFocus
+          onKeyDown={focusNextOnEnter}
           className={fieldClass}
         />
       )}
@@ -492,18 +550,20 @@ function renderTeamCell(
       );
     }
     const { name, isLibero } = cellDisplay(position, team, showLibero);
+    const isServer = position === 1 && isServing;
     return (
       <>
-        {position === 1 && isServing && (
+        {isServer && (
           <span
-            className={cn("absolute right-1.5 top-1.5", large ? "h-6 w-6" : "h-3.5 w-3.5")}
+            className={cn(
+              "absolute right-1 top-1 inline-flex items-center gap-1 rounded-full bg-green-500 font-bold uppercase tracking-wide text-white shadow-md ring-2 ring-white/80",
+              large ? "px-2.5 py-1 text-xs" : "px-1.5 py-0.5 text-[9px]",
+            )}
             title="Al servizio"
             aria-label={`${team.label || "Squadra"} al servizio`}
           >
-            <span className="absolute inset-0 animate-ping rounded-full bg-sea-950/60" />
-            <span className="relative flex h-full w-full items-center justify-center rounded-full bg-sea-950/80 shadow-sm ring-1 ring-white/40">
-              <Volleyball className={cn("text-white", large ? "h-4 w-4" : "h-2.5 w-2.5")} />
-            </span>
+            <Volleyball className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
+            Batte
           </span>
         )}
         <span
@@ -515,6 +575,7 @@ function renderTeamCell(
               : isLibero
                 ? "bg-sea-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_3px_8px_-2px_rgba(9,26,38,0.55)]"
                 : "bg-white text-sea-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_5px_-1px_rgba(9,26,38,0.25)]",
+            isServer && "ring-2 ring-green-500 ring-offset-1 ring-offset-white/0",
           )}
           title={name}
         >
@@ -584,7 +645,7 @@ function TeamBlock({
     <div
       className={cn(
         "relative flex shrink-0 flex-col items-center justify-center gap-1.5",
-        large ? "w-36 py-2.5 sm:w-52 sm:py-3.5 md:w-64" : "w-24 py-1.5 sm:w-36 sm:py-2",
+        large ? "w-32 py-2.5 sm:w-52 sm:py-3.5 md:w-64" : "w-28 py-1.5 sm:w-36 sm:py-2",
       )}
       style={{ background: accent.background, color: accent.text }}
     >
@@ -609,8 +670,8 @@ function TeamBlock({
           {team.label}
         </p>
       )}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <span className="text-[9px] font-semibold uppercase tracking-wide sm:text-[10px]" style={{ color: accent.textSoft }}>
+      <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-1 sm:gap-x-2">
+        <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-wide sm:text-[10px]" style={{ color: accent.textSoft }}>
           Set <b className="font-bold" style={{ color: accent.text }}>{team.setsWon}</b>
         </span>
         <button
@@ -928,15 +989,15 @@ export function LiveScoreClient({
   }, [loaded, match]);
 
   // Ricorda il formato scelto su questo dispositivo.
-  const { mode, playersPerSide, withLineup, useLibero } = match;
+  const { mode, playersPerSide, withLineup, useLibero, rules } = match;
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify({ mode, playersPerSide, withLineup, useLibero }));
+      localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify({ mode, playersPerSide, withLineup, useLibero, rules }));
     } catch {
       // localStorage non disponibile: si riparte dal formato predefinito.
     }
-  }, [loaded, mode, playersPerSide, withLineup, useLibero]);
+  }, [loaded, mode, playersPerSide, withLineup, useLibero, rules]);
 
   function handleNewMatch() {
     const message = match.publicLive
@@ -976,22 +1037,43 @@ export function LiveScoreClient({
   const publicPath = (match.publicLive ? match.team : team) === "minivolley" ? "/minivolley" : "/";
   const subLimit = substitutionLimit(match.playersPerSide);
   const closeSubstitution = useCallback(() => setSubstitution(null), []);
+  // Fine set (limite raggiunto), sorteggio del set decisivo da fare o partita chiusa: i punti restano fermi.
+  const setEnd = suggestedSetEnd(match);
+  const tossPending = needsFirstServer(match);
+  const pointsLocked = Boolean(setEnd) || tossPending || matchWinner !== null;
+  // Inizio di ogni set (0-0, con la formazione): chi batte per primo, formazioni, campi.
+  const showSetStart = match.started && match.withLineup && !setEnd && matchWinner === null && isSetFresh(match);
+  const savedSetLineup = numeric && linkedMatch ? savedLineupFor(linkedMatch, currentSet(match) - 1, registryNumbers) : null;
+  const savedSetup = numeric && linkedMatch ? savedLineupFor(linkedMatch, 0, registryNumbers) : null;
+
+  // Tastiera (computer a bordo campo): ← e → segnano il punto della squadra a sinistra o a destra, ⌫ annulla.
+  useEffect(() => {
+    if (!match.started) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || substitution) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, select, textarea, [contenteditable='true'], [role='dialog']")) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        dispatch({ type: "point", winner: leftKey });
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        dispatch({ type: "point", winner: rightKey });
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        dispatch({ type: "undo" });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [match.started, leftKey, rightKey, substitution]);
 
   return (
     <>
-      <div className="rounded-2xl border border-dashed border-border-subtle bg-surface px-6 py-12 text-center sm:hidden">
-        <Volleyball className="mx-auto h-8 w-8 text-foreground/30" />
-        <p className="mt-3 font-display text-base font-bold text-foreground">Serve uno schermo più grande</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Il live score è pensato per tablet o computer, per avere il campo doppio e i due tabelloni ben
-          leggibili a bordo campo durante l&apos;allenamento.
-        </p>
-      </div>
-
       <div
         ref={stageRef}
+        data-livescore-stage
         className={cn(
-          "hidden sm:block",
           isFullscreen &&
             "overflow-y-auto bg-gradient-to-br from-primary-soft via-background to-accent p-0.5 sm:p-1",
           // Schermo intero vero: lo riempie il browser. Simulato: il riquadro ricopre la finestra.
@@ -1045,6 +1127,19 @@ export function LiveScoreClient({
                   items={[
                     { value: "training", label: "Allenamento" },
                     { value: "match", label: "Partita" },
+                  ]}
+                />
+              </SetupOption>
+              <SetupOption label="Formula">
+                <SegmentedButtons
+                  ariaLabel="Formula"
+                  value={match.rules.format}
+                  onChange={(value) => dispatch({ type: "setRules", rules: { format: value } })}
+                  items={[
+                    ...(match.mode === "training" || match.rules.format === "free" ? [{ value: "free" as const, label: "Libera", title: "Nessun limite di punti: chiudi tu i set" }] : []),
+                    { value: "bo5" as const, label: MATCH_FORMAT_SHORT_LABELS.bo5, title: MATCH_FORMAT_LABELS.bo5 },
+                    { value: "bo3" as const, label: MATCH_FORMAT_SHORT_LABELS.bo3, title: MATCH_FORMAT_LABELS.bo3 },
+                    { value: "fixed3" as const, label: MATCH_FORMAT_SHORT_LABELS.fixed3, title: MATCH_FORMAT_LABELS.fixed3 },
                   ]}
                 />
               </SetupOption>
@@ -1110,6 +1205,18 @@ export function LiveScoreClient({
                       ))}
                     </Select>
                     <FieldHint>Scrive da sola l&apos;avversaria e dice alla diretta pubblica di che categoria è.</FieldHint>
+                    {savedSetup && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2.5"
+                        onClick={() => dispatch({ type: "applySavedLineup", team: "A", ...savedSetup })}
+                        data-livescore-use-saved
+                      >
+                        Usa la formazione salvata del 1° set
+                      </Button>
+                    )}
                   </div>
                 )}
                 <div>
@@ -1261,7 +1368,7 @@ export function LiveScoreClient({
                   opponentColor={match.opponentColor}
                 />
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-1.5" data-tour="section-livescore-toolbar">
+              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0" data-tour="section-livescore-toolbar">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1369,6 +1476,13 @@ export function LiveScoreClient({
                 <Trophy className="h-4 w-4 shrink-0 opacity-90" />
                 {displayLabel(match[teamKeyProp(matchWinner)], matchWinner)} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
                 {match[teamKeyProp(otherKey(matchWinner))].setsWon})
+                <button
+                  type="button"
+                  onClick={handleNewMatch}
+                  className="ml-2 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-sea-950 shadow-sm transition-colors hover:bg-white"
+                >
+                  Nuova partita
+                </button>
               </div>
             )}
 
@@ -1431,11 +1545,38 @@ export function LiveScoreClient({
               </div>
             </div>
 
+            <StatusStrip match={match} numeric={numeric} />
+            <SideChangeCard match={match} onChange={() => dispatch({ type: "toggleSides" })} />
+            {setEnd && (
+              <SetEndCard
+                match={match}
+                onClose={() => dispatch({ type: "closeSet" })}
+                onUndo={() => dispatch({ type: "undo" })}
+              />
+            )}
+            {showSetStart && (
+              <SetStartCard
+                match={match}
+                numeric={numeric}
+                editingLineups={editingNames}
+                onChoose={(key) => dispatch({ type: "chooseFirstServer", team: key })}
+                onToggleLineups={() => setEditingNames((v) => !v)}
+                savedLineup={
+                  savedSetLineup
+                    ? {
+                        label: `Usa la formazione salvata del ${currentSet(match)}° set`,
+                        onUse: () => dispatch({ type: "applySavedLineup", team: "A", ...savedSetLineup }),
+                      }
+                    : null
+                }
+              />
+            )}
+
             <div
               className={cn(
                 "grid shrink-0 grid-cols-2 gap-2.5 sm:gap-3.5",
                 // Senza formazione i due pulsanti prendono il posto del campo.
-                match.withLineup ? (isFullscreen ? "h-11 sm:h-12" : "h-11") : isFullscreen ? "min-h-24 flex-1" : "h-36",
+                match.withLineup ? (isFullscreen ? "h-14 sm:h-16" : "h-16") : isFullscreen ? "min-h-24 flex-1" : "h-36",
               )}
               data-tour="section-livescore-score"
             >
@@ -1446,13 +1587,11 @@ export function LiveScoreClient({
                     key={key}
                     type="button"
                     onClick={() => dispatch({ type: "point", winner: key })}
+                    disabled={pointsLocked}
                     className={cn(
                       POINT_BUTTON_BASE,
-                      !match.withLineup
-                        ? "text-lg sm:text-2xl"
-                        : isFullscreen
-                          ? "text-sm sm:text-base"
-                          : "text-xs sm:text-sm",
+                      "disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100",
+                      !match.withLineup ? "text-lg sm:text-2xl" : "text-sm sm:text-base",
                     )}
                     style={{ background: accent.background, color: accent.text }}
                   >

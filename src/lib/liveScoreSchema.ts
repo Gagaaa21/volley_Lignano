@@ -13,6 +13,7 @@ const teamStateSchema = z.object({
   liberoName: z.string().max(60),
   hostNames: z.tuple([z.string(), z.string()]),
   liberoActiveFor: z.string().nullable(),
+  startPositions: z.array(z.string().max(60)).max(6).default([]),
   score: z.number().int().min(0),
   setsWon: z.number().int().min(0),
   timeoutsUsed: z.number().int().min(0),
@@ -30,6 +31,12 @@ const substitutionSchema = z.object({
 const setResultSchema = z.object({
   scoreA: z.number().int().min(0),
   scoreB: z.number().int().min(0),
+});
+
+const rulesSchema = z.object({
+  format: z.enum(["free", "bo5", "bo3", "fixed3"]),
+  setPoints: z.number().int().min(5).max(50),
+  lastSetPoints: z.number().int().min(5).max(50),
 });
 
 export const liveScoreStateSchema = z
@@ -50,6 +57,10 @@ export const liveScoreStateSchema = z
     matchId: z.string().nullable().default(null),
     category: z.enum(["U14", "U15"]).nullable().default(null),
     substitutions: z.array(substitutionSchema).max(300).default([]),
+    // Una partita salvata prima delle regole dei set non ha limiti: si chiude a mano come allora.
+    rules: rulesSchema.default({ format: "free", setPoints: 25, lastSetPoints: 15 }),
+    setFirstServer: z.enum(["A", "B"]).nullable().default(null),
+    sideChangeDone: z.boolean().default(false),
   })
   .refine(
     (s) => s.teamA.positions.length === s.playersPerSide && s.teamB.positions.length === s.playersPerSide,
