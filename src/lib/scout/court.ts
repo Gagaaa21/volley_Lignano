@@ -1,4 +1,4 @@
-import { substitutionRuleWarning } from "@/lib/lineup";
+import { reentryFor, substitutionRuleWarning } from "@/lib/lineup";
 import { SUBSTITUTIONS_PER_SET } from "@/lib/volleyRules";
 import { playerLabel, sortPlayers } from "./describe";
 import type { ScoutCourt, ScoutView } from "./derive";
@@ -61,16 +61,35 @@ export function substitutionWarningFor(
   const court = view.court[side];
   const set = view.current;
   if (!court || !set) return null;
-  const starters = set.rallies.length === 0 ? court.positions : (set.lineups[side]?.positions ?? court.positions);
+  const starters = set.lineups[side]?.positions ?? court.positions;
   return substitutionRuleWarning({
     incoming,
     outgoing: court.positions[position - 1] ?? "",
-    position,
     subs: set.subs.filter((sub) => sub.side === side),
     starters,
     limit: SUBSTITUTIONS_PER_SET,
     label: (id) => playerLabel(data.roster, side, id),
   });
+}
+
+/**
+ * Se `incoming` è una titolare uscita in questo set che può ancora rientrare: chi l'ha sostituita e dove si trova
+ * adesso (la posizione da scegliere come «chi esce»). Rientra al posto della sostituta, non nella posizione in cui è
+ * uscita: nel frattempo la squadra può aver ruotato.
+ */
+export function reentryOfPlayer(
+  view: ScoutView,
+  side: ScoutSide,
+  incoming: string,
+): { replacedBy: string; position: 1 | 2 | 3 | 4 | 5 | 6 } | null {
+  const court = view.court[side];
+  const set = view.current;
+  if (!court || !set) return null;
+  const starters = set.lineups[side]?.positions ?? court.positions;
+  const found = reentryFor({ player: incoming, subs: set.subs.filter((sub) => sub.side === side), starters });
+  if (!found) return null;
+  const index = court.positions.indexOf(found.replacedBy);
+  return index < 0 ? null : { replacedBy: found.replacedBy, position: (index + 1) as 1 | 2 | 3 | 4 | 5 | 6 };
 }
 
 /** Cambi fatti da una squadra nel set in corso. */

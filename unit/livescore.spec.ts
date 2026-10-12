@@ -15,6 +15,7 @@ import {
   matchWinner,
   needsFirstServer,
   reconcileLibero,
+  reentryOf,
   rotateOnce,
   setPointFor,
   sideChangeNeeded,
@@ -28,6 +29,7 @@ import {
   withMode,
   withPlayersPerSide,
 } from "@/lib/liveScore";
+import { courtOccupant, lineupIssues, lineupIssueText, namesTakenElsewhere } from "@/lib/lineup";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import type { LiveScorePlayers, LiveScoreState } from "@/lib/types";
 import { SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
@@ -592,6 +594,67 @@ test.describe("libero calcolata dalle posizioni", () => {
   });
 });
 
+test.describe("formazione: numeri doppi e libero", () => {
+  const options = { players: 6, useLibero: true };
+  const team = () => game(6, { useLibero: true }).teamA;
+
+  test("un numero scritto in due posizioni non fa comparire la libero in due posti insieme", () => {
+    let m = game(6, { useLibero: true });
+    m = { ...m, teamA: { ...m.teamA, positions: ["7", "A2", "A3", "A4", "7", "A6"], liberoName: "2", hostNames: ["7", "A3"] } };
+    m = applyPoint(m, "B"); // A riceve: la libero entra per il 7
+    expect(m.teamA.liberoActiveFor).toBe("7");
+    const cells = ([1, 2, 3, 4, 5, 6] as const).map((position) => courtOccupant(m.teamA, position, true));
+    expect(cells.filter((cell) => cell.isLibero)).toHaveLength(1);
+    expect(cells[0]).toEqual({ name: "2", isLibero: true });
+    expect(cells[4]).toEqual({ name: "7", isLibero: false });
+  });
+
+  test("lineupIssues: numeri ripetuti, libero in campo, centrali uguali; le posizioni vuote non contano", () => {
+    const base = team();
+    expect(lineupIssues(base, options)).toEqual([]);
+    expect(lineupIssues({ ...base, positions: ["7", "A2", "A3", "A4", "7", "A6"] }, options)).toEqual([
+      { kind: "duplicate", value: "7", positions: [1, 5] },
+    ]);
+    // Spazi e maiuscole non cambiano chi è.
+    expect(lineupIssues({ ...base, positions: ["Giulia", "A2", "A3", "A4", " giulia ", "A6"] }, options)).toEqual([
+      { kind: "duplicate", value: "Giulia", positions: [1, 5] },
+    ]);
+    expect(lineupIssues({ ...base, positions: ["", "", "A3", "A4", "", "A6"] }, options)).toEqual([]);
+    // La libero con il numero di chi è in campo.
+    const libero = { ...base, liberoName: "A3", hostNames: ["A4", "A6"] as [string, string] };
+    expect(lineupIssues(libero, options)).toEqual([{ kind: "liberoOnCourt", value: "A3", positions: [3] }]);
+    expect(lineupIssues(libero, { players: 6, useLibero: false })).toEqual([]); // senza libero in uso non si controlla
+    // Le due centrali sono la stessa giocatrice.
+    const hosts = { ...base, liberoName: "L", hostNames: ["A4", "a4"] as [string, string] };
+    expect(lineupIssues(hosts, options)).toEqual([{ kind: "sameHost", value: "A4", positions: [4] }]);
+    // Due giocatrici diverse, libero a parte: tutto in regola.
+    expect(lineupIssues({ ...base, liberoName: "L", hostNames: ["A3", "A6"] }, options)).toEqual([]);
+  });
+
+  test("lineupIssueText: dice cosa correggere, con il numero in Partita e il nome in Allenamento", () => {
+    const numeric = { numeric: true, players: 6 };
+    expect(lineupIssueText({ kind: "duplicate", value: "7", positions: [1, 5] }, numeric)).toBe(
+      "Il numero 7 compare nelle posizioni 1 e 5: ogni giocatrice sta in una posizione sola.",
+    );
+    expect(lineupIssueText({ kind: "duplicate", value: "Giulia", positions: [1, 3, 5] }, { numeric: false, players: 6 })).toContain(
+      "«Giulia» compare nelle posizioni 1, 3 e 5",
+    );
+    expect(lineupIssueText({ kind: "liberoOnCourt", value: "2", positions: [4] }, numeric)).toContain(
+      "è quello della libero ed è anche in campo (posizione 4)",
+    );
+    expect(lineupIssueText({ kind: "sameHost", value: "4", positions: [2] }, numeric)).toContain("Le due centrali sono la stessa giocatrice (n. 4)");
+    expect(lineupIssueText({ kind: "sameHost", value: "4", positions: [2] }, { numeric: true, players: 4 })).toContain("sostituite dalla libero");
+  });
+
+  test("namesTakenElsewhere: le altre posizioni e la libero, non la casella che si sta scegliendo", () => {
+    const base = { ...team(), liberoName: "L" };
+    expect(namesTakenElsewhere(base, 3, options)).toEqual(["A1", "A2", "A4", "A5", "A6", "L"]);
+    expect(namesTakenElsewhere(base, "libero", options)).toEqual(["A1", "A2", "A3", "A4", "A5", "A6"]);
+    expect(namesTakenElsewhere(base, 3, { players: 6, useLibero: false })).toEqual(["A1", "A2", "A4", "A5", "A6"]);
+    expect(namesTakenElsewhere({ ...base, positions: ["A1", "", "A3", "", "", ""] }, 1, options)).toEqual(["A3", "L"]);
+  });
+});
+
 test.describe("scelta del tipo", () => {
   test("Partita è al meglio dei 5, Allenamento libero; una formula scelta a mano resta", () => {
     const training = initialMatch({ mode: "training" }, "u14u15");
@@ -609,11 +672,66 @@ test.describe("scelta del tipo", () => {
 test.describe("regole dei cambi (avvertimenti)", () => {
   const withScore = (m: LiveScoreState) => ({ ...m, teamA: { ...m.teamA, score: 3 }, teamB: { ...m.teamB, score: 1 } });
 
-  test("una titolare può rientrare solo al suo posto e al posto di chi l'ha sostituita", () => {
+  test("una titolare può rientrare solo al posto di chi l'ha sostituita", () => {
     let m = withScore(game(6));
     m = substitutePlayer(m, "A", 3, "R1"); // esce A3, entra R1
-    expect(substitutionWarning(m, "A", 3, "A3")).toBeNull(); // rientra al suo posto per R1: regolare
-    expect(substitutionWarning(m, "A", 2, "A3")).toContain("solo al suo posto");
+    expect(substitutionWarning(m, "A", 3, "A3")).toBeNull(); // rientra per R1: regolare
+    expect(substitutionWarning(m, "A", 2, "A3")).toContain("solo al posto di chi l'ha sostituita (R1)");
+  });
+
+  test("dopo una rotazione la titolare rientra per la sostituta, nella posizione in cui si trova adesso", () => {
+    let m = withScore(game(6));
+    m = substitutePlayer(m, "A", 3, "R1"); // esce A3, entra R1 in posizione 3
+    m = applyPoint(m, "B"); // A perde la battuta...
+    m = applyPoint(m, "A"); // ...e la riconquista: ruota, e R1 passa dalla posizione 3 alla 2
+    expect(m.teamA.positions[1]).toBe("R1");
+    // A3 rientra per R1 che ora sta in posizione 2: nessun avvertimento (prima avvisava a torto che doveva stare in 3).
+    expect(substitutionWarning(m, "A", 2, "A3")).toBeNull();
+    expect(reentryOf(m, "A", "A3")).toEqual({ replacedBy: "R1", position: 2 });
+    // Non può invece prendere il posto di un'altra, e R1 esce solo per lei.
+    expect(substitutionWarning(m, "A", 4, "A3")).toContain("solo al posto di chi l'ha sostituita (R1)");
+    expect(substitutionWarning(m, "A", 2, "R2")).toContain("può essere sostituita solo da lei");
+    // Rientrata una volta, non esce più e la sostituta non torna.
+    m = substitutePlayer(m, "A", 2, "A3");
+    expect(m.teamA.positions[1]).toBe("A3");
+    expect(m.teamA.substitutionsUsed).toBe(2);
+    expect(reentryOf(m, "A", "A3")).toBeNull();
+    expect(substitutionWarning(m, "A", 2, "R9")).toContain("non può uscire un'altra volta");
+    expect(substitutionWarning(m, "A", 5, "R1")).toContain("una riserva non può rientrare");
+  });
+
+  test("chi può rientrare: solo una titolare uscita, una volta sola, e solo se la sostituta è ancora in campo", () => {
+    let m = withScore(game(6));
+    expect(reentryOf(m, "A", "A3")).toBeNull(); // non è uscita
+    m = substitutePlayer(m, "A", 3, "R1");
+    expect(reentryOf(m, "A", "A3")).toEqual({ replacedBy: "R1", position: 3 });
+    expect(reentryOf(m, "A", "R1")).toBeNull(); // una riserva non rientra
+    expect(reentryOf(m, "B", "A3")).toBeNull(); // l'altra squadra no
+    // Se la sostituta è stata cambiata con un'altra (un cambio irregolare, confermato lo stesso) non si propone niente.
+    m = substitutePlayer(m, "A", 3, "R2");
+    expect(reentryOf(m, "A", "A3")).toBeNull();
+  });
+
+  test("a set nuovo i cambi ripartono da zero: nessun rientro da proporre", () => {
+    let m = withScore(game(6));
+    m = substitutePlayer(m, "A", 3, "R1");
+    expect(reentryOf(m, "A", "A3")).not.toBeNull();
+    const next = closeWith(m, "B");
+    expect(next.teamA.substitutionsUsed).toBe(0);
+    expect(reentryOf(next, "A", "A3")).toBeNull();
+    expect(substitutionWarning(next, "A", 3, "R1")).toBeNull();
+  });
+
+  test("un cambio a 0-0 non fa diventare titolare chi entra: la titolare uscita può rientrare", () => {
+    let m = game(6); // 0-0, formazione di partenza registrata
+    m = substitutePlayer(m, "A", 3, "R1");
+    expect(reentryOf(m, "A", "A3")).toEqual({ replacedBy: "R1", position: 3 });
+    expect(substitutionWarning(m, "A", 3, "A3")).toBeNull();
+    // Al primo punto la formazione di partenza resta quella registrata (con A3), non diventa quella con R1.
+    m = applyPoint(m, "A");
+    expect(m.teamA.startPositions).toEqual(["A1", "A2", "A3", "A4", "A5", "A6"]);
+    expect(substitutionWarning(m, "A", 3, "A3")).toBeNull();
+    expect(substitutionWarning(m, "A", 3, "R5")).toContain("può essere sostituita solo da lei");
   });
 
   test("una riserva già uscita non può rientrare, e una riserva può uscire solo per la sua titolare", () => {

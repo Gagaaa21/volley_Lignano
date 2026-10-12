@@ -22,7 +22,7 @@ import { Label, Select, FieldHint, Input, Toggle } from "@/components/ui/Field";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { PointsInput } from "@/components/ui/PointsInput";
 import { MATCH_FORMAT_LABELS, MATCH_FORMAT_SHORT_LABELS } from "@/lib/volleyRules";
-import { courtOccupant } from "@/lib/lineup";
+import { courtOccupant, lineupIssues, lineupIssueText, namesTakenElsewhere, type LineupIssue } from "@/lib/lineup";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { prepareAudio } from "@/lib/beep";
@@ -61,7 +61,7 @@ import { DualLiveScoreCourt } from "./LiveScoreCourt";
 import { displayLabel, getTeamAccent } from "./accent";
 import { SubstitutionDialog } from "./SubstitutionDialog";
 import { TimeoutCard } from "./TimeoutCard";
-import { SetEndCard, SetStartCard, SideChangeCard, StatusStrip } from "./LiveScoreStatus";
+import { LineupIssuesCard, SetEndCard, SetStartCard, SideChangeCard, StatusStrip } from "./LiveScoreStatus";
 import { useStageFullscreen } from "./useStageFullscreen";
 import { shortName } from "@/components/matches/VolleyCourt";
 import { orderRegistryNumbers, type RegistryChoices, type RegistryNumber } from "@/lib/jersey";
@@ -150,13 +150,30 @@ const WIDE_QUERY = "(min-width: 1024px)";
 const WIDE_TOOL =
   "h-14 flex-col gap-1 whitespace-normal border-2 px-1 text-center text-[13px] leading-tight";
 
-/** Time-out e cambi di una squadra su schermo largo: sotto il suo pulsante dei punti, col bordo del colore della squadra. */
+/** Time-out e cambi di una squadra su schermo largo: sotto il suo pulsante dei punti, col bordo del colore della squadra e lo sfondo dell'azione. */
 const WIDE_TEAM_ACTION =
-  "inline-flex h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 bg-surface px-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "inline-flex h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-/** Time-out e cambi nel blocco della squadra: pulsanti veri (etichetta, bordo, tocco comodo), non più piccole pillole. */
+/**
+ * Un colore per ogni azione, lo stesso ovunque compaia (barra delle azioni, colonne delle squadre): si riconosce a
+ * colpo d'occhio dove toccare, senza leggere. «Punto» ha il colore della squadra; qui ci sono tutte le altre.
+ */
+const ACTION = {
+  undo: { tile: "border-slate-900 bg-slate-600 text-white hover:bg-slate-500", icon: "text-white" },
+  substitution: { tile: "border-sky-500 bg-sky-100 text-sky-950 hover:bg-sky-200", icon: "text-sky-700" },
+  closeSet: { tile: "border-emerald-600 bg-emerald-100 text-emerald-950 hover:bg-emerald-200", icon: "text-emerald-700" },
+  swap: { tile: "border-violet-500 bg-violet-100 text-violet-950 hover:bg-violet-200", icon: "text-violet-700" },
+  lineups: { tile: "border-teal-600 bg-teal-100 text-teal-950 hover:bg-teal-200", icon: "text-teal-700" },
+  /** «Fatto», mentre si correggono le formazioni: pieno, perché è lo stato attivo. */
+  lineupsDone: { tile: "border-teal-800 bg-teal-600 text-white hover:bg-teal-500", icon: "text-white" },
+  live: { tile: "border-fuchsia-500 bg-fuchsia-100 text-fuchsia-950 hover:bg-fuchsia-200", icon: "text-fuchsia-700" },
+  timeout: { tile: "border-amber-500 bg-amber-100 text-amber-950 hover:bg-amber-200", icon: "text-amber-700" },
+  fresh: { tile: "border-red-500 bg-white text-red-700 hover:bg-red-50", icon: "text-red-600" },
+} as const;
+
+/** Time-out e cambi nel blocco della squadra: pulsanti veri (etichetta, bordo, tocco comodo), col colore della loro azione (vedi ACTION). */
 const TEAM_ACTION =
-  "inline-flex min-h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg border-2 border-current/35 px-1 text-[10px] font-semibold transition-colors hover:border-current/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current sm:gap-1.5 sm:px-2 sm:text-xs";
+  "inline-flex min-h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg border-2 border-current/35 px-1 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current sm:gap-1.5 sm:px-2 sm:text-xs";
 
 /** Il suono che avvisa a fine time-out si accende e si spegne da qui: la scelta resta su questo dispositivo. */
 const TIMEOUT_SOUND_KEY = "vl-livescore-timeout-sound";
@@ -423,6 +440,8 @@ function PositionNameField({
   compact,
   numeric,
   numberChoices,
+  invalid,
+  taken,
 }: {
   id?: string;
   value: string;
@@ -437,22 +456,34 @@ function PositionNameField({
   /** Solo per le nostre in Partita: i numeri scritti nell'anagrafica atlete,
    * da scegliere invece di ridigitarli (resta «Altro…» per un numero qualsiasi). */
   numberChoices?: RegistryChoices;
+  /** Il numero o il nome è già usato altrove nella formazione (vedi lineupIssues): la casella si segna in rosso. */
+  invalid?: boolean;
+  /** Numeri o nomi già presi da altre caselle della squadra: nel menù non si possono scegliere due volte. */
+  taken?: string[];
 }) {
   const [forceCustom, setForceCustom] = useState(false);
   const trimmed = value.trim();
+  /** Una voce del menù già scelta altrove: si vede, ma non si può prendere (quella della casella stessa resta). */
+  const isTaken = (option: string) =>
+    option.trim().toLowerCase() !== trimmed.toLowerCase() && (taken ?? []).some((name) => name.trim().toLowerCase() === option.trim().toLowerCase());
   const numberList = numeric && numberChoices ? [...numberChoices.calledUp, ...numberChoices.others] : [];
   const isKnownAthlete = trimmed !== "" && (numberList.length > 0 ? numberList.some((o) => o.number === trimmed) : athleteNames.includes(trimmed));
   const showCustomInput = forceCustom || (trimmed !== "" && !isKnownAthlete);
   const selectValue = showCustomInput ? CUSTOM_NAME_OPTION : isKnownAthlete ? trimmed : "";
 
-  const fieldClass = compact
-    ? "w-full rounded-full bg-white/95 px-2 py-1 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700"
-    : "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700 sm:text-xs";
+  const fieldClass = cn(
+    compact
+      ? "w-full rounded-full bg-white/95 px-2 py-1 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700"
+      : "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-[11px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700 sm:text-xs",
+    // Numero o nome già usato altrove: rosso, ben visibile anche sul campo azzurro.
+    invalid && "bg-red-100 text-red-900 ring-2 ring-red-600",
+  );
 
   if (numeric && numberChoices && numberList.length > 0) {
     const option = (o: RegistryNumber) => (
-      <option key={o.id} value={o.number}>
+      <option key={o.id} value={o.number} disabled={isTaken(o.number)}>
         {o.number} · {shortName(o.name)}
+        {isTaken(o.number) ? " · già in campo" : ""}
       </option>
     );
     return (
@@ -469,6 +500,7 @@ function PositionNameField({
             setForceCustom(false);
             onChange(e.target.value);
           }}
+          aria-invalid={invalid || undefined}
           className={fieldClass}
           data-livescore-registry-select
         >
@@ -492,6 +524,7 @@ function PositionNameField({
             enterKeyHint="next"
             autoFocus
             onKeyDown={focusNextOnEnter}
+            aria-invalid={invalid || undefined}
             className={fieldClass}
           />
         )}
@@ -509,6 +542,7 @@ function PositionNameField({
         inputMode={numeric ? "numeric" : undefined}
         enterKeyHint="next"
         onKeyDown={focusNextOnEnter}
+        aria-invalid={invalid || undefined}
         className={fieldClass}
       />
     );
@@ -528,12 +562,14 @@ function PositionNameField({
           setForceCustom(false);
           onChange(e.target.value);
         }}
+        aria-invalid={invalid || undefined}
         className={fieldClass}
       >
         <option value="">{placeholder}</option>
         {athleteNames.map((name) => (
-          <option key={name} value={name}>
+          <option key={name} value={name} disabled={isTaken(name)}>
             {name}
+            {isTaken(name) ? " · già in campo" : ""}
           </option>
         ))}
         <option value={CUSTOM_NAME_OPTION}>Altro…</option>
@@ -546,11 +582,31 @@ function PositionNameField({
           enterKeyHint="next"
           autoFocus
           onKeyDown={focusNextOnEnter}
+          aria-invalid={invalid || undefined}
           className={fieldClass}
         />
       )}
     </div>
   );
+}
+
+/** Come sta la formazione di una squadra mentre la si scrive: gli errori (numeri doppi), le caselle da segnare in rosso e i numeri già presi. */
+interface LineupCheck {
+  issues: LineupIssue[];
+  /** Posizioni di campo da segnare in rosso. */
+  flagged: ReadonlySet<number>;
+  /** Numeri o nomi già presi nella formazione, per la casella indicata (o per la libero). */
+  taken: (slot: CourtPosition | "libero") => string[];
+}
+
+function lineupCheckFor(team: LiveScoreTeamState, match: LiveScoreState): LineupCheck {
+  const options = { players: match.playersPerSide, useLibero: match.useLibero };
+  const issues = match.withLineup ? lineupIssues(team, options) : [];
+  return {
+    issues,
+    flagged: new Set(issues.flatMap((issue) => issue.positions)),
+    taken: (slot) => (match.withLineup ? namesTakenElsewhere(team, slot, options) : []),
+  };
 }
 
 function renderTeamCell(
@@ -565,6 +621,7 @@ function renderTeamCell(
   showLibero: boolean,
   onSubstitute?: (position: CourtPosition) => void,
   numberChoices?: RegistryChoices,
+  check?: LineupCheck,
 ) {
   return function TeamCell(position: CourtPosition) {
     if (editing) {
@@ -576,6 +633,8 @@ function renderTeamCell(
           placeholder={numeric ? "N." : `Pos. ${position}`}
           numeric={numeric}
           numberChoices={teamKey === "A" ? numberChoices : undefined}
+          invalid={check?.flagged.has(position)}
+          taken={check?.taken(position)}
         />
       );
     }
@@ -680,6 +739,7 @@ function TeamBlock({
 }) {
   const accent = getTeamAccent(teamKey, mode, opponentColor);
   const timeoutMaxed = team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET;
+  const subsMaxed = substitutions ? substitutions.limit !== null && substitutions.used >= substitutions.limit : false;
   const board = layout === "board";
   return (
     <div
@@ -734,10 +794,10 @@ function TeamBlock({
                   onClick={onToggleTimeout}
                   title={`Segna un time-out (${MAX_TIMEOUTS_PER_SET} a disposizione per set): parte il conto alla rovescia`}
                   data-tour={timeoutTour ? "section-livescore-timeout" : undefined}
-                  className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
-                  style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : { background: accent.overlay, color: accent.text }}
+                  className={cn(TEAM_ACTION, !timeoutMaxed && ACTION.timeout.tile, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
+                  style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : undefined}
                 >
-                  {timeoutMaxed ? <TimerOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Timer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                  {timeoutMaxed ? <TimerOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Timer className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", ACTION.timeout.icon)} />}
                   Time-out
                   <b className="tabular-nums">
                     {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
@@ -750,14 +810,10 @@ function TeamBlock({
                   onClick={substitutions.onClick}
                   title="Cambi in questo set: tocca per una sostituzione"
                   aria-label={`Sostituzione ${team.label}: ${substitutions.used} cambi in questo set`}
-                  className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
-                  style={
-                    substitutions.limit !== null && substitutions.used >= substitutions.limit
-                      ? { background: "#ffffff", color: "var(--destructive)" }
-                      : { background: accent.overlay, color: accent.text }
-                  }
+                  className={cn(TEAM_ACTION, !subsMaxed && ACTION.substitution.tile, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
+                  style={subsMaxed ? { background: "#ffffff", color: "var(--destructive)" } : undefined}
                 >
-                  <ArrowLeftRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <ArrowLeftRight className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", !subsMaxed && ACTION.substitution.icon)} />
                   Cambi
                   <b className="tabular-nums">
                     {substitutions.used}
@@ -859,6 +915,7 @@ function LiberoFields({
   large,
   numeric,
   numberChoices,
+  check,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
@@ -869,8 +926,12 @@ function LiberoFields({
   large?: boolean;
   numeric?: boolean;
   numberChoices?: RegistryChoices;
+  check?: LineupCheck;
 }) {
-  const filledNames = team.positions.map((n) => n.trim()).filter(Boolean);
+  // Chi è in campo, una volta sola (con un nome scritto due volte il menù non deve ripeterlo).
+  const filledNames = [...new Set(team.positions.map((n) => n.trim()).filter(Boolean))];
+  const liberoClash = check?.issues.some((issue) => issue.kind === "liberoOnCourt") ?? false;
+  const hostClash = check?.issues.some((issue) => issue.kind === "sameHost") ?? false;
   const liberoLabel = numeric ? `Numero libero ${team.label}` : `Nome della libero`;
   // Nella pallavolo a 6 la libero prende il posto delle centrali; negli
   // altri formati si sceglie liberamente chi sostituisce.
@@ -887,6 +948,8 @@ function LiberoFields({
         compact={large}
         numeric={numeric}
         numberChoices={teamKey === "A" ? numberChoices : undefined}
+        invalid={liberoClash}
+        taken={check?.taken("libero")}
       />
       {team.liberoName.trim() && (
         <div className={cn("grid grid-cols-2", large ? "mt-1.5 gap-1.5" : "mt-3 gap-3")}>
@@ -897,10 +960,13 @@ function LiberoFields({
                 id={`${idPrefix}-host${index + 1}`}
                 value={team.hostNames[index]}
                 onChange={(e) => dispatch({ type: "setHostName", team: teamKey, index, value: e.target.value })}
+                aria-invalid={hostClash || undefined}
+                className={hostClash ? "border-red-600 bg-red-50 ring-2 ring-red-600" : undefined}
               >
                 <option value="">{hostLabel(index === 0 ? 1 : 2)}…</option>
                 {filledNames.map((name) => (
-                  <option key={name} value={name}>
+                  // Le due sostituite sono due giocatrici diverse: quella già scelta nell'altro menù non si ripete.
+                  <option key={name} value={name} disabled={name === team.hostNames[1 - index].trim() && name !== team.hostNames[index].trim()}>
                     {name}
                   </option>
                 ))}
@@ -1130,6 +1196,15 @@ export function LiveScoreClient({
   const linkedMatch = todayMatches.find((m) => m.id === match.matchId) ?? null;
   const numberChoices = numeric ? orderRegistryNumbers(registryNumbers, linkedMatch?.calledUpAthleteIds ?? [], match.category) : undefined;
   const showLiberoFields = match.withLineup && match.useLibero && hasLiberoOption(match.playersPerSide);
+  // Numeri (o nomi) scritti due volte, libero con il numero di chi è in campo: si segnano in rosso, e finché ci sono la partita non parte.
+  const checks: Record<TeamKey, LineupCheck> = { A: lineupCheckFor(match.teamA, match), B: lineupCheckFor(match.teamB, match) };
+  const lineupItems = (["A", "B"] as const).flatMap((key) =>
+    checks[key].issues.map((issue) => ({
+      team: displayLabel(match[teamKeyProp(key)], key),
+      text: lineupIssueText(issue, { numeric: match.mode === "match", players: match.playersPerSide }),
+    })),
+  );
+  const lineupBlocked = lineupItems.length > 0;
   // Senza formazione il tabellone è l'unica cosa da guardare: più grande.
   const bigBoard = isFullscreen || !match.withLineup;
   const publicPath = (match.publicLive ? match.team : team) === "minivolley" ? "/minivolley" : "/";
@@ -1284,10 +1359,15 @@ export function LiveScoreClient({
         players={match.playersPerSide}
         labelA={displayLabel(leftTeam, leftKey)}
         labelB={displayLabel(rightTeam, rightKey)}
-        renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
-        renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
+        renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices, checks[leftKey])}
+        renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices, checks[rightKey])}
         large={isFullscreen}
       />
+      {lineupBlocked && (
+        <div className="mt-2.5">
+          <LineupIssuesCard items={lineupItems} />
+        </div>
+      )}
     </div>
   );
 
@@ -1302,6 +1382,7 @@ export function LiveScoreClient({
         players={match.playersPerSide}
         numeric={numeric}
         numberChoices={numberChoices}
+        check={checks.A}
       />
       <LiberoFields
         team={match.teamB}
@@ -1312,6 +1393,7 @@ export function LiveScoreClient({
         players={match.playersPerSide}
         numeric={numeric}
         numberChoices={numberChoices}
+        check={checks.B}
       />
     </div>
   );
@@ -1340,12 +1422,18 @@ export function LiveScoreClient({
     </div>
   );
 
+  const setupStartHint = lineupBlocked && (
+    <p className="text-center text-sm font-semibold text-destructive" data-livescore-start-blocked>
+      Prima correggi le formazioni segnate in rosso.
+    </p>
+  );
   const setupStart = (
     <Button
       onClick={() => {
         dispatch({ type: "startMatch", servingTeam: match.withLineup ? pendingServer : null });
         window.scrollTo({ top: 0, behavior: "smooth" });
       }}
+      disabled={lineupBlocked}
       size="lg"
       className="w-full"
       data-tour="section-livescore-start"
@@ -1370,50 +1458,57 @@ export function LiveScoreClient({
   const undoButton = (
     <Button
       variant="secondary"
-      className={tool("border-sand-500", wide && "col-span-2")}
+      className={tool(ACTION.undo.tile, wide && "col-span-2")}
       onClick={() => dispatch({ type: "undo" })}
       disabled={state.history.length === 0}
       title="Toglie l'ultima azione (un punto, un cambio, la chiusura di un set)"
     >
-      <Undo2 className={toolIcon} />
+      <Undo2 className={cn(toolIcon, ACTION.undo.icon)} />
       Annulla
     </Button>
   );
   const substitutionButton = match.withLineup && (
     <Button
       variant="soft"
-      className={tool("border-primary/35")}
+      className={tool(ACTION.substitution.tile)}
       onClick={() => {
         setEditingNames(false);
         setSubstitution({ team: "A", position: null });
       }}
       data-tour="section-livescore-substitution"
     >
-      <ArrowLeftRight className={toolIcon} />
+      <ArrowLeftRight className={cn(toolIcon, ACTION.substitution.icon)} />
       Cambio
     </Button>
   );
   const closeSetButton = (
     <Button
       variant="outline"
-      className={tool()}
+      className={tool(ACTION.closeSet.tile)}
       onClick={() => dispatch({ type: "closeSet" })}
       disabled={tied}
       title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
     >
-      <Flag className={toolIcon} />
+      <Flag className={cn(toolIcon, ACTION.closeSet.icon)} />
       Chiudi set
     </Button>
   );
   const invertButton = (
-    <Button variant="outline" className={tool()} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
-      <Repeat className={toolIcon} />
+    <Button variant="outline" className={tool(ACTION.swap.tile)} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
+      <Repeat className={cn(toolIcon, ACTION.swap.icon)} />
       Inverti
     </Button>
   );
   const formationsButton = match.withLineup && (
-    <Button variant="outline" className={tool()} onClick={() => setEditingNames((v) => !v)} data-tour="section-livescore-formations">
-      <Pencil className={toolIcon} />
+    <Button
+      variant="outline"
+      className={tool((editingNames ? ACTION.lineupsDone : ACTION.lineups).tile)}
+      onClick={() => setEditingNames((v) => !v)}
+      disabled={editingNames && lineupBlocked}
+      title={editingNames && lineupBlocked ? "Prima correggi i numeri in rosso" : undefined}
+      data-tour="section-livescore-formations"
+    >
+      <Pencil className={cn(toolIcon, (editingNames ? ACTION.lineupsDone : ACTION.lineups).icon)} />
       {editingNames ? "Fatto" : "Formazioni"}
     </Button>
   );
@@ -1421,7 +1516,7 @@ export function LiveScoreClient({
     <span className="flex items-stretch gap-0.5 sm:inline-flex" data-tour="section-livescore-public">
       <Button
         variant={match.publicLive ? "danger" : "outline"}
-        className={tool("min-w-0 flex-1", match.publicLive && "border-destructive-strong")}
+        className={tool("min-w-0 flex-1", match.publicLive ? "border-destructive-strong" : ACTION.live.tile)}
         onClick={togglePublicLive}
         aria-pressed={match.publicLive}
         data-livescore-public-toggle
@@ -1431,7 +1526,7 @@ export function LiveScoreClient({
             : "Mostra il punteggio in diretta sul sito pubblico."
         }
       >
-        <span className={cn("h-2.5 w-2.5 rounded-full", match.publicLive ? "animate-pulse bg-white" : "bg-muted-foreground/50")} />
+        <span className={cn("h-2.5 w-2.5 rounded-full", match.publicLive ? "animate-pulse bg-white" : "bg-fuchsia-500")} />
         {match.publicLive ? "In diretta" : "Diretta"}
       </Button>
       {match.publicLive && (
@@ -1451,11 +1546,11 @@ export function LiveScoreClient({
   const newButton = (
     <Button
       variant="outline"
-      className={tool("border-destructive/40 text-destructive hover:border-destructive/70 hover:bg-destructive/8")}
+      className={tool(ACTION.fresh.tile)}
       onClick={handleNewMatch}
       title="Cancella questa partita e ricomincia da capo"
     >
-      <RefreshCw className={toolIcon} />
+      <RefreshCw className={cn(toolIcon, ACTION.fresh.icon)} />
       Nuovo
     </Button>
   );
@@ -1550,6 +1645,7 @@ export function LiveScoreClient({
   // Le schede che chiedono un'azione (fine set, cambio campo, inizio set): sopra i pulsanti dei punti, che restano fermi finché non si sceglie.
   const statusCards = (
     <>
+      <LineupIssuesCard items={lineupItems} onFix={editingNames ? undefined : () => setEditingNames(true)} />
       {timeoutRun && (
         <TimeoutCard
           run={timeoutRun}
@@ -1567,6 +1663,7 @@ export function LiveScoreClient({
           match={match}
           numeric={numeric}
           editingLineups={editingNames}
+          lineupsBlocked={lineupBlocked}
           onChoose={(key) => dispatch({ type: "chooseFirstServer", team: key })}
           onToggleLineups={() => setEditingNames((v) => !v)}
           savedLineup={
@@ -1588,8 +1685,8 @@ export function LiveScoreClient({
       players={match.playersPerSide}
       labelA={displayLabel(leftTeam, leftKey)}
       labelB={displayLabel(rightTeam, rightKey)}
-      renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen || wide, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }), numberChoices)}
-      renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen || wide, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }), numberChoices)}
+      renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen || wide, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }), numberChoices, checks[leftKey])}
+      renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen || wide, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }), numberChoices, checks[rightKey])}
       large={isFullscreen || wide}
     />
   );
@@ -1605,6 +1702,7 @@ export function LiveScoreClient({
         large={isFullscreen}
         numeric={numeric}
         numberChoices={numberChoices}
+        check={checks[leftKey]}
       />
       <LiberoFields
         team={rightTeam}
@@ -1616,6 +1714,7 @@ export function LiveScoreClient({
         large={isFullscreen}
         numeric={numeric}
         numberChoices={numberChoices}
+        check={checks[rightKey]}
       />
     </div>
   );
@@ -1662,10 +1761,10 @@ export function LiveScoreClient({
           onClick={() => requestTimeout(key)}
           title={`Segna un time-out (${MAX_TIMEOUTS_PER_SET} a disposizione per set): parte il conto alla rovescia`}
           data-tour={isLeft ? "section-livescore-timeout" : undefined}
-          className={WIDE_TEAM_ACTION}
+          className={cn(WIDE_TEAM_ACTION, ACTION.timeout.tile)}
           style={timeoutMaxed ? maxedStyle : { borderColor: accent.background }}
         >
-          {timeoutMaxed ? <TimerOff className="h-4 w-4" /> : <Timer className="h-4 w-4" />}
+          {timeoutMaxed ? <TimerOff className="h-4 w-4" /> : <Timer className={cn("h-4 w-4", ACTION.timeout.icon)} />}
           Time-out
           <b className="tabular-nums">
             {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
@@ -1677,10 +1776,10 @@ export function LiveScoreClient({
             onClick={() => setSubstitution({ team: key, position: null })}
             title="Cambi in questo set: tocca per una sostituzione"
             aria-label={`Sostituzione ${team.label}: ${team.substitutionsUsed} cambi in questo set`}
-            className={WIDE_TEAM_ACTION}
+            className={cn(WIDE_TEAM_ACTION, ACTION.substitution.tile)}
             style={substitutionsMaxed ? maxedStyle : { borderColor: accent.background }}
           >
-            <ArrowLeftRight className="h-4 w-4" />
+            <ArrowLeftRight className={cn("h-4 w-4", !substitutionsMaxed && ACTION.substitution.icon)} />
             Cambi
             <b className="tabular-nums">
               {team.substitutionsUsed}
@@ -1848,6 +1947,7 @@ export function LiveScoreClient({
                 <div className="space-y-5">
                   {setupOpponent}
                   {setupServe}
+                  {setupStartHint}
                   {/* Resta in vista anche se la schermata scorre: «Inizia» si preme sempre dopo aver scritto le formazioni. */}
                   <div className="sticky bottom-2 z-10 rounded-xl shadow-lg">{setupStart}</div>
                 </div>
@@ -1862,6 +1962,7 @@ export function LiveScoreClient({
                 {setupCourt}
                 {setupLibero}
                 {setupServe}
+                {setupStartHint}
                 {setupStart}
               </>
             )}
@@ -1898,7 +1999,7 @@ export function LiveScoreClient({
               <div className={cn("mx-auto flex min-h-0 w-full min-w-0 max-w-[46rem] flex-col gap-2", !match.withLineup && "justify-end")}>
                 {court}
                 {liberoEditor}
-                {/* Azioni della partita: «Annulla» in evidenza (doppio), «Cambio» azzurro, «Nuovo» rosso (cancella la partita). */}
+                {/* Azioni della partita: ognuna col suo colore (vedi ACTION), «Annulla» doppio, «Nuovo» rosso (cancella la partita). */}
                 <div className="grid shrink-0 grid-cols-4 gap-2" data-tour="section-livescore-toolbar">
                   {undoButton}
                   {substitutionButton}
@@ -1930,8 +2031,8 @@ export function LiveScoreClient({
                * invece di far scivolare lo storico sopra il titolo. */}
               <div className="flex flex-1 justify-center">{historyStreak}</div>
               {/* Azioni della partita: su telefono tasselli (icona sopra, etichetta sotto) in due righe da quattro;
-               * da tablet pulsanti in fila, con il bordo e il colore che ne dicono l'uso: «Annulla» in evidenza,
-               * «Cambio» azzurro, «Nuovo» rosso (cancella la partita). */}
+               * da tablet pulsanti in fila, con il bordo e il colore che ne dicono l'uso: ognuna ha il suo colore
+               * (vedi ACTION), «Annulla» scuro, «Nuovo» rosso (cancella la partita). */}
               <div
                 className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:max-w-full sm:shrink-0 sm:flex-wrap sm:items-center sm:gap-2"
                 data-tour="section-livescore-toolbar"

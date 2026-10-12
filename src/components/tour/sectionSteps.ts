@@ -182,14 +182,14 @@ export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
     path: "/admin/livescore",
     target: "section-livescore-substitution",
     title: "Sostituzioni",
-    body: "Scegli chi esce e chi entra: il tabellone conta i cambi del set e chi entra prosegue la rotazione. Puoi anche toccare direttamente la giocatrice in campo.",
+    body: "Scegli chi esce e chi entra: il tabellone conta i cambi del set e chi entra prosegue la rotazione. Una titolare uscita rientra solo al posto di chi l'ha sostituita: scrivi il suo numero e «Esce» si sceglie da solo. Puoi anche toccare direttamente la giocatrice in campo.",
   },
   {
     id: "section-livescore-formations",
     path: "/admin/livescore",
     target: "section-livescore-formations",
     title: "Cambia le formazioni",
-    body: "Apri questo pannello in qualsiasi momento per correggere un nome, un numero o la libero senza fermare il punteggio (senza contarlo come cambio).",
+    body: "Apri questo pannello in qualsiasi momento per correggere un nome, un numero o la libero senza fermare il punteggio (senza contarlo come cambio). Se un numero compare due volte, le caselle diventano rosse finché non lo correggi.",
   },
   {
     id: "section-livescore-public-ingame",

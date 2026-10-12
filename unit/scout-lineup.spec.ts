@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
-import { lineupSummary } from "@/lib/scout/court";
+import { lineupSummary, reentryOfPlayer, substitutionWarningFor } from "@/lib/scout/court";
 import type { Match } from "@/lib/types";
 import {
   addPlayer,
@@ -238,6 +238,107 @@ test.describe("cambi", () => {
     for (const player of ["u1", "u6", "ul", "u7"]) expect(used.has(player)).toBe(true);
     expect(removePlayer(data, "us", "u7")).toBe(data);
     expect(removePlayer(data, "us", "u8").roster.us.some((p) => p.id === "u8")).toBe(false);
+  });
+});
+
+test.describe("cambi: il rientro", () => {
+  test("una titolare rientra al posto di chi l'ha sostituita, anche se nel frattempo la squadra ha ruotato", () => {
+    let data = withLineups(roster());
+    data = point(data, "us"); // 1-0: batte noi, nessuna rotazione
+    data = substitute(data, "us", 2, "u7", at(data), id()); // esce u2, entra u7 in posizione 2
+    data = point(data, "opp"); // 1-1: loro conquistano la battuta
+    data = point(data, "us"); // 2-1: noi la riconquistiamo e ruotiamo: u7 passa dalla posizione 2 alla 1
+    const view = deriveScout(data);
+    expect(view.court.us?.positions.indexOf("u7")).toBe(0);
+    // u2 rientra per u7, che adesso sta in posizione 1: niente avvertimenti (prima pretendeva la posizione 2).
+    expect(reentryOfPlayer(view, "us", "u2")).toEqual({ replacedBy: "u7", position: 1 });
+    expect(substitutionWarningFor(data, view, "us", 1, "u2")).toBeNull();
+    // Non può prendere il posto di un'altra; e la riserva u7 esce solo per lei.
+    expect(substitutionWarningFor(data, view, "us", 3, "u2")).toContain("solo al posto di chi l'ha sostituita");
+    expect(substitutionWarningFor(data, view, "us", 1, "u8")).toContain("può essere sostituita solo da lei");
+    // Rientrata, non può più uscire e u7 non torna.
+    data = substitute(data, "us", 1, "u2", at(data), id());
+    const after = deriveScout(data);
+    expect(after.court.us?.positions[0]).toBe("u2");
+    expect(reentryOfPlayer(after, "us", "u2")).toBeNull();
+    expect(substitutionWarningFor(data, after, "us", 1, "u8")).toContain("non può uscire un'altra volta");
+    expect(substitutionWarningFor(data, after, "us", 4, "u7")).toContain("una riserva non può rientrare");
+  });
+
+  test("non si propone il rientro a una riserva, a chi non è uscita, né all'altra squadra", () => {
+    let data = withLineups(roster());
+    data = point(data, "us");
+    data = substitute(data, "us", 2, "u7", at(data), id());
+    const view = deriveScout(data);
+    expect(reentryOfPlayer(view, "us", "u7")).toBeNull();
+    expect(reentryOfPlayer(view, "us", "u4")).toBeNull();
+    expect(reentryOfPlayer(view, "opp", "u2")).toBeNull();
+  });
+
+  test("un cambio prima del primo scambio non cambia la formazione di partenza: la titolare uscita può rientrare e il set dopo riparte da lì", () => {
+    let data = withLineups(roster());
+    data = substitute(data, "us", 2, "u7", at(data), id()); // 0-0: esce u2, entra u7
+    let view = deriveScout(data);
+    // La partenza resta quella scritta (con u2): u2 è una titolare uscita e può rientrare per u7.
+    expect(view.current?.lineups.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(view.court.us?.positions).toEqual(["u1", "u7", "u3", "u4", "u5", "u6"]);
+    expect(reentryOfPlayer(view, "us", "u2")).toEqual({ replacedBy: "u7", position: 2 });
+    expect(substitutionWarningFor(data, view, "us", 2, "u2")).toBeNull();
+    expect(substitutionWarningFor(data, view, "us", 2, "u8")).toContain("può essere sostituita solo da lei");
+    // Dopo il primo scambio non cambia niente.
+    data = point(data, "us");
+    view = deriveScout(data);
+    expect(view.sets[0].lineups.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(reentryOfPlayer(view, "us", "u2")).toEqual({ replacedBy: "u7", position: 2 });
+    // Il set dopo riparte dalla formazione di partenza, non con la riserva.
+    data = endSet(data, "opp", at(data), id());
+    expect(deriveScout(data).court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    // Anche nel 2° set: cambio a 0-0, poi il primo punto; la partenza è senza il cambio e il 3° riparte da lì.
+    data = substitute(data, "us", 3, "u8", at(data), id());
+    data = point(data, "opp");
+    view = deriveScout(data);
+    expect(view.sets[1].lineups.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(reentryOfPlayer(view, "us", "u3")).toEqual({ replacedBy: "u8", position: 3 });
+    data = endSet(data, "us", at(data), id());
+    expect(deriveScout(data).court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+  });
+
+  test("una nuova formazione dopo un cambio a 0-0 è la nuova partenza", () => {
+    let data = withLineups(roster());
+    data = substitute(data, "us", 2, "u7", at(data), id());
+    const changed: LineupInput = { ...OURS, positions: ["u1", "u8", "u3", "u4", "u5", "u6"] };
+    data = setLineup(data, "us", changed, at(data), id());
+    data = point(data, "us");
+    const view = deriveScout(data);
+    expect(view.sets[0].lineups.us?.positions).toEqual(["u1", "u8", "u3", "u4", "u5", "u6"]);
+    // u2 non è nella nuova partenza: non è una titolare, quindi non rientra.
+    expect(reentryOfPlayer(view, "us", "u2")).toBeNull();
+  });
+
+  test("si possono fare 8 cambi a set; il nono avvisa", () => {
+    let data = withLineups(roster());
+    for (const n of [9, 10, 11]) data = addPlayer(data, "us", { id: `u${n}`, name: `Atleta ${n}`, number: String(n), libero: false });
+    data = point(data, "us");
+    // Quattro riserve entrano al posto di quattro titolari, poi le quattro titolari rientrano, ognuna per la sua sostituta: otto cambi regolari.
+    const swaps = [
+      { position: 2, reserve: "u7", starter: "u2" },
+      { position: 4, reserve: "u8", starter: "u4" },
+      { position: 5, reserve: "u9", starter: "u5" },
+      { position: 1, reserve: "u10", starter: "u1" },
+    ] as const;
+    for (const { position, reserve } of swaps) {
+      expect(substitutionWarningFor(data, deriveScout(data), "us", position, reserve)).toBeNull();
+      data = substitute(data, "us", position, reserve, at(data), id());
+    }
+    for (const { position, starter } of swaps) {
+      expect(substitutionWarningFor(data, deriveScout(data), "us", position, starter)).toBeNull();
+      data = substitute(data, "us", position, starter, at(data), id());
+    }
+    const view = deriveScout(data);
+    expect(view.sets[0].subs).toHaveLength(8);
+    expect(view.court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    // Il nono cambio, anche con un'altra riserva, non è previsto.
+    expect(substitutionWarningFor(data, view, "us", 3, "u11")).toContain("8 cambi");
   });
 });
 

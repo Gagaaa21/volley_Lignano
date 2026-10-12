@@ -192,6 +192,8 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
   const courts: Record<ScoutSide, CourtLineup | null> = { us: null, opp: null };
   const starts: Record<ScoutSide, CourtLineup | null> = { us: null, opp: null };
   const rotations: Record<ScoutSide, number> = { us: 0, opp: 0 };
+  // Un cambio prima del primo scambio del set non cambia la formazione di partenza: chi esce era titolare. Si ricorda com'era prima.
+  let beforeSubs: Record<ScoutSide, { lineup: CourtLineup; snapshot: ScoutCourt } | null> = { us: null, opp: null };
 
   const snapshots = (): ScoutCourts => ({
     us: courts.us ? snapshotOf(courts.us, rotations.us) : null,
@@ -220,9 +222,13 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
     // Chi era in campo quando è cominciato lo scambio; al primo del set è la formazione di partenza.
     const court = snapshots();
     if (set.rallies.length === 0) {
-      starts.us = courts.us;
-      starts.opp = courts.opp;
-      set.lineups = court;
+      const lineups: ScoutCourts = { us: null, opp: null };
+      for (const side of SIDES) {
+        const before = beforeSubs[side];
+        starts[side] = before ? before.lineup : courts[side];
+        lineups[side] = before ? before.snapshot : court[side];
+      }
+      set.lineups = lineups;
     }
     const rally: ScoutRally = {
       id,
@@ -288,6 +294,8 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
       if (cur.rallies.length === 0) {
         starts[event.side] = null;
         rotations[event.side] = 0;
+        beforeSubs[event.side] = null;
+        cur.lineups = { ...cur.lineups, [event.side]: null };
       }
     } else if (event.type === "lineup") {
       // La formazione di una squadra: a set non cominciato è quella di partenza, dopo corregge dove stanno ora.
@@ -306,10 +314,17 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
       if (cur.rallies.length === 0) {
         starts[event.side] = lineup;
         rotations[event.side] = 0;
+        beforeSubs[event.side] = null;
+        cur.lineups = { ...cur.lineups, [event.side]: null };
       }
     } else if (event.type === "sub") {
       const court = courts[event.side];
       if (court && !substitutionProblemFor(court, event.position, event.player, true)) {
+        if (cur.rallies.length === 0 && !beforeSubs[event.side]) {
+          const snapshot = snapshotOf(court, rotations[event.side]);
+          beforeSubs[event.side] = { lineup: court, snapshot };
+          cur.lineups = { ...cur.lineups, [event.side]: snapshot };
+        }
         const { lineup, outgoing, counts } = substituteLineup(court, event.position, event.player, {
           players: 6,
           useLibero: true,
@@ -332,6 +347,7 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
       } else {
         cur = newSet(sets.length + 1, event.nextServer);
         sets.push(cur);
+        beforeSubs = { us: null, opp: null };
         // Il set dopo riparte dalla formazione di partenza (a meno che non se ne segni un'altra).
         for (const side of SIDES) {
           const start = starts[side];

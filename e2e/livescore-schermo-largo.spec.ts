@@ -147,6 +147,18 @@ test("schermo largo: i punti ai lati del campo, il tabellone sopra, le azioni so
   }
   expect(widths["Annulla"]).toBeGreaterThan(widths["Chiudi set"] * 1.5);
 
+  // Ogni azione ha il suo colore, lo stesso ovunque compaia: i sette tasti della barra hanno sfondi diversi tra loro,
+  // il time-out è diverso dai cambi, e i cambi di una squadra hanno lo stesso colore del «Cambio» della barra.
+  const background = (locator: Locator) => locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const tones = await Promise.all(
+    ["Annulla", "Cambio", "Chiudi set", "Inverti", "Formazioni", "Diretta", "Nuovo"].map((name) => background(page.getByRole("button", { name, exact: true }))),
+  );
+  expect(new Set(tones).size, `sette colori diversi, trovati: ${tones.join(" | ")}`).toBe(7);
+  const timeoutTone = await background(left.getByRole("button", { name: /Time-out 0\/2/ }));
+  const substitutionTone = await background(left.getByRole("button", { name: /Sostituzione .*: 0 cambi in questo set/ }));
+  expect(timeoutTone, "time-out e cambi non si assomigliano").not.toBe(substitutionTone);
+  expect(substitutionTone, "i cambi hanno il colore del «Cambio»").toBe(tones[1]);
+
   // Si gioca: pulsanti dei punti, tastiera, time-out e «Annulla».
   await pointLeft.click();
   await pointLeft.click();

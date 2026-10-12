@@ -10,7 +10,15 @@ import type {
   TrainingTeam,
 } from "@/lib/types";
 import { resizePositions } from "@/lib/courtLayout";
-import { afterRally, liberoUsable, refreshLibero, substituteLineup, substitutionProblemFor, substitutionRuleWarning } from "@/lib/lineup";
+import {
+  afterRally,
+  liberoUsable,
+  reentryFor,
+  refreshLibero,
+  substituteLineup,
+  substitutionProblemFor,
+  substitutionRuleWarning,
+} from "@/lib/lineup";
 import {
   DEFAULT_LAST_SET_POINTS,
   DEFAULT_SET_POINTS,
@@ -265,10 +273,11 @@ export function applyPoint(match: LiveScoreState, winner: TeamKey): LiveScoreSta
   const loserProp = teamKeyProp(otherKey(winner));
   // La formazione con cui comincia il set si ricorda al primo punto: a fine set si torna lì.
   const fresh = match.teamA.score + match.teamB.score === 0;
-  const remember = (team: LiveScoreTeamState): LiveScoreTeamState =>
-    fresh && match.withLineup ? { ...team, startPositions: [...team.positions] } : team;
-  const winnerTeam: LiveScoreTeamState = { ...remember(match[winnerProp]), score: match[winnerProp].score + 1 };
-  const loserTeam = remember(match[loserProp]);
+  // Se a 0-0 si è già fatto un cambio, la formazione di partenza è quella registrata prima: chi è entrata non diventa titolare.
+  const remember = (team: LiveScoreTeamState, key: TeamKey): LiveScoreTeamState =>
+    fresh && match.withLineup && setSubstitutions(match, key).length === 0 ? { ...team, startPositions: [...team.positions] } : team;
+  const winnerTeam: LiveScoreTeamState = { ...remember(match[winnerProp], winner), score: match[winnerProp].score + 1 };
+  const loserTeam = remember(match[loserProp], otherKey(winner));
 
   if (!match.withLineup) {
     // Solo punteggio: chi batte non si segue.
@@ -438,6 +447,24 @@ export function substitutionProblem(
   return substitutionProblemFor(team, position, incoming, liberoInPlay(match, team));
 }
 
+/** I cambi di una squadra nel set in corso. */
+function setSubstitutions(match: LiveScoreState, key: TeamKey) {
+  const set = currentSet(match);
+  return match.substitutions.filter((s) => s.team === key && s.set === set);
+}
+
+/**
+ * Chi era in campo all'inizio del set (per le regole dei cambi). A 0-0 la formazione si può ancora correggere,
+ * quindi vale quella di adesso, a meno che si sia già fatto un cambio: allora chi è uscita era titolare e la
+ * formazione di partenza è quella registrata.
+ */
+function startersOf(match: LiveScoreState, key: TeamKey): string[] {
+  const team = match[teamKeyProp(key)];
+  const recorded = team.startPositions.length === team.positions.length;
+  const lineupFixed = !isSetFresh(match) || setSubstitutions(match, key).length > 0;
+  return recorded && lineupFixed ? team.startPositions : team.positions;
+}
+
 /**
  * Avvertimento (non un divieto) quando un cambio non rispetta le regole delle
  * sostituzioni nel 6 contro 6 (vedi substitutionRuleWarning in lineup.ts).
@@ -451,16 +478,30 @@ export function substitutionWarning(
 ): string | null {
   if (!match.withLineup || match.playersPerSide !== 6) return null;
   const team = match[teamKeyProp(key)];
-  const set = currentSet(match);
-  const starters = team.startPositions.length === team.positions.length && !isSetFresh(match) ? team.startPositions : team.positions;
   return substitutionRuleWarning({
     incoming,
     outgoing: team.positions[position - 1] ?? "",
-    position,
-    subs: match.substitutions.filter((s) => s.team === key && s.set === set),
-    starters,
+    subs: setSubstitutions(match, key),
+    starters: startersOf(match, key),
     limit: substitutionLimit(match.playersPerSide),
   });
+}
+
+/**
+ * Se `player` è una titolare uscita in questo set che può ancora rientrare: chi l'ha sostituita e dove si trova
+ * adesso (la posizione di campo da scegliere come «Esce»). Rientra al posto della sostituta, non nella posizione
+ * in cui è uscita: nel frattempo la squadra può aver ruotato. Null se non può rientrare o la sostituta non è più in campo.
+ */
+export function reentryOf(
+  match: LiveScoreState,
+  key: TeamKey,
+  player: string,
+): { replacedBy: string; position: CourtPosition } | null {
+  if (!match.withLineup || match.playersPerSide !== 6) return null;
+  const found = reentryFor({ player, subs: setSubstitutions(match, key), starters: startersOf(match, key) });
+  if (!found) return null;
+  const index = match[teamKeyProp(key)].positions.findIndex((n) => n.trim() === found.replacedBy);
+  return index < 0 ? null : { replacedBy: found.replacedBy, position: (index + 1) as CourtPosition };
 }
 
 /**

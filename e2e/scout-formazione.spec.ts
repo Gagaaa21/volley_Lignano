@@ -202,6 +202,24 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await expect(subSheet).toHaveCount(0);
   await expect(usSpot(page, 1)).toContainText("3");
 
+  // 5b) La titolare uscita può rientrare, ma solo al posto di chi l'ha sostituita: Bea (n. 2) è segnata «rientra» e,
+  // scegliendola, «Chi esce» passa da solo alla sua sostituta (Hilda, n. 3, in posizione 1), senza nessun avvertimento.
+  await page.locator('[data-scout-sub-open="us"]').click();
+  const comeBack = subSheet.locator("[data-scout-sub-reentry-chip]");
+  await expect(comeBack).toHaveCount(1);
+  await expect(comeBack).toContainText("rientra");
+  await expect(subSheet.locator("[data-scout-sub-in]", { hasText: "Irene" })).not.toHaveAttribute("data-scout-sub-reentry-chip", "");
+  await comeBack.click();
+  await expect(subSheet.locator('[data-scout-sub-out="1"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(subSheet.locator("[data-scout-sub-reentry]")).toContainText("Rientra al posto di");
+  await expect(subSheet.locator("[data-scout-sub-reentry]")).toContainText("posizione 1");
+  await expect(subSheet.locator("[data-scout-sub-warning]")).toHaveCount(0);
+  // Se invece esce un'altra, la titolare non rientra al suo posto: avvisa.
+  await subSheet.locator('[data-scout-sub-out="2"]').click();
+  await expect(subSheet.locator("[data-scout-sub-warning]")).toContainText("solo al posto di chi l'ha sostituita");
+  await subSheet.getByRole("button", { name: "Annulla" }).click();
+  await expect(subSheet).toHaveCount(0);
+
   // 6) «Annulla ultimo» toglie anche il cambio: torna in campo la n. 2.
   await page.locator("[data-scout-undo]").click();
   await expect(usSpot(page, 1)).toContainText("2");

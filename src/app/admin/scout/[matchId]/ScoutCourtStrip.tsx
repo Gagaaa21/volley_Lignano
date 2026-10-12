@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { cleanNumber, opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
-import { benchOf, SUBSTITUTIONS_PER_SET, substitutionsUsed, substitutionWarningFor } from "@/lib/scout/court";
+import { benchOf, reentryOfPlayer, SUBSTITUTIONS_PER_SET, substitutionsUsed, substitutionWarningFor } from "@/lib/scout/court";
 import type { ScoutCourt, ScoutView } from "@/lib/scout/derive";
 import { playerLabel, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
@@ -81,6 +81,8 @@ function MiniCourt({
  * Il cambio: si sceglie chi esce (tra chi è in campo) e chi entra (dalla
  * panchina; per l'avversaria si può scrivere un numero nuovo). Se il cambio non
  * rispetta le regole compare un avvertimento, ma si può confermare lo stesso.
+ * Una titolare uscita può rientrare (una volta sola) solo al posto di chi l'ha
+ * sostituita, dovunque quella sia adesso: scegliendola, «chi esce» si sceglie da solo.
  */
 function SubstitutionSheet({
   side,
@@ -112,6 +114,14 @@ function SubstitutionSheet({
   }, [onClose]);
 
   const warning = position !== null && incoming ? substitutionWarningFor(data, view, side, position, incoming) : null;
+  const reentry = incoming ? reentryOfPlayer(view, side, incoming) : null;
+  /** Chi entra: se è una titolare che rientra, «chi esce» è la sua sostituta, dove sta adesso. */
+  function chooseIncoming(id: string) {
+    setIncoming(id);
+    const back = reentryOfPlayer(view, side, id);
+    if (back) setPosition(back.position);
+  }
+  const sideSubs = view.current?.subs.filter((sub) => sub.side === side) ?? [];
 
   function addNumber() {
     const number = cleanNumber(typed);
@@ -165,6 +175,7 @@ function SubstitutionSheet({
               const id = court.positions[pos - 1];
               const player = id ? roster.find((p) => p.id === id) : undefined;
               const replacedByLibero = Boolean(id) && court.liberoFor === id;
+              const enteredFor = id ? sideSubs.find((sub) => sub.in === id) : undefined;
               return (
                 <button
                   key={pos}
@@ -181,6 +192,7 @@ function SubstitutionSheet({
                   <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Pos. {pos}</span>
                   <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">{id ? chipText(player, side) : "–"}</span>
                   {replacedByLibero && <span className="text-[10px] text-muted-foreground">ora c&apos;è la libero</span>}
+                  {enteredFor && <span className="text-[10px] text-muted-foreground">entrata per {chipText(roster.find((p) => p.id === enteredFor.out), side)}</span>}
                 </button>
               );
             })}
@@ -191,22 +203,34 @@ function SubstitutionSheet({
           <p className="mb-1.5 text-[13px] font-semibold text-foreground/80">Chi entra</p>
           {shownBench.length > 0 ? (
             <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5" role="group" aria-label="Chi entra">
-              {shownBench.map((player) => (
-                <button
-                  key={player.id}
-                  type="button"
-                  aria-pressed={incoming === player.id}
-                  onClick={() => setIncoming(player.id)}
-                  data-scout-sub-in={player.id}
-                  className={cn(
-                    "flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors",
-                    incoming === player.id ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border-subtle bg-surface hover:bg-muted",
-                  )}
-                >
-                  <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">{chipText(player, side)}</span>
-                  {side === "us" && <span className="mt-0.5 w-full truncate text-[11px] font-semibold text-muted-foreground">{shortName(player, roster)}</span>}
-                </button>
-              ))}
+              {shownBench.map((player) => {
+                const back = reentryOfPlayer(view, side, player.id);
+                return (
+                  <button
+                    key={player.id}
+                    type="button"
+                    aria-pressed={incoming === player.id}
+                    onClick={() => chooseIncoming(player.id)}
+                    data-scout-sub-in={player.id}
+                    data-scout-sub-reentry-chip={back ? "" : undefined}
+                    className={cn(
+                      "flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors",
+                      incoming === player.id
+                        ? "border-primary bg-primary-soft ring-2 ring-primary/30"
+                        : back
+                          ? "border-emerald-600/50 bg-emerald-50 hover:bg-emerald-100"
+                          : "border-border-subtle bg-surface hover:bg-muted",
+                    )}
+                  >
+                    <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">{chipText(player, side)}</span>
+                    {back ? (
+                      <span className="mt-0.5 w-full truncate text-[10px] font-bold uppercase tracking-wide text-emerald-800">rientra</span>
+                    ) : (
+                      side === "us" && <span className="mt-0.5 w-full truncate text-[11px] font-semibold text-muted-foreground">{shortName(player, roster)}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
@@ -237,6 +261,12 @@ function SubstitutionSheet({
             </div>
           )}
         </div>
+
+        {reentry && position === reentry.position && (
+          <p data-scout-sub-reentry className="mt-3 text-[13px] font-medium text-emerald-800">
+            Rientra al posto di {chipText(roster.find((p) => p.id === reentry.replacedBy), side)} (posizione {reentry.position}): una titolare può rientrare una volta sola, e solo per chi l&apos;ha sostituita.
+          </p>
+        )}
 
         {warning && (
           <p data-scout-sub-warning className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-medium text-amber-950 ring-1 ring-amber-500/40">

@@ -111,7 +111,11 @@ export function afterRally<T extends CourtLineup>(options: {
   };
 }
 
-/** Chi sta giocando in una posizione, con la libero al posto di chi sostituisce. */
+/**
+ * Chi sta giocando in una posizione, con la libero al posto di chi sostituisce. La libero è una sola: se per un
+ * errore lo stesso nome è scritto in due posizioni (vedi lineupIssues) compare solo nella prima, la stessa che
+ * liberoTarget ha scelto, e non in tutte quelle che hanno quel nome.
+ */
 export function courtOccupant(
   lineup: CourtLineup,
   position: CourtPosition,
@@ -119,7 +123,8 @@ export function courtOccupant(
 ): { name: string; isLibero: boolean } {
   const atPosition = clean(lineup.positions[position - 1]);
   if (showLibero && lineup.liberoActiveFor && atPosition === lineup.liberoActiveFor) {
-    return { name: clean(lineup.liberoName), isLibero: true };
+    const first = lineup.positions.findIndex((n) => clean(n) === lineup.liberoActiveFor);
+    if (first === position - 1) return { name: clean(lineup.liberoName), isLibero: true };
   }
   return { name: atPosition, isLibero: false };
 }
@@ -180,25 +185,46 @@ export function substituteLineup<T extends CourtLineup>(
 
 /** Un cambio già fatto in questo set, per controllare quelli che seguono. */
 export interface SubstitutionRecord {
+  /** La posizione di campo in cui è avvenuto: serve solo a raccontarlo (la rotazione la sposta, il rientro non dipende da lei). */
   position: number;
   out: string;
   in: string;
 }
 
 /**
+ * Chi può rientrare: una titolare uscita in questo set, una volta sola, che non è ancora rientrata. Restituisce chi
+ * l'ha sostituita, cioè chi deve uscire per lei: rientra al posto della sostituta, in qualunque posizione di campo
+ * si trovi adesso (la rotazione sposta la sostituta, e con lei il posto della titolare). Null in tutti gli altri casi
+ * (non è uscita, è una riserva, è già rientrata).
+ */
+export function reentryFor(options: {
+  player: string;
+  subs: SubstitutionRecord[];
+  /** Chi era in campo all'inizio del set. */
+  starters: string[];
+}): { replacedBy: string } | null {
+  const name = clean(options.player);
+  if (!name || !options.starters.some((n) => clean(n) === name)) return null;
+  const exits = options.subs.filter((s) => s.out === name);
+  if (exits.length !== 1) return null;
+  if (options.subs.some((s) => s.in === name)) return null;
+  return { replacedBy: exits[0].in };
+}
+
+/**
  * Avvertimento (non un divieto: un infortunio o un'espulsione fanno eccezione)
- * quando un cambio non rispetta le regole delle sostituzioni nel 6 contro 6:
- * al massimo 8 per set (6 fino al 2025/26: vedi SUBSTITUTIONS_PER_SET in
- * volleyRules.ts); una titolare può uscire una sola volta e rientrare una
- * sola volta, solo al suo posto e solo al posto di chi l'ha sostituita; una
- * riserva entra una volta sola per set e può essere sostituita solo dalla
- * titolare per cui è entrata. Null se va tutto bene.
+ * quando un cambio non rispetta le regole delle sostituzioni nel 6 contro 6
+ * (regola 15.6): al massimo 8 per set (6 fino al 2025/26: vedi
+ * SUBSTITUTIONS_PER_SET in volleyRules.ts); una titolare può uscire una sola volta e
+ * rientrare una sola volta, ma solo al posto di chi l'ha sostituita (qualunque sia
+ * la posizione di campo in cui la sostituta si trova adesso: nel frattempo la
+ * squadra può aver ruotato); una riserva entra una volta sola per set e può
+ * essere sostituita solo dalla titolare per cui è entrata. Null se va tutto bene.
  */
 export function substitutionRuleWarning(options: {
   /** Chi entra e chi esce (identificativi). */
   incoming: string;
   outgoing: string;
-  position: number;
   /** I cambi già fatti da questa squadra in questo set. */
   subs: SubstitutionRecord[];
   /** Chi era in campo all'inizio del set. */
@@ -210,7 +236,7 @@ export function substitutionRuleWarning(options: {
 }): string | null {
   const name = clean(options.incoming);
   const outgoing = clean(options.outgoing);
-  const { position, subs, limit } = options;
+  const { subs, limit } = options;
   const label = options.label ?? ((id: string) => id);
   if (!name || !outgoing) return null;
   if (limit !== null && subs.length >= limit) {
@@ -224,19 +250,111 @@ export function substitutionRuleWarning(options: {
   const left = exits(name)[0];
   if (left) {
     if (!wasStarter(name)) return `${label(name)} è già uscita in questo set: una riserva non può rientrare.`;
-    if (left.position !== position || outgoing !== left.in) {
-      return `${label(name)} può rientrare solo al suo posto (posizione ${left.position}) e solo al posto di chi l'ha sostituita (${label(left.in)}).`;
-    }
     if (entries(name).length > 0) return `${label(name)} è già rientrata in questo set: può farlo una volta sola.`;
+    if (outgoing !== left.in) {
+      return `${label(name)} può rientrare solo al posto di chi l'ha sostituita (${label(left.in)}), in qualunque posizione si trovi adesso.`;
+    }
   }
   // Chi esce: una titolare già uscita e rientrata non può uscire di nuovo.
   if (exits(outgoing).length > 0 && entries(outgoing).length > 0 && wasStarter(outgoing)) {
     return `${label(outgoing)} è già uscita e rientrata in questo set: non può uscire un'altra volta.`;
   }
-  // Chi esce è una riserva entrata per una titolare: può uscire solo per lei.
-  const replaced = subs.find((s) => s.in === outgoing && s.position === position);
+  // Chi esce è una riserva entrata per una titolare: può uscire solo per lei (qualunque sia la sua posizione ora).
+  const replaced = subs.find((s) => s.in === outgoing && !wasStarter(outgoing));
   if (replaced && name !== replaced.out) {
     return `${label(outgoing)} è entrata per ${label(replaced.out)}: può essere sostituita solo da lei.`;
   }
   return null;
+}
+
+/** Un errore nella formazione scritta a mano: la stessa giocatrice in due posti. */
+export interface LineupIssue {
+  /**
+   * - duplicate: lo stesso numero (o nome) è scritto in più posizioni;
+   * - liberoOnCourt: la libero ha lo stesso numero di una giocatrice in campo;
+   * - sameHost: le due giocatrici sostituite dalla libero sono la stessa.
+   */
+  kind: "duplicate" | "liberoOnCourt" | "sameHost";
+  /** Il numero o il nome in questione, come è scritto. */
+  value: string;
+  /** Le posizioni di campo coinvolte (da 1), da segnare in rosso. */
+  positions: CourtPosition[];
+}
+
+/** Come si confrontano due nomi scritti a mano: senza spazi attorno e senza badare alle maiuscole. */
+function sameName(a: string | null | undefined, b: string | null | undefined): boolean {
+  return clean(a).toLowerCase() === clean(b).toLowerCase();
+}
+
+/**
+ * Cosa non torna in una formazione: nessuna giocatrice può stare in due posizioni, la libero non è anche in campo e
+ * le due sostituite dalla libero sono due giocatrici diverse. Con un nome ripetuto la rotazione e la libero non
+ * hanno più un senso (la libero comparirebbe in due posti insieme), quindi la partita non parte finché non si corregge.
+ * Le posizioni vuote non contano.
+ */
+export function lineupIssues(lineup: CourtLineup, options: { players: number; useLibero: boolean }): LineupIssue[] {
+  const issues: LineupIssue[] = [];
+  const groups: { value: string; positions: CourtPosition[] }[] = [];
+  lineup.positions.forEach((raw, index) => {
+    const name = clean(raw);
+    if (!name) return;
+    const group = groups.find((g) => sameName(g.value, name));
+    if (group) group.positions.push((index + 1) as CourtPosition);
+    else groups.push({ value: name, positions: [(index + 1) as CourtPosition] });
+  });
+  for (const group of groups) {
+    if (group.positions.length > 1) issues.push({ kind: "duplicate", ...group });
+  }
+  const libero = clean(lineup.liberoName);
+  if (libero && options.useLibero && hasLiberoOption(options.players as 2 | 3 | 4 | 5 | 6)) {
+    const onCourt = groups.find((g) => sameName(g.value, libero));
+    if (onCourt) issues.push({ kind: "liberoOnCourt", value: libero, positions: onCourt.positions });
+    const [first, second] = lineup.hostNames;
+    if (clean(first) && sameName(first, second)) {
+      issues.push({ kind: "sameHost", value: clean(first), positions: groups.find((g) => sameName(g.value, first))?.positions ?? [] });
+    }
+  }
+  return issues;
+}
+
+/** «1», «1 e 5», «1, 3 e 5». */
+function listPositions(positions: number[]): string {
+  if (positions.length <= 1) return positions.join("");
+  return `${positions.slice(0, -1).join(", ")} e ${positions[positions.length - 1]}`;
+}
+
+/** L'errore scritto in italiano, per chi sta preparando la formazione (con «numero» in Partita, con il nome in Allenamento). */
+export function lineupIssueText(issue: LineupIssue, options: { numeric: boolean; players: number }): string {
+  const who = options.numeric ? `Il numero ${issue.value}` : `«${issue.value}»`;
+  const where = listPositions(issue.positions);
+  switch (issue.kind) {
+    case "duplicate":
+      return `${who} compare nelle posizioni ${where}: ogni giocatrice sta in una posizione sola.`;
+    case "liberoOnCourt":
+      return options.numeric
+        ? `Il numero ${issue.value} è quello della libero ed è anche in campo (posizione ${where}): ogni numero va usato una volta sola.`
+        : `«${issue.value}» è la libero ed è anche in campo (posizione ${where}): servono due giocatrici diverse.`;
+    case "sameHost": {
+      const player = options.numeric ? `n. ${issue.value}` : issue.value;
+      return options.players === 6
+        ? `Le due centrali sono la stessa giocatrice (${player}): scegline due diverse.`
+        : `Le due giocatrici sostituite dalla libero sono la stessa (${player}): scegline due diverse.`;
+    }
+  }
+}
+
+/**
+ * Numeri o nomi già presi nella formazione, per non offrirli due volte: quelli delle altre posizioni e, se c'è la
+ * libero, anche il suo. `slot` è la posizione che si sta scegliendo oppure «libero»: il suo valore attuale non conta.
+ */
+export function namesTakenElsewhere(
+  lineup: CourtLineup,
+  slot: CourtPosition | "libero",
+  options: { players: number; useLibero: boolean },
+): string[] {
+  const taken = lineup.positions.flatMap((name, index) => (slot === index + 1 ? [] : [clean(name)]));
+  if (slot !== "libero" && options.useLibero && hasLiberoOption(options.players as 2 | 3 | 4 | 5 | 6)) {
+    taken.push(clean(lineup.liberoName));
+  }
+  return taken.filter(Boolean);
 }

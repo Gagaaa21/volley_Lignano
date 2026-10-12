@@ -104,9 +104,13 @@ staff (Developer e Admin).
     **libero** (ricavata da dove stanno le giocatrici: sostituisce la
     centrale in seconda linea, non batte mai, quindi in posizione 1 entra
     solo quando la squadra riceve, ed esce quando la centrale ruota a rete) e
-    **cambi** (`substitutionRuleWarning`: 8 per set, titolare che rientra solo
-    al suo posto, riserva che esce solo per la titolare; sono avvertimenti,
-    non divieti: un infortunio fa eccezione).
+    **cambi** (`substitutionRuleWarning`: 8 per set, titolare che rientra una
+    volta sola e solo al posto di chi l'ha sostituita, dovunque questa stia
+    adesso; riserva che esce solo per la titolare; sono avvertimenti, non
+    divieti: un infortunio fa eccezione) e il controllo della formazione scritta
+    a mano (`lineupIssues`: numero scritto in due posizioni, libero con il
+    numero di una giocatrice in campo, centrali uguali: la partita non parte
+    finché non si correggono, e la libero non compare mai in due posti).
   Il tabellone **guida la gara** (`LiveScoreStatus.tsx`): chiede il
   sorteggio per chi batte per primo, a set vinto propone la chiusura
   (`suggestedSetEnd`, pulsante «Chiudi il set»), poi mostra la scheda del
@@ -117,9 +121,12 @@ staff (Developer e Admin).
   tastiera si segna il punto della squadra a sinistra o a destra, con ⌫ si
   annulla; il formato scelto si ricorda sul dispositivo. I comandi sono pensati
   per il bordo campo: pulsanti dei punti grandi e «a tasto» (con il «+1» e il
-  tasto della tastiera), «Annulla» in evidenza, «Cambio» azzurro, «Nuovo» rosso
-  perché cancella la partita, time-out e cambi di ogni squadra con l'etichetta e
-  il conto («Time-out 0/2», «Cambi 0/8»); da telefono la barra delle azioni è
+  tasto della tastiera), ogni azione col suo colore (`ACTION` in
+  `LiveScoreClient.tsx`, lo stesso ovunque compaia): «Annulla» scuro, «Cambio»
+  azzurro, «Chiudi set» verde, «Inverti» viola, «Formazioni» verde acqua,
+  «Diretta» rosa, «Nuovo» rosso perché cancella la partita; time-out gialli e
+  cambi azzurri di ogni squadra con l'etichetta e il conto («Time-out 0/2»,
+  «Cambi 0/8»); da telefono la barra delle azioni è
   fatta di tasselli con l'icona sopra l'etichetta. Su schermo largo (da 1024 px,
   `useMediaQuery`) la partita ha tre colonne: tabellone in alto (cifre che
   seguono l'altezza del display, con le unità `cqh`), poi i comandi di una

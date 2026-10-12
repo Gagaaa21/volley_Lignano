@@ -55,7 +55,8 @@ async function deleteAthletes(page: Page, names: string[]) {
     await edit.click();
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Elimina", exact: true }).click();
-    await page.waitForURL(/\/admin\/presenze\/atlete$/);
+    // L'eliminazione è finita quando l'atleta non è più nell'elenco: cambiare pagina prima la interromperebbe e l'atleta resterebbe.
+    await expect(page.getByRole("link", { name: `Modifica ${name}`, exact: true })).toHaveCount(0);
   }
 }
 

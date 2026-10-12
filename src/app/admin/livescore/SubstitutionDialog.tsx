@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import {
   currentSet,
   liberoInPlay,
+  reentryOf,
   substitutionLimit,
   substitutionProblem,
   substitutionWarning,
@@ -22,7 +23,9 @@ import { shortName } from "@/components/matches/VolleyCourt";
 /**
  * Sostituzione durante il gioco: si sceglie la squadra, chi esce (tra chi è in
  * campo) e chi entra — in Allenamento un'atleta del registro che non è già in
- * campo, o un nome scritto a mano; in Partita il numero di maglia. Resta
+ * campo, o un nome scritto a mano; in Partita il numero di maglia. Chi è uscita
+ * può rientrare (una volta sola) ma solo al posto di chi l'ha sostituita, dovunque
+ * quella si trovi adesso: scegliendo lei come «Entra» la finestra sceglie da sola chi esce. Resta
  * dentro il riquadro del tabellone (non in un portale sul body), così si vede
  * anche a schermo intero.
  */
@@ -83,6 +86,15 @@ export function SubstitutionDialog({
       ? [...numberChoices.calledUp, ...numberChoices.others].filter((r) => !busy.has(r.number))
       : [];
   const bench = numeric ? registryBench.map((r) => ({ value: r.number, label: `${r.number} · ${shortName(r.name)}` })) : athleteNames.filter((name) => !busy.has(name)).map((name) => ({ value: name, label: name }));
+
+  /** Chi entra: se è una titolare che rientra, «Esce» è la sua sostituta, dove sta adesso. */
+  function chooseIncoming(value: string) {
+    setIncoming(value);
+    setError(null);
+    const back = reentryOf(match, teamKey, value);
+    if (back) setPosition(back.position);
+  }
+  const reentry = incoming.trim() !== "" ? reentryOf(match, teamKey, incoming) : null;
 
   function chooseTeam(key: TeamKey) {
     setTeamKey(key);
@@ -148,6 +160,7 @@ export function SubstitutionDialog({
             {team.positions.map((name, i) => {
               const pos = (i + 1) as CourtPosition;
               const replacedByLibero = showLibero && team.liberoActiveFor !== null && name.trim() === team.liberoActiveFor;
+              const enteredFor = setSubstitutions.find((sub) => sub.in === name.trim());
               return (
                 <button
                   key={pos}
@@ -167,6 +180,7 @@ export function SubstitutionDialog({
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Pos. {pos}</span>
                   <span className="w-full truncate text-sm font-bold">{name.trim() || "—"}</span>
                   {replacedByLibero && <span className="text-[11px] text-muted-foreground">ora c&apos;è la libero</span>}
+                  {enteredFor && <span className="text-[11px] text-muted-foreground">entrata per {enteredFor.out}</span>}
                 </button>
               );
             })}
@@ -177,34 +191,35 @@ export function SubstitutionDialog({
           <Label htmlFor="substitution-in">Entra</Label>
           {bench.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
-              {bench.map((choice) => (
-                <button
-                  key={choice.label}
-                  type="button"
-                  onClick={() => {
-                    setIncoming(choice.value);
-                    setError(null);
-                  }}
-                  aria-pressed={incoming === choice.value}
-                  className={cn(
-                    "min-h-10 rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors",
-                    incoming === choice.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border-strong/60 text-foreground/80 hover:bg-muted",
-                  )}
-                >
-                  {choice.label}
-                </button>
-              ))}
+              {bench.map((choice) => {
+                const back = reentryOf(match, teamKey, choice.value);
+                return (
+                  <button
+                    key={choice.label}
+                    type="button"
+                    onClick={() => chooseIncoming(choice.value)}
+                    aria-pressed={incoming === choice.value}
+                    title={back ? `Rientra al posto di ${back.replacedBy}` : undefined}
+                    className={cn(
+                      "min-h-10 rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors",
+                      incoming === choice.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : back
+                          ? "border-emerald-600/50 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                          : "border-border-strong/60 text-foreground/80 hover:bg-muted",
+                    )}
+                  >
+                    {choice.label}
+                    {back && <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wide">rientra</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
           <Input
             id="substitution-in"
             value={incoming}
-            onChange={(e) => {
-              setIncoming(e.target.value);
-              setError(null);
-            }}
+            onChange={(e) => chooseIncoming(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") confirm();
             }}
@@ -220,6 +235,12 @@ export function SubstitutionDialog({
             }
           />
         </div>
+
+        {reentry && position === reentry.position && (
+          <p data-livescore-sub-reentry className="mt-2 text-[13px] font-medium text-emerald-800">
+            {incoming.trim()} rientra al posto di {reentry.replacedBy} (posizione {reentry.position}): una titolare può rientrare una volta sola, e solo per chi l&apos;ha sostituita.
+          </p>
+        )}
 
         {error && (
           <p role="alert" className="mt-3 text-sm font-semibold text-destructive">

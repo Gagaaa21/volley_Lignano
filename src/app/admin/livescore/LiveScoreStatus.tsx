@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ArrowLeftRight, Flag, Pencil, Shuffle, Trophy, Undo2, Volleyball } from "lucide-react";
+import { ArrowLeftRight, Flag, Pencil, Shuffle, Trophy, TriangleAlert, Undo2, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { currentServerName, nextServer } from "@/lib/lineup";
@@ -116,7 +116,7 @@ function Card({
   ...rest
 }: {
   children: ReactNode;
-  tone?: "neutral" | "attention" | "success";
+  tone?: "neutral" | "attention" | "success" | "problem";
   className?: string;
 } & React.HTMLAttributes<HTMLDivElement>) {
   return (
@@ -126,12 +126,55 @@ function Card({
         "shrink-0 rounded-2xl border px-4 py-3",
         tone === "attention" && "border-amber-500/50 bg-amber-50 text-amber-950",
         tone === "success" && "border-green-600/40 bg-green-50 text-green-950",
+        tone === "problem" && "border-destructive/50 bg-destructive/10 text-foreground",
         tone === "neutral" && "border-border-subtle bg-surface text-foreground",
         className,
       )}
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * La formazione ha un numero (o un nome) scritto in due posizioni, o la libero ha il numero di chi è in campo: si
+ * dice cosa correggere, squadra per squadra. Prima di «Inizia» è l'unica cosa da fare; a partita in corso il
+ * pulsante porta alle formazioni.
+ */
+export function LineupIssuesCard({
+  items,
+  onFix,
+}: {
+  /** Un messaggio per ogni errore, col nome della squadra. */
+  items: { team: string; text: string }[];
+  /** Apre la correzione delle formazioni, se non è già aperta. */
+  onFix?: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <Card tone="problem" data-livescore-lineup-issues role="status">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 font-display text-base font-bold leading-tight">
+            <TriangleAlert className="h-4 w-4 shrink-0 text-destructive" />
+            Formazione da correggere
+          </p>
+          <ul className="mt-1 space-y-0.5 text-[13px] leading-snug">
+            {items.map((item) => (
+              <li key={`${item.team}-${item.text}`}>
+                <b className="font-bold">{item.team}</b>: {item.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+        {onFix && (
+          <Button variant="outline" onClick={onFix} className="border-2" data-livescore-fix-lineups>
+            <Pencil className="h-4 w-4" />
+            Correggi
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -217,6 +260,7 @@ export function SetStartCard({
   match,
   numeric,
   editingLineups,
+  lineupsBlocked,
   onChoose,
   onToggleLineups,
   savedLineup,
@@ -224,6 +268,8 @@ export function SetStartCard({
   match: LiveScoreState;
   numeric: boolean;
   editingLineups: boolean;
+  /** Le formazioni hanno errori da correggere: finché ci sono non si può chiudere la correzione. */
+  lineupsBlocked?: boolean;
   onChoose: (key: TeamKey) => void;
   onToggleLineups: () => void;
   /** Se c'è una formazione salvata per questo set, il pulsante per usarla. */
@@ -283,7 +329,14 @@ export function SetStartCard({
               );
             })}
           </div>
-          <Button variant="outline" onClick={onToggleLineups} data-livescore-check-lineups className="border-2">
+          <Button
+            variant="outline"
+            onClick={onToggleLineups}
+            disabled={editingLineups && lineupsBlocked}
+            title={editingLineups && lineupsBlocked ? "Prima correggi i numeri in rosso" : undefined}
+            data-livescore-check-lineups
+            className="border-2"
+          >
             <Pencil className="h-4 w-4" />
             {editingLineups ? "Fatto" : "Controlla formazioni"}
           </Button>
