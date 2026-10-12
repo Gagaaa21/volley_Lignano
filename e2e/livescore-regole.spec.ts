@@ -279,38 +279,87 @@ test("i punti del set si cambiano dall'impostazione, e con i 3 set fissi l'ultim
 test.describe("sul telefono", () => {
   test.use({ viewport: { width: 375, height: 740 }, isMobile: true, hasTouch: true });
 
-  test("si imposta e si segna senza scorrere di lato, con i pulsanti dei punti grandi", async ({ page }) => {
-    test.setTimeout(120_000);
-    await openFresh(page, { playersPerSide: 6, useLibero: false, rules: { format: "bo5", setPoints: 25, lastSetPoints: 15 } });
+  test("si imposta e si gioca un'intera partita senza scorrere di lato, con i pulsanti grandi e i comandi sempre raggiungibili", async ({ page }) => {
+    test.setTimeout(180_000);
+    await openFresh(page, { playersPerSide: 6, useLibero: false, rules: { format: "bo3", setPoints: 5, lastSetPoints: 10 } });
 
     const sideOverflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    /** Niente scorrimento laterale, in nessuna schermata. */
+    const fits = async () => expect(await sideOverflow()).toBeLessThanOrEqual(1);
+
     // Impostazione: niente blocco «usa un tablet» e niente scorrimento laterale.
     await expect(page.getByLabel(/Nome avversaria/)).toBeVisible();
-    expect(await sideOverflow()).toBeLessThanOrEqual(1);
-
+    await fits();
     await page.getByLabel(/Nome avversaria/).fill(OPPONENT);
     await fillPositions(page, "left", ["11", "12", "13", "14", "15", "16"]);
     await fillPositions(page, "right", ["21", "22", "23", "24", "25", "26"]);
-    expect(await sideOverflow()).toBeLessThanOrEqual(1);
+    await fits();
     await page.getByRole("button", { name: "Inizia" }).click();
 
-    // Partita: stato, campo e pulsanti dei punti stanno nella larghezza dello schermo.
+    // Partita: stato, campo, pulsanti dei punti e barra delle azioni stanno nella larghezza dello schermo.
     await expect(page.locator("[data-livescore-status]")).toBeVisible();
     await expect(page.locator("[data-livescore-set-start]")).toBeVisible();
-    expect(await sideOverflow()).toBeLessThanOrEqual(1);
+    await fits();
     const button = pointButton(page, LIGNANO);
     await button.scrollIntoViewIfNeeded();
     const box = await button.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.height).toBeGreaterThanOrEqual(48);
+    expect(box!.height).toBeGreaterThanOrEqual(64);
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+    // Time-out e cambi di ogni squadra hanno l'etichetta e stanno dentro il tabellone.
+    for (const name of [/Time-out 0\/2/, /Sostituzione .*: 0 cambi in questo set/]) {
+      const control = page.getByRole("button", { name });
+      await expect(control).toHaveCount(2);
+      for (const index of [0, 1]) {
+        const b = await control.nth(index).boundingBox();
+        expect(b).not.toBeNull();
+        expect(b!.x).toBeGreaterThanOrEqual(0);
+        expect(b!.x + b!.width).toBeLessThanOrEqual(375);
+        expect(b!.height).toBeGreaterThanOrEqual(32);
+      }
+    }
+    // «Annulla» e «Cambio» sono tasselli grandi, raggiungibili con il pollice.
+    for (const name of ["Annulla", "Cambio"]) {
+      const tile = page.getByRole("button", { name, exact: true });
+      await tile.scrollIntoViewIfNeeded();
+      const b = await tile.boundingBox();
+      expect(b).not.toBeNull();
+      expect(b!.height).toBeGreaterThanOrEqual(48);
+      expect(b!.x + b!.width).toBeLessThanOrEqual(375);
+    }
 
-    // Si segna con un tocco, e il set point compare come sul tablet.
-    await score(page, LIGNANO, 24);
+    // Set point e fine del 1° set: la scheda con i due pulsanti uno sopra l'altro.
+    await score(page, LIGNANO, 4);
     await expect(page.locator("[data-livescore-setpoint]")).toContainText("Set point");
     await score(page, LIGNANO, 1);
-    await expect(page.locator("[data-livescore-set-end]")).toBeVisible();
-    expect(await sideOverflow()).toBeLessThanOrEqual(1);
+    const setEnd = page.locator("[data-livescore-set-end]");
+    await expect(setEnd).toBeVisible();
+    await fits();
+    const close = page.locator("[data-livescore-close-set]");
+    const undo = setEnd.getByRole("button", { name: "Annulla ultimo punto" });
+    const closeBox = await close.boundingBox();
+    const undoBox = await undo.boundingBox();
+    expect(closeBox!.y).toBeLessThan(undoBox!.y); // «Chiudi il set» in cima
+    expect(closeBox!.x + closeBox!.width).toBeLessThanOrEqual(375);
+    await close.click();
+
+    // 2° set: la scheda di inizio, poi il set decisivo con il sorteggio e il cambio campo.
+    await expect(page.locator("[data-livescore-set-start]")).toContainText("2° set");
+    await fits();
+    await score(page, OPPONENT, 5);
+    await close.click();
+    await expect(page.locator("[data-livescore-set-start]")).toContainText("sorteggio");
+    await fits();
+    await page.locator("[data-livescore-first-server='A']").click();
+    await score(page, LIGNANO, 8);
+    await expect(page.locator("[data-livescore-side-change]")).toBeVisible();
+    await fits();
+    await page.locator("[data-livescore-side-change]").getByRole("button", { name: "Cambia campo" }).click();
+    await score(page, LIGNANO, 2);
+    await expect(setEnd).toBeVisible();
+    await close.click();
+    await expect(page.getByText(`${LIGNANO} ha vinto la partita (2 set a 1)`)).toBeVisible();
+    await fits();
   });
 });

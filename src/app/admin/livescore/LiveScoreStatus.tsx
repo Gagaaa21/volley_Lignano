@@ -172,12 +172,13 @@ export function SetEndCard({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        {/* Su telefono i due pulsanti stanno uno sotto l'altro, a tutta larghezza, con «Chiudi il set» in cima. */}
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:items-center">
           <Button variant="outline" onClick={onUndo} className="border-2">
             <Undo2 className="h-4 w-4" />
             Annulla ultimo punto
           </Button>
-          <Button size="lg" onClick={onClose} data-livescore-close-set className="min-w-40 text-base">
+          <Button size="lg" onClick={onClose} data-livescore-close-set className="text-base sm:min-w-40">
             <Flag className="h-5 w-5" />
             Chiudi il set
           </Button>
