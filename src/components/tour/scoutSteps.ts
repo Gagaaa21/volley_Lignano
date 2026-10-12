@@ -315,6 +315,21 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
 
   steps.push(board(locked ? C_FIX : C_PLAY));
 
+  if (!locked) {
+    steps.push({
+      id: "scout-ball",
+      path,
+      target: "scout-ball",
+      chapter: C_PLAY,
+      title: "Da che parte è la palla",
+      body:
+        context.level === "completo"
+          ? "Il campo visto dall'alto: «Noi» a sinistra, «Loro» a destra, la rete in mezzo. La palla sta dalla parte di chi tocca adesso e passa la rete da sola a ogni cambio (battuta, ricezione, attacco, difesa…); sotto «Palla nostra» o «Palla loro» c'è la fase. Si accende anche sul tabellone, accanto al nome della squadra.\n\nResta in vista, sotto l'intestazione del sito, mentre scorri fino ai pulsanti."
+          : "Il campo visto dall'alto: «Noi» a sinistra, «Loro» a destra, la rete in mezzo. All'inizio di ogni scambio la palla sta dalla parte di chi batte; con le ricezioni, quando segni la nostra ricezione, passa dalla nostra parte. Si accende anche sul tabellone, accanto al nome della squadra.\n\nResta in vista, sotto l'intestazione del sito, mentre scorri fino ai pulsanti.",
+      tip: "Se non sei sicuro di chi tocca, guarda dove sta la palla: è quella la squadra da scegliere.",
+    });
+  }
+
   if (!locked && context.followsLineup) {
     steps.push({
       id: "scout-court-strip",

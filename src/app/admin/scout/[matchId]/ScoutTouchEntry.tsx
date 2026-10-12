@@ -9,6 +9,7 @@ import { newId } from "@/lib/scout/id";
 import { serverId } from "@/lib/scout/court";
 import { canDo } from "@/lib/scout/rules";
 import { describeNext, TOUCH_SKILL_ORDER, TOUCH_SKILLS } from "@/lib/scout/touches";
+import { tracksSetsOf } from "@/lib/scout/phases";
 import type { ScoutData, ScoutGrade, ScoutSide, ScoutTouchSkill } from "@/lib/scout/types";
 import { ScoutEntry } from "./ScoutEntry";
 import { GradeButtons, PlayerChips, ZonePicker } from "./ScoutInputParts";
@@ -79,7 +80,7 @@ export function ScoutTouchEntry({
   const key = `${view.rallies.length}:${view.pending.length}`;
   const server = currentServer(view) ?? "us";
   // Se in questa partita si segnano anche le alzate, dopo la ricezione e la difesa si propone l'alzata.
-  const tracksSets = view.pending.some((t) => t.skill === "set") || view.rallies.some((r) => r.touches.some((t) => t.skill === "set"));
+  const tracksSets = tracksSetsOf(view);
   const hint = describeNext(view.pending, server, tracksSets);
   const suggestion = hint.next;
   const [chosen, setChosen] = useState<Selection | null>(null);

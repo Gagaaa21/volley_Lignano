@@ -831,6 +831,11 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         rows: phaseRows(),
         keepTogether: true,
       },
+      { type: "sub", title: "Da che parte del campo è la palla" },
+      {
+        type: "p",
+        text: "Sopra i pulsanti per segnare c'è una fascia che è il **campo visto dall'alto**: **Noi** a sinistra, **Loro** a destra, la rete in mezzo. La **palla** sta dalla parte di chi ha la battuta o, nel livello **Completo**, di chi tocca adesso, e passa la rete da sola a ogni cambio. Sotto **Palla nostra** o **Palla loro** c'è la fase (Battuta, Ricezione, Attacco…). La stessa palla si accende sul tabellone, accanto al nome della squadra, e la fascia resta in vista mentre scorri fino ai pulsanti. Se non sei sicuro di chi tocca, guarda dove sta la palla: è quella la squadra da scegliere.",
+      },
       { type: "sub", title: "Cosa vedi nello Scout" },
       {
         type: "p",
@@ -1452,6 +1457,11 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "p",
         text: "Sì: il pulsante **«Schermo intero»**, in alto, mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra il tabellone e i pulsanti per segnare, a destra chi è in campo e il registro, sempre sotto gli occhi. Si esce con **«Esci»** o con il tasto Esc.",
+      },
+      { type: "sub", title: "Da che parte è la palla?" },
+      {
+        type: "p",
+        text: `Lo dice la fascia sopra i pulsanti, il campo visto dall'alto con «Noi» a sinistra e «Loro» a destra: la palla è dalla parte di **Palla nostra** o **Palla loro**. Si accende anche sul tabellone (${cap("fasi")}).`,
       },
       { type: "sub", title: "Non capisco di chi è il turno." },
       {

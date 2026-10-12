@@ -115,6 +115,14 @@ async function prepare(page: Page, matchId: string, level: Level) {
 }
 
 const strip = (page: Page) => page.locator("[data-scout-court-strip]");
+/** Da che parte del campo è la palla: nella fascia sopra i pulsanti e sul tabellone. */
+async function expectBall(page: Page, side: "us" | "opp", phase?: string) {
+  await expect(page.locator("[data-scout-ball]")).toHaveAttribute("data-scout-ball-side", side);
+  await expect(page.locator(`[data-scout-board-ball="${side}"]`)).toHaveCount(1);
+  await expect(page.locator(`[data-scout-board-ball="${side === "us" ? "opp" : "us"}"]`)).toHaveCount(0);
+  await expect(page.locator("[data-scout-ball]")).toContainText(side === "us" ? "Palla nostra" : "Palla loro");
+  if (phase) await expect(page.locator("[data-scout-ball]")).toContainText(phase);
+}
 /** Una posizione della nostra metà campo, nella striscia «In campo». */
 const usSpot = (page: Page, position: number) => strip(page).locator(`[data-scout-court="us"] [data-scout-court-position="${position}"]`);
 const oppSpot = (page: Page, position: number) => strip(page).locator(`[data-scout-court="opp"] [data-scout-court-position="${position}"]`);
@@ -138,9 +146,13 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await expect(oppSpot(page, 1)).toContainText("21");
   await expect(strip(page)).toContainText("Cambi 0/6");
 
+  // La palla è dalla parte di chi batte: all'inizio è nostra.
+  await expectBall(page, "us", "Battuta");
+
   // 1) Punto loro (attacco della n. 21): conquistano la battuta e ruotano.
   await addPoint(page, "opp-attack", { opp: "21" });
   await expect(score(page)).toHaveText("0–1");
+  await expectBall(page, "opp", "Battuta");
   await expect(strip(page)).toContainText(/Loro\s*2ª rot\./);
   await expect(strip(page)).toContainText(/Noi\s*1ª rot\./);
   await expect(oppSpot(page, 1)).toContainText("22");
@@ -154,6 +166,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await expect(sheet.locator("[data-scout-pick]", { hasText: "Hilda" })).not.toHaveAttribute("data-scout-on-court", /.*/);
   await sheet.locator("[data-scout-pick]", { hasText: "Anna" }).click();
   await expect(score(page)).toHaveText("1–1");
+  await expectBall(page, "us", "Battuta");
   // Riconquistiamo la battuta e ruotiamo: batte la n. 2 e la centrale 14 è in posizione 5, dove adesso c'è la libero.
   await expect(strip(page)).toContainText(/Noi\s*2ª rot\./);
   await expect(usSpot(page, 1)).toContainText("2");
@@ -258,6 +271,8 @@ test("fasi di gioco: lo Scout dice di chi è il turno e quale fase viene adesso,
     await expect(card).toContainText(`Ora tocca a · ${side === "us" ? "noi" : "loro"}`);
     await expect(page.locator('[data-scout-phase-chip][data-scout-phase-state="now"]')).toHaveAttribute("data-scout-phase-chip", `${skill}:${side}`);
     await expect(page.locator("[data-scout-phase-why]")).not.toHaveText("");
+    // E la palla è dalla parte di chi tocca, nella fascia e sul tabellone.
+    await expectBall(page, side, { serve: "Battuta", reception: "Ricezione", set: "Alzata", attack: "Attacco", block: "Muro", dig: "Difesa" }[skill]);
   }
 
   // Si comincia dalla battuta: tocca a noi, e con la formazione c'è già scritto chi batte (la n. 9).
@@ -323,12 +338,22 @@ test("livello «Con ricezioni»: i tre passi dello scambio dicono a che punto si
   await expect(now).toHaveCount(1);
   await expect(now).toContainText("Battuta nostra");
 
+  await expectBall(page, "us", "Battuta");
+
   // Punto loro: ora battono loro e tocca alla ricezione nostra.
   await addPoint(page, "opp-attack", { opp: "21" });
   await expect(score(page)).toHaveText("0–1");
   await expect(page.locator('[data-scout-reception="open"]')).toBeVisible();
   await expect(now).toContainText("Ricezione nostra");
   await expect(page.locator('[data-scout-flow-step="done"]')).toHaveCount(1);
+  // La palla parte da loro (battono)…
+  await expectBall(page, "opp", "Battuta");
+  // …e, segnata la nostra ricezione, è dalla nostra parte.
+  const reception = page.locator('[data-scout-reception="open"]');
+  await reception.locator("[data-scout-who]", { hasText: "Anna" }).click();
+  await reception.locator('[data-scout-grades="reception"] [data-scout-grade="+"]').click();
+  await expect(page.locator('[data-scout-reception="done"]')).toBeVisible();
+  await expectBall(page, "us", "In gioco");
 
   await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);

@@ -197,6 +197,14 @@ staff (Developer e Admin).
     sinistra, «In campo» e registro a destra (`useMediaQuery`); sul telefono resta
     una colonna sola. Il riquadro è `data-scout-stage`, le colonne
     `data-scout-main-pane` e `data-scout-log-pane`.
+  - **La palla**: la fascia «Palla nostra / Palla loro» (`ScoutBallSide.tsx`) è il
+    campo visto dall'alto (Noi a sinistra, Loro a destra, la rete in mezzo) con la
+    palla dalla parte giusta; si sposta passando la rete a ogni cambio e resta in
+    vista sotto l'intestazione del sito (`--admin-header-h`, pubblicata da
+    `AdminHeader`) o, a schermo intero, in cima. `ballOf` in `phases.ts` decide da
+    che parte sta: chi batte a inizio scambio (Base), anche la nostra ricezione
+    segnata (Con ricezioni), chi tocca adesso (Completo). Il tabellone
+    (`ScoutBoard`) la mostra accanto al nome della squadra e illumina quella metà.
   - **Fasi di gioco**: nei livelli Con ricezioni e Completo la schermata dice
     sempre **di chi è il turno e quale fase viene adesso** (battuta,
     ricezione, alzata, attacco, muro, difesa). Il percorso della palla e il

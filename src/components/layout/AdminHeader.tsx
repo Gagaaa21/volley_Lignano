@@ -267,6 +267,7 @@ export function AdminHeader({
 }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (item.page && !isPageAvailableForTeam(item.page, activeTeam)) return false;
     if (session.role === "dev") return true;
@@ -281,8 +282,24 @@ export function AdminHeader({
     active?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [pathname]);
 
+  // L'altezza dell'intestazione, a disposizione di chi nella pagina deve restare in vista subito sotto di lei
+  // (per esempio la fascia «Palla nostra / Palla loro» dello Scout): --admin-header-h.
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty("--admin-header-h", `${header.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(header);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--admin-header-h");
+    };
+  }, []);
+
   return (
-    <header className="page-header">
+    <header ref={headerRef} className="page-header">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link href="/admin" className="flex min-w-0 items-center gap-3">
           <span className="brand-chip h-10 w-10 shrink-0">

@@ -36,8 +36,10 @@ import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
+import { ballOf } from "@/lib/scout/phases";
 import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
+import { ScoutBallSide } from "./ScoutBallSide";
 import { ScoutCourtStrip } from "./ScoutCourtStrip";
 import { ScoutEntry } from "./ScoutEntry";
 import type { SavedScoutLineup } from "./ScoutLineupEditor";
@@ -252,6 +254,8 @@ export function ScoutClient({
   const suggestion = suggestedSetEnd(view, data.settings);
   const locked = view.decided || data.finished;
   const hasRallies = view.rallies.length > 0;
+  // Da che parte del campo è la palla: sul tabellone e sopra i pulsanti per segnare (non a partita finita).
+  const ball = useMemo(() => (view.decided || data.finished ? null : ballOf(view, level)), [view, data.finished, level]);
   // Finché la partita è in corso lo schermo non si spegne.
   useWakeLock(!locked);
 
@@ -438,7 +442,7 @@ export function ScoutClient({
         >
           <div className={cn(isFullscreen ? "flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1" : "contents")} data-scout-main-pane>
             <div data-tour="section-scout-board">
-              <ScoutBoard view={view} settings={data.settings} finished={data.finished} />
+              <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} />
             </div>
 
             {view.decided && (
@@ -488,6 +492,7 @@ export function ScoutClient({
             {!inlineSetup && (
               <>
                 <div data-tour="section-scout-entry" className="space-y-3">
+                  {!locked && ball && <ScoutBallSide ball={ball} fullscreen={isFullscreen} />}
                   {!twoColumns && courtStrip}
                   {level === "completo" ? (
                     <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} />
