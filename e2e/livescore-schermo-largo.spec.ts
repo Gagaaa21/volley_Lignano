@@ -163,6 +163,7 @@ test("schermo largo: i punti ai lati del campo, il tabellone sopra, le azioni so
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText(`cambi di ${OPPONENT}`);
+  await expect(dialog).toContainText("0 su 8"); // dal 2026/2027 i cambi a set sono 8, non più 6
   await dialog.getByRole("button", { name: "Chiudi" }).click();
   await expect(dialog).toHaveCount(0);
 

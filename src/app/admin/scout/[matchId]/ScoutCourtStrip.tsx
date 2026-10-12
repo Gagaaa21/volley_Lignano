@@ -312,7 +312,7 @@ export function ScoutCourtStrip({
               </div>
               <MiniCourt side={side} court={court} roster={data.roster[side]} serving={server === side} />
               <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] font-medium text-muted-foreground" title="Cambi fatti nel set (6 al massimo)">
+                <span className="text-[11px] font-medium text-muted-foreground" title={`Cambi fatti nel set (${SUBSTITUTIONS_PER_SET} al massimo)`}>
                   Cambi {used}/{SUBSTITUTIONS_PER_SET}
                 </span>
                 <Button variant="outline" size="xs" disabled={locked} onClick={() => setSubSide(side)} data-scout-sub-open={side}>

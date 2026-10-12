@@ -1,3 +1,4 @@
+import { RULES_SEASON, SUBSTITUTIONS_PER_SET } from "@/lib/volleyRules";
 import { LEVEL_META, LEVEL_ORDER } from "./levels";
 import { PHASE_STEPS } from "./phases";
 import { TOUCH_SKILLS } from "./touches";
@@ -133,7 +134,7 @@ export const GLOSSARY: { term: string; text: string }[] = [
   },
   {
     term: "Cambio (sostituzione)",
-    text: "Una giocatrice entra al posto di un'altra. Nel 6 contro 6 se ne possono fare 6 per set; una titolare può rientrare solo al suo posto e al posto di chi l'ha sostituita. La libero non conta: entra ed esce da sola.",
+    text: `Una giocatrice entra al posto di un'altra. Nel 6 contro 6 se ne possono fare ${SUBSTITUTIONS_PER_SET} per set (dalla stagione ${RULES_SEASON}: prima erano 6); una titolare può rientrare solo al suo posto e al posto di chi l'ha sostituita. La libero non conta: entra ed esce da sola.`,
   },
   { term: "Invasione", text: "Fallo: una giocatrice supera la linea centrale o passa sotto la rete e interferisce con il gioco." },
   { term: "Libero", text: "Giocatrice con la maglia di colore diverso, specializzata in difesa e ricezione. Non può murare né tentare di murare." },
@@ -579,7 +580,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "callout",
         kind: "info",
         title: "Quando un cambio non è regolare",
-        text: "Lo Scout avvisa (senza vietare: un infortunio fa eccezione) se in un set si superano i 6 cambi, se una titolare rientra in un posto diverso dal suo o al posto di una giocatrice che non l'ha sostituita, se una riserva già uscita rientra o se una riserva viene sostituita da chi non è la titolare per cui era entrata.",
+        text: `Lo Scout avvisa (senza vietare: un infortunio fa eccezione) se in un set si superano gli ${SUBSTITUTIONS_PER_SET} cambi, se una titolare rientra in un posto diverso dal suo o al posto di una giocatrice che non l'ha sostituita, se una riserva già uscita rientra o se una riserva viene sostituita da chi non è la titolare per cui era entrata.`,
       },
       { type: "sub", title: "Set dopo set" },
       {

@@ -25,6 +25,8 @@ import { MATCH_FORMAT_LABELS, MATCH_FORMAT_SHORT_LABELS } from "@/lib/volleyRule
 import { courtOccupant } from "@/lib/lineup";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { prepareAudio } from "@/lib/beep";
+import { nowMs, startTimeoutRun, type TimeoutRun } from "@/lib/timeoutClock";
 import { CATEGORY_LABELS } from "@/lib/category";
 import {
   DEFAULT_FORMAT,
@@ -58,6 +60,7 @@ import {
 import { DualLiveScoreCourt } from "./LiveScoreCourt";
 import { displayLabel, getTeamAccent } from "./accent";
 import { SubstitutionDialog } from "./SubstitutionDialog";
+import { TimeoutCard } from "./TimeoutCard";
 import { SetEndCard, SetStartCard, SideChangeCard, StatusStrip } from "./LiveScoreStatus";
 import { useStageFullscreen } from "./useStageFullscreen";
 import { shortName } from "@/components/matches/VolleyCourt";
@@ -155,6 +158,9 @@ const WIDE_TEAM_ACTION =
 const TEAM_ACTION =
   "inline-flex min-h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg border-2 border-current/35 px-1 text-[10px] font-semibold transition-colors hover:border-current/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current sm:gap-1.5 sm:px-2 sm:text-xs";
 
+/** Il suono che avvisa a fine time-out si accende e si spegne da qui: la scelta resta su questo dispositivo. */
+const TIMEOUT_SOUND_KEY = "vl-livescore-timeout-sound";
+
 const LIVESCORE_API = "/api/livescore";
 /** Ultimo formato scelto su questo dispositivo (tipo, formazione, giocatrici,
  * libero): una comodità per non reimpostarlo a ogni nuova partita. */
@@ -166,6 +172,15 @@ const MIN_SET_POINTS = 5;
 const AUTOSAVE_DELAY_MS = 900;
 /** Quanti degli ultimi punti mostrare nella striscia "Ultimi punti". */
 const POINT_LOG_LIMIT = 12;
+
+/** Il suono del time-out: acceso, salvo che su questo dispositivo sia stato spento (sul server e senza memoria locale resta acceso). */
+function readTimeoutSound(): boolean {
+  try {
+    return localStorage.getItem(TIMEOUT_SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
 
 function formatOf(match: LiveScoreState): LiveScoreFormat {
   return {
@@ -643,6 +658,7 @@ function TeamBlock({
   substitutions,
   large,
   layout = "side",
+  timeoutTour = false,
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
@@ -659,6 +675,8 @@ function TeamBlock({
   substitutions?: { used: number; limit: number | null; onClick: () => void };
   large: boolean;
   layout?: "side" | "board";
+  /** Segna questo pulsante dei time-out come bersaglio della guida passo passo (uno solo per tabellone). */
+  timeoutTour?: boolean;
 }) {
   const accent = getTeamAccent(teamKey, mode, opponentColor);
   const timeoutMaxed = team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET;
@@ -714,7 +732,8 @@ function TeamBlock({
                 <button
                   type="button"
                   onClick={onToggleTimeout}
-                  title="Segna un time-out (2 a disposizione per set)"
+                  title={`Segna un time-out (${MAX_TIMEOUTS_PER_SET} a disposizione per set): parte il conto alla rovescia`}
+                  data-tour={timeoutTour ? "section-livescore-timeout" : undefined}
                   className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
                   style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : { background: accent.overlay, color: accent.text }}
                 >
@@ -1007,6 +1026,9 @@ export function LiveScoreClient({
   const [substitution, setSubstitution] = useState<{ team: TeamKey; position: CourtPosition | null } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [pendingServer, setPendingServer] = useState<TeamKey>("A");
+  /** Il time-out in corso, con il suo conto alla rovescia (solo a schermo: non si salva con la partita). */
+  const [timeoutRun, setTimeoutRun] = useState<TimeoutRun | null>(null);
+  const [timeoutSound, setTimeoutSound] = useState(readTimeoutSound);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, isSimulated, toggle: toggleFullscreen } = useStageFullscreen(stageRef);
@@ -1080,6 +1102,7 @@ export function LiveScoreClient({
       : "Ricominciare da capo? Punteggi e formazioni attuali andranno persi.";
     if (!window.confirm(message)) return;
     setEditingNames(false);
+    setTimeoutRun(null);
     dispatch({ type: "newMatch" });
     fetch(LIVESCORE_API, { method: "DELETE" }).catch(() => {});
   }
@@ -1120,6 +1143,34 @@ export function LiveScoreClient({
   const showSetStart = match.started && match.withLineup && !setEnd && matchWinner === null && isSetFresh(match);
   const savedSetLineup = numeric && linkedMatch ? savedLineupFor(linkedMatch, currentSet(match) - 1, registryNumbers) : null;
   const savedSetup = numeric && linkedMatch ? savedLineupFor(linkedMatch, 0, registryNumbers) : null;
+
+  // Time-out: il conto alla rovescia finisce da solo quando il gioco riprende (un punto, un set chiuso, una nuova partita).
+  const totalPoints = match.teamA.score + match.teamB.score;
+  if (timeoutRun && (!match.started || timeoutRun.points !== totalPoints)) setTimeoutRun(null);
+
+  /** «Time-out» di una squadra: lo segna e fa partire il conto alla rovescia. Il terzo tocco azzera il conteggio (una correzione): niente conto. */
+  function requestTimeout(key: TeamKey) {
+    const used = match[teamKeyProp(key)].timeoutsUsed;
+    dispatch({ type: "toggleTimeout", team: key });
+    if (used >= MAX_TIMEOUTS_PER_SET) {
+      setTimeoutRun((run) => (run?.team === key ? null : run));
+      return;
+    }
+    if (timeoutSound) prepareAudio(); // il browser lascia suonare a fine conto solo se parte da un tocco
+    setTimeoutRun(startTimeoutRun(key, used + 1, totalPoints, nowMs()));
+  }
+
+  function toggleTimeoutSound() {
+    const next = !timeoutSound;
+    setTimeoutSound(next);
+    try {
+      localStorage.setItem(TIMEOUT_SOUND_KEY, next ? "on" : "off");
+    } catch {
+      // localStorage non disponibile: vale solo finché la pagina è aperta.
+    }
+    if (next) prepareAudio();
+  }
+  const closeTimeout = useCallback(() => setTimeoutRun(null), []);
 
   // Tastiera (computer a bordo campo): ← e → segnano il punto della squadra a sinistra o a destra, ⌫ annulla.
   useEffect(() => {
@@ -1452,7 +1503,8 @@ export function LiveScoreClient({
         placeholder={match.mode === "match" && key === "B" ? "Nome avversaria" : undefined}
         onLabelChange={(value) => dispatch({ type: "setLabel", team: key, value })}
         // Su schermo largo time-out e cambi stanno sotto il pulsante dei punti (vedi teamColumn).
-        onToggleTimeout={wide ? undefined : () => dispatch({ type: "toggleTimeout", team: key })}
+        onToggleTimeout={wide ? undefined : () => requestTimeout(key)}
+        timeoutTour={key === leftKey}
         substitutions={
           !wide && match.withLineup
             ? { used: team.substitutionsUsed, limit: subLimit, onClick: () => setSubstitution({ team: key, position: null }) }
@@ -1498,6 +1550,16 @@ export function LiveScoreClient({
   // Le schede che chiedono un'azione (fine set, cambio campo, inizio set): sopra i pulsanti dei punti, che restano fermi finché non si sceglie.
   const statusCards = (
     <>
+      {timeoutRun && (
+        <TimeoutCard
+          run={timeoutRun}
+          teamLabel={displayLabel(match[teamKeyProp(timeoutRun.team)], timeoutRun.team)}
+          accent={getTeamAccent(timeoutRun.team, match.mode, match.opponentColor)}
+          soundOn={timeoutSound}
+          onToggleSound={toggleTimeoutSound}
+          onClose={closeTimeout}
+        />
+      )}
       <SideChangeCard match={match} onChange={() => dispatch({ type: "toggleSides" })} />
       {setEnd && <SetEndCard match={match} onClose={() => dispatch({ type: "closeSet" })} onUndo={() => dispatch({ type: "undo" })} />}
       {showSetStart && (
@@ -1597,8 +1659,9 @@ export function LiveScoreClient({
         </button>
         <button
           type="button"
-          onClick={() => dispatch({ type: "toggleTimeout", team: key })}
-          title="Segna un time-out (2 a disposizione per set)"
+          onClick={() => requestTimeout(key)}
+          title={`Segna un time-out (${MAX_TIMEOUTS_PER_SET} a disposizione per set): parte il conto alla rovescia`}
+          data-tour={isLeft ? "section-livescore-timeout" : undefined}
           className={WIDE_TEAM_ACTION}
           style={timeoutMaxed ? maxedStyle : { borderColor: accent.background }}
         >

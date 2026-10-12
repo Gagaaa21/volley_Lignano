@@ -9,7 +9,9 @@
  *   set appena chiuso batte per secondo nel successivo); solo nel set decisivo
  *   si rifà il sorteggio;
  * - a ogni set le squadre cambiano campo; nel set decisivo si cambia anche
- *   quando una squadra arriva a 8 punti (senza toccare la rotazione).
+ *   quando una squadra arriva a 8 punti (senza toccare la rotazione);
+ * - ogni squadra ha 2 time-out per set, di 30 secondi, e fino a 8 sostituzioni
+ *   per set (regole della stagione 2026/2027, vedi più sotto).
  */
 
 export type MatchFormat = "bo5" | "bo3" | "fixed3";
@@ -31,6 +33,23 @@ export const DEFAULT_SET_POINTS = 25;
 export const DEFAULT_LAST_SET_POINTS = 15;
 /** Nel set decisivo le squadre cambiano campo quando una arriva a questo punteggio. */
 export const SIDE_CHANGE_POINTS = 8;
+
+/**
+ * Regole in vigore nella stagione 2026/2027. Dal 28 settembre 2026 la FIPAV applica in tutte le gare federali, di
+ * ogni serie e categoria, le Regole di Gioco FIVB 2025–2028 con le sperimentazioni «FIVB Rule Tests 2026»
+ * (documento del Settore Nazionale Ufficiali di Gara «Sperimentazioni regolamentari – Stagione 2026/2027»).
+ * Quello che conta per punteggio e formazioni sta qui, in un posto solo: Live score, Scout, guide e manuale lo leggono da qui.
+ */
+export const RULES_SEASON = "2026/2027";
+
+/** Sostituzioni consentite per set nel 6 contro 6: regola 15.1, da 6 a 8 (restano le limitazioni della regola 15.6). */
+export const SUBSTITUTIONS_PER_SET = 8;
+
+/** Time-out a disposizione di ciascuna squadra per set (regola 15.4, invariati). */
+export const TIMEOUTS_PER_SET = 2;
+
+/** Durata di ogni time-out richiesto (regola 15.4): 30 secondi. */
+export const TIMEOUT_SECONDS = 30;
 
 /** Quanti set al massimo prevede la formula (l'ultimo è il decisivo). */
 export function maxSets(format: MatchFormat): number {

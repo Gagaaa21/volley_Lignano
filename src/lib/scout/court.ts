@@ -1,4 +1,5 @@
 import { substitutionRuleWarning } from "@/lib/lineup";
+import { SUBSTITUTIONS_PER_SET } from "@/lib/volleyRules";
 import { playerLabel, sortPlayers } from "./describe";
 import type { ScoutCourt, ScoutView } from "./derive";
 import type { ScoutData, ScoutPlayer, ScoutRoster, ScoutSide } from "./types";
@@ -9,8 +10,8 @@ import type { ScoutData, ScoutPlayer, ScoutRoster, ScoutSide } from "./types";
  * proporre le giocatrici e se un cambio rispetta le regole.
  */
 
-/** Quanti cambi si possono fare in un set nel 6 contro 6. */
-export const SUBSTITUTIONS_PER_SET = 6;
+/** Quanti cambi si possono fare in un set nel 6 contro 6: 8 dal 2026/2027 (vedi volleyRules.ts, una sola fonte con il Live score). */
+export { SUBSTITUTIONS_PER_SET };
 
 /** Chi batte adesso per questa squadra: la giocatrice in posizione 1 (la libero non batte mai). Undefined se non se ne segue la formazione. */
 export function serverId(view: ScoutView, side: ScoutSide): string | undefined {

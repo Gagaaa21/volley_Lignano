@@ -10,6 +10,7 @@ import {
   hasLiberoOption,
   initialMatch,
   linkCalendarMatch,
+  MAX_TIMEOUTS_PER_SET,
   matchPointFor,
   matchWinner,
   needsFirstServer,
@@ -19,6 +20,7 @@ import {
   sideChangeNeeded,
   startMatch,
   substitutePlayer,
+  substitutionLimit,
   substitutionProblem,
   substitutionWarning,
   suggestedSetEnd,
@@ -28,6 +30,7 @@ import {
 } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import type { LiveScorePlayers, LiveScoreState } from "@/lib/types";
+import { SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
 /** Tabellone live: dal 2 contro 2 al 6 contro 6, con o senza libero, anche
  * senza formazione; e cosa può vedere il sito pubblico della diretta. */
@@ -621,11 +624,34 @@ test.describe("regole dei cambi (avvertimenti)", () => {
     expect(substitutionWarning(m, "A", 4, "R1")).toContain("una riserva non può rientrare");
   });
 
-  test("al massimo 6 cambi per set", () => {
+  test("al massimo 8 cambi per set (dalla stagione 2026/2027; prima erano 6)", () => {
+    expect(SUBSTITUTIONS_PER_SET).toBe(8);
+    expect(substitutionLimit(6)).toBe(8);
     let m = withScore(game(6));
-    for (let i = 1; i <= 6; i++) m = substitutePlayer(m, "A", ((i % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6, `X${i}`);
+    for (let i = 1; i <= 8; i++) m = substitutePlayer(m, "A", ((i % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6, `X${i}`);
+    expect(m.teamA.substitutionsUsed).toBe(8);
+    expect(substitutionWarning(m, "A", 2, "Y1")).toContain("8 cambi");
+  });
+
+  test("il 7° e l'8° cambio sono regolari, il 9° non è previsto", () => {
+    let m = withScore(game(6));
+    for (const [i, position] of ([1, 2, 3, 4, 5, 6] as const).entries()) m = substitutePlayer(m, "A", position, `X${i + 1}`);
     expect(m.teamA.substitutionsUsed).toBe(6);
-    expect(substitutionWarning(m, "A", 2, "Y1")).toContain("6 cambi");
+    // Due titolari rientrano al loro posto, al posto di chi le aveva sostituite: nessun avvertimento.
+    expect(substitutionWarning(m, "A", 1, "A1")).toBeNull();
+    m = substitutePlayer(m, "A", 1, "A1");
+    expect(substitutionWarning(m, "A", 2, "A2")).toBeNull();
+    m = substitutePlayer(m, "A", 2, "A2");
+    expect(m.teamA.substitutionsUsed).toBe(8);
+    // Il 9° supera il limite (8 a set): avvertimento, ma con l'altra squadra i conti sono suoi.
+    expect(substitutionWarning(m, "A", 3, "A3")).toContain("8 cambi");
+    expect(substitutionWarning(m, "B", 3, "B9")).toBeNull();
+  });
+
+  test("i time-out sono 2 a set, da 30 secondi", () => {
+    expect(MAX_TIMEOUTS_PER_SET).toBe(2);
+    expect(TIMEOUTS_PER_SET).toBe(2);
+    expect(TIMEOUT_SECONDS).toBe(30);
   });
 
   test("solo nel 6 contro 6, e non per riempire una posizione vuota", () => {

@@ -1,3 +1,4 @@
+import { TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import type { BaseTourStep } from "./engine/types";
 
 /** Passi dei mini-tour di sezione: attivati su richiesta dal pulsante
@@ -161,6 +162,13 @@ export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
     target: "section-livescore-score",
     title: "Segna un punto",
     body: "Un tocco sul pulsante della squadra che ha vinto lo scambio: punteggio e servizio si aggiornano da soli, rotazione compresa. Da computer puoi usare le frecce ← e → (squadra a sinistra o a destra) e Backspace per annullare.",
+  },
+  {
+    id: "section-livescore-timeout",
+    path: "/admin/livescore",
+    target: "section-livescore-timeout",
+    title: "Time-out con il conto alla rovescia",
+    body: `Ogni squadra ha ${TIMEOUTS_PER_SET} time-out per set e ognuno dura ${TIMEOUT_SECONDS} secondi. Toccando «Time-out» lo segni e parte il conto alla rovescia, grande, sotto il tabellone: negli ultimi 10 secondi diventa arancione e a zero suona (l'altoparlante accanto al conto lo spegne). «Fine time-out» lo chiude prima, e si chiude da solo se segni un punto. Un terzo tocco azzera il conteggio della squadra, per correggere un errore, e non fa partire niente.`,
   },
   {
     id: "section-livescore-toolbar",

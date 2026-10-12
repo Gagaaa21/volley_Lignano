@@ -20,7 +20,9 @@ import {
   setPointHolder,
   setsToWin,
   sideChangeDue,
+  SUBSTITUTIONS_PER_SET,
   targetForSet,
+  TIMEOUTS_PER_SET,
 } from "@/lib/volleyRules";
 
 /**
@@ -48,15 +50,15 @@ export const DEFAULT_OPPONENT_COLOR = "#475569";
 /** In modalità "Partita", Squadra A è sempre il Volley Lignano: etichetta
  * fissa, non un'altra squadra generica da rinominare come in allenamento. */
 export const HOME_TEAM_LABEL = "Volley Lignano";
-/** Time-out a disposizione di ciascuna squadra per set. */
-export const MAX_TIMEOUTS_PER_SET = 2;
+/** Time-out a disposizione di ciascuna squadra per set (vedi le regole della stagione in volleyRules.ts). */
+export const MAX_TIMEOUTS_PER_SET = TIMEOUTS_PER_SET;
 /** Senza formula (allenamento libero) la partita si chiude a 3 set vinti, come sempre. */
 const FREE_SETS_TO_WIN = 3;
 
-/** Sostituzioni consentite per set: 6 nel 6 contro 6; negli altri formati
+/** Sostituzioni consentite per set: 8 nel 6 contro 6 (dal 2026/2027, prima erano 6); negli altri formati
  * (giovanili, minivolley) le regole cambiano, quindi solo il conteggio. */
 export function substitutionLimit(players: LiveScorePlayers): number | null {
-  return players === 6 ? 6 : null;
+  return players === 6 ? SUBSTITUTIONS_PER_SET : null;
 }
 
 export function teamKeyProp(key: TeamKey): "teamA" | "teamB" {

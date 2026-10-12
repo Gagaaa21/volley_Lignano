@@ -89,7 +89,12 @@ staff (Developer e Admin).
   `courtLayout`: 2 affiancate, 3 a triangolo, 4 a rombo, 5 e 6 su due file.
   Le regole della pallavolo stanno in funzioni pure, comuni a Live score e
   Scout, e hanno i loro test (`unit/livescore.spec.ts`):
-  - `src/lib/volleyRules.ts`: formati (**3 set su 5**, **2 set su 3**, **3 set
+  - `src/lib/volleyRules.ts`: **regole della stagione 2026/2027**
+    (`RULES_SEASON`: dal 28 settembre 2026 la FIPAV applica in tutte le gare i
+    «FIVB Rule Tests 2026»; qui stanno `SUBSTITUTIONS_PER_SET` = **8** cambi a
+    set, prima 6, `TIMEOUTS_PER_SET` = 2 e `TIMEOUT_SECONDS` = 30, una sola
+    fonte per Live score, Scout, guida e manuale), formati (**3 set su 5**,
+    **2 set su 3**, **3 set
     fissi**; in Allenamento anche **Libera**, senza limiti di punti: chiude i
     set chi segna), 25 punti con 2 di scarto (15 nel set decisivo; si cambiano
     da «Punti» in impostazione, anche per i 3 set fissi, dove l'ultimo va a
@@ -99,7 +104,7 @@ staff (Developer e Admin).
     **libero** (ricavata da dove stanno le giocatrici: sostituisce la
     centrale in seconda linea, non batte mai, quindi in posizione 1 entra
     solo quando la squadra riceve, ed esce quando la centrale ruota a rete) e
-    **cambi** (`substitutionRuleWarning`: 6 per set, titolare che rientra solo
+    **cambi** (`substitutionRuleWarning`: 8 per set, titolare che rientra solo
     al suo posto, riserva che esce solo per la titolare; sono avvertimenti,
     non divieti: un infortunio fa eccezione).
   Il tabellone **guida la gara** (`LiveScoreStatus.tsx`): chiede il
@@ -114,13 +119,22 @@ staff (Developer e Admin).
   per il bordo campo: pulsanti dei punti grandi e «a tasto» (con il «+1» e il
   tasto della tastiera), «Annulla» in evidenza, «Cambio» azzurro, «Nuovo» rosso
   perché cancella la partita, time-out e cambi di ogni squadra con l'etichetta e
-  il conto («Time-out 0/2», «Cambi 0/6»); da telefono la barra delle azioni è
+  il conto («Time-out 0/2», «Cambi 0/8»); da telefono la barra delle azioni è
   fatta di tasselli con l'icona sopra l'etichetta. Su schermo largo (da 1024 px,
   `useMediaQuery`) la partita ha tre colonne: tabellone in alto (cifre che
   seguono l'altezza del display, con le unità `cqh`), poi i comandi di una
   squadra (pulsante dei punti, «Time-out», «Cambi»: `teamColumn`), il campo più
   piccolo con le azioni della partita sotto, e i comandi dell'altra squadra; anche
-  l'impostazione è su due colonne, con «Inizia» sempre in vista. Sostituzioni durante
+  l'impostazione è su due colonne, con «Inizia» sempre in vista. **Time-out**:
+  ogni squadra ne ha 2 a set, da 30 secondi (`TIMEOUT_SECONDS`); «Time-out» lo
+  segna e fa partire il **conto alla rovescia** (`TimeoutCard.tsx`, i conti in
+  `src/lib/timeoutClock.ts` con test in `unit/timeout-clock.spec.ts`): scheda
+  grande sotto il tabellone, arancione negli ultimi 10 secondi, a zero due bip
+  (Web Audio, `src/lib/beep.ts`; si spegne con l'altoparlante, scelta ricordata
+  sul dispositivo) e vibrazione dove c'è; si chiude da sola dopo qualche secondo,
+  con «Fine time-out» o se si segna un punto; il terzo tocco su «Time-out» azzera
+  il conteggio senza far partire niente. Il tempo si legge da `Date.now()`, quindi
+  resta giusto anche con la pagina in secondo piano. Sostituzioni durante
   il gioco (`substitutePlayer`): contate per set, elencate in
   `substitutions`, annullabili come un punto, mai esposte alla diretta
   pubblica. Lo stato si salva in automatico per 3 ore (riga unica

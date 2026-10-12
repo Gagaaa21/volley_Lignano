@@ -144,7 +144,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await expect(usSpot(page, 6)).toContainText("libero");
   await expect(usSpot(page, 6)).toHaveAttribute("title", /libero/);
   await expect(oppSpot(page, 1)).toContainText("21");
-  await expect(strip(page)).toContainText("Cambi 0/6");
+  await expect(strip(page)).toContainText("Cambi 0/8");
 
   // La palla è dalla parte di chi batte: all'inizio è nostra.
   await expectBall(page, "us", "Battuta");
@@ -182,7 +182,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   // 4) Un cambio: esce la n. 2 (posizione 1), entra la n. 3 dalla panchina.
   const subSheet = page.locator('[data-scout-sheet="sub"]');
   await page.locator('[data-scout-sub-open="us"]').click();
-  await expect(subSheet).toContainText("cambi fatti: 0 su 6");
+  await expect(subSheet).toContainText("cambi fatti: 0 su 8");
   await expect(subSheet.locator("[data-scout-sub-confirm]")).toBeDisabled();
   await subSheet.locator('[data-scout-sub-out="1"]').click();
   await subSheet.locator("[data-scout-sub-in]", { hasText: "Hilda" }).click();
@@ -190,7 +190,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await subSheet.locator("[data-scout-sub-confirm]").click();
   await expect(subSheet).toHaveCount(0);
   await expect(usSpot(page, 1)).toContainText("3");
-  await expect(strip(page)).toContainText("Cambi 1/6");
+  await expect(strip(page)).toContainText("Cambi 1/8");
 
   // 5) Un cambio che non è regolare: la riserva appena entrata può uscire solo per chi ha sostituito. Avvisa, ma non vieta.
   await page.locator('[data-scout-sub-open="us"]').click();
@@ -205,7 +205,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   // 6) «Annulla ultimo» toglie anche il cambio: torna in campo la n. 2.
   await page.locator("[data-scout-undo]").click();
   await expect(usSpot(page, 1)).toContainText("2");
-  await expect(strip(page)).toContainText("Cambi 0/6");
+  await expect(strip(page)).toContainText("Cambi 0/8");
   // Si rifà il cambio, perché resti nel tabellino.
   await page.locator('[data-scout-sub-open="us"]').click();
   await subSheet.locator('[data-scout-sub-out="1"]').click();
@@ -218,7 +218,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await page.reload();
   await expect(score(page)).toHaveText("2–1");
   await expect(usSpot(page, 1)).toContainText("3");
-  await expect(strip(page)).toContainText("Cambi 1/6");
+  await expect(strip(page)).toContainText("Cambi 1/8");
 
   // 7) Si chiude il 1° set: il 2° riparte dalla formazione di partenza (la n. 9 in battuta, non la riserva né la rotazione fatta).
   await page.getByRole("button", { name: "Chiudi il set adesso" }).click();
@@ -232,7 +232,7 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   }
   await expect(strip(page)).toContainText(/Noi\s*1ª rot\./);
   await expect(strip(page)).toContainText(/Loro\s*1ª rot\./);
-  await expect(strip(page)).toContainText("Cambi 0/6");
+  await expect(strip(page)).toContainText("Cambi 0/8");
   // La battuta si alterna: nel 2° set batte l'avversaria, con la n. 21.
   await expect(oppSpot(page, 1).getByLabel("Batte")).toBeVisible();
   await expect(oppSpot(page, 1)).toContainText("21");

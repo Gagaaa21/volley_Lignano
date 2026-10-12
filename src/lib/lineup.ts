@@ -188,7 +188,8 @@ export interface SubstitutionRecord {
 /**
  * Avvertimento (non un divieto: un infortunio o un'espulsione fanno eccezione)
  * quando un cambio non rispetta le regole delle sostituzioni nel 6 contro 6:
- * al massimo 6 per set; una titolare può uscire una sola volta e rientrare una
+ * al massimo 8 per set (6 fino al 2025/26: vedi SUBSTITUTIONS_PER_SET in
+ * volleyRules.ts); una titolare può uscire una sola volta e rientrare una
  * sola volta, solo al suo posto e solo al posto di chi l'ha sostituita; una
  * riserva entra una volta sola per set e può essere sostituita solo dalla
  * titolare per cui è entrata. Null se va tutto bene.
@@ -202,7 +203,7 @@ export function substitutionRuleWarning(options: {
   subs: SubstitutionRecord[];
   /** Chi era in campo all'inizio del set. */
   starters: string[];
-  /** Cambi consentiti per set (6), null se non ci sono limiti da controllare. */
+  /** Cambi consentiti per set (8), null se non ci sono limiti da controllare. */
   limit: number | null;
   /** Come si scrive una giocatrice nei messaggi. */
   label?: (id: string) => string;
