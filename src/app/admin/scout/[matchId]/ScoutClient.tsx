@@ -316,6 +316,11 @@ export function ScoutClient({
   }
 
   const setup = <ScoutSetup data={data} view={view} athletes={athletes} savedLineups={savedLineups} dispatch={dispatch} />;
+  const boardEl = (
+    <div data-tour="section-scout-board">
+      <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} compact={isFullscreen} />
+    </div>
+  );
   const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} />;
 
   return (
@@ -442,9 +447,7 @@ export function ScoutClient({
           data-scout-columns={isFullscreen ? "fullscreen" : undefined}
         >
           <div className={cn(isFullscreen ? "flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1" : "contents")} data-scout-main-pane>
-            <div data-tour="section-scout-board">
-              <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} compact={isFullscreen} />
-            </div>
+            {!twoColumns && boardEl}
 
             {view.decided && (
               <Card className="border-success/30 bg-success-soft/50" data-scout-over data-tour="scout-over">
@@ -500,7 +503,7 @@ export function ScoutClient({
                   ) : (
                     <>
                       {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} />}
-                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} />
+                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} compact={twoColumns} />
                     </>
                   )}
                 </div>
@@ -590,6 +593,8 @@ export function ScoutClient({
           </div>
 
           <div className={cn(isFullscreen ? "space-y-3 lg:min-h-0 lg:overflow-y-auto" : "contents")} data-scout-log-pane>
+            {/* A due colonne il tabellone sta qui, fisso in alto: a sinistra restano solo i comandi, tutti in vista. */}
+            {twoColumns && <div className="sticky top-0 z-20">{boardEl}</div>}
             {!inlineSetup && twoColumns && courtStrip}
             {!inlineSetup && (
               <section aria-label="Registro degli scambi" data-tour="section-scout-log">

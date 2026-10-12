@@ -509,7 +509,8 @@
 }
 
 /* Schermo intero (Live score, Scout) su iPad e iPhone: la barra di stato con l'ora e la batteria sfoca quello
-   che le sta sotto, e l'effetto scende per una trentina di punti nella pagina. Si lascia quindi in alto una fascia libera,
+   che le sta sotto, e l'effetto scende per una trentina di punti nella pagina. Il riquadro parte già a una trentina
+   di punti dal bordo, quindi basta una piccola fascia libera in alto,
    senza testi né pulsanti e della stessa tinta del fondo, così non c'è niente da sfocare. Altrove (computer,
    Android) non c'è e non toglie spazio: `-webkit-touch-callout` lo riconosce solo il browser di iOS. */
 @utility fullscreen-inset-top {
@@ -518,9 +519,14 @@
     @supports (-webkit-touch-callout: none) {
       display: block;
       flex-shrink: 0;
-      height: max(1.75rem, env(safe-area-inset-top, 0px));
+      height: max(0.75rem, env(safe-area-inset-top, 0px));
     }
   }
+}
+
+/* Scout a schermo intero: le tessere di «chi» (le giocatrici) occupano la larghezza che c'è, in meno righe. */
+[data-scout-columns="fullscreen"] [data-scout-chips] {
+  grid-template-columns: repeat(auto-fill, minmax(3.9rem, 1fr));
 }
 
 /* Indizio visivo permanente che una striscia orizzontale si può scorrere

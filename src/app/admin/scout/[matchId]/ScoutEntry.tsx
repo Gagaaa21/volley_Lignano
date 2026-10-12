@@ -260,6 +260,7 @@ function SideButton({
   onClick,
   disabled,
   testId,
+  compact = false,
 }: {
   side: ScoutSide;
   label: string;
@@ -267,6 +268,8 @@ function SideButton({
   onClick: () => void;
   disabled: boolean;
   testId: string;
+  /** Più basso e con il testo più piccolo: i quattro pulsanti stanno in due colonne (schermo intero). */
+  compact?: boolean;
 }) {
   return (
     <button
@@ -276,13 +279,14 @@ function SideButton({
       data-scout-add={testId}
       className={cn(
         "flex min-h-[3.5rem] w-full flex-col justify-center rounded-xl px-3.5 py-2 text-left transition-[background-color,transform] active:translate-y-px disabled:pointer-events-none disabled:opacity-45 sm:min-h-[4.75rem]",
+        compact && "min-h-[3.75rem] px-3 py-1.5 sm:min-h-[3.75rem]",
         side === "us"
           ? "bg-primary-soft text-primary hover:bg-primary-soft-hover"
           : "bg-accent text-accent-foreground hover:bg-accent-hover",
       )}
     >
-      <span className="text-[17px] font-extrabold leading-tight sm:text-lg">{label}</span>
-      <span className="hidden text-xs font-medium opacity-75 sm:block">{hint}</span>
+      <span className={cn("text-[17px] font-extrabold leading-tight sm:text-lg", compact && "text-[15px] sm:text-[15px]")}>{label}</span>
+      <span className="hidden truncate text-xs font-medium opacity-75 sm:block">{hint}</span>
     </button>
   );
 }
@@ -292,6 +296,7 @@ export function ScoutEntry({
   locked,
   dispatch,
   courts,
+  compact = false,
 }: {
   data: ScoutData;
   /** Partita decisa o chiusa: non si aggiunge altro. */
@@ -299,6 +304,8 @@ export function ScoutEntry({
   dispatch: (action: ScoutAction) => void;
   /** Chi è in campo per ogni squadra di cui si segue la formazione. */
   courts?: ScoutCourts;
+  /** A schermo intero su schermi larghi: i quattro modi di ogni squadra in due colonne, per stare tutti in vista. */
+  compact?: boolean;
 }) {
   const [step, setStep] = useState<Step | null>(null);
   const close = () => setStep(null);
@@ -347,11 +354,12 @@ export function ScoutEntry({
         >
           {scorer === "us" ? "Punto nostro" : "Punto loro"}
         </h2>
-        <div className="space-y-2">
+        <div className={compact ? "grid grid-cols-2 gap-2" : "space-y-2"}>
           {POINT_BUTTONS.map(({ how, hint }) => (
             <SideButton
               key={how}
               side={scorer}
+              compact={compact}
               label={HOW_META[how].label}
               hint={hint}
               disabled={locked}
@@ -361,6 +369,7 @@ export function ScoutEntry({
           ))}
           <SideButton
             side={scorer}
+            compact={compact}
             label={errorLabel}
             hint={errorHint}
             disabled={locked}

@@ -133,10 +133,11 @@ test("schermo intero su schermo largo: due colonne (campo e registro a destra), 
   await expect.poll(() => stageFillsWindow(page)).toBe(true);
   expect(await siteMenuCoveredByStage(page)).toBe(true);
 
-  // Due colonne: a sinistra tabellone e pulsanti, a destra «In campo» e registro, tutti nella finestra.
+  // Due colonne: a sinistra i pulsanti per segnare, a destra il tabellone (fisso in alto), «In campo» e il registro.
   const main = page.locator("[data-scout-main-pane]");
   const side = page.locator("[data-scout-log-pane]");
-  await expect(main.locator("[data-scout-board]")).toBeVisible();
+  await expect(side.locator("[data-scout-board]")).toBeVisible();
+  await expect(main.locator("[data-scout-board]")).toHaveCount(0);
   await expect(main.locator('[data-scout-add="us-attack"]')).toBeVisible();
   await expect(side.locator("[data-scout-court-strip]")).toBeVisible();
   await expect(main.locator("[data-scout-court-strip]")).toHaveCount(0);
@@ -227,6 +228,9 @@ test.describe("sul telefono", () => {
     const side = page.locator("[data-scout-log-pane]");
     await expect(main.locator("[data-scout-court-strip]")).toHaveCount(1);
     await expect(side.locator("[data-scout-court-strip]")).toHaveCount(0);
+    // Il tabellone resta in cima alla colonna dei comandi.
+    await expect(main.locator("[data-scout-board]")).toHaveCount(1);
+    await expect(side.locator("[data-scout-board]")).toHaveCount(0);
     const mainBox = await box(main);
     await side.scrollIntoViewIfNeeded();
     const sideBox = await box(side);

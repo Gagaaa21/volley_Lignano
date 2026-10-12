@@ -55,7 +55,7 @@ export function PlayerChips({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6" role="group" aria-label={ariaLabel}>
+      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6" role="group" aria-label={ariaLabel} data-scout-chips>
         {orderByCourt(players, court ?? null).map(({ player, position }) => {
           const active = selected === player.id;
           const benched = Boolean(court) && position === null;
