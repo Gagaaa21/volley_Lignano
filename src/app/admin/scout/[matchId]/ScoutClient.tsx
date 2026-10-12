@@ -260,7 +260,7 @@ export function ScoutClient({
   useWakeLock(!locked);
 
   // Schermo intero: il riquadro ricopre tutta la finestra (vedi useStageFullscreen) e, su schermi larghi,
-  // si divide in due colonne: tabellone, campo e inserimento a sinistra, registro sempre visibile a destra.
+  // si divide in due colonne: i comandi per segnare a sinistra; a destra il tabellone (fisso in alto), «In campo» e il registro.
   const stageRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, isSimulated, toggle: toggleFullscreen } = useStageFullscreen(stageRef);
   const wide = useMediaQuery("(min-width: 1024px)");

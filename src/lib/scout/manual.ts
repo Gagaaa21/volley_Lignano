@@ -1456,7 +1456,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Posso usare lo Scout a schermo intero?" },
       {
         type: "p",
-        text: "Sì: il pulsante **«Schermo intero»**, in alto, mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra il tabellone e i pulsanti per segnare, a destra chi è in campo e il registro, sempre sotto gli occhi. Si esce con **«Esci»** o con il tasto Esc.",
+        text: "Sì: il pulsante **«Schermo intero»**, in alto, mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra i pulsanti per segnare, a destra il tabellone (sempre in alto), chi è in campo e il registro, sempre sotto gli occhi. Si esce con **«Esci»** o con il tasto Esc.",
       },
       { type: "sub", title: "Da che parte è la palla?" },
       {

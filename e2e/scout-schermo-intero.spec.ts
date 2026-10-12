@@ -3,8 +3,8 @@ import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "
 
 /**
  * Scout a schermo intero: il riquadro ricopre la finestra e, su schermi larghi,
- * si divide in due colonne (tabellone, pulsanti per segnare e comandi a sinistra;
- * chi è in campo e registro a destra). Su telefono resta una colonna sola.
+ * si divide in due colonne (pulsanti per segnare e comandi a sinistra; tabellone fisso
+ * in alto, chi è in campo e registro a destra). Su telefono resta una colonna sola.
  */
 
 // Come in scout.spec.ts: il service worker risponderebbe da sé alle richieste.

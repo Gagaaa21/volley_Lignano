@@ -115,7 +115,12 @@ staff (Developer e Admin).
   tasto della tastiera), «Annulla» in evidenza, «Cambio» azzurro, «Nuovo» rosso
   perché cancella la partita, time-out e cambi di ogni squadra con l'etichetta e
   il conto («Time-out 0/2», «Cambi 0/6»); da telefono la barra delle azioni è
-  fatta di tasselli con l'icona sopra l'etichetta. Sostituzioni durante
+  fatta di tasselli con l'icona sopra l'etichetta. Su schermo largo (da 1024 px,
+  `useMediaQuery`) la partita ha tre colonne: tabellone in alto (cifre che
+  seguono l'altezza del display, con le unità `cqh`), poi i comandi di una
+  squadra (pulsante dei punti, «Time-out», «Cambi»: `teamColumn`), il campo più
+  piccolo con le azioni della partita sotto, e i comandi dell'altra squadra; anche
+  l'impostazione è su due colonne, con «Inizia» sempre in vista. Sostituzioni durante
   il gioco (`substitutePlayer`): contate per set, elencate in
   `substitutions`, annullabili come un punto, mai esposte alla diretta
   pubblica. Lo stato si salva in automatico per 3 ore (riga unica
@@ -193,9 +198,9 @@ staff (Developer e Admin).
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a
     tutto schermo. Con la finestra larga (da 1024 px) si divide in due colonne
-    che scorrono per conto loro: tabellone, pulsanti per segnare e comandi a
-    sinistra, «In campo» e registro a destra (`useMediaQuery`); sul telefono resta
-    una colonna sola. Il riquadro è `data-scout-stage`, le colonne
+    che scorrono per conto loro: pulsanti per segnare e comandi a sinistra,
+    tabellone (fisso in alto), «In campo» e registro a destra (`useMediaQuery`);
+    sul telefono resta una colonna sola. Il riquadro è `data-scout-stage`, le colonne
     `data-scout-main-pane` e `data-scout-log-pane`.
   - **La palla**: la fascia «Palla nostra / Palla loro» (`ScoutBallSide.tsx`) è il
     campo visto dall'alto (Noi a sinistra, Loro a destra, la rete in mezzo) con la

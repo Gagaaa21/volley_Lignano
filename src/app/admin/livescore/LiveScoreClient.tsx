@@ -24,6 +24,7 @@ import { PointsInput } from "@/components/ui/PointsInput";
 import { MATCH_FORMAT_LABELS, MATCH_FORMAT_SHORT_LABELS } from "@/lib/volleyRules";
 import { courtOccupant } from "@/lib/lineup";
 import { cn } from "@/lib/cn";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { CATEGORY_LABELS } from "@/lib/category";
 import {
   DEFAULT_FORMAT,
@@ -138,6 +139,17 @@ const POINT_BUTTON_BASE =
 const TOOL_BUTTON =
   "h-14 flex-col gap-1 whitespace-normal border-2 px-1 text-center text-[11px] leading-tight sm:h-11 sm:flex-row sm:gap-1.5 sm:whitespace-nowrap sm:px-3 sm:text-sm";
 const TOOL_ICON = "h-5 w-5 sm:h-4 sm:w-4";
+
+/** Schermo largo (tablet in orizzontale, computer): la partita si dispone su tre colonne, con il campo in mezzo. */
+const WIDE_QUERY = "(min-width: 1024px)";
+
+/** Le azioni della partita su schermo largo: tasselli con l'icona sopra l'etichetta, sotto il campo. */
+const WIDE_TOOL =
+  "h-14 flex-col gap-1 whitespace-normal border-2 px-1 text-center text-[13px] leading-tight";
+
+/** Time-out e cambi di una squadra su schermo largo: sotto il suo pulsante dei punti, col bordo del colore della squadra. */
+const WIDE_TEAM_ACTION =
+  "inline-flex h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 bg-surface px-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Time-out e cambi nel blocco della squadra: pulsanti veri (etichetta, bordo, tocco comodo), non più piccole pillole. */
 const TEAM_ACTION =
@@ -572,7 +584,8 @@ function renderTeamCell(
         <span
           className={cn(
             "block w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full font-bold",
-            large ? "px-3.5 py-2 text-lg sm:text-2xl" : "px-2 py-1 text-[11px] sm:text-xs",
+            // Numeri di maglia grandi; i nomi (Allenamento) un po' più piccoli, perché in una cella stretta devono starci.
+            large ? (numeric ? "px-3.5 py-2 text-lg sm:text-2xl" : "px-2 py-2 text-base sm:text-lg") : "px-2 py-1 text-[11px] sm:text-xs",
             !name
               ? "bg-white/40 text-sea-950/30 shadow-none ring-1 ring-inset ring-sea-950/10"
               : isLibero
@@ -612,10 +625,12 @@ function renderTeamCell(
   };
 }
 
-/** Blocco squadra del tabellone "stile tv": nome, set vinti e time-out —
+/** Blocco squadra del tabellone "stile tv": nome, set vinti e (nel layout «side») time-out e cambi —
  * niente più intestazione a gradiente, tinta piatta del colore squadra
  * (vedi getTeamAccent). Il punteggio grande e l'indicatore di chi serve
- * stanno nel display centrale condiviso (vedi CenterDisplay), non qui. */
+ * stanno nel display centrale condiviso (vedi CenterDisplay), non qui.
+ * Su schermo largo (layout «board») time-out e cambi non ci sono: stanno
+ * sotto il pulsante dei punti della squadra, e il blocco mostra solo nome e set vinti, più grandi. */
 function TeamBlock({
   team,
   teamKey,
@@ -627,6 +642,7 @@ function TeamBlock({
   onToggleTimeout,
   substitutions,
   large,
+  layout = "side",
 }: {
   team: LiveScoreTeamState;
   teamKey: TeamKey;
@@ -637,18 +653,23 @@ function TeamBlock({
   editable: boolean;
   placeholder?: string;
   onLabelChange: (value: string) => void;
-  onToggleTimeout: () => void;
+  /** Senza, il blocco non ha il pulsante dei time-out (schermo largo: sta sotto i punti). */
+  onToggleTimeout?: () => void;
   /** Cambi del set (solo con la formazione): un tocco apre la sostituzione. */
   substitutions?: { used: number; limit: number | null; onClick: () => void };
   large: boolean;
+  layout?: "side" | "board";
 }) {
   const accent = getTeamAccent(teamKey, mode, opponentColor);
   const timeoutMaxed = team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET;
+  const board = layout === "board";
   return (
     <div
       className={cn(
-        "relative flex shrink-0 flex-col items-center justify-center gap-1.5",
-        large ? "w-32 py-2.5 sm:w-52 sm:py-3 md:w-72" : "w-28 py-2 sm:w-40 sm:py-2.5",
+        "relative flex shrink-0 flex-col items-center justify-center",
+        board
+          ? "w-[clamp(8.5rem,22%,16rem)] gap-2 px-2 py-3"
+          : cn("gap-1.5", large ? "w-32 py-2.5 sm:w-52 sm:py-3 md:w-72" : "w-28 py-2 sm:w-40 sm:py-2.5"),
       )}
       style={{ background: accent.background, color: accent.text }}
     >
@@ -660,60 +681,75 @@ function TeamBlock({
           placeholder={placeholder}
           className={cn(
             "w-full min-w-0 bg-transparent px-1 text-center font-bold uppercase tracking-wide outline-none placeholder:text-current placeholder:opacity-60 [text-shadow:0_1px_3px_rgba(6,16,26,0.25)]",
-            large ? "text-sm sm:text-base" : "text-[11px] sm:text-xs",
+            board ? "text-lg xl:text-xl" : large ? "text-sm sm:text-base" : "text-[11px] sm:text-xs",
           )}
         />
       ) : (
         <p
           className={cn(
-            "w-full truncate px-1 text-center font-bold uppercase tracking-wide [text-shadow:0_1px_3px_rgba(6,16,26,0.25)]",
-            large ? "text-sm sm:text-base" : "text-[11px] sm:text-xs",
+            "w-full px-1 text-center font-bold uppercase tracking-wide [text-shadow:0_1px_3px_rgba(6,16,26,0.25)]",
+            board ? "line-clamp-2 text-lg leading-tight xl:text-xl" : cn("truncate", large ? "text-sm sm:text-base" : "text-[11px] sm:text-xs"),
           )}
         >
           {team.label}
         </p>
       )}
-      <div className="flex w-full flex-col items-stretch gap-1 px-2 sm:px-3">
-        <span className="text-center text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]" style={{ color: accent.textSoft }}>
-          Set vinti <b className="text-sm font-extrabold sm:text-base" style={{ color: accent.text }}>{team.setsWon}</b>
-        </span>
-        <div className={cn("flex flex-col gap-1", large && "md:flex-row")}>
-        <button
-          type="button"
-          onClick={onToggleTimeout}
-          title="Segna un time-out (2 a disposizione per set)"
-          className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
-          style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : { background: accent.overlay, color: accent.text }}
-        >
-          {timeoutMaxed ? <TimerOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Timer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
-          Time-out
-          <b className="tabular-nums">
-            {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+      {board ? (
+        <div className="flex items-baseline justify-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent.textSoft }}>
+            Set vinti
+          </span>
+          <b className="text-3xl font-extrabold leading-none tabular-nums" style={{ color: accent.text }}>
+            {team.setsWon}
           </b>
-        </button>
-        {substitutions && (
-          <button
-            type="button"
-            onClick={substitutions.onClick}
-            title="Cambi in questo set: tocca per una sostituzione"
-            aria-label={`Sostituzione ${team.label}: ${substitutions.used} cambi in questo set`}
-            className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
-            style={
-              substitutions.limit !== null && substitutions.used >= substitutions.limit
-                ? { background: "#ffffff", color: "var(--destructive)" }
-                : { background: accent.overlay, color: accent.text }
-            }
-          >
-            <ArrowLeftRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            Cambi
-            <b className="tabular-nums">
-              {substitutions.used}
-              {substitutions.limit !== null && `/${substitutions.limit}`}
-            </b>
-          </button>
-        )}
         </div>
-      </div>
+      ) : (
+        <div className="flex w-full flex-col items-stretch gap-1 px-2 sm:px-3">
+          <span className="text-center text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]" style={{ color: accent.textSoft }}>
+            Set vinti <b className="text-sm font-extrabold sm:text-base" style={{ color: accent.text }}>{team.setsWon}</b>
+          </span>
+          {(onToggleTimeout || substitutions) && (
+            <div className={cn("flex flex-col gap-1", large && "md:flex-row")}>
+              {onToggleTimeout && (
+                <button
+                  type="button"
+                  onClick={onToggleTimeout}
+                  title="Segna un time-out (2 a disposizione per set)"
+                  className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
+                  style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : { background: accent.overlay, color: accent.text }}
+                >
+                  {timeoutMaxed ? <TimerOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Timer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                  Time-out
+                  <b className="tabular-nums">
+                    {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+                  </b>
+                </button>
+              )}
+              {substitutions && (
+                <button
+                  type="button"
+                  onClick={substitutions.onClick}
+                  title="Cambi in questo set: tocca per una sostituzione"
+                  aria-label={`Sostituzione ${team.label}: ${substitutions.used} cambi in questo set`}
+                  className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
+                  style={
+                    substitutions.limit !== null && substitutions.used >= substitutions.limit
+                      ? { background: "#ffffff", color: "var(--destructive)" }
+                      : { background: accent.overlay, color: accent.text }
+                  }
+                >
+                  <ArrowLeftRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  Cambi
+                  <b className="tabular-nums">
+                    {substitutions.used}
+                    {substitutions.limit !== null && `/${substitutions.limit}`}
+                  </b>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -732,39 +768,64 @@ function ServeIndicator() {
 /** Display centrale del tabellone: i due punteggi, grandi, separati da un
  * sottile divisorio verticale — il "digital display" al centro del
  * tabellone tv, tra i due blocchi colorati di squadra. `huge` per il solo
- * punteggio a schermo intero, dove il tabellone è l'unica cosa da leggere. */
+ * punteggio a schermo intero, dove il tabellone è l'unica cosa da leggere.
+ * `giant` (schermo largo) fa crescere le cifre con l'altezza della finestra e
+ * lascia sotto i punteggi un posto per le informazioni di stato (`children`). */
 function CenterDisplay({
   leftScore,
   rightScore,
   servingSide,
   large,
   huge = false,
+  giant,
+  children,
 }: {
   leftScore: number;
   rightScore: number;
   servingSide: "left" | "right" | null;
   large: boolean;
   huge?: boolean;
+  /** Dimensione delle cifre in funzione dell'altezza della finestra (a schermo intero crescono di più). */
+  giant?: { fullscreen: boolean };
+  children?: ReactNode;
 }) {
   const scoreClass = cn(
     "animate-[livescore-score-pop_320ms_ease-out] font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-white",
-    huge ? "text-6xl sm:text-8xl" : large ? "text-4xl sm:text-6xl" : "text-3xl sm:text-5xl",
+    !giant && (huge ? "text-6xl sm:text-8xl" : large ? "text-4xl sm:text-6xl" : "text-3xl sm:text-5xl"),
   );
-  return (
-    <div className="flex flex-1 items-center bg-sea-950" data-livescore-scores>
+  // Le cifre seguono l'altezza che il display ha davvero (unità `cqh` del suo contenitore): se un riquadro
+  // (fine set, inizio set) gli porta via spazio, si rimpiccioliscono invece di uscire dal tabellone.
+  const scoreStyle = giant ? { fontSize: `clamp(2.5rem, 82cqh, ${giant.fullscreen ? "10rem" : "6rem"})` } : undefined;
+  const digits = (
+    <>
       <div className={cn("flex flex-1 items-center justify-end gap-2 sm:gap-3", large ? "pr-3 sm:pr-6" : "pr-2 sm:pr-4")}>
         {servingSide === "left" && <ServeIndicator />}
-        <span key={leftScore} className={scoreClass}>
+        <span key={leftScore} className={scoreClass} style={scoreStyle} data-livescore-digit>
           {leftScore}
         </span>
       </div>
       <div className={cn("my-3 w-px shrink-0 self-stretch bg-white/15 sm:my-4", large && "sm:my-5")} />
       <div className={cn("flex flex-1 items-center gap-2 sm:gap-3", large ? "pl-3 sm:pl-6" : "pl-2 sm:pl-4")}>
-        <span key={rightScore} className={scoreClass}>
+        <span key={rightScore} className={scoreClass} style={scoreStyle} data-livescore-digit>
           {rightScore}
         </span>
         {servingSide === "right" && <ServeIndicator />}
       </div>
+    </>
+  );
+  if (!giant) {
+    return (
+      <div className="flex flex-1 items-center bg-sea-950" data-livescore-scores>
+        {digits}
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-w-0 flex-1 flex-col bg-sea-950">
+      <div className="flex min-h-0 flex-1 items-center [container-type:size]" data-livescore-scores>
+        {digits}
+      </div>
+      {children && <div className="shrink-0 px-3 pb-3">{children}</div>}
     </div>
   );
 }
@@ -949,6 +1010,8 @@ export function LiveScoreClient({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, isSimulated, toggle: toggleFullscreen } = useStageFullscreen(stageRef);
+  // Schermo largo: tabellone in alto, e sotto tre colonne (punti e cambi di una squadra, campo e azioni, punti e cambi dell'altra).
+  const wide = useMediaQuery(WIDE_QUERY);
   // La barra delle azioni: a schermo intero ogni pixel in altezza va al campo, quindi i pulsanti sono un po' più bassi.
   const toolButton = cn(TOOL_BUTTON, isFullscreen && "sm:h-10 sm:px-2.5 sm:text-[13px]");
   const { match } = state;
@@ -1080,6 +1143,492 @@ export function LiveScoreClient({
     return () => window.removeEventListener("keydown", onKey);
   }, [match.started, leftKey, rightKey, substitution]);
 
+  // ── Impostazione: i blocchi si dispongono in una colonna (telefono, tablet in piedi) o in due (schermo largo:
+  // i dati e «Inizia» a sinistra, il campo con le formazioni, più piccolo, a destra). ──
+  const setupOpponent = match.mode === "match" && (
+    <div className="space-y-3.5 rounded-2xl border border-border-subtle bg-surface p-3.5">
+      {todayMatches.length > 0 && (
+        <div>
+          <Label htmlFor="calendar-match">Partita di oggi (facoltativo)</Label>
+          <Select
+            id="calendar-match"
+            value={match.matchId ?? ""}
+            onChange={(e) =>
+              dispatch({ type: "linkMatch", match: todayMatches.find((m) => m.id === e.target.value) ?? null })
+            }
+          >
+            <option value="">Nessuna</option>
+            {todayMatches.map((m) => (
+              <option key={m.id} value={m.id}>
+                {[m.time, m.category ? CATEGORY_LABELS[m.category] : null, m.opponent].filter(Boolean).join(" · ")}
+              </option>
+            ))}
+          </Select>
+          <FieldHint>Scrive da sola l&apos;avversaria e dice alla diretta pubblica di che categoria è.</FieldHint>
+          {savedSetup && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2.5"
+              onClick={() => dispatch({ type: "applySavedLineup", team: "A", ...savedSetup })}
+              data-livescore-use-saved
+            >
+              Usa la formazione salvata del 1° set
+            </Button>
+          )}
+        </div>
+      )}
+      <div>
+        <Label htmlFor="opponent-name">Nome avversaria (vs {HOME_TEAM_LABEL})</Label>
+        <Input
+          id="opponent-name"
+          value={match.teamB.label}
+          onChange={(e) => dispatch({ type: "setLabel", team: "B", value: e.target.value })}
+          placeholder="Es. Pallavolo Città"
+        />
+      </div>
+      <div>
+        <Label htmlFor="opponent-color">Colore squadra avversaria</Label>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {OPPONENT_COLOR_PRESETS.map((hex) => (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => dispatch({ type: "setOpponentColor", value: hex })}
+              aria-label={`Usa il colore ${hex}`}
+              title={hex}
+              className={cn(
+                "h-8 w-8 shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-surface transition-transform",
+                match.opponentColor.toLowerCase() === hex ? "ring-primary scale-110" : "ring-transparent hover:scale-105",
+              )}
+              style={{ background: hex }}
+            />
+          ))}
+          <input
+            id="opponent-color"
+            type="color"
+            value={match.opponentColor}
+            onChange={(e) => dispatch({ type: "setOpponentColor", value: e.target.value })}
+            title="Scegli un colore personalizzato"
+            className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-border-subtle bg-transparent p-0.5"
+          />
+        </div>
+      </div>
+      <div data-tour="section-livescore-public">
+        <Toggle
+          label="Diretta sul sito pubblico"
+          description="Chi apre il sito vede il punteggio mentre lo segni: solo squadre, punti e set (risultato non ufficiale), mai nomi o formazioni. Parte quando premi «Inizia» e si può spegnere in qualsiasi momento."
+          checked={match.publicLive}
+          onChange={(e) => dispatch({ type: "setPublicLive", value: e.target.checked, team })}
+        />
+      </div>
+    </div>
+  );
+
+  const setupCourt = match.withLineup && (
+    <div data-tour="section-livescore-court">
+      <DualLiveScoreCourt
+        className="shrink-0"
+        players={match.playersPerSide}
+        labelA={displayLabel(leftTeam, leftKey)}
+        labelB={displayLabel(rightTeam, rightKey)}
+        renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
+        renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
+        large={isFullscreen}
+      />
+    </div>
+  );
+
+  const setupLibero = showLiberoFields && (
+    <div className="grid gap-4 sm:grid-cols-2" data-tour="section-livescore-libero">
+      <LiberoFields
+        team={match.teamA}
+        teamKey="A"
+        idPrefix="a-setup"
+        athleteNames={athleteNames}
+        dispatch={dispatch}
+        players={match.playersPerSide}
+        numeric={numeric}
+        numberChoices={numberChoices}
+      />
+      <LiberoFields
+        team={match.teamB}
+        teamKey="B"
+        idPrefix="b-setup"
+        athleteNames={athleteNames}
+        dispatch={dispatch}
+        players={match.playersPerSide}
+        numeric={numeric}
+        numberChoices={numberChoices}
+      />
+    </div>
+  );
+
+  // Solo punteggio: chi batte non si segue, quindi non si chiede.
+  const setupServe = match.withLineup && (
+    <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
+      <Label>Chi serve per prima?</Label>
+      <div className="mt-1.5 grid grid-cols-2 gap-2">
+        {(["A", "B"] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setPendingServer(key)}
+            className={cn(
+              "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+              pendingServer === key
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border-subtle text-foreground/70 hover:bg-muted",
+            )}
+          >
+            {match[teamKeyProp(key)].label.trim() || (key === "A" ? "Squadra A" : "Squadra B")}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const setupStart = (
+    <Button
+      onClick={() => {
+        dispatch({ type: "startMatch", servingTeam: match.withLineup ? pendingServer : null });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
+      size="lg"
+      className="w-full"
+      data-tour="section-livescore-start"
+    >
+      <Volleyball className="h-4 w-4" />
+      Inizia
+    </Button>
+  );
+
+  // ── La partita in corso ──────────────────────────────────────────────────────────────────────
+  // Gli stessi pezzi si dispongono in due modi. Su telefono e tablet in piedi una colonna sola: azioni, tabellone,
+  // punti, campo. Su schermo largo il tabellone sta in alto e sotto ci sono tre colonne: i punti, i time-out e i
+  // cambi di una squadra, il campo con le azioni della partita, e gli stessi comandi dell'altra squadra.
+  // I pulsanti sono quelli di sempre: cambia solo dove stanno.
+  const tool = (...extra: Array<string | false | null | undefined>) => cn(wide ? WIDE_TOOL : toolButton, ...extra);
+  const toolIcon = wide ? "h-5 w-5" : TOOL_ICON;
+
+  const historyStreak = (
+    <SetHistoryAndStreak setHistory={match.setHistory} pointLog={state.pointLog} mode={match.mode} opponentColor={match.opponentColor} />
+  );
+
+  const undoButton = (
+    <Button
+      variant="secondary"
+      className={tool("border-sand-500", wide && "col-span-2")}
+      onClick={() => dispatch({ type: "undo" })}
+      disabled={state.history.length === 0}
+      title="Toglie l'ultima azione (un punto, un cambio, la chiusura di un set)"
+    >
+      <Undo2 className={toolIcon} />
+      Annulla
+    </Button>
+  );
+  const substitutionButton = match.withLineup && (
+    <Button
+      variant="soft"
+      className={tool("border-primary/35")}
+      onClick={() => {
+        setEditingNames(false);
+        setSubstitution({ team: "A", position: null });
+      }}
+      data-tour="section-livescore-substitution"
+    >
+      <ArrowLeftRight className={toolIcon} />
+      Cambio
+    </Button>
+  );
+  const closeSetButton = (
+    <Button
+      variant="outline"
+      className={tool()}
+      onClick={() => dispatch({ type: "closeSet" })}
+      disabled={tied}
+      title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
+    >
+      <Flag className={toolIcon} />
+      Chiudi set
+    </Button>
+  );
+  const invertButton = (
+    <Button variant="outline" className={tool()} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
+      <Repeat className={toolIcon} />
+      Inverti
+    </Button>
+  );
+  const formationsButton = match.withLineup && (
+    <Button variant="outline" className={tool()} onClick={() => setEditingNames((v) => !v)} data-tour="section-livescore-formations">
+      <Pencil className={toolIcon} />
+      {editingNames ? "Fatto" : "Formazioni"}
+    </Button>
+  );
+  const publicButton = match.mode === "match" && (
+    <span className="flex items-stretch gap-0.5 sm:inline-flex" data-tour="section-livescore-public">
+      <Button
+        variant={match.publicLive ? "danger" : "outline"}
+        className={tool("min-w-0 flex-1", match.publicLive && "border-destructive-strong")}
+        onClick={togglePublicLive}
+        aria-pressed={match.publicLive}
+        data-livescore-public-toggle
+        title={
+          match.publicLive
+            ? "Il punteggio si vede sul sito pubblico: tocca per spegnere la diretta."
+            : "Mostra il punteggio in diretta sul sito pubblico."
+        }
+      >
+        <span className={cn("h-2.5 w-2.5 rounded-full", match.publicLive ? "animate-pulse bg-white" : "bg-muted-foreground/50")} />
+        {match.publicLive ? "In diretta" : "Diretta"}
+      </Button>
+      {match.publicLive && (
+        <a
+          href={publicPath}
+          target="_blank"
+          rel="noreferrer"
+          title="Apri il sito pubblico"
+          aria-label="Apri il sito pubblico"
+          className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "self-center" })}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      )}
+    </span>
+  );
+  const newButton = (
+    <Button
+      variant="outline"
+      className={tool("border-destructive/40 text-destructive hover:border-destructive/70 hover:bg-destructive/8")}
+      onClick={handleNewMatch}
+      title="Cancella questa partita e ricomincia da capo"
+    >
+      <RefreshCw className={toolIcon} />
+      Nuovo
+    </Button>
+  );
+  // Lo schermo intero sta sempre nella riga in alto, grande come gli altri pulsanti di quella riga.
+  const fullscreenButton = (
+    <Button variant="outline" className={toolButton} onClick={toggleFullscreen} data-tour="section-livescore-fullscreen">
+      {isFullscreen ? <Minimize2 className={TOOL_ICON} /> : <Maximize2 className={TOOL_ICON} />}
+      {isFullscreen ? "Esci" : "Schermo intero"}
+    </Button>
+  );
+
+  const winnerBanner = matchWinner && (
+    <div
+      className="flex shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center text-sm font-bold"
+      style={{
+        background: getTeamAccent(matchWinner, match.mode, match.opponentColor).background,
+        color: getTeamAccent(matchWinner, match.mode, match.opponentColor).text,
+        boxShadow: `0 14px 32px -18px ${getTeamAccent(matchWinner, match.mode, match.opponentColor).glow}`,
+      }}
+    >
+      <Trophy className="h-4 w-4 shrink-0 opacity-90" />
+      {displayLabel(match[teamKeyProp(matchWinner)], matchWinner)} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
+      {match[teamKeyProp(otherKey(matchWinner))].setsWon})
+      <button
+        type="button"
+        onClick={handleNewMatch}
+        className="ml-2 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-sea-950 shadow-sm transition-colors hover:bg-white"
+      >
+        Nuova partita
+      </button>
+    </div>
+  );
+
+  const teamBlock = (key: TeamKey) => {
+    const team = match[teamKeyProp(key)];
+    return (
+      <TeamBlock
+        team={team}
+        teamKey={key}
+        mode={match.mode}
+        opponentColor={match.opponentColor}
+        large={bigBoard}
+        layout={wide ? "board" : "side"}
+        editable={!(match.mode === "match" && key === "A")}
+        placeholder={match.mode === "match" && key === "B" ? "Nome avversaria" : undefined}
+        onLabelChange={(value) => dispatch({ type: "setLabel", team: key, value })}
+        // Su schermo largo time-out e cambi stanno sotto il pulsante dei punti (vedi teamColumn).
+        onToggleTimeout={wide ? undefined : () => dispatch({ type: "toggleTimeout", team: key })}
+        substitutions={
+          !wide && match.withLineup
+            ? { used: team.substitutionsUsed, limit: subLimit, onClick: () => setSubstitution({ team: key, position: null }) }
+            : undefined
+        }
+      />
+    );
+  };
+  const statusStrip = <StatusStrip match={match} numeric={numeric} />;
+  // Tabellone "stile tv" chiuso in un riquadro proprio (bordo + sfondo distinti dalla pagina): lo isola meglio dal resto,
+  // invece del solo anello sottile di prima. Due blocchi squadra a tinta piatta ai lati, display centrale con i due
+  // punteggi grandi. Su schermo largo cresce con l'altezza e porta sotto i punteggi la striscia di stato.
+  const scoreboard = (
+    <div
+      className={cn(
+        "rounded-3xl border-2 border-border-subtle bg-surface shadow-[0_8px_24px_-16px_rgba(15,23,42,0.4)]",
+        isFullscreen ? "p-2" : "p-2.5",
+        wide ? cn("flex flex-col", isFullscreen ? "max-h-[24rem] min-h-[11rem] flex-1" : "h-48 shrink-0") : "shrink-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex overflow-hidden rounded-2xl ring-1 ring-sea-950/10",
+          isFullscreen ? "shadow-[0_20px_40px_-18px_rgba(12,30,42,0.5)]" : "shadow-lg",
+          wide && "min-h-0 flex-1",
+        )}
+      >
+        {teamBlock(leftKey)}
+        <CenterDisplay
+          leftScore={leftTeam.score}
+          rightScore={rightTeam.score}
+          servingSide={match.servingTeam === leftKey ? "left" : match.servingTeam === rightKey ? "right" : null}
+          large={bigBoard}
+          huge={isFullscreen && !match.withLineup}
+          giant={wide ? { fullscreen: isFullscreen } : undefined}
+        >
+          {wide && statusStrip}
+        </CenterDisplay>
+        {teamBlock(rightKey)}
+      </div>
+    </div>
+  );
+  // Le schede che chiedono un'azione (fine set, cambio campo, inizio set): sopra i pulsanti dei punti, che restano fermi finché non si sceglie.
+  const statusCards = (
+    <>
+      <SideChangeCard match={match} onChange={() => dispatch({ type: "toggleSides" })} />
+      {setEnd && <SetEndCard match={match} onClose={() => dispatch({ type: "closeSet" })} onUndo={() => dispatch({ type: "undo" })} />}
+      {showSetStart && (
+        <SetStartCard
+          match={match}
+          numeric={numeric}
+          editingLineups={editingNames}
+          onChoose={(key) => dispatch({ type: "chooseFirstServer", team: key })}
+          onToggleLineups={() => setEditingNames((v) => !v)}
+          savedLineup={
+            savedSetLineup
+              ? {
+                  label: `Usa la formazione salvata del ${currentSet(match)}° set`,
+                  onUse: () => dispatch({ type: "applySavedLineup", team: "A", ...savedSetLineup }),
+                }
+              : null
+          }
+        />
+      )}
+    </>
+  );
+  const court = match.withLineup && (
+    <DualLiveScoreCourt
+      className={wide || isFullscreen ? "min-h-0 flex-[0_1_auto]" : "shrink-0"}
+      fitHeight={isFullscreen}
+      players={match.playersPerSide}
+      labelA={displayLabel(leftTeam, leftKey)}
+      labelB={displayLabel(rightTeam, rightKey)}
+      renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen || wide, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }), numberChoices)}
+      renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen || wide, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }), numberChoices)}
+      large={isFullscreen || wide}
+    />
+  );
+  const liberoEditor = match.withLineup && editingNames && showLiberoFields && (
+    <div className={cn("grid shrink-0 sm:grid-cols-2", isFullscreen ? "gap-1.5" : "gap-4")}>
+      <LiberoFields
+        team={leftTeam}
+        teamKey={leftKey}
+        idPrefix={`${leftKey}-live`}
+        athleteNames={athleteNames}
+        dispatch={dispatch}
+        players={match.playersPerSide}
+        large={isFullscreen}
+        numeric={numeric}
+        numberChoices={numberChoices}
+      />
+      <LiberoFields
+        team={rightTeam}
+        teamKey={rightKey}
+        idPrefix={`${rightKey}-live`}
+        athleteNames={athleteNames}
+        dispatch={dispatch}
+        players={match.playersPerSide}
+        large={isFullscreen}
+        numeric={numeric}
+        numberChoices={numberChoices}
+      />
+    </div>
+  );
+
+  // Schermo largo: la colonna di una squadra. Il pulsante dei punti, grande, e sotto time-out e cambi, col bordo del
+  // colore della squadra. La colonna di sinistra è quella della squadra che sta a sinistra del campo (e della freccia ←).
+  const teamColumn = (key: TeamKey) => {
+    const team = match[teamKeyProp(key)];
+    const accent = getTeamAccent(key, match.mode, match.opponentColor);
+    const isLeft = key === leftKey;
+    const timeoutMaxed = team.timeoutsUsed >= MAX_TIMEOUTS_PER_SET;
+    const substitutionsMaxed = subLimit !== null && team.substitutionsUsed >= subLimit;
+    const maxedStyle = { borderColor: "var(--destructive)", color: "var(--destructive)" };
+    return (
+      <div className="flex min-h-0 flex-col gap-2" data-livescore-team-column={isLeft ? "left" : "right"}>
+        <button
+          type="button"
+          onClick={() => dispatch({ type: "point", winner: key })}
+          disabled={pointsLocked}
+          className={cn(
+            POINT_BUTTON_BASE,
+            "min-h-28 flex-1 flex-col gap-3 py-3 text-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0 disabled:active:border-b-[6px] xl:text-xl",
+          )}
+          style={{ background: accent.background, color: accent.text }}
+        >
+          {/* Il «+1» e la freccia sono solo da vedere: il nome del pulsante resta «Punto …». */}
+          <span aria-hidden className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-black/20 text-5xl font-extrabold tabular-nums">
+            +1
+          </span>
+          <span className="min-w-0 break-words">
+            <span className="block text-sm opacity-80">Punto </span>
+            <span className="block">{displayLabel(team, key)}</span>
+          </span>
+          <kbd
+            aria-hidden
+            className={cn("absolute top-2 rounded-md bg-black/20 px-1.5 py-0.5 font-sans text-xs font-bold", isLeft ? "left-2.5" : "right-2.5")}
+            title="Tasto della tastiera"
+          >
+            {isLeft ? "←" : "→"}
+          </kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => dispatch({ type: "toggleTimeout", team: key })}
+          title="Segna un time-out (2 a disposizione per set)"
+          className={WIDE_TEAM_ACTION}
+          style={timeoutMaxed ? maxedStyle : { borderColor: accent.background }}
+        >
+          {timeoutMaxed ? <TimerOff className="h-4 w-4" /> : <Timer className="h-4 w-4" />}
+          Time-out
+          <b className="tabular-nums">
+            {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+          </b>
+        </button>
+        {match.withLineup && (
+          <button
+            type="button"
+            onClick={() => setSubstitution({ team: key, position: null })}
+            title="Cambi in questo set: tocca per una sostituzione"
+            aria-label={`Sostituzione ${team.label}: ${team.substitutionsUsed} cambi in questo set`}
+            className={WIDE_TEAM_ACTION}
+            style={substitutionsMaxed ? maxedStyle : { borderColor: accent.background }}
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+            Cambi
+            <b className="tabular-nums">
+              {team.substitutionsUsed}
+              {subLimit !== null && `/${subLimit}`}
+            </b>
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <div
@@ -1117,7 +1666,7 @@ export function LiveScoreClient({
                   </h1>
                   <SectionTour steps={LIVESCORE_SETUP_TOUR_STEPS} />
                 </div>
-                <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground lg:max-w-none">
                   {!match.withLineup
                     ? "Solo punteggio: niente formazioni né rotazioni, si segnano punti, set e time-out. Premi «Inizia» quando siete pronti."
                     : `${match.mode === "match" ? "Scrivi i numeri di maglia" : "Scegli i nomi"} nelle ${match.playersPerSide} posizioni di ciascuna squadra come sono disposte in campo${showLiberoFields ? ", poi indica le libero." : "."}`}
@@ -1231,162 +1780,74 @@ export function LiveScoreClient({
               )}
             </div>
 
-            {match.mode === "match" && (
-              <div className="space-y-3.5 rounded-2xl border border-border-subtle bg-surface p-3.5">
-                {todayMatches.length > 0 && (
-                  <div>
-                    <Label htmlFor="calendar-match">Partita di oggi (facoltativo)</Label>
-                    <Select
-                      id="calendar-match"
-                      value={match.matchId ?? ""}
-                      onChange={(e) =>
-                        dispatch({ type: "linkMatch", match: todayMatches.find((m) => m.id === e.target.value) ?? null })
-                      }
-                    >
-                      <option value="">Nessuna</option>
-                      {todayMatches.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {[m.time, m.category ? CATEGORY_LABELS[m.category] : null, m.opponent].filter(Boolean).join(" · ")}
-                        </option>
-                      ))}
-                    </Select>
-                    <FieldHint>Scrive da sola l&apos;avversaria e dice alla diretta pubblica di che categoria è.</FieldHint>
-                    {savedSetup && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-2.5"
-                        onClick={() => dispatch({ type: "applySavedLineup", team: "A", ...savedSetup })}
-                        data-livescore-use-saved
-                      >
-                        Usa la formazione salvata del 1° set
-                      </Button>
-                    )}
-                  </div>
-                )}
-                <div>
-                  <Label htmlFor="opponent-name">Nome avversaria (vs {HOME_TEAM_LABEL})</Label>
-                  <Input
-                    id="opponent-name"
-                    value={match.teamB.label}
-                    onChange={(e) => dispatch({ type: "setLabel", team: "B", value: e.target.value })}
-                    placeholder="Es. Pallavolo Città"
-                  />
+            {wide && match.withLineup ? (
+              <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,6fr)] items-start gap-5">
+                <div className="space-y-5">
+                  {setupOpponent}
+                  {setupServe}
+                  {/* Resta in vista anche se la schermata scorre: «Inizia» si preme sempre dopo aver scritto le formazioni. */}
+                  <div className="sticky bottom-2 z-10 rounded-xl shadow-lg">{setupStart}</div>
                 </div>
-                <div>
-                  <Label htmlFor="opponent-color">Colore squadra avversaria</Label>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    {OPPONENT_COLOR_PRESETS.map((hex) => (
-                      <button
-                        key={hex}
-                        type="button"
-                        onClick={() => dispatch({ type: "setOpponentColor", value: hex })}
-                        aria-label={`Usa il colore ${hex}`}
-                        title={hex}
-                        className={cn(
-                          "h-8 w-8 shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-surface transition-transform",
-                          match.opponentColor.toLowerCase() === hex ? "ring-primary scale-110" : "ring-transparent hover:scale-105",
-                        )}
-                        style={{ background: hex }}
-                      />
-                    ))}
-                    <input
-                      id="opponent-color"
-                      type="color"
-                      value={match.opponentColor}
-                      onChange={(e) => dispatch({ type: "setOpponentColor", value: e.target.value })}
-                      title="Scegli un colore personalizzato"
-                      className="h-8 w-10 shrink-0 cursor-pointer rounded-lg border border-border-subtle bg-transparent p-0.5"
-                    />
-                  </div>
-                </div>
-                <div data-tour="section-livescore-public">
-                  <Toggle
-                    label="Diretta sul sito pubblico"
-                    description="Chi apre il sito vede il punteggio mentre lo segni: solo squadre, punti e set (risultato non ufficiale), mai nomi o formazioni. Parte quando premi «Inizia» e si può spegnere in qualsiasi momento."
-                    checked={match.publicLive}
-                    onChange={(e) => dispatch({ type: "setPublicLive", value: e.target.checked, team })}
-                  />
+                <div className="space-y-5">
+                  {setupCourt}
+                  {setupLibero}
                 </div>
               </div>
+            ) : (
+              <>
+                {setupOpponent}
+                {setupCourt}
+                {setupLibero}
+                {setupServe}
+                {setupStart}
+              </>
             )}
-
-            {match.withLineup && (
-              <div data-tour="section-livescore-court">
-                <DualLiveScoreCourt
-                  className="shrink-0"
-                  players={match.playersPerSide}
-                  labelA={displayLabel(leftTeam, leftKey)}
-                  labelB={displayLabel(rightTeam, rightKey)}
-                  renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
-                  renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices)}
-                  large={isFullscreen}
-                />
-              </div>
-            )}
-
-            {showLiberoFields && (
-              <div className="grid gap-4 sm:grid-cols-2" data-tour="section-livescore-libero">
-                <LiberoFields
-                  team={match.teamA}
-                  teamKey="A"
-                  idPrefix="a-setup"
-                  athleteNames={athleteNames}
-                  dispatch={dispatch}
-                  players={match.playersPerSide}
-                  numeric={numeric}
-                  numberChoices={numberChoices}
-                />
-                <LiberoFields
-                  team={match.teamB}
-                  teamKey="B"
-                  idPrefix="b-setup"
-                  athleteNames={athleteNames}
-                  dispatch={dispatch}
-                  players={match.playersPerSide}
-                  numeric={numeric}
-                  numberChoices={numberChoices}
-                />
-              </div>
-            )}
-
-            {/* Solo punteggio: chi batte non si segue, quindi non si chiede. */}
-            {match.withLineup && (
-            <div className="rounded-2xl border border-border-subtle bg-surface p-3.5">
-              <Label>Chi serve per prima?</Label>
-              <div className="mt-1.5 grid grid-cols-2 gap-2">
-                {(["A", "B"] as const).map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setPendingServer(key)}
-                    className={cn(
-                      "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
-                      pendingServer === key
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border-subtle text-foreground/70 hover:bg-muted",
-                    )}
-                  >
-                    {match[teamKeyProp(key)].label.trim() || (key === "A" ? "Squadra A" : "Squadra B")}
-                  </button>
-                ))}
-              </div>
+          </div>
+        ) : wide ? (
+          <div className={cn("mx-auto w-full max-w-[1360px]", isFullscreen ? "flex h-full min-h-0 flex-col gap-2" : "flex flex-col gap-3")}>
+            {/* In alto: titolo, guida, storico dei set con gli ultimi punti, schermo intero. Le azioni della partita
+             * non stanno più qui: sono sotto il campo, vicino a quello su cui agiscono. */}
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className={cn("display-wide shrink-0 text-foreground", isFullscreen ? "sr-only" : "text-2xl")}>In campo</h1>
+              <SectionTour steps={LIVESCORE_INGAME_TOUR_STEPS} />
+              <div className="flex flex-1 justify-center">{historyStreak}</div>
+              {fullscreenButton}
             </div>
-            )}
 
-            <Button
-              onClick={() => {
-                dispatch({ type: "startMatch", servingTeam: match.withLineup ? pendingServer : null });
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              size="lg"
-              className="w-full"
-              data-tour="section-livescore-start"
+            {winnerBanner}
+            {scoreboard}
+            {statusCards}
+
+            {/* Tre colonne: i comandi della squadra a sinistra, il campo (più piccolo) con le azioni della partita
+             * in mezzo, i comandi dell'altra squadra a destra. Così ogni pulsante dei punti sta accanto al lato
+             * del campo che segna, a portata di pollice. */}
+            <div
+              className={cn(
+                "grid grid-cols-[clamp(11rem,20vw,16rem)_minmax(0,1fr)_clamp(11rem,20vw,16rem)] gap-2.5",
+                // A schermo intero la riga si stringe se manca spazio (il campo rimpicciolisce); mentre si correggono
+                // le formazioni no: le caselle devono restare comode, e se non basta lo spazio la schermata scorre.
+                isFullscreen && !editingNames ? "min-h-0 grid-rows-[minmax(0,1fr)]" : "grid-rows-[auto]",
+                isFullscreen && (match.withLineup ? (editingNames ? "flex-none" : "flex-[0_1_auto]") : "flex-1"),
+              )}
+              data-tour="section-livescore-score"
             >
-              <Volleyball className="h-4 w-4" />
-              Inizia
-            </Button>
+              {teamColumn(leftKey)}
+              <div className={cn("mx-auto flex min-h-0 w-full min-w-0 max-w-[46rem] flex-col gap-2", !match.withLineup && "justify-end")}>
+                {court}
+                {liberoEditor}
+                {/* Azioni della partita: «Annulla» in evidenza (doppio), «Cambio» azzurro, «Nuovo» rosso (cancella la partita). */}
+                <div className="grid shrink-0 grid-cols-4 gap-2" data-tour="section-livescore-toolbar">
+                  {undoButton}
+                  {substitutionButton}
+                  {closeSetButton}
+                  {invertButton}
+                  {formationsButton}
+                  {publicButton}
+                  {newButton}
+                </div>
+              </div>
+              {teamColumn(rightKey)}
+            </div>
           </div>
         ) : (
           <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-2" : "space-y-4")}>
@@ -1404,14 +1865,7 @@ export function LiveScoreClient({
               <SectionTour steps={LIVESCORE_INGAME_TOUR_STEPS} />
               {/* Niente min-w-0: se lo spazio non basta, la riga va a capo
                * invece di far scivolare lo storico sopra il titolo. */}
-              <div className="flex flex-1 justify-center">
-                <SetHistoryAndStreak
-                  setHistory={match.setHistory}
-                  pointLog={state.pointLog}
-                  mode={match.mode}
-                  opponentColor={match.opponentColor}
-                />
-              </div>
+              <div className="flex flex-1 justify-center">{historyStreak}</div>
               {/* Azioni della partita: su telefono tasselli (icona sopra, etichetta sotto) in due righe da quattro;
                * da tablet pulsanti in fila, con il bordo e il colore che ne dicono l'uso: «Annulla» in evidenza,
                * «Cambio» azzurro, «Nuovo» rosso (cancella la partita). */}
@@ -1419,219 +1873,21 @@ export function LiveScoreClient({
                 className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:max-w-full sm:shrink-0 sm:flex-wrap sm:items-center sm:gap-2"
                 data-tour="section-livescore-toolbar"
               >
-                <Button
-                  variant="secondary"
-                  className={cn(toolButton, "border-sand-500")}
-                  onClick={() => dispatch({ type: "undo" })}
-                  disabled={state.history.length === 0}
-                  title="Toglie l'ultima azione (un punto, un cambio, la chiusura di un set)"
-                >
-                  <Undo2 className={TOOL_ICON} />
-                  Annulla
-                </Button>
-                {match.withLineup && (
-                  <Button
-                    variant="soft"
-                    className={cn(toolButton, "border-primary/35")}
-                    onClick={() => {
-                      setEditingNames(false);
-                      setSubstitution({ team: "A", position: null });
-                    }}
-                    data-tour="section-livescore-substitution"
-                  >
-                    <ArrowLeftRight className={TOOL_ICON} />
-                    Cambio
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  className={toolButton}
-                  onClick={() => dispatch({ type: "closeSet" })}
-                  disabled={tied}
-                  title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
-                >
-                  <Flag className={TOOL_ICON} />
-                  Chiudi set
-                </Button>
-                <Button variant="outline" className={toolButton} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
-                  <Repeat className={TOOL_ICON} />
-                  Inverti
-                </Button>
-                {match.withLineup && (
-                  <Button
-                    variant="outline"
-                    className={toolButton}
-                    onClick={() => setEditingNames((v) => !v)}
-                    data-tour="section-livescore-formations"
-                  >
-                    <Pencil className={TOOL_ICON} />
-                    {editingNames ? "Fatto" : "Formazioni"}
-                  </Button>
-                )}
-                {match.mode === "match" && (
-                  <span className="flex items-stretch gap-0.5 sm:inline-flex" data-tour="section-livescore-public">
-                    <Button
-                      variant={match.publicLive ? "danger" : "outline"}
-                      className={cn(toolButton, "min-w-0 flex-1", match.publicLive && "border-destructive-strong")}
-                      onClick={togglePublicLive}
-                      aria-pressed={match.publicLive}
-                      data-livescore-public-toggle
-                      title={
-                        match.publicLive
-                          ? "Il punteggio si vede sul sito pubblico: tocca per spegnere la diretta."
-                          : "Mostra il punteggio in diretta sul sito pubblico."
-                      }
-                    >
-                      <span
-                        className={cn(
-                          "h-2.5 w-2.5 rounded-full",
-                          match.publicLive ? "animate-pulse bg-white" : "bg-muted-foreground/50",
-                        )}
-                      />
-                      {match.publicLive ? "In diretta" : "Diretta"}
-                    </Button>
-                    {match.publicLive && (
-                      <a
-                        href={publicPath}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Apri il sito pubblico"
-                        aria-label="Apri il sito pubblico"
-                        className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "self-center" })}
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </span>
-                )}
-                <Button
-                  variant="outline"
-                  className={cn(toolButton, "border-destructive/40 text-destructive hover:border-destructive/70 hover:bg-destructive/8")}
-                  onClick={handleNewMatch}
-                  title="Cancella questa partita e ricomincia da capo"
-                >
-                  <RefreshCw className={TOOL_ICON} />
-                  Nuovo
-                </Button>
-                <Button
-                  variant="outline"
-                  className={toolButton}
-                  onClick={toggleFullscreen}
-                  data-tour="section-livescore-fullscreen"
-                >
-                  {isFullscreen ? <Minimize2 className={TOOL_ICON} /> : <Maximize2 className={TOOL_ICON} />}
-                  {isFullscreen ? "Esci" : "Schermo intero"}
-                </Button>
+                {undoButton}
+                {substitutionButton}
+                {closeSetButton}
+                {invertButton}
+                {formationsButton}
+                {publicButton}
+                {newButton}
+                {fullscreenButton}
               </div>
             </div>
 
-            {matchWinner && (
-              <div
-                className="flex shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center text-sm font-bold"
-                style={{
-                  background: getTeamAccent(matchWinner, match.mode, match.opponentColor).background,
-                  color: getTeamAccent(matchWinner, match.mode, match.opponentColor).text,
-                  boxShadow: `0 14px 32px -18px ${getTeamAccent(matchWinner, match.mode, match.opponentColor).glow}`,
-                }}
-              >
-                <Trophy className="h-4 w-4 shrink-0 opacity-90" />
-                {displayLabel(match[teamKeyProp(matchWinner)], matchWinner)} ha vinto la partita ({match[teamKeyProp(matchWinner)].setsWon} set a{" "}
-                {match[teamKeyProp(otherKey(matchWinner))].setsWon})
-                <button
-                  type="button"
-                  onClick={handleNewMatch}
-                  className="ml-2 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-sea-950 shadow-sm transition-colors hover:bg-white"
-                >
-                  Nuova partita
-                </button>
-              </div>
-            )}
-
-            {/* Tabellone "stile tv" chiuso in un riquadro proprio (bordo +
-             * sfondo distinti dalla pagina): lo isola meglio dal resto,
-             * invece del solo anello sottile di prima. Due blocchi squadra a
-             * tinta piatta ai lati, display centrale con i due punteggi
-             * grandi. */}
-            <div
-              className={cn(
-                "shrink-0 rounded-3xl border-2 border-border-subtle bg-surface shadow-[0_8px_24px_-16px_rgba(15,23,42,0.4)]",
-                isFullscreen ? "p-2" : "p-2.5",
-              )}
-            >
-              <div
-                className={cn(
-                  "flex overflow-hidden rounded-2xl ring-1 ring-sea-950/10",
-                  isFullscreen ? "shadow-[0_20px_40px_-18px_rgba(12,30,42,0.5)]" : "shadow-lg",
-                )}
-              >
-                <TeamBlock
-                  team={leftTeam}
-                  teamKey={leftKey}
-                  mode={match.mode}
-                  opponentColor={match.opponentColor}
-                  large={bigBoard}
-                  editable={!(match.mode === "match" && leftKey === "A")}
-                  placeholder={match.mode === "match" && leftKey === "B" ? "Nome avversaria" : undefined}
-                  onLabelChange={(value) => dispatch({ type: "setLabel", team: leftKey, value })}
-                  onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: leftKey })}
-                  substitutions={
-                    match.withLineup
-                      ? { used: leftTeam.substitutionsUsed, limit: subLimit, onClick: () => setSubstitution({ team: leftKey, position: null }) }
-                      : undefined
-                  }
-                />
-                <CenterDisplay
-                  leftScore={leftTeam.score}
-                  rightScore={rightTeam.score}
-                  servingSide={match.servingTeam === leftKey ? "left" : match.servingTeam === rightKey ? "right" : null}
-                  large={bigBoard}
-                  huge={isFullscreen && !match.withLineup}
-                />
-                <TeamBlock
-                  team={rightTeam}
-                  teamKey={rightKey}
-                  mode={match.mode}
-                  opponentColor={match.opponentColor}
-                  large={bigBoard}
-                  editable={!(match.mode === "match" && rightKey === "A")}
-                  placeholder={match.mode === "match" && rightKey === "B" ? "Nome avversaria" : undefined}
-                  onLabelChange={(value) => dispatch({ type: "setLabel", team: rightKey, value })}
-                  onToggleTimeout={() => dispatch({ type: "toggleTimeout", team: rightKey })}
-                  substitutions={
-                    match.withLineup
-                      ? { used: rightTeam.substitutionsUsed, limit: subLimit, onClick: () => setSubstitution({ team: rightKey, position: null }) }
-                      : undefined
-                  }
-                />
-              </div>
-            </div>
-
-            <StatusStrip match={match} numeric={numeric} />
-            <SideChangeCard match={match} onChange={() => dispatch({ type: "toggleSides" })} />
-            {setEnd && (
-              <SetEndCard
-                match={match}
-                onClose={() => dispatch({ type: "closeSet" })}
-                onUndo={() => dispatch({ type: "undo" })}
-              />
-            )}
-            {showSetStart && (
-              <SetStartCard
-                match={match}
-                numeric={numeric}
-                editingLineups={editingNames}
-                onChoose={(key) => dispatch({ type: "chooseFirstServer", team: key })}
-                onToggleLineups={() => setEditingNames((v) => !v)}
-                savedLineup={
-                  savedSetLineup
-                    ? {
-                        label: `Usa la formazione salvata del ${currentSet(match)}° set`,
-                        onUse: () => dispatch({ type: "applySavedLineup", team: "A", ...savedSetLineup }),
-                      }
-                    : null
-                }
-              />
-            )}
+            {winnerBanner}
+            {scoreboard}
+            {statusStrip}
+            {statusCards}
 
             <div
               className={cn(
@@ -1682,45 +1938,8 @@ export function LiveScoreClient({
               })}
             </div>
 
-            {match.withLineup && (
-              <DualLiveScoreCourt
-                className={isFullscreen ? "min-h-0 flex-1" : "shrink-0"}
-                fitHeight={isFullscreen}
-                players={match.playersPerSide}
-                labelA={displayLabel(leftTeam, leftKey)}
-                labelB={displayLabel(rightTeam, rightKey)}
-                renderCellA={renderTeamCell(leftTeam, leftKey, editingNames, athleteNames, match.servingTeam === leftKey, dispatch, isFullscreen, numeric, liberoInPlay(match, leftTeam), (position) => setSubstitution({ team: leftKey, position }), numberChoices)}
-                renderCellB={renderTeamCell(rightTeam, rightKey, editingNames, athleteNames, match.servingTeam === rightKey, dispatch, isFullscreen, numeric, liberoInPlay(match, rightTeam), (position) => setSubstitution({ team: rightKey, position }), numberChoices)}
-                large={isFullscreen}
-              />
-            )}
-
-            {match.withLineup && editingNames && showLiberoFields && (
-              <div className={cn("grid shrink-0 sm:grid-cols-2", isFullscreen ? "gap-1.5" : "gap-4")}>
-                <LiberoFields
-                  team={leftTeam}
-                  teamKey={leftKey}
-                  idPrefix={`${leftKey}-live`}
-                  athleteNames={athleteNames}
-                  dispatch={dispatch}
-                  players={match.playersPerSide}
-                  large={isFullscreen}
-                  numeric={numeric}
-                  numberChoices={numberChoices}
-                />
-                <LiberoFields
-                  team={rightTeam}
-                  teamKey={rightKey}
-                  idPrefix={`${rightKey}-live`}
-                  athleteNames={athleteNames}
-                  dispatch={dispatch}
-                  players={match.playersPerSide}
-                  large={isFullscreen}
-                  numeric={numeric}
-                  numberChoices={numberChoices}
-                />
-              </div>
-            )}
+            {court}
+            {liberoEditor}
           </div>
           )}
         </div>
