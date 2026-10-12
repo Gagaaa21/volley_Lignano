@@ -46,6 +46,7 @@ function Half({ side, ball }: { side: ScoutSide; ball: BallState }) {
  * pulsanti: subito sotto l'intestazione del sito o, a schermo intero, in cima.
  */
 export function ScoutBallSide({ ball, fullscreen = false }: { ball: BallState; fullscreen?: boolean }) {
+  // A schermo intero ogni riga in altezza serve ai pulsanti: la fascia è un po' più bassa (ma resta ben visibile).
   const onUs = ball.side === "us";
   return (
     <div
@@ -55,7 +56,8 @@ export function ScoutBallSide({ ball, fullscreen = false }: { ball: BallState; f
       data-scout-ball-side={ball.side}
       data-tour="scout-ball"
       className={cn(
-        "sticky z-30 grid h-14 grid-cols-2 overflow-hidden rounded-2xl border-2 shadow-raised transition-colors duration-300 [--ball:2.5rem] sm:h-[4.75rem] sm:[--ball:2.75rem]",
+        "sticky z-30 grid h-14 grid-cols-2 overflow-hidden rounded-2xl border-2 shadow-raised transition-colors duration-300 [--ball:2.5rem] sm:[--ball:2.75rem]",
+        fullscreen ? "sm:h-14" : "sm:h-[4.75rem]",
         onUs ? "border-primary" : "border-sand-400",
       )}
       style={{ top: fullscreen ? 0 : "var(--admin-header-h, 0px)" }}

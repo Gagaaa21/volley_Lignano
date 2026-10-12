@@ -57,6 +57,7 @@ export function ScoutBoard({
   settings,
   finished,
   ball = null,
+  compact = false,
 }: {
   view: ScoutView;
   settings: ScoutSettings;
@@ -64,6 +65,8 @@ export function ScoutBoard({
   finished: boolean;
   /** Da che parte del campo è la palla (vedi ballOf): si illumina quella metà del tabellone. */
   ball?: BallState | null;
+  /** Più basso (a schermo intero ogni riga in altezza serve ai pulsanti). */
+  compact?: boolean;
 }) {
   const over = view.decided || finished;
   const shown = view.current ?? view.sets[view.sets.length - 1];
@@ -92,7 +95,12 @@ export function ScoutBoard({
           ball?.side === "opp" ? "opacity-100" : "opacity-0",
         )}
       />
-      <div className="relative flex items-center justify-between gap-3 px-4 pt-3.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white/65 sm:px-6">
+      <div
+        className={cn(
+          "relative flex items-center justify-between gap-3 px-4 pt-3.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white/65 sm:px-6",
+          compact && "pt-2.5",
+        )}
+      >
         <span data-scout-set>
           {over ? "Partita finita" : `${shown.n}° set`}
           {!over && <span className="ml-2 font-semibold normal-case tracking-normal text-white/45">a {target}</span>}
@@ -105,15 +113,23 @@ export function ScoutBoard({
         </span>
       </div>
 
-      <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pb-4 pt-2.5 sm:gap-6 sm:px-6 sm:pb-5">
+      <div
+        className={cn(
+          "relative grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pb-4 pt-2.5 sm:gap-6 sm:px-6 sm:pb-5",
+          compact && "pb-2.5 pt-1 sm:pb-3",
+        )}
+      >
         <Team side="us" serving={server === "us"} hasBall={ball?.side === "us"} />
         <p
-          className="tabular flex items-baseline gap-2.5 font-display text-[3.25rem] font-extrabold leading-none sm:gap-4 sm:text-7xl"
+          className={cn(
+            "tabular flex items-baseline gap-2.5 font-display text-[3.25rem] font-extrabold leading-none sm:gap-4 sm:text-7xl",
+            compact && "text-[2.75rem] sm:text-6xl",
+          )}
           aria-live="polite"
           data-scout-score
         >
           <span aria-label={`Noi ${score.us}`}>{score.us}</span>
-          <span aria-hidden className="text-3xl font-bold text-white/30 sm:text-5xl">
+          <span aria-hidden className={cn("text-3xl font-bold text-white/30 sm:text-5xl", compact && "text-2xl sm:text-4xl")}>
             –
           </span>
           <span aria-label={`Loro ${score.opp}`}>{score.opp}</span>

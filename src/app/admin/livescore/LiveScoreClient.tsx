@@ -136,7 +136,7 @@ const POINT_BUTTON_BASE =
 
 /** Pulsanti della barra delle azioni: tassello con l'icona sopra su telefono, pulsante con l'icona accanto da tablet. */
 const TOOL_BUTTON =
-  "h-14 flex-col gap-1 whitespace-normal border-2 px-1 text-center text-[11px] leading-tight sm:h-11 sm:flex-row sm:gap-2 sm:whitespace-nowrap sm:px-4 sm:text-sm";
+  "h-14 flex-col gap-1 whitespace-normal border-2 px-1 text-center text-[11px] leading-tight sm:h-11 sm:flex-row sm:gap-1.5 sm:whitespace-nowrap sm:px-3 sm:text-sm";
 const TOOL_ICON = "h-5 w-5 sm:h-4 sm:w-4";
 
 /** Time-out e cambi nel blocco della squadra: pulsanti veri (etichetta, bordo, tocco comodo), non più piccole pillole. */
@@ -648,7 +648,7 @@ function TeamBlock({
     <div
       className={cn(
         "relative flex shrink-0 flex-col items-center justify-center gap-1.5",
-        large ? "w-32 py-2.5 sm:w-52 sm:py-3.5 md:w-64" : "w-28 py-2 sm:w-40 sm:py-2.5",
+        large ? "w-32 py-2.5 sm:w-52 sm:py-3 md:w-72" : "w-28 py-2 sm:w-40 sm:py-2.5",
       )}
       style={{ background: accent.background, color: accent.text }}
     >
@@ -677,11 +677,12 @@ function TeamBlock({
         <span className="text-center text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]" style={{ color: accent.textSoft }}>
           Set vinti <b className="text-sm font-extrabold sm:text-base" style={{ color: accent.text }}>{team.setsWon}</b>
         </span>
+        <div className={cn("flex flex-col gap-1", large && "md:flex-row")}>
         <button
           type="button"
           onClick={onToggleTimeout}
           title="Segna un time-out (2 a disposizione per set)"
-          className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm")}
+          className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
           style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : { background: accent.overlay, color: accent.text }}
         >
           {timeoutMaxed ? <TimerOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Timer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
@@ -696,7 +697,7 @@ function TeamBlock({
             onClick={substitutions.onClick}
             title="Cambi in questo set: tocca per una sostituzione"
             aria-label={`Sostituzione ${team.label}: ${substitutions.used} cambi in questo set`}
-            className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm")}
+            className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm md:min-h-9 md:flex-1 md:px-1.5 md:text-xs lg:text-sm")}
             style={
               substitutions.limit !== null && substitutions.used >= substitutions.limit
                 ? { background: "#ffffff", color: "var(--destructive)" }
@@ -711,6 +712,7 @@ function TeamBlock({
             </b>
           </button>
         )}
+        </div>
       </div>
     </div>
   );
@@ -947,6 +949,8 @@ export function LiveScoreClient({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, isSimulated, toggle: toggleFullscreen } = useStageFullscreen(stageRef);
+  // La barra delle azioni: a schermo intero ogni pixel in altezza va al campo, quindi i pulsanti sono un po' più bassi.
+  const toolButton = cn(TOOL_BUTTON, isFullscreen && "sm:h-10 sm:px-2.5 sm:text-[13px]");
   const { match } = state;
 
   // Al montaggio, ripristina l'eventuale gioco salvato di recente (entro
@@ -1082,6 +1086,8 @@ export function LiveScoreClient({
         ref={stageRef}
         data-livescore-stage
         className={cn(
+          // Fuori dallo schermo intero si recupera un po' del margine alto della pagina.
+          !isFullscreen && "-mt-3 sm:-mt-5",
           isFullscreen &&
             "overflow-y-auto bg-gradient-to-br from-primary-soft via-background to-accent p-0.5 sm:p-1",
           // Schermo intero vero: lo riempie il browser. Simulato: il riquadro ricopre la finestra.
@@ -1091,7 +1097,7 @@ export function LiveScoreClient({
       >
         <div
           className={cn(
-            isFullscreen && "mx-auto flex h-full max-w-[1700px] flex-col gap-2.5",
+            isFullscreen && "mx-auto flex h-full max-w-[1700px] flex-col gap-2",
           )}
         >
           {/* Su iPad e iPhone la barra di stato sfoca la fascia in alto: qui non c'è niente (vedi globals.css). */}
@@ -1391,10 +1397,7 @@ export function LiveScoreClient({
              * davvero. */}
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
               <h1
-                className={cn(
-                  "display-wide shrink-0 text-foreground",
-                  isFullscreen ? "text-sm" : "text-2xl",
-                )}
+                className={cn("display-wide shrink-0 text-foreground", isFullscreen ? "sr-only" : "text-2xl")}
               >
                 In campo
               </h1>
@@ -1418,7 +1421,7 @@ export function LiveScoreClient({
               >
                 <Button
                   variant="secondary"
-                  className={cn(TOOL_BUTTON, "border-sand-500")}
+                  className={cn(toolButton, "border-sand-500")}
                   onClick={() => dispatch({ type: "undo" })}
                   disabled={state.history.length === 0}
                   title="Toglie l'ultima azione (un punto, un cambio, la chiusura di un set)"
@@ -1429,7 +1432,7 @@ export function LiveScoreClient({
                 {match.withLineup && (
                   <Button
                     variant="soft"
-                    className={cn(TOOL_BUTTON, "border-primary/35")}
+                    className={cn(toolButton, "border-primary/35")}
                     onClick={() => {
                       setEditingNames(false);
                       setSubstitution({ team: "A", position: null });
@@ -1442,7 +1445,7 @@ export function LiveScoreClient({
                 )}
                 <Button
                   variant="outline"
-                  className={TOOL_BUTTON}
+                  className={toolButton}
                   onClick={() => dispatch({ type: "closeSet" })}
                   disabled={tied}
                   title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
@@ -1450,14 +1453,14 @@ export function LiveScoreClient({
                   <Flag className={TOOL_ICON} />
                   Chiudi set
                 </Button>
-                <Button variant="outline" className={TOOL_BUTTON} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
+                <Button variant="outline" className={toolButton} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
                   <Repeat className={TOOL_ICON} />
                   Inverti
                 </Button>
                 {match.withLineup && (
                   <Button
                     variant="outline"
-                    className={TOOL_BUTTON}
+                    className={toolButton}
                     onClick={() => setEditingNames((v) => !v)}
                     data-tour="section-livescore-formations"
                   >
@@ -1469,7 +1472,7 @@ export function LiveScoreClient({
                   <span className="flex items-stretch gap-0.5 sm:inline-flex" data-tour="section-livescore-public">
                     <Button
                       variant={match.publicLive ? "danger" : "outline"}
-                      className={cn(TOOL_BUTTON, "min-w-0 flex-1", match.publicLive && "border-destructive-strong")}
+                      className={cn(toolButton, "min-w-0 flex-1", match.publicLive && "border-destructive-strong")}
                       onClick={togglePublicLive}
                       aria-pressed={match.publicLive}
                       data-livescore-public-toggle
@@ -1503,7 +1506,7 @@ export function LiveScoreClient({
                 )}
                 <Button
                   variant="outline"
-                  className={cn(TOOL_BUTTON, "border-destructive/40 text-destructive hover:border-destructive/70 hover:bg-destructive/8")}
+                  className={cn(toolButton, "border-destructive/40 text-destructive hover:border-destructive/70 hover:bg-destructive/8")}
                   onClick={handleNewMatch}
                   title="Cancella questa partita e ricomincia da capo"
                 >
@@ -1512,7 +1515,7 @@ export function LiveScoreClient({
                 </Button>
                 <Button
                   variant="outline"
-                  className={TOOL_BUTTON}
+                  className={toolButton}
                   onClick={toggleFullscreen}
                   data-tour="section-livescore-fullscreen"
                 >
@@ -1634,7 +1637,7 @@ export function LiveScoreClient({
               className={cn(
                 "grid shrink-0 grid-cols-2 gap-2.5 sm:gap-3.5",
                 // Senza formazione i due pulsanti prendono il posto del campo.
-                match.withLineup ? (isFullscreen ? "h-[4.75rem] sm:h-24" : "h-[5.25rem] sm:h-24") : isFullscreen ? "min-h-28 flex-1" : "h-40",
+                match.withLineup ? (isFullscreen ? "h-[4.5rem] sm:h-[5.25rem]" : "h-[5.25rem] sm:h-24") : isFullscreen ? "min-h-28 flex-1" : "h-40",
               )}
               data-tour="section-livescore-score"
             >

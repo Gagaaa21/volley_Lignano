@@ -324,14 +324,15 @@ export function ScoutClient({
       data-scout-stage
       className={cn(
         "w-full",
-        !isFullscreen && "mx-auto max-w-3xl",
-        isFullscreen && "overflow-hidden bg-gradient-to-br from-primary-soft via-background to-accent p-2 sm:p-3",
+        // Fuori dallo schermo intero si recupera un po' del margine alto della pagina: ogni riga serve ai pulsanti.
+        !isFullscreen && "mx-auto -mt-3 max-w-3xl sm:-mt-5",
+        isFullscreen && "overflow-hidden bg-gradient-to-br from-primary-soft via-background to-accent px-2 pb-2 pt-1 sm:px-3 sm:pb-3",
         // Schermo intero vero: lo riempie il browser. Simulato: il riquadro ricopre la finestra.
         isFullscreen && !isSimulated && "h-screen w-screen",
         isSimulated && "fixed inset-0 z-40",
       )}
     >
-      <div className={cn(isFullscreen ? "mx-auto flex h-full w-full max-w-[1800px] flex-col gap-3" : "flex flex-col gap-5")}>
+      <div className={cn(isFullscreen ? "mx-auto flex h-full w-full max-w-[1800px] flex-col gap-2" : "flex flex-col gap-5")}>
         {/* Su iPad e iPhone la barra di stato sfoca la fascia in alto: qui non c'è niente (vedi globals.css). */}
         {isFullscreen && <div aria-hidden className="fullscreen-inset-top" />}
         {/* Intestazione compatta: durante la partita ogni riga in meno è un tocco in meno di scorrimento. */}
@@ -387,16 +388,16 @@ export function ScoutClient({
             </div>
           </div>
           <div className={cn("flex items-end justify-between gap-3", isFullscreen && "sm:contents")}>
-            <div className={cn("min-w-0", isFullscreen && "sm:order-2 sm:flex-1")}>
+            <div className={cn("min-w-0", isFullscreen && "sm:order-2 sm:flex sm:flex-1 sm:items-baseline sm:gap-3")}>
               <h1
                 className={cn(
-                  "display-wide line-clamp-2 text-[1.5rem] leading-[1.1] text-foreground sm:text-[2rem]",
-                  isFullscreen && "sm:line-clamp-1 sm:text-[1.5rem]",
+                  "display-wide line-clamp-2 text-[1.5rem] leading-[1.1] text-foreground sm:text-[1.75rem]",
+                  isFullscreen && "sm:line-clamp-1 sm:shrink-0 sm:text-[1.375rem]",
                 )}
               >
                 {match.title}
               </h1>
-              <p className={cn("mt-1 text-[13px] leading-snug text-muted-foreground", isFullscreen && "sm:mt-0.5 sm:truncate")}>
+              <p className={cn("mt-1 text-[13px] leading-snug text-muted-foreground", isFullscreen && "sm:mt-0 sm:min-w-0 sm:truncate")}>
                 {match.dateLabel} · {match.time}
                 {match.categoryLabel ? ` · ${match.categoryLabel}` : ""}
                 {match.isFriendly ? " · Amichevole" : ""} · {match.location}
@@ -436,13 +437,13 @@ export function ScoutClient({
          * schermi larghi diventano due colonne che scorrono per conto loro. */}
         <div
           className={cn(
-            isFullscreen ? "grid min-h-0 flex-1 content-start gap-4 overflow-y-auto lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden" : "contents",
+            isFullscreen ? "grid min-h-0 flex-1 content-start gap-3 overflow-y-auto lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden" : "contents",
           )}
           data-scout-columns={isFullscreen ? "fullscreen" : undefined}
         >
-          <div className={cn(isFullscreen ? "flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1" : "contents")} data-scout-main-pane>
+          <div className={cn(isFullscreen ? "flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1" : "contents")} data-scout-main-pane>
             <div data-tour="section-scout-board">
-              <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} />
+              <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} compact={isFullscreen} />
             </div>
 
             {view.decided && (
@@ -588,7 +589,7 @@ export function ScoutClient({
             )}
           </div>
 
-          <div className={cn(isFullscreen ? "space-y-4 lg:min-h-0 lg:overflow-y-auto" : "contents")} data-scout-log-pane>
+          <div className={cn(isFullscreen ? "space-y-3 lg:min-h-0 lg:overflow-y-auto" : "contents")} data-scout-log-pane>
             {!inlineSetup && twoColumns && courtStrip}
             {!inlineSetup && (
               <section aria-label="Registro degli scambi" data-tour="section-scout-log">
