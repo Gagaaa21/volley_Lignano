@@ -56,7 +56,7 @@ async function scores(page: Page): Promise<number[]> {
 const LIGNANO = "Volley Lignano";
 const OPPONENT = "Regole Test";
 
-test("i set seguono il regolamento: fine set, campi invertiti, formazione di partenza, sorteggio e cambio campo nel decisivo", async ({
+test("i set seguono il regolamento: fine set, campi cambiati ogni 2 set, formazione di partenza, sorteggio e cambio campo nel decisivo", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -104,30 +104,33 @@ test("i set seguono il regolamento: fine set, campi invertiti, formazione di par
   await expect(setEnd).toBeVisible();
   await page.locator("[data-livescore-close-set]").click();
 
-  // 2° set: campi invertiti, formazioni di partenza rimesse (non quelle ruotate), batte per prima l'altra squadra.
+  // 2° set: i campi si cambiano ogni 2 set, quindi restano quelli del 1°; formazioni di partenza rimesse (non quelle ruotate), batte per prima l'altra squadra.
   const setStart = page.locator("[data-livescore-set-start]");
   await expect(setStart).toContainText("2° set: pronti a partire");
-  await expect(setStart).toContainText("Campi invertiti, formazioni di partenza ripristinate");
+  await expect(setStart).toContainText("Stessi campi del set prima (si cambia ogni 2 set), formazioni di partenza ripristinate");
   await expect(setStart).toContainText("la battuta si alterna a ogni set");
   await expect(page.locator("[data-livescore-first-server='B']")).toHaveAttribute("aria-pressed", "true");
   expect(await scores(page)).toEqual([0, 0]);
-  await expect(cell(page, "left", 1)).toContainText("21");
-  await expect(cell(page, "right", 1)).toContainText("11");
+  await expect(cell(page, "left", 1)).toContainText("11");
+  await expect(cell(page, "right", 1)).toContainText("21");
   await expect(page.locator("[data-livescore-serving]")).toContainText(`Batte ${OPPONENT}`);
   await expect(page.locator("[data-livescore-serving]")).toContainText("21");
-  // La nostra squadra ora sta a destra: la freccia → segna per lei.
-  await page.keyboard.press("ArrowRight");
-  expect(await scores(page)).toEqual([0, 1]);
+  // La nostra squadra sta ancora a sinistra: la freccia ← segna per lei.
+  await page.keyboard.press("ArrowLeft");
+  expect(await scores(page)).toEqual([1, 0]);
   await page.keyboard.press("Backspace");
   expect(await scores(page)).toEqual([0, 0]);
 
-  // L'altra squadra vince il 2° set: 1-1.
+  // L'altra squadra vince il 2° set: 1-1. Il set dopo è il decisivo: la scheda lo dice.
   await score(page, OPPONENT, 5);
   await expect(setEnd).toContainText(`${OPPONENT} vince il 2° set`);
+  await expect(setEnd).toContainText("campo e battuta si sorteggiano");
   await page.locator("[data-livescore-close-set]").click();
 
-  // 3° set, il decisivo: la battuta si sorteggia, e finché non si sceglie i punti non si possono segnare.
+  // 3° set, il decisivo: prima del sorteggio i campi restano quelli del set prima (non c'è un cambio automatico), la battuta si sorteggia, e finché non si sceglie i punti non si possono segnare.
   await expect(setStart).toContainText("3° set (decisivo): sorteggio");
+  await expect(cell(page, "left", 1)).toContainText("11");
+  await expect(cell(page, "right", 1)).toContainText("21");
   await expect(pointButton(page, LIGNANO)).toBeDisabled();
   await expect(pointButton(page, OPPONENT)).toBeDisabled();
   await page.keyboard.press("ArrowLeft");
@@ -255,14 +258,21 @@ test("i punti del set si cambiano dall'impostazione, e con i 3 set fissi l'ultim
   const closeSet = page.locator("[data-livescore-close-set]");
   await score(page, LIGNANO, 10);
   await expect(setEnd).toContainText(`${LIGNANO} vince il 1° set`);
+  await expect(setEnd).toContainText("le squadre restano sugli stessi campi (si cambia ogni 2 set)");
   await closeSet.click();
+  // 2° set: si cambia campo ogni 2 set, quindi siamo ancora a sinistra.
+  await expect(cell(page, "left", 1)).toContainText("11");
   await score(page, OPPONENT, 10);
   await expect(setEnd).toContainText(`${OPPONENT} vince il 2° set`);
+  await expect(setEnd).toContainText("le squadre cambiano campo");
   await closeSet.click();
 
-  // 3° set: con i 3 set fissi non c'è sorteggio (la battuta si alterna: tocca di nuovo a noi) e il limite è quello dell'ultimo set.
+  // 3° set: con i 3 set fissi non c'è sorteggio (la battuta si alterna: tocca di nuovo a noi), dopo il 2° set i campi sono cambiati e il limite è quello dell'ultimo set.
   const setStart = page.locator("[data-livescore-set-start]");
   await expect(setStart).toContainText("3° set: pronti a partire");
+  await expect(setStart).toContainText("Campi invertiti");
+  await expect(cell(page, "right", 1)).toContainText("11");
+  await expect(cell(page, "left", 1)).toContainText("21");
   await expect(setStart).not.toContainText("sorteggio");
   await expect(page.locator("[data-livescore-first-server='A']")).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("[data-livescore-set]")).toContainText("si vince a 12");

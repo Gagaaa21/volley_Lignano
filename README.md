@@ -98,8 +98,9 @@ staff (Developer e Admin).
     fissi**; in Allenamento anche **Libera**, senza limiti di punti: chiude i
     set chi segna), 25 punti con 2 di scarto (15 nel set decisivo; si cambiano
     da «Punti» in impostazione, anche per i 3 set fissi, dove l'ultimo va a
-    15 o a 25 secondo la gara), cambio campo a ogni set e a 8 punti nel
-    decisivo.
+    15 o a 25 secondo la gara), cambio campo **ogni 2 set** (dopo il 2°, dal
+    2026/2027: `sidesChangeAfterSet`; il decisivo ha il sorteggio) e a 8 punti
+    nel decisivo.
   - `src/lib/lineup.ts`: rotazione (solo quando si conquista la battuta),
     **libero** (ricavata da dove stanno le giocatrici: sostituisce la
     centrale in seconda linea, non batte mai, quindi in posizione 1 entra
@@ -114,8 +115,8 @@ staff (Developer e Admin).
   Il tabellone **guida la gara** (`LiveScoreStatus.tsx`): chiede il
   sorteggio per chi batte per primo, a set vinto propone la chiusura
   (`suggestedSetEnd`, pulsante «Chiudi il set»), poi mostra la scheda del
-  nuovo set con il **cambio campo**, chi batte per primo (si alterna a ogni
-  set; nel set decisivo si rifà il sorteggio) e la **formazione di partenza
+  nuovo set (con il **cambio campo** ogni 2 set), chi batte per primo (si
+  alterna a ogni set; nel set decisivo si rifà il sorteggio) e la **formazione di partenza
   rimessa com'era** (`startPositions`); avvisa del set point, del match
   point e del cambio campo a 8 nel set decisivo. Con le frecce ← e → della
   tastiera si segna il punto della squadra a sinistra o a destra, con ⌫ si

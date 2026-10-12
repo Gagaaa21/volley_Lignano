@@ -8,8 +8,9 @@
  * - ogni set comincia con la battuta alternata (chi ha battuto per primo nel
  *   set appena chiuso batte per secondo nel successivo); solo nel set decisivo
  *   si rifà il sorteggio;
- * - a ogni set le squadre cambiano campo; nel set decisivo si cambia anche
- *   quando una squadra arriva a 8 punti (senza toccare la rotazione);
+ * - dal 2026/2027 le squadre cambiano campo ogni 2 set (dopo il 2°), non più
+ *   dopo ognuno; il set decisivo ha il suo sorteggio e, a 8 punti, un cambio
+ *   campo (senza toccare la rotazione);
  * - ogni squadra ha 2 time-out per set, di 30 secondi, e fino a 8 sostituzioni
  *   per set (regole della stagione 2026/2027, vedi più sotto).
  */
@@ -33,6 +34,23 @@ export const DEFAULT_SET_POINTS = 25;
 export const DEFAULT_LAST_SET_POINTS = 15;
 /** Nel set decisivo le squadre cambiano campo quando una arriva a questo punteggio. */
 export const SIDE_CHANGE_POINTS = 8;
+
+/**
+ * Cambio campo tra i set: dal 2026/2027 le squadre cambiano campo ogni 2 set, cioè dopo il 2°, e non più dopo ognuno
+ * (le gare FIVB e la SuperLega lo fanno già così: due set da un lato, gli altri dall'altro). Il set decisivo ha il suo
+ * sorteggio (campo e battuta) e il suo cambio a 8 punti: prima non c'è un cambio automatico, le squadre restano
+ * dove sono finché il sorteggio non dice altro.
+ */
+export const SETS_PER_SIDE_CHANGE = 2;
+
+/**
+ * Le squadre cambiano campo alla fine di questo set? Dopo il 2° (con la formula «Libera», senza set decisivo, anche
+ * dopo il 4°, il 6°, …), ma non se il set dopo è il decisivo: lì c'è il sorteggio.
+ */
+export function sidesChangeAfterSet(format: MatchFormat | "free", setNumber: number): boolean {
+  if (setNumber <= 0 || setNumber % SETS_PER_SIDE_CHANGE !== 0) return false;
+  return format === "free" || !isDecidingSet(format, setNumber + 1);
+}
 
 /**
  * Regole in vigore nella stagione 2026/2027. Dal 28 settembre 2026 la FIPAV applica in tutte le gare federali, di

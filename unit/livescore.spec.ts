@@ -32,7 +32,7 @@ import {
 import { courtOccupant, lineupIssues, lineupIssueText, namesTakenElsewhere } from "@/lib/lineup";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import type { LiveScorePlayers, LiveScoreState } from "@/lib/types";
-import { SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
+import { sidesChangeAfterSet, SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
 /** Tabellone live: dal 2 contro 2 al 6 contro 6, con o senza libero, anche
  * senza formazione; e cosa può vedere il sito pubblico della diretta. */
@@ -475,7 +475,7 @@ test.describe("partita secondo la formula", () => {
 });
 
 test.describe("cambio di set", () => {
-  test("le squadre cambiano campo, tornano alla formazione di partenza e la battuta passa all'altra", () => {
+  test("a set chiuso ognuna torna alla formazione di partenza e la battuta passa all'altra (i campi no: si cambia ogni 2 set)", () => {
     let m = initialMatch({ mode: "match", playersPerSide: 6, withLineup: true, useLibero: false }, "u14u15");
     const names = (p: string) => ["1", "2", "3", "4", "5", "6"].map((n) => `${p}${n}`);
     m = { ...m, teamA: { ...m.teamA, positions: names("A") }, teamB: { ...m.teamB, label: "Città", positions: names("B") } };
@@ -487,7 +487,7 @@ test.describe("cambio di set", () => {
     expect(m.teamA.positions).not.toEqual(names("A"));
 
     const next = closeWith(m, "B");
-    expect(next.sidesSwapped).toBe(true);
+    expect(next.sidesSwapped).toBe(false); // dopo il 1° set si resta sugli stessi campi
     expect(next.servingTeam).toBe("B");
     expect(next.setFirstServer).toBe("B");
     expect(next.teamA.positions).toEqual(names("A"));
@@ -499,6 +499,31 @@ test.describe("cambio di set", () => {
     const first = applyPoint(next, "B");
     expect(first.teamB.positions).toEqual(names("B"));
     expect(first.teamB.score).toBe(1);
+  });
+
+  test("le squadre cambiano campo ogni 2 set (dalla stagione 2026/2027): dopo il 2°, non dopo ognuno, e prima del decisivo c'è il sorteggio", () => {
+    // Al meglio dei 5: dopo il 2° sì; dopo il 4° no, perché viene il decisivo (che ha il suo sorteggio e il cambio a 8 punti).
+    expect([1, 2, 3, 4].map((n) => sidesChangeAfterSet("bo5", n))).toEqual([false, true, false, false]);
+    expect([1, 2].map((n) => sidesChangeAfterSet("bo3", n))).toEqual([false, false]); // dopo il 2° viene il decisivo
+    expect([1, 2].map((n) => sidesChangeAfterSet("fixed3", n))).toEqual([false, true]); // 3 set fissi: il 3° non è un decisivo
+    // Con la formula libera non c'è un decisivo: ogni 2 set.
+    expect([1, 2, 3, 4, 5, 6].map((n) => sidesChangeAfterSet("free", n))).toEqual([false, true, false, true, false, true]);
+
+    const sidesAfter = (m: LiveScoreState, winners: ("A" | "B")[]) =>
+      winners.map((winner) => {
+        m = closeWith(m, winner);
+        return m.sidesSwapped;
+      });
+    // Campi dopo il 1° set: gli stessi; dopo il 2°: cambiati; dopo il 3° e il 4°: restano com'erano (il 5° ha il sorteggio e si decide lì).
+    expect(sidesAfter(game(6), ["A", "B", "A", "B"])).toEqual([false, true, true, true]);
+    // Al meglio dei 3 e con 3 set fissi.
+    expect(sidesAfter(game(6, { rules: { format: "bo3", setPoints: 25, lastSetPoints: 15 } }), ["A", "B"])).toEqual([false, false]);
+    expect(sidesAfter(game(6, { rules: { format: "fixed3", setPoints: 25, lastSetPoints: 25 } }), ["A", "B"])).toEqual([false, true]);
+    expect(sidesAfter(game(6, { rules: { format: "free", setPoints: 25, lastSetPoints: 15 } }), ["A", "B", "A", "B"])).toEqual([false, true, true, false]);
+    // Il cambio non tocca altro: punteggi a zero e il decisivo si sorteggia.
+    const decisive = closeWith(closeWith(closeWith(closeWith(game(6), "A"), "B"), "A"), "B");
+    expect(decisive).toMatchObject({ servingTeam: null, setFirstServer: null });
+    expect(decisive.teamA.score + decisive.teamB.score).toBe(0);
   });
 
   test("la battuta si alterna a ogni set e nel set decisivo va sorteggiata", () => {
@@ -534,12 +559,13 @@ test.describe("cambio di set", () => {
     expect(needsFirstServer(done)).toBe(false);
   });
 
-  test("senza formazione si cambiano i campi ma non si segue la battuta", () => {
+  test("senza formazione si cambiano i campi (ogni 2 set) ma non si segue la battuta", () => {
     const m = { ...game(6), withLineup: false, servingTeam: null as null, setFirstServer: null as null };
     const next = closeWith(m, "A");
-    expect(next.sidesSwapped).toBe(true);
+    expect(next.sidesSwapped).toBe(false);
     expect(next.servingTeam).toBeNull();
     expect(needsFirstServer(next)).toBe(false);
+    expect(closeWith(next, "B").sidesSwapped).toBe(true);
   });
 
   test("nel set decisivo si cambia campo la prima volta che una squadra arriva a 8", () => {

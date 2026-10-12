@@ -20,6 +20,7 @@ import {
   type TeamKey,
 } from "@/lib/liveScore";
 import type { LiveScoreState } from "@/lib/types";
+import { isDecidingSet, sidesChangeAfterSet } from "@/lib/volleyRules";
 import { displayLabel, getTeamAccent } from "./accent";
 
 /** Chi gioca in una posizione, scritto come lo si legge a bordo campo: «n. 7» in Partita, il nome in Allenamento. */
@@ -198,6 +199,14 @@ export function SetEndCard({
   const loserTeam = match[teamKeyProp(otherKey(winner))];
   // Chiudere questo set decide la partita?
   const decidesMatch = matchWinner(closeSet(match)) !== null;
+  // Il set dopo: nel decisivo campo e battuta si sorteggiano; altrimenti si cambia campo solo ogni 2 set.
+  const { format } = match.rules;
+  const nextIsDeciding = format !== "free" && isDecidingSet(format, currentSet(match) + 1);
+  const afterText = nextIsDeciding
+    ? "Chiudi il set per passare al decisivo: campo e battuta si sorteggiano, le formazioni di partenza si ripristinano da sole."
+    : `Chiudi il set per passare al successivo: ${
+        sidesChangeAfterSet(format, currentSet(match)) ? "le squadre cambiano campo" : "le squadre restano sugli stessi campi (si cambia ogni 2 set)"
+      }, battuta e formazioni si preparano da sole.`;
   return (
     <Card tone="success" data-livescore-set-end role="status">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
@@ -211,7 +220,7 @@ export function SetEndCard({
               </span>
             </p>
             <p className="text-[13px] text-green-900/80">
-              {decidesMatch ? "Chiudi il set per chiudere la partita." : "Chiudi il set per passare al successivo: campi, battuta e formazioni si preparano da soli."}
+              {decidesMatch ? "Chiudi il set per chiudere la partita." : afterText}
             </p>
           </div>
         </div>
@@ -277,7 +286,8 @@ export function SetStartCard({
 }) {
   const toss = needsFirstServer(match);
   const set = currentSet(match);
-  const swapped = set > 1;
+  // Si cambia campo ogni 2 set: all'inizio del 3° i campi sono cambiati, al 2° no. Prima del decisivo (sorteggio) restano com'erano.
+  const sidesChanged = set > 1 && sidesChangeAfterSet(match.rules.format, set - 1);
   const first = match.servingTeam;
   const firstTeam = first ? match[teamKeyProp(first)] : null;
   const serverName = firstTeam ? playerText(currentServerName(firstTeam), numeric) : "";
@@ -293,7 +303,9 @@ export function SetStartCard({
             {toss
               ? "Scegli chi batte per primo. Se al sorteggio i campi cambiano, usa «Inverti». I punti si sbloccano dopo la scelta."
               : [
-                  swapped ? "Campi invertiti, formazioni di partenza ripristinate." : null,
+                  set > 1
+                    ? `${sidesChanged ? "Campi invertiti" : "Stessi campi del set prima (si cambia ogni 2 set)"}, formazioni di partenza ripristinate.`
+                    : null,
                   first && firstTeam
                     ? `Batte per primo ${displayLabel(firstTeam, first)}${serverName ? `: ${serverName}` : ""}${set > 1 ? " (la battuta si alterna a ogni set)" : ""}.`
                     : null,

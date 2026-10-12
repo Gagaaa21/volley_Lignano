@@ -28,6 +28,7 @@ import {
   setPointHolder,
   setsToWin,
   sideChangeDue,
+  sidesChangeAfterSet,
   SUBSTITUTIONS_PER_SET,
   targetForSet,
   TIMEOUTS_PER_SET,
@@ -391,9 +392,11 @@ export function chooseFirstServer(match: LiveScoreState, key: TeamKey): LiveScor
  * Chiude il set corrente: vince chi ha più punti (a pari punti non si
  * chiude). Il punteggio finale resta in `setHistory`, poi punteggio e
  * time-out si azzerano. Se la partita non è finita comincia il set dopo:
- * le squadre cambiano campo, ognuna torna alla formazione di partenza, la
- * battuta passa all'altra squadra (nel set decisivo si sorteggia: la sceglie il
- * coach) e la libero si riallinea.
+ * ognuna torna alla formazione di partenza, la battuta passa all'altra squadra
+ * (nel set decisivo si sorteggia: la sceglie il coach) e la libero si riallinea.
+ * Le squadre cambiano campo ogni 2 set (dopo il 2°, dal 2026/2027: vedi
+ * sidesChangeAfterSet); prima del set decisivo, che ha il suo sorteggio, i campi
+ * restano quelli del set prima e il coach usa «Inverti» se il sorteggio li cambia.
  */
 export function closeSet(match: LiveScoreState): LiveScoreState {
   if (match.teamA.score === match.teamB.score) return match;
@@ -425,7 +428,7 @@ export function closeSet(match: LiveScoreState): LiveScoreState {
   };
   return {
     ...closed,
-    sidesSwapped: !match.sidesSwapped,
+    sidesSwapped: sidesChangeAfterSet(match.rules.format, currentSet(match)) ? !match.sidesSwapped : match.sidesSwapped,
     sideChangeDone: false,
     servingTeam: first,
     setFirstServer: first,

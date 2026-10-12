@@ -215,8 +215,12 @@ test("schermo largo: i punti ai lati del campo, il tabellone sopra, le azioni so
   expect(shrunk.y + shrunk.height).toBeLessThanOrEqual(shrunkBoard.y + shrunkBoard.height + 1);
   await expectThreeColumns(page);
 
-  // Chiuso il set i campi si invertono: la colonna di sinistra è quella dell'altra squadra, come il campo e il tabellone.
+  // Chiuso il 1° set le squadre restano dove sono (si cambia campo ogni 2 set): le colonne non cambiano.
   await page.locator("[data-livescore-close-set]").click();
+  await expect(left.getByRole("button", { name: new RegExp(`^Punto ${LIGNANO}`) })).toBeVisible();
+  await expect(right.getByRole("button", { name: new RegExp(`^Punto ${OPPONENT}`) })).toBeVisible();
+  // «Inverti» scambia i lati a mano: la colonna di sinistra diventa quella dell'altra squadra, come il campo e il tabellone.
+  await page.getByRole("button", { name: "Inverti", exact: true }).click();
   await expect(left.getByRole("button", { name: new RegExp(`^Punto ${OPPONENT}`) })).toBeVisible();
   await expect(right.getByRole("button", { name: new RegExp(`^Punto ${LIGNANO}`) })).toBeVisible();
   // La freccia ← segna per la squadra che sta a sinistra (adesso l'avversaria).

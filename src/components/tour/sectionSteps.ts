@@ -175,7 +175,7 @@ export const LIVESCORE_INGAME_TOUR_STEPS: BaseTourStep[] = [
     path: "/admin/livescore",
     target: "section-livescore-toolbar",
     title: "Le azioni della partita",
-    body: "A fine set (di norma 25 punti con due di scarto, il decisivo a 15) compare la scheda «Chiudi il set»: un tocco e il tabellone cambia campo, rimette le formazioni di partenza e passa la battuta all'altra squadra (nel set decisivo la scegli tu, e a 8 punti ti avvisa del cambio campo). \"Annulla\" torna indietro di un'azione, \"Inverti\" scambia i lati, \"Nuovo\" ricomincia da capo.",
+    body: "A fine set (di norma 25 punti con due di scarto, il decisivo a 15) compare la scheda «Chiudi il set»: un tocco e il tabellone rimette le formazioni di partenza e passa la battuta all'altra squadra; i campi si cambiano ogni 2 set (dopo il 2°). Nel set decisivo campo e battuta si sorteggiano, e a 8 punti ti avvisa del cambio campo. \"Annulla\" torna indietro di un'azione, \"Inverti\" scambia i lati, \"Nuovo\" ricomincia da capo.",
   },
   {
     id: "section-livescore-substitution",
