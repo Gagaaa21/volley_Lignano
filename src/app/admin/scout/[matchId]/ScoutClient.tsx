@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -10,6 +10,8 @@ import {
   CloudOff,
   Flag,
   Loader2,
+  Maximize2,
+  Minimize2,
   Radio,
   RotateCcw,
   Settings2,
@@ -18,6 +20,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useStageFullscreen } from "@/app/admin/livescore/useStageFullscreen";
 import { ScoutBoard } from "@/components/scout/ScoutBoard";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutMatchTourSteps } from "@/components/tour/scoutSteps";
@@ -31,6 +34,7 @@ import { cn } from "@/lib/cn";
 import { defaultNextServer, deriveScout, isMatchDecided, setTarget, suggestedSetEnd, type ScoutSet, type ScoutView } from "@/lib/scout/derive";
 import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
@@ -251,6 +255,13 @@ export function ScoutClient({
   // Finché la partita è in corso lo schermo non si spegne.
   useWakeLock(!locked);
 
+  // Schermo intero: il riquadro ricopre tutta la finestra (vedi useStageFullscreen) e, su schermi larghi,
+  // si divide in due colonne: tabellone, campo e inserimento a sinistra, registro sempre visibile a destra.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, isSimulated, toggle: toggleFullscreen } = useStageFullscreen(stageRef);
+  const wide = useMediaQuery("(min-width: 1024px)");
+  const twoColumns = isFullscreen && wide;
+
   // Si è già giocato? Una formazione o un cambio scritti prima del primo punto non contano: la preparazione resta aperta.
   const hasPlay = data.events.some((event) => event.type === "rally" || event.type === "touch" || event.type === "setEnd");
   const [setupOpen, setSetupOpen] = useState(!hasPlay);
@@ -301,221 +312,286 @@ export function ScoutClient({
   }
 
   const setup = <ScoutSetup data={data} view={view} athletes={athletes} savedLineups={savedLineups} dispatch={dispatch} />;
+  const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      {/* Intestazione compatta: durante la partita ogni riga in meno è un tocco in meno di scorrimento. */}
-      <header className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <Link
-            href="/admin/scout"
-            className="-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Scout
-          </Link>
-          <div className="flex items-center gap-1.5">
-            {data.settings.publicLive && (
-              <Badge tone="danger" className="px-2.5 py-1" title="Il punteggio è visibile a tutti sul sito" data-scout-live-badge>
-                <Radio className="h-3.5 w-3.5" />
-                Live sul sito
-              </Badge>
-            )}
-            <SyncBadge status={status} onRetry={retryNow} />
-            <a
-              href="/api/scout/manuale"
-              download
-              className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "rounded-full" })}
-              aria-label="Scarica il manuale d'uso dello Scout (PDF)"
-              title="Manuale d'uso (PDF)"
-              data-tour="scout-manual"
-              data-scout-manual
+    <div
+      ref={stageRef}
+      data-scout-stage
+      className={cn(
+        "w-full",
+        !isFullscreen && "mx-auto max-w-3xl",
+        isFullscreen && "overflow-hidden bg-gradient-to-br from-primary-soft via-background to-accent p-2 sm:p-3",
+        // Schermo intero vero: lo riempie il browser. Simulato: il riquadro ricopre la finestra.
+        isFullscreen && !isSimulated && "h-screen w-screen",
+        isSimulated && "fixed inset-0 z-40",
+      )}
+    >
+      <div className={cn(isFullscreen ? "mx-auto flex h-full w-full max-w-[1800px] flex-col gap-3" : "flex flex-col gap-5")}>
+        {/* Intestazione compatta: durante la partita ogni riga in meno è un tocco in meno di scorrimento. */}
+        <header className={cn("space-y-2", isFullscreen && "sm:flex sm:items-center sm:gap-3 sm:space-y-0")}>
+          <div className={cn("flex items-center justify-between gap-3", isFullscreen && "sm:contents")}>
+            <Link
+              href="/admin/scout"
+              className={cn(
+                "-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground",
+                isFullscreen && "sm:order-1",
+              )}
             >
-              <BookOpen className="h-[18px] w-[18px]" />
-            </a>
-            <SectionTour steps={tourSteps} autoStart={autoGuide} />
+              <ArrowLeft className="h-4 w-4" />
+              Scout
+            </Link>
+            <div className={cn("flex items-center gap-1.5", isFullscreen && "sm:order-4 sm:ml-auto")}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleFullscreen}
+                aria-pressed={isFullscreen}
+                aria-label={isFullscreen ? "Esci da schermo intero" : "Schermo intero"}
+                title={
+                  isFullscreen
+                    ? "Torna alla pagina normale (anche con Esc)"
+                    : "Tutto lo Scout a schermo intero: su tablet e computer, i punti da una parte e il registro dall'altra"
+                }
+                data-scout-fullscreen
+                data-tour="scout-fullscreen"
+              >
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                <span className="hidden sm:inline">{isFullscreen ? "Esci" : "Schermo intero"}</span>
+              </Button>
+              {data.settings.publicLive && (
+                <Badge tone="danger" className="px-2.5 py-1" title="Il punteggio è visibile a tutti sul sito" data-scout-live-badge>
+                  <Radio className="h-3.5 w-3.5" />
+                  Live sul sito
+                </Badge>
+              )}
+              <SyncBadge status={status} onRetry={retryNow} />
+              <a
+                href="/api/scout/manuale"
+                download
+                className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "rounded-full" })}
+                aria-label="Scarica il manuale d'uso dello Scout (PDF)"
+                title="Manuale d'uso (PDF)"
+                data-tour="scout-manual"
+                data-scout-manual
+              >
+                <BookOpen className="h-[18px] w-[18px]" />
+              </a>
+              <SectionTour steps={tourSteps} autoStart={autoGuide} />
+            </div>
           </div>
-        </div>
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="display-wide line-clamp-2 text-[1.5rem] leading-[1.1] text-foreground sm:text-[2rem]">{match.title}</h1>
-            <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
-              {match.dateLabel} · {match.time}
-              {match.categoryLabel ? ` · ${match.categoryLabel}` : ""}
-              {match.isFriendly ? " · Amichevole" : ""} · {match.location}
-              <span data-scout-level-label={level}> · Livello {LEVEL_META[level].label}</span>
-            </p>
-          </div>
-          <LinkButton href={`/admin/scout/${match.id}/tabellino`} variant="outline" size="sm" className="shrink-0" data-scout-tabellino-link data-tour="scout-tabellino">
-            <ChartNoAxesColumn className="h-4 w-4" />
-            Tabellino
-          </LinkButton>
-        </div>
-      </header>
-
-      {(status === "offline" || status === "denied" || status === "error") && (
-        <div
-          role="status"
-          className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground"
-          data-scout-sync-message
-        >
-          <CloudOff className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-          <p>
-            {status === "offline"
-              ? "Non riesco a collegarmi. Continua pure a segnare: i punti restano su questo dispositivo e partono da soli appena torna la rete."
-              : message}
-          </p>
-        </div>
-      )}
-
-      <div data-tour="section-scout-board">
-        <ScoutBoard view={view} settings={data.settings} finished={data.finished} />
-      </div>
-
-      {view.decided && (
-        <Card className="border-success/30 bg-success-soft/50" data-scout-over data-tour="scout-over">
-          <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 sm:pt-5">
-            <p className="font-display text-base font-bold text-foreground">
-              Partita finita {view.setsWon.us}–{view.setsWon.opp} {view.setsWon.us > view.setsWon.opp ? "per noi" : "per loro"}.
-            </p>
-            <LinkButton href={`/admin/scout/${match.id}/tabellino`} size="sm">
+          <div className={cn("flex items-end justify-between gap-3", isFullscreen && "sm:contents")}>
+            <div className={cn("min-w-0", isFullscreen && "sm:order-2 sm:flex-1")}>
+              <h1
+                className={cn(
+                  "display-wide line-clamp-2 text-[1.5rem] leading-[1.1] text-foreground sm:text-[2rem]",
+                  isFullscreen && "sm:line-clamp-1 sm:text-[1.5rem]",
+                )}
+              >
+                {match.title}
+              </h1>
+              <p className={cn("mt-1 text-[13px] leading-snug text-muted-foreground", isFullscreen && "sm:mt-0.5 sm:truncate")}>
+                {match.dateLabel} · {match.time}
+                {match.categoryLabel ? ` · ${match.categoryLabel}` : ""}
+                {match.isFriendly ? " · Amichevole" : ""} · {match.location}
+                <span data-scout-level-label={level}> · Livello {LEVEL_META[level].label}</span>
+              </p>
+            </div>
+            <LinkButton
+              href={`/admin/scout/${match.id}/tabellino`}
+              variant="outline"
+              size="sm"
+              className={cn("shrink-0", isFullscreen && "sm:order-3")}
+              data-scout-tabellino-link
+              data-tour="scout-tabellino"
+            >
               <ChartNoAxesColumn className="h-4 w-4" />
-              Apri il tabellino
+              Tabellino
             </LinkButton>
-          </CardBody>
-        </Card>
-      )}
-
-      {!view.decided && data.finished && (
-        <Card data-scout-over data-tour="scout-over">
-          <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 sm:pt-5">
-            <p className="font-display text-base font-bold text-foreground">Partita chiusa a mano.</p>
-            <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reopen" })}>
-              <RotateCcw className="h-4 w-4" />
-              Riapri
-            </Button>
-          </CardBody>
-        </Card>
-      )}
-
-      {!locked && suggestion && <SetEndPanel view={view} data={data} forced={false} onConfirm={closeSet} />}
-      {canForceClose && closingSet && (
-        <SetEndPanel view={view} data={data} forced onConfirm={closeSet} onCancel={() => setClosingSet(false)} />
-      )}
-
-      {inlineSetup && (
-        <section aria-label="Prima di cominciare" className="space-y-4" data-tour="section-scout-setup">
-          <div>
-            <h2 className="font-display text-lg font-bold text-foreground">Prima di cominciare</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Scegli chi gioca e le regole della gara. Si può cambiare anche dopo.</p>
           </div>
-          {setup}
-          <Button onClick={() => setSetupOpen(false)} data-scout-start data-tour="scout-start">
-            Comincia a segnare i punti
-          </Button>
-        </section>
-      )}
+        </header>
 
-      {!inlineSetup && (
-        <>
-          <div data-tour="section-scout-entry" className="space-y-3">
-            <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} />
-            {level === "completo" ? (
-              <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} />
-            ) : (
+        {(status === "offline" || status === "denied" || status === "error") && (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground"
+            data-scout-sync-message
+          >
+            <CloudOff className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <p>
+              {status === "offline"
+                ? "Non riesco a collegarmi. Continua pure a segnare: i punti restano su questo dispositivo e partono da soli appena torna la rete."
+                : message}
+            </p>
+          </div>
+        )}
+
+        {/* Sul telefono e fuori dallo schermo intero è una sola colonna (le fasce sono «contents»); a schermo intero e su
+         * schermi larghi diventano due colonne che scorrono per conto loro. */}
+        <div
+          className={cn(
+            isFullscreen ? "grid min-h-0 flex-1 content-start gap-4 overflow-y-auto lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden" : "contents",
+          )}
+          data-scout-columns={isFullscreen ? "fullscreen" : undefined}
+        >
+          <div className={cn(isFullscreen ? "flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1" : "contents")} data-scout-main-pane>
+            <div data-tour="section-scout-board">
+              <ScoutBoard view={view} settings={data.settings} finished={data.finished} />
+            </div>
+
+            {view.decided && (
+              <Card className="border-success/30 bg-success-soft/50" data-scout-over data-tour="scout-over">
+                <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 sm:pt-5">
+                  <p className="font-display text-base font-bold text-foreground">
+                    Partita finita {view.setsWon.us}–{view.setsWon.opp} {view.setsWon.us > view.setsWon.opp ? "per noi" : "per loro"}.
+                  </p>
+                  <LinkButton href={`/admin/scout/${match.id}/tabellino`} size="sm">
+                    <ChartNoAxesColumn className="h-4 w-4" />
+                    Apri il tabellino
+                  </LinkButton>
+                </CardBody>
+              </Card>
+            )}
+
+            {!view.decided && data.finished && (
+              <Card data-scout-over data-tour="scout-over">
+                <CardBody className="flex flex-wrap items-center justify-between gap-3 pt-4 sm:pt-5">
+                  <p className="font-display text-base font-bold text-foreground">Partita chiusa a mano.</p>
+                  <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reopen" })}>
+                    <RotateCcw className="h-4 w-4" />
+                    Riapri
+                  </Button>
+                </CardBody>
+              </Card>
+            )}
+
+            {!locked && suggestion && <SetEndPanel view={view} data={data} forced={false} onConfirm={closeSet} />}
+            {canForceClose && closingSet && (
+              <SetEndPanel view={view} data={data} forced onConfirm={closeSet} onCancel={() => setClosingSet(false)} />
+            )}
+
+            {inlineSetup && (
+              <section aria-label="Prima di cominciare" className="space-y-4" data-tour="section-scout-setup">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-foreground">Prima di cominciare</h2>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Scegli chi gioca e le regole della gara. Si può cambiare anche dopo.</p>
+                </div>
+                {setup}
+                <Button onClick={() => setSetupOpen(false)} data-scout-start data-tour="scout-start">
+                  Comincia a segnare i punti
+                </Button>
+              </section>
+            )}
+
+            {!inlineSetup && (
               <>
-                {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} />}
-                <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} />
+                <div data-tour="section-scout-entry" className="space-y-3">
+                  {!twoColumns && courtStrip}
+                  {level === "completo" ? (
+                    <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} />
+                  ) : (
+                    <>
+                      {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} />}
+                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} />
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-3" data-scout-last data-tour="scout-last">
+                  <div className="min-w-0 flex-1 pt-1.5 text-sm leading-snug">
+                    {lastRally && lastText ? (
+                      <p className="line-clamp-2 text-muted-foreground">
+                        Ultimo:{" "}
+                        <b className="tabular text-foreground">
+                          {lastRally.score.us}–{lastRally.score.opp}
+                        </b>{" "}
+                        · punto {lastText.winner === "us" ? "nostro" : "loro"} · {lastText.label}
+                        {lastRally.player ? ` · ${lastText.who}` : ""}
+                      </p>
+                    ) : lastPending ? (
+                      <p className="line-clamp-2 text-muted-foreground" data-scout-last-touch>
+                        Ultimo tocco: {touchLabel(lastPending, data.roster)}
+                      </p>
+                    ) : lastEvent?.type === "lineup" ? (
+                      <p className="text-muted-foreground">Ultimo: formazione {lastEvent.side === "us" ? "nostra" : "loro"}</p>
+                    ) : lastEvent?.type === "sub" ? (
+                      <p className="text-muted-foreground">Ultimo: cambio {lastEvent.side === "us" ? "nostro" : "loro"}</p>
+                    ) : lastEvent ? (
+                      <p className="text-muted-foreground">Ultimo: fine del set</p>
+                    ) : (
+                      <p className="text-muted-foreground">Nessun punto ancora.</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => dispatch({ type: "undo" })}
+                    disabled={data.events.length === 0 && !data.finished}
+                    className="shrink-0"
+                    data-scout-undo
+                  >
+                    <Undo2 className="h-4 w-4" />
+                    Annulla ultimo
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2" data-tour="section-scout-tools">
+                  <Button variant="outline" size="xs" onClick={() => setSetupOpen(true)} data-scout-open-setup>
+                    <Settings2 className="h-3.5 w-3.5" />
+                    Squadre e regole
+                  </Button>
+                  {!followsLineup && !locked && (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setSetupOpen(true)}
+                      title="Segna chi gioca nelle sei posizioni e la libero: rotazioni e cambi si seguono da soli"
+                      data-scout-follow-lineup
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      Segui la formazione
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    aria-pressed={data.settings.publicLive}
+                    onClick={() => dispatch({ type: "settings", patch: { publicLive: !data.settings.publicLive } })}
+                    title="Mostra o nascondi il punteggio sul sito pubblico (solo punti e set, mai nomi)"
+                    data-scout-live-toggle
+                    data-tour="scout-live-toggle"
+                  >
+                    <Radio className="h-3.5 w-3.5" />
+                    {data.settings.publicLive ? "Spegni il live sul sito" : "Punteggio live sul sito"}
+                  </Button>
+                  {canForceClose && !closingSet && (
+                    <Button variant="outline" size="xs" onClick={() => setClosingSet(true)}>
+                      <Flag className="h-3.5 w-3.5" />
+                      Chiudi il set adesso
+                    </Button>
+                  )}
+                  {!locked && hasRallies && (
+                    <Button variant="outline" size="xs" onClick={finish}>
+                      Chiudi la partita
+                    </Button>
+                  )}
+                </div>
+
               </>
             )}
           </div>
 
-          <div className="flex items-start gap-3" data-scout-last data-tour="scout-last">
-            <div className="min-w-0 flex-1 pt-1.5 text-sm leading-snug">
-              {lastRally && lastText ? (
-                <p className="line-clamp-2 text-muted-foreground">
-                  Ultimo:{" "}
-                  <b className="tabular text-foreground">
-                    {lastRally.score.us}–{lastRally.score.opp}
-                  </b>{" "}
-                  · punto {lastText.winner === "us" ? "nostro" : "loro"} · {lastText.label}
-                  {lastRally.player ? ` · ${lastText.who}` : ""}
-                </p>
-              ) : lastPending ? (
-                <p className="line-clamp-2 text-muted-foreground" data-scout-last-touch>
-                  Ultimo tocco: {touchLabel(lastPending, data.roster)}
-                </p>
-              ) : lastEvent?.type === "lineup" ? (
-                <p className="text-muted-foreground">Ultimo: formazione {lastEvent.side === "us" ? "nostra" : "loro"}</p>
-              ) : lastEvent?.type === "sub" ? (
-                <p className="text-muted-foreground">Ultimo: cambio {lastEvent.side === "us" ? "nostro" : "loro"}</p>
-              ) : lastEvent ? (
-                <p className="text-muted-foreground">Ultimo: fine del set</p>
-              ) : (
-                <p className="text-muted-foreground">Nessun punto ancora.</p>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => dispatch({ type: "undo" })}
-              disabled={data.events.length === 0 && !data.finished}
-              className="shrink-0"
-              data-scout-undo
-            >
-              <Undo2 className="h-4 w-4" />
-              Annulla ultimo
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap gap-2" data-tour="section-scout-tools">
-            <Button variant="outline" size="xs" onClick={() => setSetupOpen(true)} data-scout-open-setup>
-              <Settings2 className="h-3.5 w-3.5" />
-              Squadre e regole
-            </Button>
-            {!followsLineup && !locked && (
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => setSetupOpen(true)}
-                title="Segna chi gioca nelle sei posizioni e la libero: rotazioni e cambi si seguono da soli"
-                data-scout-follow-lineup
-              >
-                <Users className="h-3.5 w-3.5" />
-                Segui la formazione
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="xs"
-              aria-pressed={data.settings.publicLive}
-              onClick={() => dispatch({ type: "settings", patch: { publicLive: !data.settings.publicLive } })}
-              title="Mostra o nascondi il punteggio sul sito pubblico (solo punti e set, mai nomi)"
-              data-scout-live-toggle
-              data-tour="scout-live-toggle"
-            >
-              <Radio className="h-3.5 w-3.5" />
-              {data.settings.publicLive ? "Spegni il live sul sito" : "Punteggio live sul sito"}
-            </Button>
-            {canForceClose && !closingSet && (
-              <Button variant="outline" size="xs" onClick={() => setClosingSet(true)}>
-                <Flag className="h-3.5 w-3.5" />
-                Chiudi il set adesso
-              </Button>
-            )}
-            {!locked && hasRallies && (
-              <Button variant="outline" size="xs" onClick={finish}>
-                Chiudi la partita
-              </Button>
+          <div className={cn(isFullscreen ? "space-y-4 lg:min-h-0 lg:overflow-y-auto" : "contents")} data-scout-log-pane>
+            {!inlineSetup && twoColumns && courtStrip}
+            {!inlineSetup && (
+              <section aria-label="Registro degli scambi" data-tour="section-scout-log">
+                <h2 className="mb-2.5 font-display text-lg font-bold text-foreground">Registro</h2>
+                <ScoutLog view={view} roster={data.roster} level={level} dispatch={dispatch} />
+              </section>
             )}
           </div>
-
-          <section aria-label="Registro degli scambi" data-tour="section-scout-log">
-            <h2 className="mb-2.5 font-display text-lg font-bold text-foreground">Registro</h2>
-            <ScoutLog view={view} roster={data.roster} level={level} dispatch={dispatch} />
-          </section>
-        </>
-      )}
+        </div>
+      </div>
 
       {setupOpen && hasPlay && (
         <div

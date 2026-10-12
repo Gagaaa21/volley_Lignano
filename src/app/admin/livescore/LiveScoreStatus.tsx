@@ -173,12 +173,12 @@ export function SetEndCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onUndo}>
-            <Undo2 className="h-3.5 w-3.5" />
+          <Button variant="outline" onClick={onUndo} className="border-2">
+            <Undo2 className="h-4 w-4" />
             Annulla ultimo punto
           </Button>
-          <Button onClick={onClose} data-livescore-close-set>
-            <Flag className="h-4 w-4" />
+          <Button size="lg" onClick={onClose} data-livescore-close-set className="min-w-40 text-base">
+            <Flag className="h-5 w-5" />
             Chiudi il set
           </Button>
         </div>
@@ -197,8 +197,8 @@ export function SideChangeCard({ match, onChange }: { match: LiveScoreState; onC
           <ArrowLeftRight className="h-4 w-4 shrink-0" />
           Cambio campo: nel set decisivo si cambia quando una squadra arriva a 8 punti.
         </p>
-        <Button size="sm" onClick={onChange}>
-          <ArrowLeftRight className="h-3.5 w-3.5" />
+        <Button size="lg" onClick={onChange} className="text-base">
+          <ArrowLeftRight className="h-5 w-5" />
           Cambia campo
         </Button>
       </div>
@@ -268,12 +268,12 @@ export function SetStartCard({
                   aria-pressed={selected}
                   data-livescore-first-server={key}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-semibold transition-colors",
+                    "inline-flex min-h-11 items-center gap-2 rounded-xl border-2 px-4 py-2 text-[15px] font-bold transition-colors",
                     selected
                       ? "border-primary bg-primary/10 text-primary"
                       : toss
-                        ? "border-amber-600/50 bg-white text-foreground hover:bg-amber-100"
-                        : "border-border-subtle text-foreground/70 hover:bg-muted",
+                        ? "border-amber-600/60 bg-white text-foreground hover:bg-amber-100"
+                        : "border-border-strong/70 text-foreground/80 hover:bg-muted",
                   )}
                 >
                   <TeamDot match={match} teamKey={key} />
@@ -282,12 +282,12 @@ export function SetStartCard({
               );
             })}
           </div>
-          <Button variant="outline" size="sm" onClick={onToggleLineups} data-livescore-check-lineups>
-            <Pencil className="h-3.5 w-3.5" />
+          <Button variant="outline" onClick={onToggleLineups} data-livescore-check-lineups className="border-2">
+            <Pencil className="h-4 w-4" />
             {editingLineups ? "Fatto" : "Controlla formazioni"}
           </Button>
           {savedLineup && (
-            <Button variant="outline" size="sm" onClick={savedLineup.onUse} data-livescore-use-saved>
+            <Button variant="outline" onClick={savedLineup.onUse} data-livescore-use-saved className="border-2">
               {savedLineup.label}
             </Button>
           )}

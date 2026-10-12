@@ -187,6 +187,16 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     body: "Questo pulsante scarica il manuale d'uso dello Scout, con le schermate commentate e uno schema da tenere a bordo campo.",
   };
 
+  const fullscreen: BaseTourStep = {
+    id: "scout-fullscreen",
+    path,
+    target: "scout-fullscreen",
+    chapter: C_FIX,
+    title: "Schermo intero",
+    body: "Mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra il tabellone e i pulsanti per segnare, a destra chi è in campo e il registro, sempre sotto gli occhi.\n\nSi esce con «Esci» o con il tasto Esc.",
+    tip: "Comodo a bordo campo con il tablet in orizzontale: non devi più scorrere la pagina per vedere gli ultimi punti.",
+  };
+
   if (context.setup) {
     return [
       {
@@ -280,6 +290,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       },
       sync,
       manual,
+      fullscreen,
     ];
   }
 
@@ -536,7 +547,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     example: "Hai segnato un ace della n. 7 ma era della n. 9: matita sulla riga, scegli «n. 9», «Salva».",
   });
 
-  steps.push(sync, tabellino, manual);
+  steps.push(sync, tabellino, manual, fullscreen);
 
   if (!locked) {
     steps.push({

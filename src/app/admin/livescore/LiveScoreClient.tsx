@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } 
 import {
   ArrowLeftRight,
   ExternalLink,
+  Flag,
   Maximize2,
   Minimize2,
   Pencil,
@@ -129,8 +130,18 @@ function savedLineupFor(
  * squadre resta ai soli pallini colorati (TeamAccent.dot). */
 const SOFT_PILL = "bg-surface-muted text-foreground";
 
+/** Il pulsante dei punti è un tasto vero: spesso, con il bordo scuro in basso che si schiaccia al tocco. */
 const POINT_BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-bold uppercase tracking-wide shadow-sm transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring";
+  "relative inline-flex items-center justify-center gap-2.5 rounded-2xl border-b-[6px] border-black/25 px-3 text-center font-extrabold uppercase leading-tight tracking-wide shadow-md transition-[transform,border-width] duration-100 active:translate-y-[4px] active:border-b-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-ring";
+
+/** Pulsanti della barra delle azioni: tassello con l'icona sopra su telefono, pulsante con l'icona accanto da tablet. */
+const TOOL_BUTTON =
+  "h-14 flex-col gap-1 whitespace-normal border-2 px-1 text-center text-[11px] leading-tight sm:h-11 sm:flex-row sm:gap-2 sm:whitespace-nowrap sm:px-4 sm:text-sm";
+const TOOL_ICON = "h-5 w-5 sm:h-4 sm:w-4";
+
+/** Time-out e cambi nel blocco della squadra: pulsanti veri (etichetta, bordo, tocco comodo), non più piccole pillole. */
+const TEAM_ACTION =
+  "inline-flex min-h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg border-2 border-current/35 px-1 text-[10px] font-semibold transition-colors hover:border-current/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current sm:gap-1.5 sm:px-2 sm:text-xs";
 
 const LIVESCORE_API = "/api/livescore";
 /** Ultimo formato scelto su questo dispositivo (tipo, formazione, giocatrici,
@@ -637,7 +648,7 @@ function TeamBlock({
     <div
       className={cn(
         "relative flex shrink-0 flex-col items-center justify-center gap-1.5",
-        large ? "w-32 py-2.5 sm:w-52 sm:py-3.5 md:w-64" : "w-28 py-1.5 sm:w-36 sm:py-2",
+        large ? "w-32 py-2.5 sm:w-52 sm:py-3.5 md:w-64" : "w-28 py-2 sm:w-40 sm:py-2.5",
       )}
       style={{ background: accent.background, color: accent.text }}
     >
@@ -662,19 +673,22 @@ function TeamBlock({
           {team.label}
         </p>
       )}
-      <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-1 sm:gap-x-2">
-        <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-wide sm:text-[10px]" style={{ color: accent.textSoft }}>
-          Set <b className="font-bold" style={{ color: accent.text }}>{team.setsWon}</b>
+      <div className="flex w-full flex-col items-stretch gap-1 px-2 sm:px-3">
+        <span className="text-center text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]" style={{ color: accent.textSoft }}>
+          Set vinti <b className="text-sm font-extrabold sm:text-base" style={{ color: accent.text }}>{team.setsWon}</b>
         </span>
         <button
           type="button"
           onClick={onToggleTimeout}
           title="Segna un time-out (2 a disposizione per set)"
-          className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition-colors"
+          className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm")}
           style={timeoutMaxed ? { background: "#ffffff", color: "var(--destructive)" } : { background: accent.overlay, color: accent.text }}
         >
-          {timeoutMaxed ? <TimerOff className="h-2.5 w-2.5" /> : <Timer className="h-2.5 w-2.5" />}
-          {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+          {timeoutMaxed ? <TimerOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Timer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+          Time-out
+          <b className="tabular-nums">
+            {team.timeoutsUsed}/{MAX_TIMEOUTS_PER_SET}
+          </b>
         </button>
         {substitutions && (
           <button
@@ -682,16 +696,19 @@ function TeamBlock({
             onClick={substitutions.onClick}
             title="Cambi in questo set: tocca per una sostituzione"
             aria-label={`Sostituzione ${team.label}: ${substitutions.used} cambi in questo set`}
-            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition-colors"
+            className={cn(TEAM_ACTION, large && "sm:min-h-10 sm:text-sm")}
             style={
               substitutions.limit !== null && substitutions.used >= substitutions.limit
                 ? { background: "#ffffff", color: "var(--destructive)" }
                 : { background: accent.overlay, color: accent.text }
             }
           >
-            <ArrowLeftRight className="h-2.5 w-2.5" />
-            {substitutions.used}
-            {substitutions.limit !== null && `/${substitutions.limit}`}
+            <ArrowLeftRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            Cambi
+            <b className="tabular-nums">
+              {substitutions.used}
+              {substitutions.limit !== null && `/${substitutions.limit}`}
+            </b>
           </button>
         )}
       </div>
@@ -729,7 +746,7 @@ function CenterDisplay({
 }) {
   const scoreClass = cn(
     "animate-[livescore-score-pop_320ms_ease-out] font-[family-name:var(--font-display-minivolley)] font-extrabold leading-none tabular-nums text-white",
-    huge ? "text-6xl sm:text-8xl" : large ? "text-4xl sm:text-6xl" : "text-2xl sm:text-3xl",
+    huge ? "text-6xl sm:text-8xl" : large ? "text-4xl sm:text-6xl" : "text-3xl sm:text-5xl",
   );
   return (
     <div className="flex flex-1 items-center bg-sea-950" data-livescore-scores>
@@ -1379,6 +1396,7 @@ export function LiveScoreClient({
               >
                 In campo
               </h1>
+              <SectionTour steps={LIVESCORE_INGAME_TOUR_STEPS} />
               {/* Niente min-w-0: se lo spazio non basta, la riga va a capo
                * invece di far scivolare lo storico sopra il titolo. */}
               <div className="flex flex-1 justify-center">
@@ -1389,54 +1407,67 @@ export function LiveScoreClient({
                   opponentColor={match.opponentColor}
                 />
               </div>
-              <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0" data-tour="section-livescore-toolbar">
+              {/* Azioni della partita: su telefono tasselli (icona sopra, etichetta sotto) in due righe da quattro;
+               * da tablet pulsanti in fila, con il bordo e il colore che ne dicono l'uso: «Annulla» in evidenza,
+               * «Cambio» azzurro, «Nuovo» rosso (cancella la partita). */}
+              <div
+                className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:max-w-full sm:shrink-0 sm:flex-wrap sm:items-center sm:gap-2"
+                data-tour="section-livescore-toolbar"
+              >
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => dispatch({ type: "closeSet" })}
-                  disabled={tied}
-                  title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
+                  variant="secondary"
+                  className={cn(TOOL_BUTTON, "border-sand-500")}
+                  onClick={() => dispatch({ type: "undo" })}
+                  disabled={state.history.length === 0}
+                  title="Toglie l'ultima azione (un punto, un cambio, la chiusura di un set)"
                 >
-                  Chiudi set
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "undo" })} disabled={state.history.length === 0}>
-                  <Undo2 className="h-3.5 w-3.5" />
+                  <Undo2 className={TOOL_ICON} />
                   Annulla
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => dispatch({ type: "toggleSides" })}>
-                  <Repeat className="h-3.5 w-3.5" />
-                  Inverti
                 </Button>
                 {match.withLineup && (
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant="soft"
+                    className={cn(TOOL_BUTTON, "border-primary/35")}
                     onClick={() => {
                       setEditingNames(false);
                       setSubstitution({ team: "A", position: null });
                     }}
                     data-tour="section-livescore-substitution"
                   >
-                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    <ArrowLeftRight className={TOOL_ICON} />
                     Cambio
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  className={TOOL_BUTTON}
+                  onClick={() => dispatch({ type: "closeSet" })}
+                  disabled={tied}
+                  title={tied ? "Punteggio pari: continua a giocare prima di chiudere il set." : undefined}
+                >
+                  <Flag className={TOOL_ICON} />
+                  Chiudi set
+                </Button>
+                <Button variant="outline" className={TOOL_BUTTON} onClick={() => dispatch({ type: "toggleSides" })} title="Scambia i due lati del campo">
+                  <Repeat className={TOOL_ICON} />
+                  Inverti
+                </Button>
                 {match.withLineup && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    className={TOOL_BUTTON}
                     onClick={() => setEditingNames((v) => !v)}
                     data-tour="section-livescore-formations"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className={TOOL_ICON} />
                     {editingNames ? "Fatto" : "Formazioni"}
                   </Button>
                 )}
                 {match.mode === "match" && (
-                  <span className="inline-flex items-center gap-0.5" data-tour="section-livescore-public">
+                  <span className="flex items-stretch gap-0.5 sm:inline-flex" data-tour="section-livescore-public">
                     <Button
                       variant={match.publicLive ? "danger" : "outline"}
-                      size="sm"
+                      className={cn(TOOL_BUTTON, "min-w-0 flex-1", match.publicLive && "border-destructive-strong")}
                       onClick={togglePublicLive}
                       aria-pressed={match.publicLive}
                       data-livescore-public-toggle
@@ -1448,7 +1479,7 @@ export function LiveScoreClient({
                     >
                       <span
                         className={cn(
-                          "h-2 w-2 rounded-full",
+                          "h-2.5 w-2.5 rounded-full",
                           match.publicLive ? "animate-pulse bg-white" : "bg-muted-foreground/50",
                         )}
                       />
@@ -1461,27 +1492,31 @@ export function LiveScoreClient({
                         rel="noreferrer"
                         title="Apri il sito pubblico"
                         aria-label="Apri il sito pubblico"
-                        className={buttonVariants({ variant: "quiet", size: "icon-sm" })}
+                        className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "self-center" })}
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     )}
                   </span>
                 )}
-                <Button variant="ghost" size="sm" onClick={handleNewMatch}>
-                  <RefreshCw className="h-3.5 w-3.5" />
+                <Button
+                  variant="outline"
+                  className={cn(TOOL_BUTTON, "border-destructive/40 text-destructive hover:border-destructive/70 hover:bg-destructive/8")}
+                  onClick={handleNewMatch}
+                  title="Cancella questa partita e ricomincia da capo"
+                >
+                  <RefreshCw className={TOOL_ICON} />
                   Nuovo
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  className={TOOL_BUTTON}
                   onClick={toggleFullscreen}
                   data-tour="section-livescore-fullscreen"
                 >
-                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                  {isFullscreen ? <Minimize2 className={TOOL_ICON} /> : <Maximize2 className={TOOL_ICON} />}
                   {isFullscreen ? "Esci" : "Schermo intero"}
                 </Button>
-                <SectionTour steps={LIVESCORE_INGAME_TOUR_STEPS} />
               </div>
             </div>
 
@@ -1597,11 +1632,11 @@ export function LiveScoreClient({
               className={cn(
                 "grid shrink-0 grid-cols-2 gap-2.5 sm:gap-3.5",
                 // Senza formazione i due pulsanti prendono il posto del campo.
-                match.withLineup ? (isFullscreen ? "h-14 sm:h-16" : "h-16") : isFullscreen ? "min-h-24 flex-1" : "h-36",
+                match.withLineup ? (isFullscreen ? "h-[4.75rem] sm:h-24" : "h-[5.25rem] sm:h-24") : isFullscreen ? "min-h-28 flex-1" : "h-40",
               )}
               data-tour="section-livescore-score"
             >
-              {([leftKey, rightKey] as const).map((key) => {
+              {([leftKey, rightKey] as const).map((key, index) => {
                 const accent = getTeamAccent(key, match.mode, match.opponentColor);
                 return (
                   <button
@@ -1611,12 +1646,32 @@ export function LiveScoreClient({
                     disabled={pointsLocked}
                     className={cn(
                       POINT_BUTTON_BASE,
-                      "disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100",
-                      !match.withLineup ? "text-lg sm:text-2xl" : "text-sm sm:text-base",
+                      "disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0 disabled:active:border-b-[6px]",
+                      !match.withLineup ? "text-xl sm:text-3xl" : "text-base sm:text-xl",
                     )}
                     style={{ background: accent.background, color: accent.text }}
                   >
-                    Punto {displayLabel(match[teamKeyProp(key)], key)}
+                    {/* Il «+1» e la freccia sono solo da vedere: il nome del pulsante resta «Punto …». */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "hidden shrink-0 place-items-center rounded-full bg-black/20 font-extrabold tabular-nums sm:grid",
+                        match.withLineup ? "h-12 w-12 text-2xl" : "h-16 w-16 text-4xl",
+                      )}
+                    >
+                      +1
+                    </span>
+                    <span className="min-w-0">Punto {displayLabel(match[teamKeyProp(key)], key)}</span>
+                    <kbd
+                      aria-hidden
+                      className={cn(
+                        "absolute top-2 hidden rounded-md bg-black/20 px-1.5 py-0.5 font-sans text-xs font-bold lg:block",
+                        index === 0 ? "left-2.5" : "right-2.5",
+                      )}
+                      title="Tasto della tastiera"
+                    >
+                      {index === 0 ? "←" : "→"}
+                    </kbd>
                   </button>
                 );
               })}

@@ -158,10 +158,10 @@ export function SubstitutionDialog({
                   }}
                   aria-pressed={position === pos}
                   className={cn(
-                    "flex min-w-0 flex-col items-start rounded-xl border px-3 py-2 text-left transition-colors",
+                    "flex min-h-16 min-w-0 flex-col items-start justify-center rounded-xl border-2 px-3 py-2 text-left transition-colors",
                     position === pos
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border-subtle text-foreground hover:bg-muted",
+                      : "border-border-strong/60 text-foreground hover:bg-muted",
                   )}
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Pos. {pos}</span>
@@ -187,10 +187,10 @@ export function SubstitutionDialog({
                   }}
                   aria-pressed={incoming === choice.value}
                   className={cn(
-                    "rounded-full border px-3 py-1 text-sm font-semibold transition-colors",
+                    "min-h-10 rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors",
                     incoming === choice.value
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border-subtle text-foreground/80 hover:bg-muted",
+                      : "border-border-strong/60 text-foreground/80 hover:bg-muted",
                   )}
                 >
                   {choice.label}
@@ -252,10 +252,10 @@ export function SubstitutionDialog({
         )}
 
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="outline" size="lg" className="border-2" onClick={onClose}>
             Annulla
           </Button>
-          <Button onClick={confirm}>
+          <Button size="lg" onClick={confirm}>
             <ArrowLeftRight className="h-4 w-4" />
             Conferma cambio
           </Button>

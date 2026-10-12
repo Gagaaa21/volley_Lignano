@@ -110,7 +110,12 @@ staff (Developer e Admin).
   rimessa com'era** (`startPositions`); avvisa del set point, del match
   point e del cambio campo a 8 nel set decisivo. Con le frecce ← e → della
   tastiera si segna il punto della squadra a sinistra o a destra, con ⌫ si
-  annulla; il formato scelto si ricorda sul dispositivo. Sostituzioni durante
+  annulla; il formato scelto si ricorda sul dispositivo. I comandi sono pensati
+  per il bordo campo: pulsanti dei punti grandi e «a tasto» (con il «+1» e il
+  tasto della tastiera), «Annulla» in evidenza, «Cambio» azzurro, «Nuovo» rosso
+  perché cancella la partita, time-out e cambi di ogni squadra con l'etichetta e
+  il conto («Time-out 0/2», «Cambi 0/6»); da telefono la barra delle azioni è
+  fatta di tasselli con l'icona sopra l'etichetta. Sostituzioni durante
   il gioco (`substitutePlayer`): contate per set, elencate in
   `substitutions`, annullabili come un punto, mai esposte alla diretta
   pubblica. Lo stato si salva in automatico per 3 ore (riga unica
@@ -184,6 +189,14 @@ staff (Developer e Admin).
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF
     (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
     `data` jsonb, e gli scout vecchi si leggono come prima.
+  - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
+    Live score: schermo intero vero dove il browser lo dà, altrimenti il
+    riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a
+    tutto schermo. Con la finestra larga (da 1024 px) si divide in due colonne
+    che scorrono per conto loro: tabellone, pulsanti per segnare e comandi a
+    sinistra, «In campo» e registro a destra (`useMediaQuery`); sul telefono resta
+    una colonna sola. Il riquadro è `data-scout-stage`, le colonne
+    `data-scout-main-pane` e `data-scout-log-pane`.
   - **Fasi di gioco**: nei livelli Con ricezioni e Completo la schermata dice
     sempre **di chi è il turno e quale fase viene adesso** (battuta,
     ricezione, alzata, attacco, muro, difesa). Il percorso della palla e il

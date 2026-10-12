@@ -1448,6 +1448,11 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "p",
         text: `No, è facoltativa e vale anche solo per una squadra. Se la scrivi, lo Scout ruota da solo, sa chi batte, ti fa scegliere «chi» tra le giocatrici in campo e tiene i cambi (${cap("formazione")}).`,
       },
+      { type: "sub", title: "Posso usare lo Scout a schermo intero?" },
+      {
+        type: "p",
+        text: "Sì: il pulsante **«Schermo intero»**, in alto, mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra il tabellone e i pulsanti per segnare, a destra chi è in campo e il registro, sempre sotto gli occhi. Si esce con **«Esci»** o con il tasto Esc.",
+      },
       { type: "sub", title: "Non capisco di chi è il turno." },
       {
         type: "p",
