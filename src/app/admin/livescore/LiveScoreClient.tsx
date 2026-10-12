@@ -1094,6 +1094,8 @@ export function LiveScoreClient({
             isFullscreen && "mx-auto flex h-full max-w-[1700px] flex-col gap-2.5",
           )}
         >
+          {/* Su iPad e iPhone la barra di stato sfoca la fascia in alto: qui non c'è niente (vedi globals.css). */}
+          {isFullscreen && <div aria-hidden className="fullscreen-inset-top" />}
           {!match.started ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">

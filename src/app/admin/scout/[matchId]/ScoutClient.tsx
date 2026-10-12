@@ -328,6 +328,8 @@ export function ScoutClient({
       )}
     >
       <div className={cn(isFullscreen ? "mx-auto flex h-full w-full max-w-[1800px] flex-col gap-3" : "flex flex-col gap-5")}>
+        {/* Su iPad e iPhone la barra di stato sfoca la fascia in alto: qui non c'è niente (vedi globals.css). */}
+        {isFullscreen && <div aria-hidden className="fullscreen-inset-top" />}
         {/* Intestazione compatta: durante la partita ogni riga in meno è un tocco in meno di scorrimento. */}
         <header className={cn("space-y-2", isFullscreen && "sm:flex sm:items-center sm:gap-3 sm:space-y-0")}>
           <div className={cn("flex items-center justify-between gap-3", isFullscreen && "sm:contents")}>

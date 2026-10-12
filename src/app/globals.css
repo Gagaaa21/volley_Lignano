@@ -508,6 +508,21 @@
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
 }
 
+/* Schermo intero (Live score, Scout) su iPad e iPhone: la barra di stato con l'ora e la batteria sfoca quello
+   che le sta sotto, e l'effetto scende per una trentina di punti nella pagina. Si lascia quindi in alto una fascia libera,
+   senza testi né pulsanti e della stessa tinta del fondo, così non c'è niente da sfocare. Altrove (computer,
+   Android) non c'è e non toglie spazio: `-webkit-touch-callout` lo riconosce solo il browser di iOS. */
+@utility fullscreen-inset-top {
+  display: none;
+  @media (pointer: coarse) {
+    @supports (-webkit-touch-callout: none) {
+      display: block;
+      flex-shrink: 0;
+      height: max(2.5rem, env(safe-area-inset-top, 0px));
+    }
+  }
+}
+
 /* Indizio visivo permanente che una striscia orizzontale si può scorrere
    oltre il bordo destro: innocuo quando il contenuto entra tutto (la
    sfumatura ricade nel padding finale ed è invisibile), utile quando non
