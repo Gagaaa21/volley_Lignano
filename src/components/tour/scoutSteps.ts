@@ -194,7 +194,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     target: "scout-fullscreen",
     chapter: C_FIX,
     title: "Schermo intero",
-    body: "Mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra i pulsanti per segnare, a destra il tabellone (sempre in alto), chi è in campo e il registro, sempre sotto gli occhi.\n\nSi esce con «Esci» o con il tasto Esc.",
+    body: "Mette lo Scout a tutto schermo, senza il menu del sito. Su tablet e computer lo schermo si divide in due: a sinistra i pulsanti per segnare, a destra il tabellone (sempre in alto), chi è in campo e il registro, sempre sotto gli occhi. I pulsanti dei punti sono grandi e occupano tutta l'altezza, il registro scorre da solo e «Annulla ultimo» resta sempre in fondo.\n\nSi esce con «Esci» o con il tasto Esc.",
     tip: "Comodo a bordo campo con il tablet in orizzontale: non devi più scorrere la pagina per vedere gli ultimi punti.",
   };
 

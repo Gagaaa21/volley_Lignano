@@ -321,7 +321,7 @@ export function ScoutClient({
       <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} compact={isFullscreen} />
     </div>
   );
-  const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} />;
+  const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} large={twoColumns} />;
 
   return (
     <div
@@ -446,7 +446,9 @@ export function ScoutClient({
           )}
           data-scout-columns={isFullscreen ? "fullscreen" : undefined}
         >
-          <div className={cn(isFullscreen ? "flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1" : "contents")} data-scout-main-pane>
+          <div className={cn(isFullscreen ? "flex flex-col gap-3 lg:min-h-0" : "contents")} data-scout-main-pane>
+            {/* A due colonne tutto scorre in quest'area tranne il piede («Annulla ultimo» e gli strumenti), sempre in fondo e in vista. */}
+            <div className={cn(twoColumns ? "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1" : "contents")} data-scout-main-scroll>
             {!twoColumns && boardEl}
 
             {view.decided && (
@@ -495,21 +497,26 @@ export function ScoutClient({
 
             {!inlineSetup && (
               <>
-                <div data-tour="section-scout-entry" className="space-y-3">
+                <div data-tour="section-scout-entry" className={cn(twoColumns ? "flex flex-1 flex-col gap-3 short:gap-2" : "space-y-3")}>
                   {!locked && ball && <ScoutBallSide ball={ball} fullscreen={isFullscreen} />}
                   {!twoColumns && courtStrip}
                   {level === "completo" ? (
-                    <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} />
+                    <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />
                   ) : (
                     <>
-                      {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} />}
+                      {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />}
                       <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} compact={twoColumns} />
                     </>
                   )}
                 </div>
+              </>
+            )}
+            </div>
 
+            {!inlineSetup && (
+              <div className={cn(twoColumns ? "shrink-0 space-y-2.5 short:space-y-2" : "contents")} data-scout-footer>
                 <div className="flex items-start gap-3" data-scout-last data-tour="scout-last">
-                  <div className="min-w-0 flex-1 pt-1.5 text-sm leading-snug">
+                  <div className={cn("min-w-0 flex-1 pt-1.5 text-sm leading-snug", twoColumns && "pt-2 text-[15px]")}>
                     {lastRally && lastText ? (
                       <p className="line-clamp-2 text-muted-foreground">
                         Ultimo:{" "}
@@ -535,7 +542,7 @@ export function ScoutClient({
                   </div>
                   <Button
                     variant="outline"
-                    size="sm"
+                    size={twoColumns ? "md" : "sm"}
                     onClick={() => dispatch({ type: "undo" })}
                     disabled={data.events.length === 0 && !data.finished}
                     className="shrink-0"
@@ -587,19 +594,25 @@ export function ScoutClient({
                     </Button>
                   )}
                 </div>
-
-              </>
+              </div>
             )}
           </div>
 
-          <div className={cn(isFullscreen ? "space-y-3 lg:min-h-0 lg:overflow-y-auto" : "contents")} data-scout-log-pane>
-            {/* A due colonne il tabellone sta qui, fisso in alto: a sinistra restano solo i comandi, tutti in vista. */}
-            {twoColumns && <div className="sticky top-0 z-20">{boardEl}</div>}
+          <div className={cn(isFullscreen ? "space-y-3 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-y-auto" : "contents")} data-scout-log-pane>
+            {/* A due colonne il tabellone sta qui, fisso in alto, con «In campo» sotto: a sinistra restano solo i comandi, tutti in vista. */}
+            {twoColumns && <div className="sticky top-0 z-20 shrink-0">{boardEl}</div>}
             {!inlineSetup && twoColumns && courtStrip}
             {!inlineSetup && (
-              <section aria-label="Registro degli scambi" data-tour="section-scout-log">
-                <h2 className="mb-2.5 font-display text-lg font-bold text-foreground">Registro</h2>
-                <ScoutLog view={view} roster={data.roster} level={level} dispatch={dispatch} />
+              <section
+                aria-label="Registro degli scambi"
+                data-tour="section-scout-log"
+                // A due colonne il registro prende tutta l'altezza che resta e scorre da solo: tabellone e «In campo» non escono mai di vista.
+                className={cn(twoColumns && "flex min-h-[15rem] flex-1 flex-col")}
+              >
+                <h2 className="mb-2.5 shrink-0 font-display text-lg font-bold text-foreground">Registro</h2>
+                <div className={cn(twoColumns && "min-h-0 flex-1 overflow-y-auto pr-1")} data-scout-log-scroll>
+                  <ScoutLog view={view} roster={data.roster} level={level} dispatch={dispatch} fill={twoColumns} />
+                </div>
               </section>
             )}
           </div>

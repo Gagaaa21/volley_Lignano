@@ -33,11 +33,14 @@ function MiniCourt({
   court,
   roster,
   serving,
+  large = false,
 }: {
   side: ScoutSide;
   court: ScoutCourt;
   roster: ScoutPlayer[];
   serving: boolean;
+  /** Celle più alte e numeri più grandi (schermo intero su schermo largo, dove c'è posto). */
+  large?: boolean;
 }) {
   return (
     <div className="grid gap-1" role="group" aria-label={side === "us" ? "Nostra squadra in campo" : "Avversaria in campo"} data-scout-court={side}>
@@ -54,14 +57,15 @@ function MiniCourt({
                 data-scout-court-position={position}
                 data-scout-court-player={id || undefined}
                 className={cn(
-                  "relative flex h-11 min-w-0 flex-col items-center justify-center rounded-lg border text-center sm:h-12",
+                  "relative flex min-w-0 flex-col items-center justify-center rounded-lg border text-center",
+                  large ? "h-[clamp(3rem,7.4vh,4.5rem)]" : "h-11 sm:h-12",
                   id ? (isLibero ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-foreground") : "border-dashed border-border-strong bg-surface-muted/50 text-muted-foreground/60",
                   isServer && "ring-2 ring-green-500 ring-offset-1 ring-offset-card",
                 )}
                 title={id ? `${playerLabel({ us: side === "us" ? roster : [], opp: side === "opp" ? roster : [] }, side, id)} · posizione ${position}${isLibero ? " (libero)" : ""}` : `Posizione ${position}: vuota`}
               >
                 <span className="absolute left-1 top-0.5 text-[9px] font-bold leading-none text-muted-foreground/70">{position}</span>
-                <span className="tabular font-display text-[17px] font-extrabold leading-none">{id ? chipText(player, side) : "–"}</span>
+                <span className={cn("tabular font-display font-extrabold leading-none", large ? "text-[clamp(17px,3vh,26px)]" : "text-[17px]")}>{id ? chipText(player, side) : "–"}</span>
                 {isLibero && <span className="absolute bottom-0.5 text-[8px] font-bold uppercase leading-none tracking-wide opacity-80">libero</span>}
                 {isServer && (
                   <span className="absolute -right-1 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-green-500 text-white shadow-sm" aria-label="Batte">
@@ -299,12 +303,15 @@ export function ScoutCourtStrip({
   locked,
   dispatch,
   onEditLineup,
+  large = false,
 }: {
   data: ScoutData;
   view: ScoutView;
   locked: boolean;
   dispatch: (action: ScoutAction) => void;
   onEditLineup: () => void;
+  /** Schermo intero su schermo largo: il campo è più grande, perché in colonna c'è posto. */
+  large?: boolean;
 }) {
   const [subSide, setSubSide] = useState<ScoutSide | null>(null);
   const sides = (["us", "opp"] as const).filter((side) => view.court[side]);
@@ -316,7 +323,7 @@ export function ScoutCourtStrip({
       aria-label="In campo"
       data-scout-court-strip
       data-tour="scout-court-strip"
-      className="space-y-2.5 rounded-2xl border border-border bg-card p-3 shadow-card sm:p-4"
+      className={cn("shrink-0 space-y-2.5 rounded-2xl border border-border bg-card p-3 shadow-card sm:p-4", large && "space-y-3")}
     >
       <header className="flex items-center justify-between gap-2">
         <h2 className="font-display text-[17px] font-extrabold leading-none tracking-[-0.01em] text-foreground">In campo</h2>
@@ -340,7 +347,7 @@ export function ScoutCourtStrip({
                 </p>
                 {server === side && <span className="text-[10px] font-bold uppercase tracking-wide text-green-700">batte</span>}
               </div>
-              <MiniCourt side={side} court={court} roster={data.roster[side]} serving={server === side} />
+              <MiniCourt side={side} court={court} roster={data.roster[side]} serving={server === side} large={large} />
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] font-medium text-muted-foreground" title={`Cambi fatti nel set (${SUBSTITUTIONS_PER_SET} al massimo)`}>
                   Cambi {used}/{SUBSTITUTIONS_PER_SET}

@@ -524,8 +524,15 @@
   }
 }
 
-/* Scout a schermo intero: le tessere di «chi» (le giocatrici) occupano la larghezza che c'è, in meno righe. */
-[data-scout-columns="fullscreen"] [data-scout-chips] {
+/* Schermi bassi (iPad piccoli, 744–799 px di altezza): nello Scout a schermo intero si tolgono le frasi di aiuto
+   (`short:hidden`) e si stringe qualche spazio, perché i comandi per segnare entrino senza scorrere. Dagli 800 px
+   in su restano tutte le frasi. */
+@custom-variant short (@media (max-height: 799px));
+
+/* Scout a schermo intero: le tessere di «chi» (le giocatrici) occupano la larghezza che c'è, in meno righe.
+   Nelle due colonne (`data-scout-dense`) le colonne le calcola il componente: una o due righe di pari larghezza,
+   per non perdere altezza. */
+[data-scout-columns="fullscreen"] [data-scout-chips]:not([data-scout-dense]) {
   grid-template-columns: repeat(auto-fill, minmax(3.9rem, 1fr));
 }
 

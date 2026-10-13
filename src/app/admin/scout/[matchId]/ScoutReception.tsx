@@ -27,11 +27,14 @@ export function ScoutReception({
   view,
   locked,
   dispatch,
+  compact = false,
 }: {
   data: ScoutData;
   view: ScoutView;
   locked: boolean;
   dispatch: (action: ScoutAction) => void;
+  /** Schermo intero su schermo largo: tessere più basse, meno spazio tra le parti e, sugli schermi bassi, senza frasi di aiuto: lascia posto ai pulsanti dei punti. */
+  compact?: boolean;
 }) {
   const rallyKey = `${view.rallies.length}`;
   // La scelta vale per lo scambio in cui è stata fatta: appena lo scambio cambia, riparte da zero.
@@ -114,11 +117,13 @@ export function ScoutReception({
   }
 
   return (
-    <section className={cn(shell, "space-y-3 border-t-4 border-t-primary")} aria-label="Ricezione" data-scout-reception="open" data-tour="scout-reception">
+    <section className={cn(shell, "space-y-3 border-t-4 border-t-primary", compact && "space-y-1.5 py-2.5 sm:py-2.5")} aria-label="Ricezione" data-scout-reception="open" data-tour="scout-reception">
       <div>
         <h2 className="font-display text-[17px] font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Battono loro. Tocca chi ha ricevuto e poi il voto; per l&apos;errore (=) il punto va a loro.</p>
-        <div className="mt-2">
+        <p className={cn("mt-1 text-xs text-muted-foreground", compact && "short:hidden")}>
+          Battono loro. Tocca chi ha ricevuto e poi il voto; per l&apos;errore (=) il punto va a loro.
+        </p>
+        <div className={cn("mt-2", compact && "short:hidden")}>
           <FlowSteps
             steps={[
               { label: "Battuta loro", state: "done" },
@@ -138,10 +143,11 @@ export function ScoutReception({
           onSelect={(player) => setChoice({ ...current, player })}
           ariaLabel="Chi ha ricevuto"
           court={view.court.us}
+          dense={compact}
         />
       </div>
 
-      <details className="group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2">
+      <details className={cn("group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2", compact && "py-1.5")}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
           <span>
             Zona <span className="font-normal text-muted-foreground">(facoltativa)</span>
@@ -157,7 +163,7 @@ export function ScoutReception({
         <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
           Voto{current.player === undefined ? " · scegli prima chi ha ricevuto" : ""}
         </p>
-        <GradeButtons skill="reception" onPick={record} disabled={current.player === undefined} testId="reception" />
+        <GradeButtons skill="reception" onPick={record} disabled={current.player === undefined} testId="reception" compact={compact} />
       </div>
     </section>
   );

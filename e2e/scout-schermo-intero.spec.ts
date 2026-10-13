@@ -50,8 +50,18 @@ async function addPlayer(page: Page, name: string, number: string) {
   await expect(page.locator(`[data-scout-athlete="${name}"]`)).toBeVisible();
 }
 
-/** Una partita pronta: sette giocatrici, la formazione (così c'è «In campo») e il primo punto da segnare. */
-async function prepare(page: Page, matchId: string) {
+/** In panchina, oltre alle sette: una squadra vera ha 12–14 giocatrici, e le tessere di «chi» vanno su due righe. */
+const BENCH: [string, string][] = [
+  ["Hilda Fonte", "3"],
+  ["Ilaria Rossi", "4"],
+  ["Lia Bianchi", "6"],
+  ["Mia Verdi", "8"],
+  ["Nora Gallo", "10"],
+  ["Olga Riva", "12"],
+];
+
+/** Una partita pronta: sette giocatrici (più la panchina, se serve), la formazione (così c'è «In campo») e il primo punto da segnare. */
+async function prepare(page: Page, matchId: string, level: "base" | "ricezioni" | "completo" = "base", bench = false) {
   await page.goto(`/admin/scout/${matchId}`);
   await expect(page.getByRole("heading", { name: "Prima di cominciare" })).toBeVisible();
   for (const [name, number] of [
@@ -62,6 +72,7 @@ async function prepare(page: Page, matchId: string) {
     ["Elena Costa", "11"],
     ["Fede Riva", "14"],
     ["Giada Conti", "1"],
+    ...(bench ? BENCH : []),
   ]) {
     await addPlayer(page, name, number);
   }
@@ -73,6 +84,7 @@ async function prepare(page: Page, matchId: string) {
   await chooseNumber(card.locator("#scout-lineup-us-host2"), "14");
   await card.locator("[data-scout-lineup-confirm]").click();
   await expect(card.locator("[data-scout-lineup-done]")).toBeVisible();
+  if (level !== "base") await page.locator(`[data-scout-level="${level}"]`).click();
   await page.locator("[data-scout-start]").click();
   await expect(score(page)).toHaveText("0–0");
 }
@@ -199,6 +211,86 @@ test("schermo intero senza lo schermo intero vero (iPhone, app installata): il r
 
   await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);
+});
+
+/** Quanto scorre l'area dei comandi a sinistra (0 = entra tutta). */
+const mainOverflow = (page: Page) =>
+  page.evaluate(() => {
+    const element = document.querySelector("[data-scout-main-scroll]") as HTMLElement;
+    return element.scrollHeight - element.clientHeight;
+  });
+
+test.describe("su iPad in orizzontale (1180×820)", () => {
+  test.use({ viewport: { width: 1180, height: 820 } });
+
+  test("livello Base: i pulsanti dei punti riempiono l'altezza, il registro la sua colonna e gli strumenti stanno in fondo", async ({ page }) => {
+    test.setTimeout(180_000);
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Spazio base "));
+    await prepare(page, matchId);
+    await fullscreenButton(page).click();
+    await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
+    await expect.poll(() => stageFillsWindow(page)).toBe(true);
+
+    const viewport = page.viewportSize()!;
+    const entry = await box(page.locator("[data-scout-entry]"));
+    const footer = await box(page.locator("[data-scout-footer]"));
+    // I quattro pulsanti di ciascuna squadra arrivano fino agli strumenti: niente spazio vuoto sotto, e sono alti da toccare bene.
+    expect(footer.y - (entry.y + entry.height), "spazio vuoto sotto i pulsanti dei punti").toBeLessThanOrEqual(24);
+    expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(150);
+    expect((await box(page.locator('[data-scout-add="opp-ace"]'))).height).toBeGreaterThanOrEqual(150);
+    // «Annulla ultimo» e gli strumenti restano in fondo alla finestra.
+    expect(footer.y + footer.height).toBeGreaterThanOrEqual(viewport.height - 40);
+    expect(footer.y + footer.height).toBeLessThanOrEqual(viewport.height);
+    expect(await mainOverflow(page)).toBeLessThanOrEqual(1);
+    // A destra il registro arriva in fondo alla colonna, anche se è ancora vuoto.
+    const log = await box(page.locator("[data-scout-log-scroll]"));
+    expect(log.y + log.height, "il registro non riempie la colonna").toBeGreaterThanOrEqual(viewport.height - 40);
+
+    // Si segna: la pagina non scorre e il punto sta nel registro.
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("0–1");
+    await expect(page.locator('[data-scout-log-pane] [data-scout-rally="1"]')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight)).toBeLessThanOrEqual(1);
+
+    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+    await deleteMatchById(page, matchId);
+  });
+
+  test("livello Con ricezioni, con 13 giocatrici: «chi» su due righe al massimo e comandi in vista senza scorrere", async ({ page }) => {
+    test.setTimeout(240_000);
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Spazio ric "));
+    await prepare(page, matchId, "ricezioni", true);
+    await fullscreenButton(page).click();
+    await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
+    await expect.poll(() => stageFillsWindow(page)).toBe(true);
+
+    // Punto loro: ora tocca alla nostra ricezione, con la scheda aperta sopra i pulsanti dei punti.
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("0–1");
+    const reception = page.locator('[data-scout-reception="open"]');
+    await expect(reception).toBeVisible();
+
+    // Le 13 giocatrici (e «Non so») stanno su due righe, non di più: non c'è un terzo piano che mangia altezza.
+    await expect(reception.locator("[data-scout-chips] > button")).toHaveCount(14);
+    const tops = await reception.locator("[data-scout-chips] > button").evaluateAll((buttons) => [...new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top)))]);
+    expect(tops, "le giocatrici vanno su più di due righe").toHaveLength(2);
+    // Tutto entra: né i pulsanti dei punti né il piede escono dall'altezza della finestra, e la colonna di sinistra non scorre.
+    expect(await mainOverflow(page)).toBeLessThanOrEqual(1);
+    const viewport = page.viewportSize()!;
+    const footer = await box(page.locator("[data-scout-footer]"));
+    expect(footer.y + footer.height).toBeLessThanOrEqual(viewport.height);
+    const entry = await box(page.locator("[data-scout-entry]"));
+    expect(entry.y + entry.height).toBeLessThanOrEqual(footer.y + 1);
+    // I pulsanti dei punti restano da toccare con comodità anche con la scheda aperta.
+    expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(64);
+
+    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+    await deleteMatchById(page, matchId);
+  });
 });
 
 test.describe("sul telefono", () => {

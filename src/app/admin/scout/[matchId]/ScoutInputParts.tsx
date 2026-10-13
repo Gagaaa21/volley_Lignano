@@ -18,6 +18,9 @@ import type { ScoutGrade, ScoutPlayer, ScoutRoster, ScoutSide, ScoutTouch, Scout
  * ricezione e nella schermata completa, così si imparano una volta.
  */
 
+/** Schermo intero su schermo largo: più di così le tessere diventano troppo strette per il nome. */
+const DENSE_MAX_PER_ROW = 10;
+
 /**
  * Le giocatrici di una squadra, da toccare. `selected`: undefined = nessuna
  * scelta, null = «non so». Toccare la giocatrice già scelta (per esempio quella
@@ -31,6 +34,7 @@ export function PlayerChips({
   onAddNumber,
   ariaLabel,
   court,
+  dense = false,
 }: {
   side: ScoutSide;
   players: ScoutPlayer[];
@@ -41,10 +45,16 @@ export function PlayerChips({
   ariaLabel: string;
   /** Chi è in campo, se se ne segue la formazione: le giocatrici in campo vengono per prime, con la loro posizione. */
   court?: ScoutCourt | null;
+  /** Schermo intero su schermo largo: tessere più basse, in una o due righe di pari larghezza, per non perdere altezza. */
+  dense?: boolean;
 }) {
   const [typed, setTyped] = useState("");
   const sorted = sortPlayers(players);
   const ours = side === "us";
+  // Tessere compatte: una riga se sono al massimo 10 («Non so» compreso), altrimenti due (o più) righe di pari larghezza,
+  // così i nomi restano leggibili e l'altezza è sempre la minima.
+  const chipCount = players.length + 1;
+  const denseColumns = Math.ceil(chipCount / Math.ceil(chipCount / DENSE_MAX_PER_ROW));
 
   function submitNumber() {
     const [first] = parseJerseyNumbers(typed);
@@ -55,7 +65,14 @@ export function PlayerChips({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6" role="group" aria-label={ariaLabel} data-scout-chips>
+      <div
+        className={cn("grid", dense ? "gap-1" : "gap-1.5 grid-cols-5 sm:grid-cols-6")}
+        style={dense ? { gridTemplateColumns: `repeat(${denseColumns}, minmax(0, 1fr))` } : undefined}
+        role="group"
+        aria-label={ariaLabel}
+        data-scout-chips
+        data-scout-dense={dense ? "" : undefined}
+      >
         {orderByCourt(players, court ?? null).map(({ player, position }) => {
           const active = selected === player.id;
           const benched = Boolean(court) && position === null;
@@ -69,6 +86,7 @@ export function PlayerChips({
               data-scout-on-court={position ?? undefined}
               className={cn(
                 "relative flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors active:translate-y-px",
+                dense && "min-h-[2.75rem] py-1",
                 active
                   ? ours
                     ? "border-primary bg-primary-soft ring-2 ring-primary/30"
@@ -85,7 +103,7 @@ export function PlayerChips({
               <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">
                 {player.number ?? (ours ? player.name.trim().slice(0, 1).toUpperCase() : "?")}
               </span>
-              {ours && <span className="mt-0.5 w-full truncate text-[11px] font-semibold text-muted-foreground">{shortName(player, sorted)}</span>}
+              {ours && <span className={cn("mt-0.5 w-full truncate text-[11px] font-semibold text-muted-foreground", dense && "leading-tight")}>{shortName(player, sorted)}</span>}
               {player.libero && <span className="absolute right-1 top-0.5 rounded bg-accent px-1 text-[9px] font-bold text-accent-foreground">L</span>}
             </button>
           );
@@ -97,11 +115,12 @@ export function PlayerChips({
           data-scout-who="unknown"
           className={cn(
             "flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border border-dashed px-1 py-1.5 text-center transition-colors active:translate-y-px",
+            dense && "min-h-[2.75rem] py-1",
             selected === null ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border-strong bg-surface hover:bg-muted",
           )}
         >
           <span className="font-display text-xl font-extrabold leading-none text-muted-foreground">?</span>
-          <span className="mt-0.5 text-[11px] font-semibold text-muted-foreground">Non so</span>
+          <span className={cn("mt-0.5 text-[11px] font-semibold text-muted-foreground", dense && "leading-tight")}>Non so</span>
         </button>
       </div>
 
@@ -144,11 +163,14 @@ export function GradeButtons({
   onPick,
   disabled,
   testId,
+  compact = false,
 }: {
   skill: ScoutTouchSkill;
   onPick: (grade: ScoutGrade) => void;
   disabled?: boolean;
   testId?: string;
+  /** Schermo intero su schermo largo: sugli schermi bassi i pulsanti sono un po' meno alti. */
+  compact?: boolean;
 }) {
   const meta = TOUCH_SKILLS[skill];
   return (
@@ -170,6 +192,7 @@ export function GradeButtons({
           aria-label={`${gradeSymbol(grade)} ${meta.gradeLabels[grade] ?? ""}. ${meta.gradeHints[grade] ?? ""}`}
           className={cn(
             "flex min-h-[3.5rem] min-w-0 flex-col items-center justify-center rounded-xl px-0.5 py-1.5 text-center ring-1 ring-inset ring-foreground/10 transition-[transform,opacity] active:translate-y-px disabled:pointer-events-none disabled:opacity-40",
+            compact && "short:min-h-[3rem] short:py-1",
             GRADE_FILL[grade],
           )}
         >

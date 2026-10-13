@@ -63,6 +63,7 @@ export function ScoutPhaseBanner({
   hint,
   serverId,
   locked,
+  compact = false,
 }: {
   pending: readonly ScoutTouch[];
   roster: ScoutRoster;
@@ -70,6 +71,8 @@ export function ScoutPhaseBanner({
   /** La giocatrice in battuta, se se ne segue la formazione. */
   serverId?: string;
   locked: boolean;
+  /** Schermo intero su schermo largo: sugli schermi bassi il riquadro «Come si alternano le fasi» si toglie, per fare posto ai comandi. */
+  compact?: boolean;
 }) {
   const { next } = hint;
   const meta = TOUCH_SKILLS[next.skill];
@@ -102,7 +105,7 @@ export function ScoutPhaseBanner({
 
       {!locked && (
         <div
-          className={cn("flex items-start gap-3 rounded-xl border-l-4 px-3 py-2.5", CARD_STYLE[next.side])}
+          className={cn("flex items-start gap-3 rounded-xl border-l-4 px-3 py-2.5", compact && "short:py-2", CARD_STYLE[next.side])}
           data-scout-phase-card
           data-scout-phase={next.skill}
           data-scout-phase-side={next.side}
@@ -129,7 +132,7 @@ export function ScoutPhaseBanner({
         </div>
       )}
 
-      <details className="group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2" data-scout-phase-help data-tour="scout-phase-help">
+      <details className={cn("group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2", compact && "short:hidden")} data-scout-phase-help data-tour="scout-phase-help">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
           <span>Come si alternano le fasi</span>
           <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />

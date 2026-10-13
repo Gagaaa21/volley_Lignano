@@ -71,11 +71,14 @@ export function ScoutTouchEntry({
   view,
   locked,
   dispatch,
+  compact = false,
 }: {
   data: ScoutData;
   view: ScoutView;
   locked: boolean;
   dispatch: (action: ScoutAction) => void;
+  /** Schermo intero su schermo largo: meno spazio tra le parti, tessere più basse e senza frasi di aiuto, per vedere tutto senza scorrere. */
+  compact?: boolean;
 }) {
   const key = `${view.rallies.length}:${view.pending.length}`;
   const server = currentServer(view) ?? "us";
@@ -134,16 +137,16 @@ export function ScoutTouchEntry({
         aria-label="Scambio in corso"
         data-scout-touch-entry
         data-tour="scout-touch-entry"
-        className="space-y-3.5 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-3 shadow-card sm:p-4"
+        className={cn("space-y-3.5 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-3 shadow-card sm:p-4", compact && "space-y-2 short:space-y-1.5 sm:p-3")}
       >
-        <header className="space-y-2">
+        <header className={cn("space-y-2", compact && "space-y-1.5")}>
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h2 className="font-display text-[17px] font-extrabold leading-none tracking-[-0.01em] text-foreground">Scambio in corso</h2>
             <p className="text-xs text-muted-foreground">
               {locked ? "Partita finita." : open ? `${view.pending.length} ${view.pending.length === 1 ? "tocco segnato" : "tocchi segnati"}` : `Batte ${serving === "us" ? "la nostra squadra" : "l'avversaria"}`}
             </p>
           </div>
-          <ScoutPhaseBanner pending={view.pending} roster={data.roster} hint={hint} serverId={serverId(view, server)} locked={locked} />
+          <ScoutPhaseBanner pending={view.pending} roster={data.roster} hint={hint} serverId={serverId(view, server)} locked={locked} compact={compact} />
         </header>
 
         <div>
@@ -210,6 +213,7 @@ export function ScoutTouchEntry({
             onAddNumber={side === "opp" ? addOpponent : undefined}
             ariaLabel={`Chi: ${meta.label.toLowerCase()} ${side === "us" ? "nostra" : "loro"}`}
             court={view.court[side]}
+            dense={compact}
           />
         </div>
 
@@ -235,12 +239,15 @@ export function ScoutTouchEntry({
             3 · Voto · {meta.label} {side === "us" ? "nostra" : "loro"}
             {player === undefined && !locked ? " · scegli prima chi" : ""}
           </p>
-          <GradeButtons skill={skill} onPick={commit} disabled={locked || player === undefined} testId="touch" />
-          <p className="mt-1.5 text-xs text-muted-foreground">Un errore, un ace, un attacco a terra o un muro vincente chiudono lo scambio e assegnano il punto.</p>
+          <GradeButtons skill={skill} onPick={commit} disabled={locked || player === undefined} testId="touch" compact={compact} />
+          {/* A due colonne (schermo intero) la frase si toglie: i pulsanti dei voti già dicono quali chiudono lo scambio. */}
+          <p className={cn("mt-1.5 text-xs text-muted-foreground", compact && "hidden")}>
+            Un errore, un ace, un attacco a terra o un muro vincente chiudono lo scambio e assegnano il punto.
+          </p>
         </div>
       </section>
 
-      <details className="rounded-2xl border border-dashed border-border-strong bg-surface/60 px-3 py-2.5" data-scout-other-ways data-tour="scout-touch-fallback">
+      <details className={cn("rounded-2xl border border-dashed border-border-strong bg-surface/60 px-3 py-2.5", compact && "py-2 short:py-1.5")} data-scout-other-ways data-tour="scout-touch-fallback">
         <summary className="cursor-pointer list-none text-sm font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
           Falli, sanzioni o solo il punto
           <span className="ml-1.5 font-normal text-muted-foreground">(senza i tocchi)</span>

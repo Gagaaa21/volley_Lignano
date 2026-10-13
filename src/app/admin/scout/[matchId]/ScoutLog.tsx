@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Label, Select } from "@/components/ui/Field";
 import { SegmentedButtons } from "@/components/ui/Segmented";
+import { cn } from "@/lib/cn";
 import type { ScoutAction } from "@/lib/scout/actions";
 import type { ScoutRally, ScoutSet, ScoutView } from "@/lib/scout/derive";
 import { playerLabel, rallyText, sortPlayers } from "@/lib/scout/describe";
@@ -432,11 +433,14 @@ export function ScoutLog({
   roster,
   level,
   dispatch,
+  fill = false,
 }: {
   view: ScoutView;
   roster: ScoutRoster;
   level: ScoutLevel;
   dispatch: (action: ScoutAction) => void;
+  /** A due colonne il registro sta in un riquadro alto quanto lo spazio che resta: il segnaposto lo riempie. */
+  fill?: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = editingId ? view.rallies.find((r) => r.id === editingId) : undefined;
@@ -444,8 +448,13 @@ export function ScoutLog({
 
   if (sets.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-5 py-8 text-center text-sm text-muted-foreground">
-        Qui compariranno gli scambi, dall&apos;ultimo al primo. Segna il primo punto con i pulsanti qui sopra.
+      <p
+        className={cn(
+          "rounded-2xl border border-dashed border-border-strong bg-surface/70 px-5 py-8 text-center text-sm text-muted-foreground",
+          fill && "flex h-full min-h-[7rem] items-center justify-center",
+        )}
+      >
+        Qui compariranno gli scambi, dall&apos;ultimo al primo. Segna il primo punto con i pulsanti {fill ? "a sinistra" : "qui sopra"}.
       </p>
     );
   }

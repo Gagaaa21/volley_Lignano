@@ -223,7 +223,18 @@ staff (Developer e Admin).
     che scorrono per conto loro: pulsanti per segnare e comandi a sinistra,
     tabellone (fisso in alto), «In campo» e registro a destra (`useMediaQuery`);
     sul telefono resta una colonna sola. Il riquadro è `data-scout-stage`, le colonne
-    `data-scout-main-pane` e `data-scout-log-pane`.
+    `data-scout-main-pane` e `data-scout-log-pane`. A due colonne lo spazio si
+    riempie tutto: i pulsanti dei punti (con un'icona ciascuno) si allungano
+    all'altezza che resta, `ScoutEntry` li dimensiona sulla propria altezza con le
+    container query (`cqh`), il campo «In campo» cresce con la finestra, il
+    registro (`data-scout-log-scroll`) prende lo spazio sotto e scorre da solo,
+    mentre «Annulla ultimo» e gli strumenti (`data-scout-footer`) restano sempre in
+    fondo; il resto a sinistra scorre in `data-scout-main-scroll` solo se non entra.
+    Le tessere di «chi» (`PlayerChips dense`) stanno in una riga (fino a 10) o in
+    due di pari larghezza, così con 13–14 giocatrici i nomi si leggono ancora.
+    Sotto gli 800 px di altezza (iPad piccoli, laptop) la variante `short:`
+    (`globals.css`) toglie le frasi di aiuto e stringe i pulsanti; dagli 800 px in
+    su restano tutte. Provato da 1024×768 a 1440×900.
   - **La palla**: la fascia «Palla nostra / Palla loro» (`ScoutBallSide.tsx`) è il
     campo visto dall'alto (Noi a sinistra, Loro a destra, la rete in mezzo) con la
     palla dalla parte giusta; si sposta passando la rete a ogni cambio e resta in
