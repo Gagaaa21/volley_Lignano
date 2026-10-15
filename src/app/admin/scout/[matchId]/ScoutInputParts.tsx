@@ -6,7 +6,7 @@ import { GRADE_FILL, GradeDot } from "@/components/scout/GradeChart";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
-import { orderByCourt } from "@/lib/scout/court";
+import { COURT_ROWS, orderByCourt } from "@/lib/scout/court";
 import type { ScoutCourt } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { gradeSymbol, TOUCH_SKILLS } from "@/lib/scout/touches";
@@ -204,11 +204,6 @@ export function GradeButtons({
   );
 }
 
-const ZONE_ROWS = [
-  [4, 3, 2],
-  [5, 6, 1],
-];
-
 /** Le sei zone del campo, come si vedono dalla propria metà (davanti 4-3-2, dietro 5-6-1); toccare di nuovo la stessa la toglie. */
 export function ZonePicker({
   value,
@@ -225,7 +220,7 @@ export function ZonePicker({
     <div className={cn("w-full max-w-[13rem]", className)} role="group" aria-label={label} data-scout-zones>
       <p className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Rete</p>
       <div className="grid gap-1">
-        {ZONE_ROWS.map((row, i) => (
+        {COURT_ROWS.map((row, i) => (
           <div key={i} className="grid grid-cols-3 gap-1">
             {row.map((zone) => (
               <button

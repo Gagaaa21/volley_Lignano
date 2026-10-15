@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { cleanNumber, opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
-import { benchOf, reentryOfPlayer, SUBSTITUTIONS_PER_SET, substitutionsUsed, substitutionWarningFor } from "@/lib/scout/court";
+import { benchOf, COURT_ROWS, jerseyLabel, reentryOfPlayer, SUBSTITUTIONS_PER_SET, substitutionsUsed, substitutionWarningFor } from "@/lib/scout/court";
 import type { ScoutCourt, ScoutView } from "@/lib/scout/derive";
 import { playerLabel, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
@@ -14,15 +14,8 @@ import type { ScoutData, ScoutPlayer, ScoutSide } from "@/lib/scout/types";
 
 /** Come si legge una giocatrice sul campo: il numero di maglia (per noi, in mancanza, l'iniziale). */
 function chipText(player: ScoutPlayer | undefined, side: ScoutSide): string {
-  if (!player) return "?";
-  return player.number ?? (side === "us" ? player.name.trim().slice(0, 1).toUpperCase() : "?");
+  return player ? jerseyLabel(player, side) : "?";
 }
-
-/** Le posizioni come si vedono dalla propria metà campo: davanti 4-3-2, dietro 5-6-1. */
-const ROWS: number[][] = [
-  [4, 3, 2],
-  [5, 6, 1],
-];
 
 /**
  * Una metà campo in piccolo: chi gioca in ogni posizione, con la libero in scuro
@@ -44,7 +37,7 @@ function MiniCourt({
 }) {
   return (
     <div className="grid gap-1" role="group" aria-label={side === "us" ? "Nostra squadra in campo" : "Avversaria in campo"} data-scout-court={side}>
-      {ROWS.map((row, r) => (
+      {COURT_ROWS.map((row, r) => (
         <div key={r} className="grid grid-cols-3 gap-1">
           {row.map((position) => {
             const id = court.onCourt[position - 1];

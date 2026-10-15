@@ -256,7 +256,7 @@ export function ScoutTouchEntry({
           Per un tocco di rete, un&apos;invasione, una sanzione, o se hai perso il filo dello scambio: chiudi lo scambio dicendo solo come è finito. I tocchi già segnati restano.
         </p>
         <div className="mt-3">
-          <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} />
+          <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} />
         </div>
       </details>
     </>

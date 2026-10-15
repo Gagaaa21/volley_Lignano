@@ -514,7 +514,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         items: [
           "**Rotazioni da sole**: la squadra ruota quando conquista la battuta, come in campo. Sai sempre in che rotazione siete (la 1ª è quella di partenza) e chi batte.",
           "**Libero al posto giusto**: entra al posto della centrale in seconda linea e esce quando la centrale ruota a rete. Non batte mai: se in battuta c'è una centrale, batte lei e la libero entra quando la squadra riceve.",
-          "**«Chi» più veloce**: tra le giocatrici da scegliere compaiono per prime quelle in campo, con la loro posizione; chi è in panchina resta in fondo, più chiara. Nella battuta è già scelta chi batte.",
+          "**«Chi» dal campo**: la finestra «chi?» mostra il campo, con la rete in alto, davanti 4-3-2, dietro 5-6-1, la libero in scuro e il pallone verde su chi batte: tocchi la giocatrice dove sta. Chi è in panchina è sotto, più chiara. A muro la libero non si sceglie e la seconda linea è più chiara.",
           "**Cambi**: li registri con un pulsante, lo Scout conta quelli del set e ti avvisa se non sono regolari.",
           "**Tabellino e PDF**: in più trovi le formazioni di partenza di ogni set e i cambi.",
         ],
@@ -656,7 +656,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Passo 2: chi ha fatto l'azione" },
       {
         type: "p",
-        text: "Dopo il modo si apre un elenco con i **numeri di maglia** (per le nostre anche il nome). Tocca il numero giusto e il punto è registrato. Per l'avversaria puoi scrivere un numero che non c'è nella casella **«Altro numero di maglia»** e toccare Aggiungi.",
+        text: "Dopo il modo si apre un elenco con i **numeri di maglia** (per le nostre anche il nome). Tocca il numero giusto e il punto è registrato. Se hai scritto la formazione in campo, al posto dell'elenco vedi il **campo**: tocca la giocatrice dove sta (davanti 4-3-2, dietro 5-6-1, la panchina è sotto). Per l'avversaria puoi scrivere un numero che non c'è nella casella **«Altro numero di maglia»** e toccare Aggiungi.",
       },
       {
         type: "p",
@@ -1452,7 +1452,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Devo scrivere la formazione?" },
       {
         type: "p",
-        text: `No, è facoltativa e vale anche solo per una squadra. Se la scrivi, lo Scout ruota da solo, sa chi batte, ti fa scegliere «chi» tra le giocatrici in campo e tiene i cambi (${cap("formazione")}).`,
+        text: `No, è facoltativa e vale anche solo per una squadra. Se la scrivi, lo Scout ruota da solo, sa chi batte, ti fa scegliere «chi» dal campo e tiene i cambi (${cap("formazione")}).`,
       },
       { type: "sub", title: "Posso usare lo Scout a schermo intero?" },
       {

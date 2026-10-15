@@ -31,7 +31,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { cn } from "@/lib/cn";
-import { defaultNextServer, deriveScout, isMatchDecided, setTarget, suggestedSetEnd, type ScoutSet, type ScoutView } from "@/lib/scout/derive";
+import { currentServer, defaultNextServer, deriveScout, isMatchDecided, setTarget, suggestedSetEnd, type ScoutSet, type ScoutView } from "@/lib/scout/derive";
 import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { useMediaQuery } from "@/lib/useMediaQuery";
@@ -505,7 +505,7 @@ export function ScoutClient({
                   ) : (
                     <>
                       {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />}
-                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} compact={twoColumns} />
+                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} compact={twoColumns} />
                     </>
                   )}
                 </div>

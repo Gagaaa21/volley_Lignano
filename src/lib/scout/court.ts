@@ -32,6 +32,57 @@ export function benchOf(roster: ScoutPlayer[], court: ScoutCourt): ScoutPlayer[]
   return sortPlayers(roster.filter((player) => !playing.has(player.id) && player.id !== court.libero));
 }
 
+/** Le posizioni come si vedono dalla propria metà campo: davanti (vicino alla rete) 4-3-2, dietro 5-6-1. */
+export const COURT_ROWS: readonly (readonly number[])[] = [
+  [4, 3, 2],
+  [5, 6, 1],
+];
+
+/** Come si legge una giocatrice sul campo: il numero di maglia (per noi, in mancanza, l'iniziale). */
+export function jerseyLabel(player: ScoutPlayer, side: ScoutSide): string {
+  return player.number ?? (side === "us" ? player.name.trim().slice(0, 1).toUpperCase() : "?");
+}
+
+/** Una posizione del campo, pronta da disegnare. */
+export interface CourtSpot {
+  /** 1…6. */
+  position: number;
+  /** Chi gioca davvero lì (la libero al posto di chi sostituisce). Undefined se la posizione è vuota. */
+  player: ScoutPlayer | undefined;
+  /** È la libero. */
+  libero: boolean;
+  /** Si può scegliere per l'azione che si sta segnando (in rosa e tra chi può farla). */
+  pickable: boolean;
+  /** Seconda linea (5-6-1). */
+  back: boolean;
+}
+
+/**
+ * Il campo in due file da tre (davanti 4-3-2, dietro 5-6-1): chi sta in ogni posizione e se si può scegliere.
+ * `eligible` sono quelle che possono fare l'azione (la libero non può murare): le altre si vedono, ma non si toccano.
+ */
+export function courtSpots(court: ScoutCourt, roster: ScoutPlayer[], eligible: ScoutPlayer[]): CourtSpot[][] {
+  const allowed = new Set(eligible.map((player) => player.id));
+  return COURT_ROWS.map((row, index) =>
+    row.map((position) => {
+      const id = court.onCourt[position - 1];
+      const player = id ? roster.find((p) => p.id === id) : undefined;
+      return {
+        position,
+        player,
+        libero: player !== undefined && player.id === court.libero,
+        pickable: player !== undefined && allowed.has(player.id),
+        back: index === 1,
+      };
+    }),
+  );
+}
+
+/** Chi può fare l'azione e non è in campo (la panchina da cui scegliere), per numero di maglia. */
+export function benchOptions(eligible: ScoutPlayer[], court: ScoutCourt): ScoutPlayer[] {
+  return sortPlayers(eligible).filter((player) => positionOf(court, player.id) === null);
+}
+
 export interface OrderedPlayer {
   player: ScoutPlayer;
   /** Posizione in campo (1…6), null in panchina. */

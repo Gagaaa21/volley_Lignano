@@ -339,7 +339,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       chapter: C_PLAY,
       title: "Chi è in campo",
       body: `Le due squadre con le sei posizioni: davanti 4-3-2, dietro 5-6-1 (la rete è in alto). Il pallone verde segna chi batte; la libero compare in scuro al posto della centrale che sostituisce. Quando una squadra conquista la battuta ruota da sola (sotto il nome vedi la rotazione: la 1ª è quella di partenza).\n\nCon «Cambio» registri una sostituzione: scegli chi esce e chi entra; se non è regolare (per esempio più di ${SUBSTITUTIONS_PER_SET} cambi in un set) ti avvisa, ma puoi confermare lo stesso. «Formazione» riapre la scheda per correggere o riscrivere chi è in campo.`,
-      tip: "Quando scegli «chi», le giocatrici in campo sono per prime, con la loro posizione: quelle in panchina restano in fondo, più chiare.",
+      tip: "Quando scegli «chi» vedi il campo come qui: tocchi la giocatrice dove sta (davanti 4-3-2, dietro 5-6-1); la panchina è sotto, più chiara.",
     });
   }
 

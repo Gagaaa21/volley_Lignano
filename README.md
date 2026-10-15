@@ -209,10 +209,13 @@ staff (Developer e Admin).
     formazione con cui era cominciato. Si può seguire solo la nostra squadra,
     tutte e due o nessuna: senza formazione lo Scout funziona come prima.
     Aiuti in `src/lib/scout/court.ts` (chi batte, panchina, ordine «prima chi è
-    in campo», avvertimento sul cambio, formazioni di partenza e cambi per il
-    tabellino). Schermate: striscia «In campo» (`ScoutCourtStrip.tsx`, con i
-    cambi), scelta di chi ha fatto l'azione con le giocatrici in campo per
-    prime, formazioni di partenza e cambi nel tabellino
+    in campo», il campo da disegnare `courtSpots`, avvertimento sul cambio,
+    formazioni di partenza e cambi per il tabellino). Schermate: striscia «In
+    campo» (`ScoutCourtStrip.tsx`, con i cambi); scelta di chi ha fatto l'azione
+    dal campo (`ScoutCourtPicker.tsx`: rete, 4-3-2 davanti e 5-6-1 dietro, libero
+    in scuro, pallone verde su chi batte, panchina sotto; a muro la libero non si
+    sceglie e la seconda linea è più chiara; senza formazione resta l'elenco di
+    numeri); formazioni di partenza e cambi nel tabellino
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF
     (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
     `data` jsonb, e gli scout vecchi si leggono come prima.

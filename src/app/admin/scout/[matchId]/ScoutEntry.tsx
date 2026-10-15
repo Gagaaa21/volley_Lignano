@@ -10,8 +10,9 @@ import { orderByCourt } from "@/lib/scout/court";
 import type { ScoutCourt, ScoutCourts } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
-import { asksPlayer, canDo, ERROR_HOWS, HOW_META } from "@/lib/scout/rules";
+import { asksPlayer, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
 import { otherSide, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutSide } from "@/lib/scout/types";
+import { CourtPicker } from "./ScoutCourtPicker";
 
 /**
  * Dove si segna ogni scambio. Due colonne — «Punto nostro» e «Punto loro» —
@@ -131,28 +132,42 @@ function PlayerButton({
   );
 }
 
-/** Chi ha compiuto l'azione, tra le giocatrici della squadra. Per l'avversaria si può aggiungere un numero al volo. */
+/**
+ * Chi ha compiuto l'azione, tra le giocatrici della squadra. Se se ne segue la formazione si sceglie dal campo
+ * (rete, 4-3-2 davanti, 5-6-1 dietro, panchina sotto); altrimenti da un elenco di numeri. Per l'avversaria si può
+ * aggiungere un numero al volo.
+ */
 function PlayerPicker({
   title,
   subtitle,
   side,
   players,
+  roster,
   unknownLabel,
   onPick,
   onPickNew,
   onClose,
   court,
+  serving = false,
+  frontOnly = false,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   side: ScoutSide;
+  /** Chi può fare l'azione (la libero non può murare). */
   players: ScoutPlayer[];
+  /** Tutta la rosa della squadra: sul campo si vede anche chi qui non può fare l'azione. */
+  roster: ScoutPlayer[];
   unknownLabel: string;
   onPick: (id: string | null) => void;
   onPickNew: (number: string) => void;
   onClose: () => void;
-  /** Chi è in campo, se se ne segue la formazione: vengono per prime, con la loro posizione. */
+  /** Chi è in campo, se se ne segue la formazione: si sceglie dal campo, con la panchina sotto. */
   court?: ScoutCourt | null;
+  /** La squadra batte adesso: il pallone verde sta su chi è in posizione 1. */
+  serving?: boolean;
+  /** Solo la prima linea può farla (il muro): la seconda linea si vede più spenta. */
+  frontOnly?: boolean;
 }) {
   const [typed, setTyped] = useState("");
   const sorted = sortPlayers(players);
@@ -165,7 +180,9 @@ function PlayerPicker({
 
   return (
     <Sheet title={title} subtitle={subtitle} onClose={onClose} testId={`player-${side}`}>
-      {sorted.length > 0 ? (
+      {court && roster.length > 0 ? (
+        <CourtPicker side={side} court={court} roster={roster} eligible={players} serving={serving} frontOnly={frontOnly} onPick={onPick} />
+      ) : sorted.length > 0 ? (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {ordered.map(({ player, position }) => (
             <PlayerButton
@@ -323,6 +340,7 @@ export function ScoutEntry({
   locked,
   dispatch,
   courts,
+  server = null,
   compact = false,
 }: {
   data: ScoutData;
@@ -331,6 +349,8 @@ export function ScoutEntry({
   dispatch: (action: ScoutAction) => void;
   /** Chi è in campo per ogni squadra di cui si segue la formazione. */
   courts?: ScoutCourts;
+  /** Chi batte adesso: sul campo del «chi?» il pallone verde sta su chi è in posizione 1. */
+  server?: ScoutSide | null;
   /** A schermo intero su schermi larghi: i quattro modi di ogni squadra in due colonne, per stare tutti in vista. */
   compact?: boolean;
 }) {
@@ -435,7 +455,10 @@ export function ScoutEntry({
           }
           side={step.actor}
           players={eligible(step.actor, step.how)}
+          roster={data.roster[step.actor]}
           court={courts?.[step.actor]}
+          serving={server === step.actor}
+          frontOnly={isBlockHow(step.how)}
           unknownLabel="Non so / non indicare"
           onPick={(id) => pickPlayer(step.actor, step.how, id)}
           onPickNew={(number) => pickNewOpponent(number, (id) => pickPlayer(step.actor, step.how, id))}
@@ -449,7 +472,9 @@ export function ScoutEntry({
           subtitle="Il muro ha fermato l'attacco di… (facoltativo)"
           side={otherSide(step.actor)}
           players={data.roster[otherSide(step.actor)]}
+          roster={data.roster[otherSide(step.actor)]}
           court={courts?.[otherSide(step.actor)]}
+          serving={server === otherSide(step.actor)}
           unknownLabel="Non so / salta"
           onPick={(id) => commit({ actor: step.actor, how: "block", player: step.player, victim: id })}
           onPickNew={(number) =>

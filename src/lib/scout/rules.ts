@@ -176,7 +176,12 @@ export function asksPlayer(how: ScoutHow): boolean {
   return !TEAM_FAULT_HOWS.includes(how);
 }
 
+/** Il muro vincente e l'errore a muro. */
+export function isBlockHow(how: ScoutHow): boolean {
+  return how === "block" || how === "blockError";
+}
+
 /** La libero non può murare né tentare di murare (Regole di Gioco): non si propone tra chi può farlo. */
 export function canDo(how: ScoutHow, libero: boolean): boolean {
-  return !(libero && (how === "block" || how === "blockError"));
+  return !(libero && isBlockHow(how));
 }

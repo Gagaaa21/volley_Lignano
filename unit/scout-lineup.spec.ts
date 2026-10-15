@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
-import { lineupSummary, reentryOfPlayer, substitutionWarningFor } from "@/lib/scout/court";
+import { benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, reentryOfPlayer, substitutionWarningFor } from "@/lib/scout/court";
 import type { Match } from "@/lib/types";
 import {
   addPlayer,
@@ -17,7 +17,8 @@ import {
   usedPlayerIds,
   type LineupInput,
 } from "@/lib/scout/actions";
-import { currentServer, deriveScout } from "@/lib/scout/derive";
+import { currentServer, deriveScout, type ScoutCourt } from "@/lib/scout/derive";
+import { canDo, isBlockHow } from "@/lib/scout/rules";
 import { scoutDataSchema } from "@/lib/scout/schema";
 import type { ScoutData, ScoutHow, ScoutSide } from "@/lib/scout/types";
 
@@ -190,6 +191,99 @@ test.describe("formazione in campo", () => {
     // La libero non può essere anche in campo tra le sei; una sostituita deve stare tra le sei.
     expect(event.type === "lineup" && event.libero).toBeNull();
     expect(event.type === "lineup" && event.hosts).toEqual([null, "u5"]);
+  });
+});
+
+test.describe("il campo del «chi?»", () => {
+  const spotsOf = (rows: ReturnType<typeof courtSpots>) => rows.map((row) => row.map((spot) => `${spot.position}:${spot.player?.id ?? "-"}`));
+
+  test("due file da tre come si vedono dalla propria metà: davanti 4-3-2, dietro 5-6-1", () => {
+    expect(COURT_ROWS).toEqual([
+      [4, 3, 2],
+      [5, 6, 1],
+    ]);
+    const data = withLineups(roster());
+    const court = deriveScout(data).court.us as ScoutCourt;
+    const rows = courtSpots(court, data.roster.us, data.roster.us);
+    // u6 è la centrale in seconda linea: al suo posto gioca la libero.
+    expect(spotsOf(rows)).toEqual([
+      ["4:u4", "3:u3", "2:u2"],
+      ["5:u5", "6:ul", "1:u1"],
+    ]);
+    expect(rows[0].every((spot) => !spot.back)).toBe(true);
+    expect(rows[1].every((spot) => spot.back)).toBe(true);
+    expect(rows.flat().filter((spot) => spot.libero).map((spot) => spot.position)).toEqual([6]);
+    expect(rows.flat().every((spot) => spot.pickable)).toBe(true);
+  });
+
+  test("la libero non può murare: c'è sul campo ma non si sceglie", () => {
+    expect(isBlockHow("block")).toBe(true);
+    expect(isBlockHow("blockError")).toBe(true);
+    expect(isBlockHow("attack")).toBe(false);
+    expect(isBlockHow("serveError")).toBe(false);
+    expect(canDo("block", true)).toBe(false);
+    expect(canDo("blockError", true)).toBe(false);
+    expect(canDo("attack", true)).toBe(true);
+
+    const data = withLineups(roster());
+    const court = deriveScout(data).court.us as ScoutCourt;
+    const eligible = data.roster.us.filter((player) => canDo("block", player.libero));
+    const rows = courtSpots(court, data.roster.us, eligible);
+    const libero = rows.flat().find((spot) => spot.libero);
+    expect(libero).toMatchObject({ position: 6, pickable: false });
+    expect(libero?.player?.id).toBe("ul");
+    expect(rows.flat().filter((spot) => !spot.pickable)).toHaveLength(1);
+    // Lo stesso per la panchina: la libero non si propone (e comunque è già in campo).
+    expect(benchOptions(eligible, court).map((player) => player.id)).toEqual(["u6", "u7", "u8"]);
+  });
+
+  test("dopo una rotazione ognuna è al suo posto nuovo", () => {
+    let data = withLineups(roster());
+    data = point(data, "opp"); // loro conquistano la battuta
+    data = point(data, "us"); // la riconquistiamo: ruotiamo noi
+    const court = deriveScout(data).court.us as ScoutCourt;
+    expect(court.rotation).toBe(2);
+    // Le posizioni sono ["u2","u3","u4","u5","u6","u1"]; u6 è in posizione 5 (seconda linea), dove entra la libero.
+    expect(spotsOf(courtSpots(court, data.roster.us, data.roster.us))).toEqual([
+      ["4:u5", "3:u4", "2:u3"],
+      ["5:ul", "6:u1", "1:u2"],
+    ]);
+  });
+
+  test("la panchina è chi può farla e non è in campo, per numero di maglia", () => {
+    const data = withLineups(roster());
+    const court = deriveScout(data).court.us as ScoutCourt;
+    // Con la libero in campo per u6, u6 sta fuori insieme a u7 e u8; la libero no.
+    expect(benchOptions(data.roster.us, court).map((player) => player.id)).toEqual(["u6", "u7", "u8"]);
+    // Chi non può fare l'azione non compare in panchina.
+    expect(benchOptions(data.roster.us.filter((player) => player.id !== "u7"), court).map((player) => player.id)).toEqual(["u6", "u8"]);
+    // Loro: sei in campo, due in panchina.
+    const theirs = deriveScout(data).court.opp as ScoutCourt;
+    expect(benchOptions(data.roster.opp, theirs).map((player) => player.id)).toEqual(["opp-7", "opp-8"]);
+  });
+
+  test("una posizione vuota si vede, ma non si sceglie; chi non è in rosa non compare", () => {
+    const court: ScoutCourt = {
+      positions: ["u1", "", "u3", "u4", "u5", "u6"],
+      onCourt: ["u1", "", "u3", "u4", "u5", "zzz"],
+      libero: null,
+      liberoFor: null,
+      hosts: ["", ""],
+      rotation: 1,
+    };
+    const data = roster();
+    const rows = courtSpots(court, data.roster.us, data.roster.us);
+    expect(spotsOf(rows)).toEqual([
+      ["4:u4", "3:u3", "2:-"],
+      ["5:u5", "6:-", "1:u1"],
+    ]);
+    expect(rows.flat().filter((spot) => !spot.pickable).map((spot) => spot.position).sort()).toEqual([2, 6]);
+  });
+
+  test("come si legge una giocatrice: il numero, per noi in mancanza l'iniziale, per loro un punto interrogativo", () => {
+    expect(jerseyLabel({ id: "a", name: "Anna Verdi", number: "9", libero: false }, "us")).toBe("9");
+    expect(jerseyLabel({ id: "a", name: "anna Verdi", number: null, libero: false }, "us")).toBe("A");
+    expect(jerseyLabel({ id: "o", name: "?", number: null, libero: false }, "opp")).toBe("?");
   });
 });
 

@@ -127,6 +127,100 @@ async function expectBall(page: Page, side: "us" | "opp", phase?: string) {
 const usSpot = (page: Page, position: number) => strip(page).locator(`[data-scout-court="us"] [data-scout-court-position="${position}"]`);
 const oppSpot = (page: Page, position: number) => strip(page).locator(`[data-scout-court="opp"] [data-scout-court-position="${position}"]`);
 
+/** Dove sta ogni posizione nel campo della finestra «chi?» (il centro della casella, nella finestra del browser). */
+async function spotCenters(sheet: Locator): Promise<Record<number, { x: number; y: number }>> {
+  return sheet.locator("[data-scout-spot]").evaluateAll((elements) =>
+    Object.fromEntries(
+      elements.map((element) => {
+        const r = element.getBoundingClientRect();
+        return [Number(element.getAttribute("data-scout-spot")), { x: r.x + r.width / 2, y: r.y + r.height / 2 }];
+      }),
+    ),
+  );
+}
+
+test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro, la libero spenta a muro, chi batte, la panchina e il loro campo", async ({ page }) => {
+  test.setTimeout(240_000);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+  const matchId = await createMatch(page, uniqueName("Campo chi "));
+  await prepare(page, matchId, "base");
+
+  // Muro nostro: il nostro campo. Davanti 4-3-2 (n. 7, 5, 2), dietro 5-6-1 (n. 11, la libero n. 1 al posto della 14, e la 9 che batte).
+  await page.locator('[data-scout-add="us-block"]').click();
+  const sheet = page.locator("[data-scout-sheet^='player']");
+  await sheet.waitFor();
+  const court = sheet.locator("[data-scout-court-picker='us']");
+  await expect(court).toBeVisible();
+  await expect(court).toContainText("Rete");
+  await expect(court).toContainText("linea dei 3 m");
+  const c = await spotCenters(sheet);
+  expect(Object.keys(c).map(Number).sort()).toEqual([1, 2, 3, 4, 5, 6]);
+  // Una fila sopra l'altra, da sinistra a destra come si vedono: 4 3 2 davanti, 5 6 1 dietro; ognuna sotto la sua.
+  for (const [front, back] of [[4, 5], [3, 6], [2, 1]]) {
+    expect(Math.abs(c[front].x - c[back].x), `la ${back} non sta sotto la ${front}`).toBeLessThan(2);
+    expect(c[front].y, `la ${front} non è davanti alla ${back}`).toBeLessThan(c[back].y);
+  }
+  expect(c[4].x).toBeLessThan(c[3].x);
+  expect(c[3].x).toBeLessThan(c[2].x);
+  expect(Math.abs(c[4].y - c[3].y)).toBeLessThan(2);
+  expect(Math.abs(c[5].y - c[1].y)).toBeLessThan(2);
+  await expect(sheet.locator('[data-scout-spot="4"]')).toContainText("7");
+  await expect(sheet.locator('[data-scout-spot="3"]')).toContainText("5");
+  await expect(sheet.locator('[data-scout-spot="2"]')).toContainText("2");
+  await expect(sheet.locator('[data-scout-spot="5"]')).toContainText("11");
+  await expect(sheet.locator('[data-scout-spot="1"]')).toContainText("9");
+  // La libero (n. 1, al posto della centrale in seconda linea) c'è, ma a muro non si sceglie.
+  const libero = sheet.locator('[data-scout-spot="6"]');
+  await expect(libero).toContainText("libero");
+  await expect(libero).toHaveAttribute("aria-disabled", "true");
+  await expect(sheet.locator('[data-scout-spot="6"][data-scout-pick]')).toHaveCount(0);
+  await expect(sheet).toContainText("A muro vanno solo le giocatrici davanti");
+  // Chi batte ha il pallone verde. Chi è in panchina sta sotto (anche la centrale sostituita dalla libero).
+  await expect(sheet.locator('[data-scout-spot="1"]').getByLabel("Batte")).toBeVisible();
+  await expect(sheet.locator('[data-scout-spot] [aria-label="Batte"]')).toHaveCount(1);
+  await expect(sheet.locator("[data-scout-bench] [data-scout-pick]")).toHaveCount(3);
+  await expect(sheet.locator("[data-scout-bench]")).toContainText("Hilda");
+  await expect(sheet.locator("[data-scout-bench]")).toContainText("Irene");
+  await expect(sheet.locator("[data-scout-bench]")).toContainText("Fede");
+  // Muro della n. 5 (posizione 3), poi chi attaccava: il loro campo (21…26 nelle posizioni 1…6), tutte da scegliere.
+  await sheet.locator('[data-scout-spot="3"]').click();
+  await expect(page.getByRole("dialog", { name: "Chi attaccava?" })).toBeVisible();
+  const theirs = page.locator("[data-scout-court-picker='opp']");
+  await expect(theirs).toBeVisible();
+  const o = await spotCenters(page.locator("[data-scout-sheet^='player']"));
+  expect(o[4].y).toBeLessThan(o[5].y);
+  expect(Math.abs(o[4].x - o[5].x)).toBeLessThan(2);
+  await expect(theirs.locator('[data-scout-spot="4"]')).toContainText("24");
+  await expect(theirs.locator('[data-scout-spot="1"]')).toContainText("21");
+  await expect(theirs.locator("[data-scout-pick][data-scout-on-court]")).toHaveCount(6);
+  await expect(theirs).not.toContainText("libero");
+  await expect(theirs.getByLabel("Batte")).toHaveCount(0);
+  await theirs.locator('[data-scout-spot="4"]').click();
+  await expect(score(page)).toHaveText("1–0");
+  await expect(page.locator('[data-scout-rally="1"]')).toContainText("su n. 24");
+
+  // Ace nostro: chi batte (n. 9, posizione 1) è già segnata col pallone; si sceglie toccandola.
+  await page.locator('[data-scout-add="us-ace"]').click();
+  await sheet.waitFor();
+  await expect(sheet.locator('[data-scout-spot="1"]').getByLabel("Batte")).toBeVisible();
+  await expect(sheet).not.toContainText("A muro vanno solo");
+  await sheet.locator('[data-scout-spot="1"]').click();
+  await expect(score(page)).toHaveText("2–0");
+
+  // Loro hanno la battuta solo quando fanno punto: allora il pallone è sul loro campo, non sul nostro.
+  await addPoint(page, "opp-attack", { opp: "22" });
+  await expect(score(page)).toHaveText("2–1");
+  await page.locator('[data-scout-add="opp-ace"]').click();
+  await sheet.waitFor();
+  await expect(sheet.locator("[data-scout-court-picker='opp'] [data-scout-spot='1']").getByLabel("Batte")).toBeVisible();
+  await sheet.getByRole("button", { name: "Chiudi" }).click();
+  await expect(sheet).toHaveCount(0);
+
+  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+  await deleteMatchById(page, matchId);
+});
+
 test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento, set dopo set e tabellino", async ({ page }) => {
   test.setTimeout(300_000);
   await loginAsDev(page);
@@ -158,12 +252,14 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await expect(oppSpot(page, 1)).toContainText("22");
   await expect(oppSpot(page, 1).getByLabel("Batte")).toBeVisible();
 
-  // 2) Punto nostro: chi sceglie «chi» vede prima le giocatrici in campo, con la posizione, poi la panchina.
+  // 2) Punto nostro: «chi» si sceglie dal campo, con la posizione di ognuna, e la panchina sotto.
   await page.locator('[data-scout-add="us-attack"]').click();
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
-  await expect(sheet.locator("[data-scout-pick]").first()).toHaveAttribute("data-scout-on-court", "1");
+  await expect(sheet.locator("[data-scout-court-picker='us']")).toBeVisible();
+  await expect(sheet.locator('[data-scout-pick][data-scout-on-court="1"]')).toContainText("Anna");
   await expect(sheet.locator("[data-scout-pick]", { hasText: "Hilda" })).not.toHaveAttribute("data-scout-on-court", /.*/);
+  await expect(sheet.locator("[data-scout-bench] [data-scout-pick]", { hasText: "Hilda" })).toBeVisible();
   await sheet.locator("[data-scout-pick]", { hasText: "Anna" }).click();
   await expect(score(page)).toHaveText("1–1");
   await expectBall(page, "us", "Battuta");
