@@ -220,7 +220,7 @@ export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
     glow(live.away.color, "100%"),
   ].filter((layer): layer is string => layer !== null);
   const digit =
-    "animate-[livescore-score-pop_320ms_ease-out] font-display text-[3.5rem] font-extrabold leading-none tabular-nums sm:text-7xl lg:text-[5.5rem]";
+    "motion-safe:animate-[livescore-score-pop_320ms_ease-out] font-display text-[3.5rem] font-extrabold leading-none tabular-nums sm:text-7xl lg:text-[5.5rem]";
 
   return (
     <section aria-label="Partita in diretta" className="border-b border-border bg-surface" data-public-livescore>
