@@ -1,4 +1,4 @@
-import { RULES_SEASON, SUBSTITUTIONS_PER_SET } from "@/lib/volleyRules";
+import { RULES_SEASON, SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import { LEVEL_META, LEVEL_ORDER } from "./levels";
 import { PHASE_STEPS } from "./phases";
 import { TOUCH_SKILLS } from "./touches";
@@ -563,7 +563,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "I cambi" },
       {
         type: "p",
-        text: "Tocca **«Cambio»** sotto la squadra: scegli **chi esce** (tra le sei in campo) e **chi entra** (dalla panchina; per le avversarie puoi scrivere un numero nuovo), poi **«Conferma cambio»**. Chi entra continua la rotazione al posto di chi è uscita e, se era una delle due sostituite dalla libero, ne prende il ruolo. Lo Scout conta i cambi del set (6 al massimo nel 6 contro 6) e li mostra anche nel registro, dove si possono togliere.",
+        text: `Tocca **«Cambio»** sotto la squadra: scegli **chi esce** (tra le sei in campo) e **chi entra** (dalla panchina; per le avversarie puoi scrivere un numero nuovo), poi **«Conferma cambio»**. Chi entra continua la rotazione al posto di chi è uscita e, se era una delle due sostituite dalla libero, ne prende il ruolo. Lo Scout conta i cambi del set (${SUBSTITUTIONS_PER_SET} al massimo nel 6 contro 6) e li mostra anche nel registro, dove si possono togliere.`,
       },
       {
         type: "image",
@@ -613,7 +613,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Il tabellone" },
       {
         type: "p",
-        text: "In alto c'è il tabellone, sempre su sfondo scuro: il **set in corso** (per esempio «1° set a 25»), i **set vinti**, il **punteggio** e, sotto il nome di chi sta battendo, la scritta **«Batte»**. Il punteggio non lo scrivi mai: cresce da solo a ogni punto.",
+        text: "In alto c'è il tabellone, sempre su sfondo scuro: il **set in corso** (per esempio «1° set a 25»), i **set vinti**, il **punteggio** e, sotto il nome di chi sta battendo, la scritta **«Batte»**. Il punteggio non lo scrivi mai: cresce da solo a ogni punto. Sotto il punteggio ogni squadra ha il suo pulsante **«Time-out»**, per segnare quelli chiesti (vedi «I time-out», in fondo a questo capitolo).",
       },
       {
         type: "image",
@@ -621,12 +621,14 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         caption: "La pagina della partita: il tabellone e i due pannelli per segnare.",
         legend: [
           "Il set in corso e i set vinti.",
-          "Il punteggio: «Noi» a sinistra, «Loro» a destra. Sotto, «Batte» indica chi serve.",
-          "«Punto nostro»: i punti fatti da Volley Lignano.",
+          "Il punteggio: «Noi» a sinistra, «Loro» a destra.",
+          "I pulsanti «Time-out», uno per squadra.",
+          `Da che parte è la palla (${cap("fasi")}).`,
+          "«Punto nostro»: i punti di Volley Lignano.",
           "«Punto loro»: i punti delle avversarie.",
           "L'ultimo punto segnato e «Annulla ultimo».",
         ],
-        maxHeight: 400,
+        maxHeight: 380,
       },
       { type: "sub", title: "Passo 1: il pannello e il modo" },
       {
@@ -720,6 +722,15 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "callout",
         kind: "example",
         text: "Hai segnato «Punto nostro > Ace > n. 7» ma era un errore di battuta loro? Premi «Annulla ultimo» e rifai: «Punto nostro > Errore loro > Battuta sbagliata».",
+      },
+      { type: "sub", title: "I time-out" },
+      {
+        type: "p",
+        text: `Quando una squadra chiede un **time-out**, tocca il pulsante **«Time-out»** della squadra, sotto il punteggio: quello di «Noi» a sinistra, quello di «Loro» a destra. Ogni squadra ne ha **${TIMEOUTS_PER_SET} per set** (${TIMEOUT_SECONDS} secondi l'uno, dalla stagione ${RULES_SEASON}): i due pallini del pulsante si riempiono a ogni time-out e, quando sono finiti, il pulsante si spegne fino al set dopo. Il time-out non cambia il punteggio e nemmeno chi batte.`,
+      },
+      {
+        type: "p",
+        text: "Lo Scout lo scrive nel **registro**, tra i cambi del set, con il punteggio del momento («Time-out nostro (sul 12-9)»). Se hai toccato per sbaglio, **«Annulla ultimo»** lo toglie (se è l'ultima cosa segnata) oppure lo togli dal registro con il **cestino**. I time-out usati nel set compaiono anche sul riquadro **«In diretta»** del sito, se il punteggio live è acceso.",
       },
     ],
   },
@@ -1213,13 +1224,13 @@ export const SCOUT_MANUAL: ManualChapter[] = [
     blocks: [
       {
         type: "p",
-        text: "Se lo accendi, chi apre il sito della squadra vede un riquadro **«In diretta»** con le due squadre, il punteggio del set, i set vinti, chi batte e i set già chiusi. È il **punteggio**, niente di più, a qualunque livello: ricezioni e tocchi restano nello Scout.",
+        text: "Se lo accendi, chi apre il sito della squadra vede un riquadro **«In diretta»** con le due squadre, il punteggio del set, i set vinti, chi batte, i **time-out usati** e i set già chiusi. È il **punteggio**, niente di più, a qualunque livello: ricezioni e tocchi restano nello Scout.",
       },
       {
         type: "image",
         file: "live-banner.png",
         caption: "Il riquadro «In diretta» sul sito pubblico, come si vede dal telefono.",
-        maxWidth: 380,
+        maxWidth: 340,
       },
       { type: "sub", title: "Cosa si vede e cosa no" },
       {
@@ -1229,7 +1240,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           { header: "Cosa", weight: 8 },
         ],
         rows: [
-          ["Si vede", "I nomi delle due squadre, il punteggio del set, i set vinti e quelli chiusi, chi batte e la scritta «Risultato non ufficiale» (con l'ora dell'ultimo aggiornamento, se il punteggio si ferma da più di 3 minuti)."],
+          ["Si vede", "I nomi delle due squadre, il punteggio del set, i set vinti e quelli chiusi, chi batte, i time-out usati da ogni squadra nel set (due pallini, pieni quelli già chiamati) e la scritta «Risultato non ufficiale» (con l'ora dell'ultimo aggiornamento, se il punteggio si ferma da più di 3 minuti)."],
           ["Non si vede mai", "I nomi o i numeri di maglia delle giocatrici, chi ha fatto punto e come, gli errori, i voti, il tabellino, le formazioni."],
         ],
         keepTogether: true,
@@ -1563,7 +1574,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "callout",
         kind: "tip",
         title: "Se sbagli",
-        text: "**Annulla ultimo** toglie l'ultima cosa segnata (un punto o un tocco). Per uno scambio più vecchio: **Registro > matita**.",
+        text: "**Annulla ultimo** toglie l'ultima cosa segnata (un punto, un tocco o un time-out). Per uno scambio più vecchio: **Registro > matita**.",
       },
       {
         type: "callout",

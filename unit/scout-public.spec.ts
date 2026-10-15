@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
-import { addPlayer, addRally, endSet, newScoutData, opponentPlayer, updateSettings } from "@/lib/scout/actions";
+import { addPlayer, addRally, addTimeout, endSet, newScoutData, opponentPlayer, scoutReducer, updateSettings } from "@/lib/scout/actions";
+import { deriveScout } from "@/lib/scout/derive";
 import { scoutDataSchema } from "@/lib/scout/schema";
 import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
 import { backupKey, parseBackup, sameScout, scoutContent } from "@/lib/scout/sync";
@@ -112,7 +113,86 @@ test.describe("punteggio live dallo scout", () => {
     expect(json).not.toContain("a1");
     expect(json).not.toContain("roster");
     expect(json).not.toContain("attack");
-    expect(Object.keys(live(data) ?? {}).sort()).toEqual(["away", "category", "finished", "home", "serving", "sets", "team", "updatedAt"]);
+    expect(Object.keys(live(data) ?? {}).sort()).toEqual(["away", "category", "finished", "home", "serving", "sets", "team", "timeouts", "updatedAt"]);
+  });
+});
+
+test.describe("time-out dallo scout", () => {
+  const on = () => updateSettings(base(), { publicLive: true });
+  const timeout = (data: ScoutData, side: "us" | "opp", n: number) => addTimeout(data, side, T0 + 500_000 + n * 1000, `to-${side}-${n}`);
+
+  test("senza time-out sul sito risultano zero per tutte e due", () => {
+    expect(live(play(on(), 5, 3))?.timeouts).toEqual({ home: 0, away: 0 });
+  });
+
+  test("ognuna ne ha due per set: il terzo non si aggiunge", () => {
+    let data = play(on(), 5, 3);
+    data = timeout(data, "us", 1);
+    expect(live(data)?.timeouts).toEqual({ home: 1, away: 0 });
+    data = timeout(timeout(data, "opp", 2), "us", 3);
+    expect(live(data)?.timeouts).toEqual({ home: 2, away: 1 });
+    // Il terzo di noi: stessi dati, niente di nuovo.
+    const third = timeout(data, "us", 4);
+    expect(third).toBe(data);
+    expect(live(third)?.timeouts).toEqual({ home: 2, away: 1 });
+    expect(deriveScout(data).current?.timeouts.map((t) => [t.side, t.score])).toEqual([
+      ["us", { us: 5, opp: 3 }],
+      ["opp", { us: 5, opp: 3 }],
+      ["us", { us: 5, opp: 3 }],
+    ]);
+  });
+
+  test("a ogni set si ricomincia da zero, e il time-out resta nel set in cui è stato chiesto", () => {
+    let data = timeout(timeout(play(on(), 25, 20), "us", 1), "opp", 2);
+    expect(live(data)?.timeouts).toEqual({ home: 1, away: 1 });
+    data = endSet(data, "opp", T0 + 900_000, "end1");
+    expect(live(data)?.timeouts).toEqual({ home: 0, away: 0 });
+    const view = deriveScout(data);
+    expect(view.sets[0].timeouts).toHaveLength(2);
+    expect(view.sets[1].timeouts).toHaveLength(0);
+    // Nel secondo set ne hanno di nuovo due ciascuna.
+    data = timeout(timeout(timeout(data, "us", 3), "us", 4), "us", 5);
+    expect(live(data)?.timeouts).toEqual({ home: 2, away: 0 });
+  });
+
+  test("a partita finita non si mostrano più", () => {
+    const data = { ...timeout(play(on(), 12, 9), "us", 1), finished: true };
+    expect(live(data)?.timeouts).toEqual({ home: 0, away: 0 });
+  });
+
+  test("l'annulla toglie l'ultimo time-out e il Registro ne toglie uno qualsiasi", () => {
+    let data = timeout(timeout(play(on(), 5, 3), "us", 1), "opp", 2);
+    data = scoutReducer(data, { type: "undo" });
+    expect(live(data)?.timeouts).toEqual({ home: 1, away: 0 });
+    data = scoutReducer(data, { type: "remove", id: "to-us-1" });
+    expect(live(data)?.timeouts).toEqual({ home: 0, away: 0 });
+    // Tolto, se ne può chiedere un altro.
+    expect(live(timeout(data, "us", 9))?.timeouts).toEqual({ home: 1, away: 0 });
+  });
+
+  test("a partita decisa o chiusa non se ne aggiungono", () => {
+    const closed = { ...play(on(), 12, 9), finished: true };
+    expect(timeout(closed, "us", 1)).toBe(closed);
+    let decided = updateSettings(base(), { publicLive: true, format: "bo3" });
+    for (let set = 1; set <= 2; set++) decided = endSet(play(decided, 25, 10, set * 100), "us", T0 + set * 200_000, `end${set}`);
+    expect(timeout(decided, "opp", 1)).toBe(decided);
+  });
+
+  test("un time-out in più nei dati (scritti a mano o vecchi) non conta e lo scout si legge lo stesso", () => {
+    const data = play(on(), 5, 3);
+    const extra = { ...data, events: [...data.events, ...[1, 2, 3].map((n) => ({ type: "timeout" as const, id: `x${n}`, at: T0 + 700_000 + n, side: "us" as const }))] };
+    expect(scoutDataSchema.safeParse({ ...extra, finished: false }).success).toBe(true);
+    expect(live(extra)?.timeouts).toEqual({ home: 2, away: 0 });
+    // Un evento di tipo sconosciuto invece si rifiuta.
+    const strange = { ...data, events: [...data.events, { type: "boh", id: "y", at: 1 }] };
+    expect(scoutDataSchema.safeParse(strange).success).toBe(false);
+  });
+
+  test("un time-out non cambia punteggio, battuta e chi serve", () => {
+    const data = play(on(), 5, 3);
+    const withTimeout = timeout(data, "opp", 1);
+    expect(live(withTimeout)).toMatchObject({ home: { score: 5 }, away: { score: 3 }, serving: "away", sets: [], finished: false });
+    expect(deriveScout(withTimeout).rallies).toHaveLength(8);
   });
 });
 
@@ -124,6 +204,7 @@ test.describe("punteggio live: Scout o Live score", () => {
     away: { name: "X", color: "#fff", score: 0, sets: 0 },
     serving: null,
     sets: [],
+    timeouts: { home: 0, away: 0 },
     finished: false,
     updatedAt,
   });

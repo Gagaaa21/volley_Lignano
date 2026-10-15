@@ -25,6 +25,7 @@ import {
   substitutionProblem,
   substitutionWarning,
   suggestedSetEnd,
+  teamMonogram,
   toPublicLiveScore,
   withMode,
   withPlayersPerSide,
@@ -317,6 +318,40 @@ test.describe("diretta pubblica", () => {
     const m = game(6, { publicLive: true });
     const done = { ...m, teamA: { ...m.teamA, setsWon: 3 } };
     expect(toPublicLiveScore(done, "x")!.finished).toBe(true);
+  });
+
+  test("le iniziali dell'avversaria per il tondo sul sito: senza le parole che aprono ogni società", () => {
+    expect(teamMonogram("A.S.D. Pallavolo Latisana")).toBe("LA");
+    expect(teamMonogram("Pol. Città Bella")).toBe("CB");
+    expect(teamMonogram("Project Volley Olimpia")).toBe("PO");
+    expect(teamMonogram("Degano")).toBe("DE");
+    expect(teamMonogram("Factory Volley Faedis")).toBe("FF");
+    expect(teamMonogram("  ")).toBe("?");
+    // Un nome fatto solo di parole «da società» non resta senza iniziali.
+    expect(teamMonogram("Volley Team")).toBe("VT");
+    expect(teamMonogram("Avversaria")).toBe("AV");
+    // I numeri (un anno, «Under 15») non danno iniziali.
+    expect(teamMonogram("Pol. Esempio 2012")).toBe("ES");
+  });
+
+  test("i time-out usati nel set in corso, per squadra; a partita finita zero", () => {
+    const m = game(6, { publicLive: true });
+    expect(toPublicLiveScore(m, "x")!.timeouts).toEqual({ home: 0, away: 0 });
+    const used = { ...m, teamA: { ...m.teamA, timeoutsUsed: 1 }, teamB: { ...m.teamB, timeoutsUsed: 2 } };
+    expect(toPublicLiveScore(used, "x")!.timeouts).toEqual({ home: 1, away: 2 });
+    // Dati fuori misura (salvati a mano) non superano il massimo.
+    expect(toPublicLiveScore({ ...m, teamA: { ...m.teamA, timeoutsUsed: 7 } }, "x")!.timeouts.home).toBe(2);
+    // Finita la partita non c'è più un set in corso: niente da mostrare.
+    const done = { ...used, teamA: { ...used.teamA, setsWon: 3 } };
+    expect(toPublicLiveScore(done, "x")!.timeouts).toEqual({ home: 0, away: 0 });
+  });
+
+  test("chiuso il set i time-out ripartono da zero e il pubblico lo vede", () => {
+    let m = game(6, { publicLive: true });
+    m = { ...m, teamA: { ...m.teamA, score: 24, timeoutsUsed: 2 }, teamB: { ...m.teamB, score: 20, timeoutsUsed: 1 } };
+    expect(toPublicLiveScore(m, "x")!.timeouts).toEqual({ home: 2, away: 1 });
+    const closed = closeSet(m);
+    expect(toPublicLiveScore(closed, "x")!.timeouts).toEqual({ home: 0, away: 0 });
   });
 
   test("collegare la partita di oggi scrive l'avversaria e la categoria (non per i tornei)", () => {

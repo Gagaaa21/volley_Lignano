@@ -295,6 +295,11 @@ export function ScoutClient({
       }),
     [match.id, inlineSetup, setEnding, view.decided, data.finished, canForceClose, canFinish, level, followsLineup],
   );
+  // Time-out usati da ogni squadra nel set in corso (due per set): sul tabellone e sul sito pubblico.
+  const timeoutsUsed = {
+    us: view.current?.timeouts.filter((t) => t.side === "us").length ?? 0,
+    opp: view.current?.timeouts.filter((t) => t.side === "opp").length ?? 0,
+  };
   const lastEvent = data.events[data.events.length - 1];
   // L'ultimo evento ha chiuso uno scambio (un esito scelto a mano, o un tocco con un voto che chiude)? Altrimenti è un tocco in sospeso o la fine di un set.
   const lastRally = lastEvent && lastEvent.type !== "setEnd" ? view.rallies.find((r) => r.id === lastEvent.id) : undefined;
@@ -321,7 +326,15 @@ export function ScoutClient({
   const setup = <ScoutSetup data={data} view={view} athletes={athletes} savedLineups={savedLineups} dispatch={dispatch} />;
   const boardEl = (
     <div data-tour="section-scout-board">
-      <ScoutBoard view={view} settings={data.settings} finished={data.finished} ball={ball} compact={isFullscreen} />
+      <ScoutBoard
+        view={view}
+        settings={data.settings}
+        finished={data.finished}
+        ball={ball}
+        compact={isFullscreen}
+        timeouts={timeoutsUsed}
+        onTimeout={locked ? undefined : (side) => dispatch({ type: "timeout", side, at: Date.now(), id: newId() })}
+      />
     </div>
   );
   const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} large={twoColumns} />;
@@ -537,6 +550,8 @@ export function ScoutClient({
                       <p className="text-muted-foreground">Ultimo: formazione {lastEvent.side === "us" ? "nostra" : "loro"}</p>
                     ) : lastEvent?.type === "sub" ? (
                       <p className="text-muted-foreground">Ultimo: cambio {lastEvent.side === "us" ? "nostro" : "loro"}</p>
+                    ) : lastEvent?.type === "timeout" ? (
+                      <p className="text-muted-foreground">Ultimo: time-out {lastEvent.side === "us" ? "nostro" : "loro"}</p>
                     ) : lastEvent ? (
                       <p className="text-muted-foreground">Ultimo: fine del set</p>
                     ) : (

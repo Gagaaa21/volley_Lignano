@@ -1,5 +1,5 @@
 import { lineupAfterRally, refreshLibero, substituteLineup, substitutionProblemFor, type CourtLineup } from "@/lib/lineup";
-import { isDecidingSet, isMatchDecided as isMatchDecidedBy, isSetWon, maxSets as maxSetsOf, targetForSet } from "@/lib/volleyRules";
+import { isDecidingSet, isMatchDecided as isMatchDecidedBy, isSetWon, maxSets as maxSetsOf, targetForSet, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import { rallyWinner } from "./rules";
 import { touchOutcome } from "./touches";
 import {
@@ -57,6 +57,15 @@ export interface ScoutSubstitution {
   score: ScoutScore;
 }
 
+/** Un time-out chiesto in un set. */
+export interface ScoutTimeout {
+  id: string;
+  at: number;
+  side: ScoutSide;
+  /** Punteggio del set quando è stato chiesto. */
+  score: ScoutScore;
+}
+
 export interface ScoutRally {
   /** Di uno scambio chiuso da un tocco è l'id di quel tocco; altrimenti quello dell'esito segnato. */
   id: string;
@@ -99,6 +108,8 @@ export interface ScoutSet {
   lineups: ScoutCourts;
   /** I cambi fatti nel set, in ordine. */
   subs: ScoutSubstitution[];
+  /** I time-out chiesti nel set, in ordine (al massimo due per squadra). */
+  timeouts: ScoutTimeout[];
 }
 
 export interface ScoutView {
@@ -151,6 +162,7 @@ function newSet(n: number, firstServer: ScoutSide): ScoutSet {
     endedAt: null,
     lineups: { us: null, opp: null },
     subs: [],
+    timeouts: [],
   };
 }
 
@@ -334,6 +346,11 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
         if (counts) {
           cur.subs.push({ id: event.id, at: event.at, side: event.side, position: event.position, out: outgoing, in: event.player, score: { ...cur.score } });
         }
+      }
+    } else if (event.type === "timeout") {
+      // Un time-out in più del limite (dati a mano o vecchi) non conta: ogni squadra ne ha due per set.
+      if (cur.timeouts.filter((t) => t.side === event.side).length < TIMEOUTS_PER_SET) {
+        cur.timeouts.push({ id: event.id, at: event.at, side: event.side, score: { ...cur.score } });
       }
     } else {
       // Fine set: i tocchi di uno scambio rimasto a metà non contano.

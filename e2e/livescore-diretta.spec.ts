@@ -147,6 +147,17 @@ test("solo punteggio con diretta pubblica: si vede sul sito senza nomi, e si spe
   await page.getByRole("button", { name: "Punto Pallavolo Diretta" }).click();
   await expect(site.locator("[data-public-livescore-score]")).toContainText("Pallavolo Diretta 2", { timeout: 20_000 });
 
+  // Time-out: quelli del Live score si vedono sul sito, due puntini sotto il nome di ogni squadra (a sinistra c'è Lignano).
+  await expect(site.locator("[data-public-timeouts]")).toHaveCount(2);
+  await expect(site.locator("[data-public-timeouts]").nth(0)).toHaveAttribute("data-public-timeouts", "0");
+  await page.getByRole("button", { name: /Time-out 0\/2/ }).first().click();
+  await expect(page.getByRole("button", { name: /Time-out 1\/2/ })).toBeVisible();
+  await expect
+    .poll(async () => (await (await site.request.get("/api/livescore/pubblico")).json()).live?.timeouts, { timeout: 15_000 })
+    .toEqual({ home: 1, away: 0 });
+  await expect(site.locator("[data-public-timeouts]").nth(0)).toHaveAttribute("data-public-timeouts", "1", { timeout: 20_000 });
+  await expect(site.locator("[data-public-timeouts]").nth(1)).toHaveAttribute("data-public-timeouts", "0");
+
   // Il Minivolley non vede la diretta della U14/U15.
   await site.goto("/minivolley");
   await site.waitForLoadState("networkidle");

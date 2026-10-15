@@ -1,8 +1,9 @@
-import { Volleyball } from "lucide-react";
+import { Timer, Volleyball } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { currentServer, setTarget, type ScoutView } from "@/lib/scout/derive";
+import { currentServer, setTarget, type ScoutScore, type ScoutView } from "@/lib/scout/derive";
 import type { BallState } from "@/lib/scout/phases";
 import type { ScoutSettings, ScoutSide } from "@/lib/scout/types";
+import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
 function Serving({ show }: { show: boolean }) {
   return (
@@ -49,7 +50,41 @@ function Team({ side, serving, hasBall }: { side: ScoutSide; serving: boolean; h
 }
 
 /**
- * Il tabellone dello scout: set in corso, punteggio, chi batte e set vinti.
+ * Il pulsante del time-out di una squadra: i puntini dicono quanti ne ha già usati nel set (due per set, regola
+ * 15.4); si tocca quando l'allenatore lo chiede e compare anche sul sito pubblico. Finiti i due, si spegne.
+ */
+function TimeoutButton({ side, used, compact, onClick }: { side: ScoutSide; used: number; compact: boolean; onClick: () => void }) {
+  const spent = used >= TIMEOUTS_PER_SET;
+  const who = side === "us" ? "nostro" : "loro";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={spent}
+      data-scout-timeout={side}
+      data-scout-timeouts-used={used}
+      aria-label={spent ? `Time-out ${who}: tutti e ${TIMEOUTS_PER_SET} usati` : `Segna un time-out ${who}: ${used} usati su ${TIMEOUTS_PER_SET}`}
+      title={spent ? `Time-out ${who} finiti in questo set` : `Segna un time-out ${who} (${used}/${TIMEOUTS_PER_SET} usati)`}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border border-amber-300/45 bg-amber-300/10 px-3 text-[12px] font-bold uppercase tracking-wide text-amber-100 transition-[background-color,transform,opacity] hover:bg-amber-300/20 active:translate-y-px disabled:pointer-events-none disabled:border-white/15 disabled:bg-white/5 disabled:text-white/45",
+        compact ? "min-h-9 py-1" : "min-h-10 py-1.5",
+        side === "opp" && "flex-row-reverse",
+      )}
+    >
+      <Timer className="h-4 w-4 shrink-0" aria-hidden />
+      <span>Time-out</span>
+      <span className="flex items-center gap-1" aria-hidden>
+        {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
+          <span key={i} className={cn("h-2.5 w-2.5 rounded-full border", i < used ? "border-amber-300 bg-amber-300" : "border-amber-200/60")} />
+        ))}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Il tabellone dello scout: set in corso, punteggio, chi batte, set vinti e, se si passa `onTimeout`, i time-out
+ * usati da ogni squadra nel set (con il pulsante per segnarli).
  * Sempre scuro, come il tabellone del sito pubblico, qualunque sia il tema.
  */
 export function ScoutBoard({
@@ -58,6 +93,8 @@ export function ScoutBoard({
   finished,
   ball = null,
   compact = false,
+  timeouts,
+  onTimeout,
 }: {
   view: ScoutView;
   settings: ScoutSettings;
@@ -67,6 +104,10 @@ export function ScoutBoard({
   ball?: BallState | null;
   /** Più basso (a schermo intero ogni riga in altezza serve ai pulsanti). */
   compact?: boolean;
+  /** Time-out usati da ogni squadra nel set in corso. */
+  timeouts?: ScoutScore;
+  /** Se c'è, sotto il punteggio compaiono i pulsanti dei time-out. */
+  onTimeout?: (side: ScoutSide) => void;
 }) {
   const over = view.decided || finished;
   const shown = view.current ?? view.sets[view.sets.length - 1];
@@ -136,6 +177,16 @@ export function ScoutBoard({
         </p>
         <Team side="opp" serving={server === "opp"} hasBall={ball?.side === "opp"} />
       </div>
+
+      {onTimeout && !over && (
+        <div
+          className={cn("relative flex items-center justify-between gap-3 border-t border-white/10 px-4 py-2 sm:px-6", compact && "py-1.5")}
+          data-scout-timeouts
+        >
+          <TimeoutButton side="us" used={timeouts?.us ?? 0} compact={compact} onClick={() => onTimeout("us")} />
+          <TimeoutButton side="opp" used={timeouts?.opp ?? 0} compact={compact} onClick={() => onTimeout("opp")} />
+        </div>
+      )}
     </section>
   );
 }

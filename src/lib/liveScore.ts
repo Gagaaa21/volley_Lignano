@@ -109,6 +109,24 @@ export function teamColor(key: TeamKey, mode: LiveScoreMode, opponentColor: stri
   return key === "A" ? HOME_COLOR : mode === "match" ? opponentColor : TRAINING_AWAY_COLOR;
 }
 
+/** Parole che aprono il nome di quasi ogni società e non dicono chi è: non entrano nelle iniziali. */
+const NAME_NOISE = new Set(["a", "s", "d", "asd", "ssd", "apd", "pol", "polisportiva", "pallavolo", "volley", "team", "us", "gs", "sport"]);
+
+/**
+ * Le iniziali di una squadra per il tondo con il suo colore (sito pubblico): «A.S.D. Pallavolo Latisana» → «LA»,
+ * «Pol. Città Bella» → «CB». Una parola sola dà le prime due lettere.
+ */
+export function teamMonogram(name: string): string {
+  const words = name
+    .replace(/[.'’\-_]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 0 && !NAME_NOISE.has(word.toLowerCase()) && !/^\d+$/.test(word));
+  const useful = words.length > 0 ? words : name.split(/\s+/).filter(Boolean);
+  if (useful.length === 0) return "?";
+  const letters = useful.length === 1 ? useful[0].slice(0, 2) : `${useful[0][0]}${useful[1][0]}`;
+  return letters.toUpperCase();
+}
+
 // ── Stato iniziale ─────────────────────────────────────────────────────
 
 export function emptyTeam(label: string, players: LiveScorePlayers = 6): LiveScoreTeamState {
@@ -566,6 +584,7 @@ export function toPublicLiveScore(match: LiveScoreState, updatedAt: string): Pub
       sets: t.setsWon,
     };
   };
+  const finished = matchWinner(match) !== null;
   return {
     team: match.team,
     category: match.category,
@@ -573,7 +592,11 @@ export function toPublicLiveScore(match: LiveScoreState, updatedAt: string): Pub
     away: team("B"),
     serving: match.servingTeam === "A" ? "home" : match.servingTeam === "B" ? "away" : null,
     sets: match.setHistory.map((s) => ({ home: s.scoreA, away: s.scoreB })),
-    finished: matchWinner(match) !== null,
+    // Del set in corso (si azzerano a ogni set); a partita finita non c'è più niente da mostrare.
+    timeouts: finished
+      ? { home: 0, away: 0 }
+      : { home: Math.min(match.teamA.timeoutsUsed, MAX_TIMEOUTS_PER_SET), away: Math.min(match.teamB.timeoutsUsed, MAX_TIMEOUTS_PER_SET) },
+    finished,
     updatedAt,
   };
 }

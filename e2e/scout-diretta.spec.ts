@@ -61,6 +61,7 @@ type PublicLive = {
   away: { name: string; color: string; score: number; sets: number };
   serving: "home" | "away" | null;
   sets: { home: number; away: number }[];
+  timeouts: { home: number; away: number };
   finished: boolean;
   updatedAt: string;
 } | null;
@@ -117,7 +118,8 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   expect(live!.home.sets).toBe(0);
   expect(live!.finished).toBe(false);
   expect(live!.serving).toBe("home");
-  expect(Object.keys(live!).sort()).toEqual(["away", "category", "finished", "home", "serving", "sets", "team", "updatedAt"]);
+  expect(Object.keys(live!).sort()).toEqual(["away", "category", "finished", "home", "serving", "sets", "team", "timeouts", "updatedAt"]);
+  expect(live!.timeouts).toEqual({ home: 0, away: 0 });
   expect(Object.keys(live!.home).sort()).toEqual(["color", "name", "score", "sets"]);
   const raw = JSON.stringify(live);
   for (const secret of ["Segretissima", "Rossi", "attack", "ace", "rally", "roster", "events", "player"]) expect(raw).not.toContain(secret);
@@ -143,6 +145,36 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   // Un altro punto arriva da solo, senza ricaricare la pagina.
   await addPoint(page, "opp-ace", { opp: "14" });
   await expect(site.locator("[data-public-livescore-score]")).toContainText(`${opponent} 2`, { timeout: 20_000 });
+
+  // Time-out: dal tabellone dello Scout, due per squadra; sul sito compaiono come puntini pieni sotto il nome.
+  const ourTimeout = page.locator('[data-scout-timeout="us"]');
+  const theirTimeout = page.locator('[data-scout-timeout="opp"]');
+  await expect(ourTimeout).toHaveAttribute("data-scout-timeouts-used", "0");
+  await expect(site.locator("[data-public-timeouts]")).toHaveCount(2);
+  await expect(site.locator("[data-public-timeouts]").nth(0)).toHaveAttribute("data-public-timeouts", "0");
+  await ourTimeout.click();
+  await theirTimeout.click();
+  await theirTimeout.click();
+  await expect(ourTimeout).toHaveAttribute("data-scout-timeouts-used", "1");
+  await expect(theirTimeout).toHaveAttribute("data-scout-timeouts-used", "2");
+  // Finiti i due, il pulsante si spegne: non se ne segna un terzo.
+  await expect(theirTimeout).toBeDisabled();
+  await expect(ourTimeout).toBeEnabled();
+  await expect(page.locator("[data-scout-timeout-note]")).toHaveCount(3);
+  await expect(page.getByText("Ultimo: time-out loro")).toBeVisible();
+  await expect(sync(page)).toContainText("Salvato");
+  expect((await publicLive(site))!.timeouts).toEqual({ home: 1, away: 2 });
+  expect(Object.keys((await publicLive(site))!.timeouts).sort()).toEqual(["away", "home"]);
+  await expect(site.locator("[data-public-timeouts]").nth(0)).toHaveAttribute("data-public-timeouts", "1", { timeout: 20_000 });
+  await expect(site.locator("[data-public-timeouts]").nth(1)).toHaveAttribute("data-public-timeouts", "2", { timeout: 20_000 });
+  await expect(banner).toContainText("Time-out");
+  // Con «Annulla ultimo» si toglie l'ultimo time-out, e il sito lo segue.
+  await page.locator("[data-scout-undo]").click();
+  await expect(theirTimeout).toHaveAttribute("data-scout-timeouts-used", "1");
+  await expect(theirTimeout).toBeEnabled();
+  await expect(site.locator("[data-public-timeouts]").nth(1)).toHaveAttribute("data-public-timeouts", "1", { timeout: 20_000 });
+  // Un time-out non cambia il punteggio.
+  await expect(score(page)).toHaveText("2–2");
 
   // Il Minivolley non vede la diretta della U14/U15.
   await site.goto("/minivolley");

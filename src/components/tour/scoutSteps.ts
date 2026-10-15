@@ -1,4 +1,4 @@
-import { SUBSTITUTIONS_PER_SET } from "@/lib/volleyRules";
+import { SUBSTITUTIONS_PER_SET, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import type { ScoutLevel } from "@/lib/scout/types";
 import type { BaseTourStep } from "./engine/types";
 
@@ -159,7 +159,12 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     target: "section-scout-board",
     chapter,
     title: "Il tabellone",
-    body: "In alto vedi il set in corso («1° set a 25») e i set vinti. Al centro il punteggio: «Noi» a sinistra (Volley Lignano), «Loro» a destra. Sotto il nome di chi sta battendo compare «Batte».\n\nIl punteggio non lo scrivi mai: cresce da solo a ogni punto che segni.",
+    body:
+      "In alto vedi il set in corso («1° set a 25») e i set vinti. Al centro il punteggio: «Noi» a sinistra (Volley Lignano), «Loro» a destra. Sotto il nome di chi sta battendo compare «Batte».\n\nIl punteggio non lo scrivi mai: cresce da solo a ogni punto che segni." +
+      // A partita chiusa i pulsanti dei time-out non ci sono più.
+      (chapter === C_FIX
+        ? ""
+        : `\n\nSotto il punteggio ogni squadra ha il suo pulsante «Time-out»: toccalo quando ne viene chiesto uno (${TIMEOUTS_PER_SET} per set, i pallini si riempiono). Finisce nel registro e, se il punteggio live è acceso, lo vede anche chi guarda il sito.`),
     tip: "Ogni tanto guarda il segnapunti dell'arbitro: se i punteggi non coincidono, nel registro in fondo trovi lo scambio da correggere.",
   });
   const sync: BaseTourStep = {

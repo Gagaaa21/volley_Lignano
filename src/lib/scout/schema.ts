@@ -69,6 +69,13 @@ const subSchema = z.object({
   player: z.string().min(1).max(64),
 });
 
+const timeoutSchema = z.object({
+  type: z.literal("timeout"),
+  id: z.string().min(1).max(64),
+  at: z.number().int().min(0),
+  side: sideSchema,
+});
+
 function uniqueIds(items: { id: string }[]): boolean {
   return new Set(items.map((i) => i.id)).size === items.length;
 }
@@ -91,7 +98,7 @@ export const scoutDataSchema = z
       us: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
       opp: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
     }),
-    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema])).max(MAX_SCOUT_EVENTS),
+    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema, timeoutSchema])).max(MAX_SCOUT_EVENTS),
     finished: z.boolean(),
   })
   .refine((data) => uniqueIds(data.events), { message: "Eventi duplicati." }) satisfies z.ZodType<ScoutData>;

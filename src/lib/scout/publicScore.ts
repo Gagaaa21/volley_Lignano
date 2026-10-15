@@ -39,6 +39,11 @@ export function toPublicScoutScore(
     },
     serving: server === "us" ? "home" : server === "opp" ? "away" : null,
     sets: playedSets,
+    // I time-out del set in corso (due per squadra, vedi addTimeout); a partita finita non si mostrano.
+    timeouts: {
+      home: finished ? 0 : (view.current?.timeouts.filter((t) => t.side === "us").length ?? 0),
+      away: finished ? 0 : (view.current?.timeouts.filter((t) => t.side === "opp").length ?? 0),
+    },
     finished,
     updatedAt: scout.updatedAt,
   };

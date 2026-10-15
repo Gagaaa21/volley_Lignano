@@ -1,3 +1,4 @@
+import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import { deriveScout } from "./derive";
 import { levelOf } from "./levels";
 import { rallyWinner } from "./rules";
@@ -86,6 +87,7 @@ export function usedPlayerIds(data: Pick<ScoutData, "events">): Set<string> {
       used.add(event.player);
       continue;
     }
+    if (event.type === "timeout") continue;
     if (event.player) used.add(event.player);
     if (event.type === "rally" && event.victim) used.add(event.victim);
   }
@@ -308,6 +310,17 @@ export function substitute(
   return { ...data, events: [...data.events, { type: "sub", id, at, side, position, player }] };
 }
 
+/**
+ * Un time-out di una squadra nel set in corso: ognuna ne ha due per set (regola 15.4). Il terzo non si aggiunge;
+ * per toglierne uno si usa «Annulla ultimo» o il Registro. Non cambia punteggi né formazioni.
+ */
+export function addTimeout(data: ScoutData, side: ScoutSide, at: number, id: string): ScoutData {
+  if (isLocked(data)) return data;
+  const current = deriveScout(data).current;
+  if (!current || current.timeouts.filter((t) => t.side === side).length >= TIMEOUTS_PER_SET) return data;
+  return { ...data, events: [...data.events, { type: "timeout", id, at, side }] };
+}
+
 // ── rosa ────────────────────────────────────────────────────────────────
 
 export function addPlayer(data: ScoutData, side: ScoutSide, player: ScoutPlayer): ScoutData {
@@ -355,6 +368,7 @@ export type ScoutAction =
   | { type: "removeRally"; id: string }
   | { type: "lineup"; side: ScoutSide; input: LineupInput; at: number; id: string }
   | { type: "sub"; side: ScoutSide; position: ScoutSubEvent["position"]; player: string; at: number; id: string }
+  | { type: "timeout"; side: ScoutSide; at: number; id: string }
   | { type: "finish" }
   | { type: "reopen" }
   | { type: "settings"; patch: Partial<ScoutSettings> }
@@ -390,6 +404,8 @@ export function scoutReducer(data: ScoutData, action: ScoutAction): ScoutData {
       return setLineup(data, action.side, action.input, action.at, action.id);
     case "sub":
       return substitute(data, action.side, action.position, action.player, action.at, action.id);
+    case "timeout":
+      return addTimeout(data, action.side, action.at, action.id);
     case "finish":
       return finishMatch(data);
     case "reopen":

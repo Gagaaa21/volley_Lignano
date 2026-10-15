@@ -149,11 +149,14 @@ staff (Developer e Admin).
   `live_score_state`, campo `data` jsonb: i campi nuovi hanno un valore di
   partenza in `src/lib/liveScoreSchema.ts`, nessuna migrazione). In Partita un
   admin può accendere la **diretta pubblica**: `/api/livescore/pubblico`
-  espone solo squadre, punti, set e chi serve (mai nomi o formazioni), con
-  cache di 3 secondi solo sulla CDN di Vercel (`Vercel-CDN-Cache-Control`,
-  mai nel browser); il riquadro «In diretta» (`LiveScoreBanner`) sulla
-  home U14/U15 o Minivolley lo rilegge ogni 5 secondi mentre la pagina è
-  visibile.
+  espone solo squadre, punti, set, chi serve e time-out usati nel set (mai
+  nomi o formazioni), con cache di 3 secondi solo sulla CDN di Vercel
+  (`Vercel-CDN-Cache-Control`, mai nel browser); il riquadro «In diretta»
+  (`LiveScoreBanner`) sulla home U14/U15 o Minivolley lo rilegge ogni 5
+  secondi mentre la pagina è visibile. È un tabellone scuro, uguale con ogni
+  tema: stemma (o iniziali nel colore scelto per l'avversaria), punteggio
+  grande, set vinti, due pallini dei time-out per squadra e i parziali dei
+  set chiusi.
 - **Scout** (`/admin/scout`, permesso «Scout», regole in `src/lib/scout/`) —
   si segna la partita scambio per scambio, al **livello** scelto prima di ogni
   partita (`settings.level`, `levels.ts`): **Base** (chi fa punto e come, come
@@ -222,6 +225,16 @@ staff (Developer e Admin).
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF
     (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
     `data` jsonb, e gli scout vecchi si leggono come prima.
+  - **Time-out**: un evento `timeout` (`ScoutTimeoutEvent`, come `sub`: `types.ts`,
+    `schema.ts`, `actions.ts` con `addTimeout`) che non tocca punteggio, battuta né
+    tocchi in sospeso. `derive.ts` li conta per set e per squadra (`ScoutSet.timeouts`,
+    con il punteggio del momento; al massimo `TIMEOUTS_PER_SET` per squadra: quelli in più
+    nei dati si ignorano). Sotto il punteggio del tabellone (`ScoutBoard`) ogni squadra ha
+    il suo pulsante «Time-out» con due pallini (`TimeoutButton`, `data-scout-timeout`);
+    «Annulla ultimo» lo toglie se è l'ultima cosa segnata, il Registro lo mostra tra i
+    cambi del set con il cestino (`ScoutLog.tsx`). Lo Scout non ha il conto alla
+    rovescia dei 30 secondi (c'è nel Live score). I time-out usati vanno sul riquadro
+    «In diretta» (`PublicLiveScore.timeouts`).
   - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a
@@ -269,7 +282,7 @@ staff (Developer e Admin).
     nella preparazione e pulsante «Punteggio live sul sito»). `/api/livescore/
     pubblico` unisce il Live score e lo Scout acceso (`getPublicLiveScout`,
     `src/lib/scout/publicScore.ts`): mai nomi né numeri, solo squadre, punti,
-    set e chi batte; se sono accesi entrambi vince il più recente.
+    set, chi batte e time-out usati; se sono accesi entrambi vince il più recente.
   - **Guida e manuale**: la guida passo passo è il tour dello Scout
     (`src/components/tour/scoutSteps.ts`, schede ricche con capitolo, esempio,
     consiglio, attenzione; parte da sola con `?guida=1` dal riquadro «Prima

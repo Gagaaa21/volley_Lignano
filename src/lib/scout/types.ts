@@ -168,7 +168,18 @@ export interface ScoutSubEvent {
   player: string;
 }
 
-export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent | ScoutTouchEvent | ScoutLineupEvent | ScoutSubEvent;
+/**
+ * Un time-out chiesto da una squadra: dura 30 secondi e ogni squadra ne ha due per set (regola 15.4, vedi
+ * TIMEOUTS_PER_SET in volleyRules.ts). Vale per il set in cui è stato segnato; non cambia punteggi né formazioni.
+ */
+export interface ScoutTimeoutEvent {
+  type: "timeout";
+  id: string;
+  at: number;
+  side: ScoutSide;
+}
+
+export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent | ScoutTouchEvent | ScoutLineupEvent | ScoutSubEvent | ScoutTimeoutEvent;
 
 export interface ScoutData {
   settings: ScoutSettings;

@@ -701,6 +701,8 @@ export interface PublicLiveScore {
   serving: "home" | "away" | null;
   /** Set già chiusi, in ordine. */
   sets: { home: number; away: number }[];
+  /** Time-out usati da ogni squadra nel set in corso (al massimo due, vedi TIMEOUTS_PER_SET); zero a partita finita. */
+  timeouts: { home: number; away: number };
   /** Vero quando una delle due squadre ha vinto la partita. */
   finished: boolean;
   /** Ultimo salvataggio del tabellone (ISO). */

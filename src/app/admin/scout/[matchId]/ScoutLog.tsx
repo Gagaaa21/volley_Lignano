@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, Timer, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Label, Select } from "@/components/ui/Field";
@@ -405,25 +405,45 @@ function SetLineupNotes({ set, roster, dispatch }: { set: ScoutSet; roster: Scou
     );
   };
   const hasStarters = set.lineups.us || set.lineups.opp;
-  if (!hasStarters && set.subs.length === 0) return null;
+  if (!hasStarters && set.subs.length === 0 && set.timeouts.length === 0) return null;
+  // Cambi e time-out in ordine di tempo, come sono successi.
+  const notes = [
+    ...set.subs.map((sub) => ({ kind: "sub" as const, at: sub.at, sub })),
+    ...set.timeouts.map((timeout) => ({ kind: "timeout" as const, at: timeout.at, timeout })),
+  ].sort((a, b) => a.at - b.at);
   return (
     <div className="space-y-1.5 border-t border-border bg-surface-muted/40 px-3.5 py-2.5 text-[13px] leading-snug text-foreground" data-scout-set-notes={set.n}>
       {starters("us")}
       {starters("opp")}
-      {set.subs.map((sub) => (
-        <p key={sub.id} className="flex items-start gap-2" data-scout-sub={sub.id}>
-          <ArrowLeftRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1">
-            <b>Cambio {sub.side === "us" ? "nostro" : "loro"}</b> · pos. {sub.position}: esce {playerLabel(roster, sub.side, sub.out)}, entra {playerLabel(roster, sub.side, sub.in)}{" "}
-            <span className="tabular text-muted-foreground">
-              (sul {sub.score.us}–{sub.score.opp})
+      {notes.map((note) =>
+        note.kind === "sub" ? (
+          <p key={note.sub.id} className="flex items-start gap-2" data-scout-sub={note.sub.id}>
+            <ArrowLeftRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1">
+              <b>Cambio {note.sub.side === "us" ? "nostro" : "loro"}</b> · pos. {note.sub.position}: esce {playerLabel(roster, note.sub.side, note.sub.out)}, entra {playerLabel(roster, note.sub.side, note.sub.in)}{" "}
+              <span className="tabular text-muted-foreground">
+                (sul {note.sub.score.us}–{note.sub.score.opp})
+              </span>
             </span>
-          </span>
-          <Button variant="danger-ghost" size="icon-sm" onClick={() => dispatch({ type: "remove", id: sub.id })} aria-label="Togli questo cambio">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </p>
-      ))}
+            <Button variant="danger-ghost" size="icon-sm" onClick={() => dispatch({ type: "remove", id: note.sub.id })} aria-label="Togli questo cambio">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </p>
+        ) : (
+          <p key={note.timeout.id} className="flex items-start gap-2" data-scout-timeout-note={note.timeout.id}>
+            <Timer className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <span className="min-w-0 flex-1">
+              <b>Time-out {note.timeout.side === "us" ? "nostro" : "loro"}</b>{" "}
+              <span className="tabular text-muted-foreground">
+                (sul {note.timeout.score.us}–{note.timeout.score.opp})
+              </span>
+            </span>
+            <Button variant="danger-ghost" size="icon-sm" onClick={() => dispatch({ type: "remove", id: note.timeout.id })} aria-label="Togli questo time-out">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </p>
+        ),
+      )}
     </div>
   );
 }
