@@ -13,8 +13,8 @@ import type { ScoutPlayer, ScoutSide } from "@/lib/scout/types";
  * (davanti 4-3-2, dietro 5-6-1), la libero in scuro, il pallone verde su chi batte e, sotto, la panchina.
  * Si tocca la giocatrice dove sta sul campo: è lo stesso disegno di «In campo», così si riconosce a colpo d'occhio.
  *
- * Due usi: le finestre «chi?» dopo un punto (`attr="pick"`: si tocca e si chiude) e la ricezione (`attr="who"`:
- * si seleziona la giocatrice, poi si sceglie il voto; `fill` fa riempire all'altezza che c'è).
+ * Due usi: le finestre «chi?» dopo un punto (`attr="pick"`: si tocca e si chiude) e la finestra della ricezione (`attr="who"`:
+ * si seleziona la giocatrice, poi si sceglie il voto).
  */
 
 /** Come si segna la scelta: «pick» sceglie e chiude, «who» seleziona e aspetta il voto (la ricezione). */
@@ -28,7 +28,6 @@ function SpotCell({
   dim,
   selected,
   attr,
-  fill,
   onPick,
 }: {
   spot: CourtSpot;
@@ -40,15 +39,10 @@ function SpotCell({
   /** Undefined = non si seleziona (si sceglie e basta); altrimenti è la giocatrice scelta adesso. */
   selected: boolean | undefined;
   attr: PickAttr;
-  fill: boolean;
   onPick: (id: string) => void;
 }) {
   const { position, player, libero, pickable } = spot;
-  const base = cn(
-    "relative flex min-w-0 flex-col items-center justify-center rounded-xl border px-1.5 text-center",
-    // A riempire: la casella è alta quanto la fila e il carattere cresce con la sua altezza.
-    fill ? "h-full min-h-[3.25rem] py-1 [container-type:size]" : "min-h-[4.75rem] py-2",
-  );
+  const base = "relative flex min-h-[4.75rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1.5 py-2 text-center";
   const corner = "absolute left-1.5 top-1 text-[10px] font-bold leading-none opacity-70";
 
   if (!player) {
@@ -68,14 +62,8 @@ function SpotCell({
   const face = (
     <>
       <span className={corner}>{position}</span>
-      <span className={cn("tabular font-display font-extrabold leading-none", fill ? "text-[clamp(1.375rem,36cqh,2.5rem)]" : "text-3xl")}>
-        {jerseyLabel(player, side)}
-      </span>
-      {side === "us" && !(libero && fill) && (
-        <span className={cn("mt-1 w-full truncate font-semibold leading-tight opacity-80", fill ? "mt-0.5 text-[clamp(10px,17cqh,13px)]" : "text-[12px]")}>
-          {shortName(player, sorted)}
-        </span>
-      )}
+      <span className="tabular font-display text-3xl font-extrabold leading-none">{jerseyLabel(player, side)}</span>
+      {side === "us" && <span className="mt-1 w-full truncate text-[12px] font-semibold leading-tight opacity-80">{shortName(player, sorted)}</span>}
       {libero && <span className="mt-0.5 text-[9px] font-bold uppercase leading-none tracking-wide opacity-80">libero</span>}
       {server && (
         <span className="absolute -right-1 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-green-500 text-white shadow-sm" aria-label="Batte">
@@ -131,7 +119,6 @@ export function CourtPicker({
   frontOnly = false,
   selected,
   attr = "pick",
-  fill = false,
   onPick,
   children,
 }: {
@@ -148,8 +135,6 @@ export function CourtPicker({
   /** Se si seleziona (la ricezione): la scelta di adesso, null = «non so», undefined = nessuna. Se manca si sceglie e basta. */
   selected?: string | null;
   attr?: PickAttr;
-  /** Il campo riempie l'altezza che gli dà chi lo contiene (la ricezione in primo piano). */
-  fill?: boolean;
   onPick: (id: string) => void;
   /** Sotto il campo (per esempio la panchina). */
   children?: ReactNode;
@@ -160,33 +145,29 @@ export function CourtPicker({
   const selecting = attr === "who";
 
   return (
-    <div className={cn(fill && "flex h-full min-h-0 flex-col")}>
+    <div>
       <div
         role="group"
         aria-label={`Campo ${ours ? "nostro" : "loro"}: tocca la giocatrice`}
         data-scout-court-picker={side}
-        className={cn(
-          "rounded-2xl border p-2.5 sm:p-3",
-          fill && "flex min-h-0 flex-1 flex-col",
-          ours ? "border-primary/25 bg-primary-soft/60" : "border-sand-400/50 bg-accent/50",
-        )}
+        className={cn("rounded-2xl border p-2.5 sm:p-3", ours ? "border-primary/25 bg-primary-soft/60" : "border-sand-400/50 bg-accent/50")}
       >
         {/* La rete: la prima linea le sta accanto. */}
-        <div className={cn("relative flex shrink-0 items-center justify-center", fill ? "mb-1.5" : "mb-2.5")} aria-hidden>
+        <div className="relative mb-2.5 flex items-center justify-center" aria-hidden>
           <span className="absolute inset-x-0 h-2 rounded-full bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.92)_0_6px,rgba(9,26,38,0.88)_6px_12px)] shadow-[0_0_0_1px_rgba(9,26,38,0.25)]" />
           <span className="relative rounded-full bg-surface px-2.5 text-[10px] font-bold uppercase leading-4 tracking-[0.18em] text-muted-foreground shadow-[0_0_0_1px_rgba(9,26,38,0.12)]">Rete</span>
         </div>
 
         {rows.map((row, index) => (
-          <div key={index} className={cn(fill && "flex min-h-0 flex-1 flex-col")}>
+          <div key={index}>
             {index === 1 && (
-              <div className={cn("flex shrink-0 items-center gap-2", fill ? "my-1" : "my-2")} aria-hidden>
+              <div className="my-2 flex items-center gap-2" aria-hidden>
                 <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">linea dei 3 m</span>
                 <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
               </div>
             )}
-            <div className={cn("grid grid-cols-3 gap-2", fill && "min-h-0 flex-1")} data-scout-court-row={index === 0 ? "front" : "back"}>
+            <div className="grid grid-cols-3 gap-2" data-scout-court-row={index === 0 ? "front" : "back"}>
               {row.map((spot) => (
                 <SpotCell
                   key={spot.position}
@@ -197,7 +178,6 @@ export function CourtPicker({
                   dim={frontOnly && spot.back}
                   selected={selecting ? spot.player?.id === selected : undefined}
                   attr={attr}
-                  fill={fill}
                   onPick={onPick}
                 />
               ))}

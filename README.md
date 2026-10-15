@@ -197,12 +197,13 @@ staff (Developer e Admin).
     e si avanza a ogni cambio palla: senza formazioni sono indicative). Le
     colonne del tabellino sono in `columns.ts` e la legenda in `legend.ts`,
     usate insieme dalla pagina e dal PDF. Inserimento: scheda della
-    ricezione (`ScoutReception.tsx`: con la formazione è in primo piano, il campo
-    a sinistra dove si tocca chi ha ricevuto e i voti grandi a destra, e a due
-    colonne i pulsanti dei punti si abbassano; in una colonna (pagina normale,
-    telefono) la scheda sta subito sotto la fascia della palla e la pagina scorre
-    da sola fino a lei quando battono loro; senza formazione una riga di
-    numeri) e schermata dei tocchi
+    ricezione (`ScoutReception.tsx`: quando battono loro si apre da sola una
+    finestra, la stessa dei tasti dei punti (`ScoutSheet.tsx`), con il campo a
+    sinistra dove si tocca chi ha ricevuto, i voti grandi a destra, la zona
+    (facoltativa), la panchina e «Non so»; senza formazione una riga di numeri;
+    si chiude con «Salta la ricezione» o Esc, toccare fuori non la chiude, e in
+    pagina resta una riga con «Segna la ricezione» per riaprirla; a set finito
+    non si apre) e schermata dei tocchi
     (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
     solo il punto»); correzione dei tocchi dal Registro.
   - **Formazione in campo** (facoltativa, come nel Live score): si scrive

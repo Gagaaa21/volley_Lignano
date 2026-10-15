@@ -173,8 +173,8 @@ export function GradeButtons({
   /** Schermo intero su schermo largo: sugli schermi bassi i pulsanti sono un po' meno alti. */
   compact?: boolean;
   /**
-   * «row»: tutti i voti in una riga. «grid»: pulsanti grandi che riempiono l'altezza che c'è, in 3 colonne e 2 righe
-   * (2 colonne e 3 righe se il riquadro che li contiene, un `@container`, è abbastanza largo): la ricezione in primo piano.
+   * «row»: tutti i voti in una riga. «grid»: pulsanti grandi in 3 colonne e 2 righe (2 colonne e 3 righe se il riquadro
+   * che li contiene, un `@container`, è abbastanza largo): la finestra della ricezione.
    */
   layout?: "row" | "grid";
 }) {
@@ -182,7 +182,7 @@ export function GradeButtons({
   const grid = layout === "grid";
   return (
     <div
-      className={cn("grid gap-1.5", grid && "h-full grid-cols-3 grid-rows-2 @md:grid-cols-2 @md:grid-rows-3")}
+      className={cn("grid gap-1.5", grid && "grid-cols-3 grid-rows-2 @md:grid-cols-2 @md:grid-rows-3")}
       style={grid ? undefined : { gridTemplateColumns: `repeat(${meta.grades.length}, minmax(0, 1fr))` }}
       role="group"
       aria-label={`Voto: ${meta.label.toLowerCase()}`}
@@ -200,14 +200,12 @@ export function GradeButtons({
           className={cn(
             "flex min-h-[3.5rem] min-w-0 flex-col items-center justify-center rounded-xl px-0.5 py-1.5 text-center ring-1 ring-inset ring-foreground/10 transition-[transform,opacity] active:translate-y-px disabled:pointer-events-none disabled:opacity-40",
             compact && !grid && "short:min-h-[3rem] short:py-1",
-            // A griglia ogni casella è il proprio contenitore: la sua altezza la dà la riga (o la misura minima), non il testo.
-            grid && "h-full min-h-[3.5rem] [container-type:size]",
-            grid && compact && "min-h-[3.125rem] py-1 short:min-h-[2.5rem] short:flex-row short:gap-1.5",
+            grid && "min-h-[3.75rem] sm:min-h-[4.25rem]",
             GRADE_FILL[grade],
           )}
         >
           <span className={cn("font-display font-extrabold leading-none", grid ? "text-2xl" : "text-xl")}>{gradeSymbol(grade)}</span>
-          <span className={cn("max-w-full truncate font-bold leading-tight", grid ? "text-xs sm:text-[13px]" : "mt-0.5 text-[10.5px] sm:text-xs", grid && !compact && "mt-0.5", grid && compact && "mt-0.5 short:mt-0")}>{meta.gradeLabels[grade]}</span>
+          <span className={cn("max-w-full truncate font-bold leading-tight", grid ? "mt-0.5 text-xs sm:text-[13px]" : "mt-0.5 text-[10.5px] sm:text-xs")}>{meta.gradeLabels[grade]}</span>
         </button>
       ))}
     </div>

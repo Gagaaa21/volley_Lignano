@@ -741,7 +741,24 @@ export const SCOUT_MANUAL: ManualChapter[] = [
     blocks: [
       {
         type: "p",
-        text: `Il livello **Con ricezioni** è il Base con **una cosa in più**: quando batte l'avversaria, segni anche la **nostra ricezione**. Sopra i pulsanti dei punti compare il riquadro **«Ricezione nostra»**; sotto, tutto come nel Base (${cap("segnare")}). Se segui la formazione in campo il riquadro è **in primo piano**: a sinistra il **campo**, dove tocchi chi ha ricevuto, a destra i **voti** grandi; i pulsanti dei punti si abbassano finché non hai segnato la ricezione. Fuori dallo schermo intero, e sul telefono, il riquadro sta subito sotto la fascia della palla e, appena battono loro, la pagina scorre da sola fino a lui: non devi cercarlo.`,
+        text: `Il livello **Con ricezioni** è il Base con **una cosa in più**: quando batte l'avversaria, segni anche la **nostra ricezione**. Appena battono loro si apre da sola la finestra **«Ricezione nostra»**, come quelle dei pulsanti dei punti: se segui la formazione in campo a sinistra c'è il **campo**, dove tocchi chi ha ricevuto, a destra i **voti** grandi. Segnata la ricezione la finestra si chiude e il punto lo segni come nel Base (${cap("segnare")}). Se non vuoi segnarla tocca **«Salta la ricezione»** (o premi **Esc**): la finestra si chiude e in pagina resta la riga **«Ricezione nostra»**, con il pulsante **«Segna la ricezione»** per riaprirla.`,
+      },
+      {
+        type: "images",
+        items: [
+          { file: "ricezione-striscia.png", caption: "La finestra «Ricezione nostra», quando battono loro." },
+          { file: "ricezione-segnata.png", caption: "Dopo il voto: la finestra si chiude, la ricezione è segnata e il punto si segna come sempre." },
+        ],
+        legend: [
+          "Chi ha ricevuto: tocca la giocatrice sul campo (o il numero di maglia). «Non so» e la panchina sono sotto.",
+          "Il voto: da # perfetta a = errore.",
+          "La zona dove ha ricevuto (facoltativa).",
+          "«Salta la ricezione» chiude la finestra: segni solo il punto.",
+          "La ricezione appena segnata: chi, con che voto e la zona.",
+          "«Cambia» toglie la ricezione, per rifarla.",
+          "I pulsanti dei punti, come nel livello Base.",
+        ],
+        maxHeight: 380,
       },
       { type: "sub", title: "Come si segna una ricezione" },
       {
@@ -752,22 +769,6 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           "Tocca il **voto**: sei pulsanti colorati, dal verde della ricezione perfetta al rosso dell'errore.",
         ],
       },
-      {
-        type: "images",
-        items: [
-          { file: "ricezione-striscia.png", caption: "Il riquadro «Ricezione nostra», quando battono loro." },
-          { file: "ricezione-segnata.png", caption: "Dopo il voto: la ricezione è segnata e il punto si segna come sempre." },
-        ],
-        legend: [
-          "Chi ha ricevuto: il numero di maglia. «Non so» se non l'hai visto.",
-          "La zona dove ha ricevuto (facoltativa).",
-          "Il voto: da # perfetta a = errore.",
-          "La ricezione appena segnata: chi, con che voto e la zona.",
-          "«Cambia» toglie la ricezione, per rifarla.",
-          "I pulsanti dei punti, come nel livello Base.",
-        ],
-        maxHeight: 380,
-      },
       { type: "sub", title: "I voti della ricezione" },
       { type: "grades", skill: "reception" },
       {
@@ -777,7 +778,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Quando lo scambio si chiude da solo" },
       {
         type: "p",
-        text: "Il voto **=** (errore) vuol dire che la ricezione è stata toccata e la palla è finita fuori o a terra: lo scambio **si chiude da solo** con il punto per loro, senza toccare altro. Con tutti gli altri voti lo scambio resta aperto e il riquadro diventa **«Ricezione segnata»**: ora segni il punto con i pulsanti qui sotto, come nel Base.",
+        text: "Il voto **=** (errore) vuol dire che la ricezione è stata toccata e la palla è finita fuori o a terra: lo scambio **si chiude da solo** con il punto per loro, senza toccare altro. Con tutti gli altri voti lo scambio resta aperto, la finestra si chiude e in pagina compare **«Ricezione segnata»**: ora segni il punto con i pulsanti qui sotto, come nel Base.",
       },
       {
         type: "callout",
@@ -789,12 +790,12 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "callout",
         kind: "tip",
         title: "Prima la ricezione, poi il punto",
-        text: `Segna la ricezione **prima** del punto: appena tocchi un pulsante dei punti lo scambio si chiude e il riquadro passa allo scambio successivo. Se l'hai saltata, puoi aggiungerla dopo dal registro (${cap("correggere")}).`,
+        text: `Segna la ricezione **prima** del punto: la finestra si apre da sola per questo. Appena tocchi un pulsante dei punti lo scambio si chiude e si passa al successivo. Se l'hai saltata, puoi aggiungerla dopo dal registro (${cap("correggere")}).`,
       },
       { type: "sub", title: "Quando batte la nostra squadra" },
       {
         type: "p",
-        text: "Il riquadro resta chiuso e dice che batte la nostra squadra: la ricezione si segna solo quando battono loro, e solo la nostra. Per segnare anche la ricezione delle avversarie serve il livello Completo.",
+        text: "La finestra non si apre e il riquadro in pagina dice che batte la nostra squadra: la ricezione si segna solo quando battono loro, e solo la nostra. Per segnare anche la ricezione delle avversarie serve il livello Completo.",
       },
       { type: "sub", title: "Esempi, tocco per tocco" },
       {
@@ -1483,7 +1484,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Ho segnato un punto alla squadra sbagliata." },
       { type: "p", text: "Se è l'ultimo, **«Annulla ultimo»**. Se è più indietro, trovi lo scambio nel **registro** e tocchi la matita: cambi squadra o modo, oppure lo togli." },
       { type: "sub", title: "Ho dimenticato di segnare una ricezione." },
-      { type: "p", text: "Dal **registro**: tocca la matita sullo scambio e poi **«Aggiungi la ricezione»**. Se sei ancora nello stesso scambio, la segni dal riquadro «Ricezione nostra» prima del punto." },
+      { type: "p", text: "Dal **registro**: tocca la matita sullo scambio e poi **«Aggiungi la ricezione»**. Se sei ancora nello stesso scambio, la segni dalla finestra «Ricezione nostra» (o dal pulsante «Segna la ricezione») prima del punto." },
       { type: "sub", title: "Nel Completo ho sbagliato un tocco." },
       { type: "p", text: "Se è l'ultimo, **«Annulla ultimo»**. Se è più indietro, **registro > matita**: cambi chi, voto o zona, oppure togli il tocco." },
       { type: "sub", title: "Nel Completo l'arbitro fischia un fallo, o non so come segnare." },
@@ -1554,7 +1555,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "steps",
         items: [
-          "Quando battono loro, nel riquadro **Ricezione nostra** tocca **chi** ha ricevuto (sul campo, se segui la formazione) e, se vuoi, la **zona**, poi il **voto**.",
+          "Quando battono loro si apre da sola la finestra **Ricezione nostra**: tocca **chi** ha ricevuto (sul campo, se segui la formazione) e, se vuoi, la **zona**, poi il **voto**.",
           "Con **=** il punto va a loro da solo; con gli altri voti segna il punto come nel Base.",
         ],
       },

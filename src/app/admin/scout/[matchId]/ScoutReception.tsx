@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -9,92 +9,56 @@ import { receptionCourt } from "@/lib/scout/court";
 import { currentServer, type ScoutView } from "@/lib/scout/derive";
 import { playerLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
+import { receptionOpen } from "@/lib/scout/phases";
 import { TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutData, ScoutGrade } from "@/lib/scout/types";
 import { GradeDot } from "@/components/scout/GradeChart";
 import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
 import { GradeButtons, PlayerChips, ZonePicker } from "./ScoutInputParts";
 import { FlowSteps } from "./ScoutPhaseBanner";
+import { Sheet } from "./ScoutSheet";
 
 /**
- * Livello «Con ricezioni»: sopra i pulsanti dei punti, mentre batte
- * l'avversaria, la scheda per segnare la nostra ricezione. Si tocca chi ha
- * ricevuto, il voto e, se si vuole, la zona. Un voto di errore (=) chiude da solo
- * lo scambio con il punto per loro; gli altri lasciano lo scambio aperto, e
- * il punto si segna sotto come sempre.
+ * Livello «Con ricezioni»: quando batte l'avversaria la nostra ricezione si segna in una finestra che si apre da sola,
+ * come quelle dei tasti dei punti: chi ha ricevuto, il voto e, se si vuole, la zona. Se si segue la formazione chi ha
+ * ricevuto si tocca sul campo (la panchina e «Non so» sotto), altrimenti da una riga di numeri. Un voto di errore (=)
+ * chiude da solo lo scambio con il punto per loro; gli altri lasciano lo scambio aperto, e il punto si segna come sempre.
  *
- * Se si segue la formazione la scheda è in primo piano: a sinistra il campo, dove si
- * tocca chi ha ricevuto (la panchina e «Non so» sotto), a destra i voti grandi e la
- * zona; a due colonne prende tutta l'altezza che resta e i pulsanti dei punti si
- * abbassano. Senza formazione chi ha ricevuto si sceglie da una riga di numeri.
- *
- * Fuori dalle due colonne (pagina normale, telefono, iPad in verticale) la scheda sta
- * subito sotto la fascia della palla e, appena battono loro, la pagina scorre da sola
- * fino a lei: altrimenti, sotto il tabellone, resterebbe oltre il bordo dello schermo.
+ * In pagina resta una riga sola: «Ricezione nostra» con il pulsante per riaprire la finestra (se è stata chiusa a mano,
+ * per esempio con «Salta la ricezione»: quello scambio si segna solo con il punto), poi «Ricezione segnata» con «Cambia».
  */
-
-/**
- * Scorre la pagina (o, a schermo intero in una colonna, l'area che scorre) fino a mettere la scheda subito sotto la fascia
- * della palla, che sta appiccicata in alto: sotto l'intestazione del sito o, a schermo intero, in cima alla finestra.
- * Lo scorrimento si calcola a mano e la scheda non riceve nessuno stile: con `scroll-margin` in linea, a schermo intero in
- * una colonna, la scheda restava vuota (il contenuto non veniva disegnato).
- */
-function bringBelowBallStrip(card: HTMLElement, fullscreen: boolean) {
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let scroller: HTMLElement | null = card.parentElement;
-  while (scroller && !(/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight + 1)) {
-    scroller = scroller.parentElement;
-  }
-  const viewTop = scroller ? scroller.getBoundingClientRect().top : 0;
-  const ball = document.querySelector<HTMLElement>("[data-scout-ball]");
-  const headerHeight = fullscreen ? 0 : Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--admin-header-h")) || 0;
-  const wanted = viewTop + (ball ? headerHeight + ball.offsetHeight : 0) + 8;
-  const delta = card.getBoundingClientRect().top - wanted;
-  if (Math.abs(delta) < 4) return;
-  (scroller ?? window).scrollBy({ top: delta, behavior: reduceMotion ? "auto" : "smooth" });
-}
 
 export function ScoutReception({
   data,
   view,
   locked,
+  paused = false,
   dispatch,
-  compact = false,
-  fullscreen = false,
 }: {
   data: ScoutData;
   view: ScoutView;
   locked: boolean;
+  /** Il set è finito e si aspetta di chiuderlo: niente ricezione (e niente finestra) finché non comincia quello dopo. */
+  paused?: boolean;
   dispatch: (action: ScoutAction) => void;
-  /** Schermo intero su schermo largo: tessere più basse, meno spazio tra le parti e, sugli schermi bassi, senza frasi di aiuto: lascia posto ai pulsanti dei punti. */
-  compact?: boolean;
-  /** Schermo intero (anche su telefono o iPad in verticale, in una colonna): la fascia della palla sta in cima alla finestra, non sotto l'intestazione del sito. */
-  fullscreen?: boolean;
 }) {
-  const rallyKey = `${view.rallies.length}`;
-  // La scelta vale per lo scambio in cui è stata fatta: appena lo scambio cambia, riparte da zero.
+  // Lo scambio in corso: la scelta fatta e la finestra chiusa a mano valgono solo per questo scambio.
+  const rallyKey = `${view.sets.length}:${view.current?.rallies.length ?? 0}`;
   const [choice, setChoice] = useState<{ key: string; player: string | null | undefined; zone: number | null }>({
     key: rallyKey,
     player: undefined,
     zone: null,
   });
   const current = choice.key === rallyKey ? choice : { key: rallyKey, player: undefined, zone: null };
+  // La finestra chiusa a mano: resta chiusa per questo scambio. Per riaprirla c'è il pulsante in pagina, che la toglie da qui,
+  // così se la ricezione si segna e poi si toglie (con «Cambia» o «Annulla ultimo») la finestra si riapre da sola.
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
-  const server = locked ? null : currentServer(view);
-  const receiving = server === "opp";
+  const active = !locked && !paused;
+  const receiving = active && currentServer(view) === "opp";
   const recorded = view.pending.find((t) => t.skill === "reception" && t.side === "us");
   const meta = TOUCH_SKILLS.reception;
   const court = receptionCourt(data, view);
-
-  // La scheda aperta (da segnare) fuori dalle due colonne: quando si apre, a ogni scambio in cui battono loro e quando si
-  // toglie la ricezione con «Cambia», si porta in vista, subito sotto la fascia della palla che resta in alto.
-  const open = receiving && !recorded;
-  const cardRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (!open || compact) return;
-    const card = cardRef.current;
-    if (card) bringBelowBallStrip(card, fullscreen);
-  }, [open, compact, fullscreen, rallyKey]);
 
   function record(grade: ScoutGrade) {
     if (current.player === undefined) return;
@@ -108,6 +72,8 @@ export function ScoutReception({
   }
 
   const shell = "rounded-2xl border border-border bg-card p-3 shadow-card sm:p-4";
+
+  if (paused) return null;
 
   if (!receiving) {
     return (
@@ -138,7 +104,7 @@ export function ScoutReception({
           <GradeDot grade={recorded.grade} size="lg" />
           <p className="min-w-0 flex-1 text-sm leading-snug">
             <b className="font-bold text-foreground">Ricezione segnata</b>
-            <span className="block truncate text-muted-foreground">
+            <span className="block line-clamp-2 text-muted-foreground">
               {playerLabel(data.roster, "us", recorded.player)} · {meta.gradeLabels[recorded.grade]}
               {recorded.zone ? ` · zona ${recorded.zone}` : ""}
             </span>
@@ -162,8 +128,15 @@ export function ScoutReception({
     );
   }
 
+  // Da segnare: in pagina la riga con il pulsante e, sopra, la finestra (a meno che sia stata chiusa a mano).
+  const windowOpen = receptionOpen(view) && dismissedKey !== rallyKey;
+  const label = "text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground";
+  const chosen = current.player === undefined ? " · scegli prima chi" : ` · ${current.player === null ? "non so chi" : playerLabel(data.roster, "us", current.player)}`;
+  const choose = (player: string | null) => setChoice({ ...current, player });
+  const dismiss = () => setDismissedKey(rallyKey);
+
   const zoneRow = (
-    <details className={cn("group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2", compact && "py-1.5 short:py-1")}>
+    <details className="group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
         <span>
           Zona <span className="font-normal text-muted-foreground">(facoltativa)</span>
@@ -176,137 +149,104 @@ export function ScoutReception({
     </details>
   );
 
-  if (court) {
-    const label = "text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground";
-    const chosen = current.player === undefined ? " · scegli prima chi" : ` · ${current.player === null ? "non so chi" : playerLabel(data.roster, "us", current.player)}`;
-    const choose = (player: string | null) => setChoice({ ...current, player });
-    return (
+  return (
+    <>
       <section
-        className={cn(
-          shell,
-          "@container border-t-[6px] border-t-primary ring-1 ring-primary/20 shadow-[0_14px_34px_-16px_rgba(11,60,120,0.5)]",
-          compact && "flex flex-1 flex-col py-2.5 short:py-2 sm:py-3 sm:short:py-2",
-        )}
+        className="rounded-2xl border border-border border-t-[6px] border-t-primary bg-card p-3 shadow-[0_14px_34px_-16px_rgba(11,60,120,0.5)] ring-1 ring-primary/20 sm:p-4"
         aria-label="Ricezione"
-        data-scout-reception="open"
-        data-scout-reception-court
+        data-scout-reception="prompt"
         data-tour="scout-reception"
-        ref={cardRef}
       >
-        <div className="shrink-0">
-          <h2 className="font-display text-xl font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
-          <p className={cn("mt-1 text-xs text-muted-foreground", compact && "short:hidden")}>
-            Battono loro. Tocca sul campo chi ha ricevuto e poi il voto; per l&apos;errore (=) il punto va a loro.
-          </p>
-          {/* A due colonne i passi a pastiglia si tolgono: il titolo e la frase dicono già a che punto si è, e l'altezza serve al campo. */}
-          <div className={cn("mt-2", compact && "hidden")}>
-            <FlowSteps
-              steps={[
-                { label: "Battuta loro", state: "done" },
-                { label: "Ricezione nostra", state: "now" },
-                { label: "Punto, qui sotto", state: "todo" },
-              ]}
-            />
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-xl font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Battono loro: segna chi ha ricevuto e con che voto.</p>
           </div>
-        </div>
-
-        <div className={cn("mt-2.5 grid gap-3 @md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @md:grid-rows-[minmax(0,1fr)]", compact && "min-h-0 flex-1")}>
-          <div className="flex min-h-0 min-w-0 flex-col">
-            <p className={cn(label, "mb-1.5 shrink-0")}>Chi ha ricevuto</p>
-            <div className="min-h-0 flex-1">
-              <CourtPicker side="us" court={court} roster={data.roster.us} eligible={data.roster.us} selected={current.player} attr="who" fill={compact} onPick={choose} />
-            </div>
-          </div>
-
-          <div className="flex min-h-0 min-w-0 flex-col gap-2">
-            <p className={cn(label, "shrink-0 truncate")}>Voto{chosen}</p>
-            <div className="min-h-0 flex-1">
-              <GradeButtons skill="reception" layout="grid" onPick={record} disabled={current.player === undefined} testId="reception" compact={compact} />
-            </div>
-            <div className="shrink-0">{zoneRow}</div>
-          </div>
-        </div>
-
-        <div className="mt-2 shrink-0">
-          <CourtBench
-            inline
-            side="us"
-            court={court}
-            roster={data.roster.us}
-            eligible={data.roster.us}
-            selected={current.player}
-            attr="who"
-            onPick={choose}
-            extra={
-              <button
-                type="button"
-                aria-pressed={current.player === null}
-                onClick={() => choose(null)}
-                data-scout-who="unknown"
-                className={cn(
-                  "flex min-h-[2.75rem] min-w-0 flex-col items-center justify-center rounded-xl border border-dashed px-1.5 py-1 text-center transition-colors active:translate-y-px short:min-h-[2.5rem]",
-                  current.player === null ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border-strong bg-surface hover:bg-muted",
-                )}
-              >
-                <span className="font-display text-lg font-extrabold leading-none text-muted-foreground">?</span>
-                <span className="mt-0.5 text-[11px] font-semibold leading-tight text-muted-foreground">Non so</span>
-              </button>
-            }
-          />
+          <Button onClick={() => setDismissedKey(null)} data-scout-reception-open>
+            Segna la ricezione
+          </Button>
         </div>
       </section>
-    );
-  }
 
-  return (
-    <section
-      className={cn(
-        shell,
-        "space-y-3 border-t-[6px] border-t-primary ring-1 ring-primary/20 shadow-[0_14px_34px_-16px_rgba(11,60,120,0.5)]",
-        compact && "space-y-1.5 py-2.5 sm:py-2.5",
+      {windowOpen && (
+        <Sheet
+          title="Ricezione nostra"
+          subtitle={`Battono loro · tocca ${court ? "sul campo " : ""}chi ha ricevuto e poi il voto; per l'errore (=) il punto va a loro.`}
+          onClose={dismiss}
+          testId="reception"
+          wide
+          closeOnBackdrop={false}
+        >
+          <div className="@container" data-scout-reception="open" data-scout-reception-court={court ? true : undefined}>
+            <div className="mb-3">
+              <FlowSteps
+                steps={[
+                  { label: "Battuta loro", state: "done" },
+                  { label: "Ricezione nostra", state: "now" },
+                  { label: "Poi il punto", state: "todo" },
+                ]}
+              />
+            </div>
+            {court ? (
+              <>
+                <div className="grid gap-3 @md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                  <div className="min-w-0">
+                    <p className={cn(label, "mb-1.5")}>Chi ha ricevuto</p>
+                    <CourtPicker side="us" court={court} roster={data.roster.us} eligible={data.roster.us} selected={current.player} attr="who" onPick={choose} />
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <p className={cn(label, "truncate")}>Voto{chosen}</p>
+                    <GradeButtons skill="reception" layout="grid" onPick={record} disabled={current.player === undefined} testId="reception" />
+                    {zoneRow}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <CourtBench
+                    inline
+                    side="us"
+                    court={court}
+                    roster={data.roster.us}
+                    eligible={data.roster.us}
+                    selected={current.player}
+                    attr="who"
+                    onPick={choose}
+                    extra={
+                      <button
+                        type="button"
+                        aria-pressed={current.player === null}
+                        onClick={() => choose(null)}
+                        data-scout-who="unknown"
+                        className={cn(
+                          "flex min-h-[2.75rem] min-w-0 flex-col items-center justify-center rounded-xl border border-dashed px-1.5 py-1 text-center transition-colors active:translate-y-px",
+                          current.player === null ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border-strong bg-surface hover:bg-muted",
+                        )}
+                      >
+                        <span className="font-display text-lg font-extrabold leading-none text-muted-foreground">?</span>
+                        <span className="mt-0.5 text-[11px] font-semibold leading-tight text-muted-foreground">Non so</span>
+                      </button>
+                    }
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className={cn(label, "mb-1.5")}>Chi ha ricevuto</p>
+                  <PlayerChips side="us" players={data.roster.us} selected={current.player} onSelect={choose} ariaLabel="Chi ha ricevuto" court={view.court.us} />
+                </div>
+                {zoneRow}
+                <div>
+                  <p className={cn(label, "mb-1.5")}>Voto{chosen}</p>
+                  <GradeButtons skill="reception" onPick={record} disabled={current.player === undefined} testId="reception" />
+                </div>
+              </div>
+            )}
+            <Button variant="outline" className="mt-4 w-full" onClick={dismiss} data-scout-reception-skip>
+              Salta la ricezione: segno solo il punto
+            </Button>
+          </div>
+        </Sheet>
       )}
-      aria-label="Ricezione"
-      data-scout-reception="open"
-      data-tour="scout-reception"
-      ref={cardRef}
-    >
-      <div>
-        <h2 className="font-display text-[17px] font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
-        <p className={cn("mt-1 text-xs text-muted-foreground", compact && "short:hidden")}>
-          Battono loro. Tocca chi ha ricevuto e poi il voto; per l&apos;errore (=) il punto va a loro.
-        </p>
-        <div className={cn("mt-2", compact && "short:hidden")}>
-          <FlowSteps
-            steps={[
-              { label: "Battuta loro", state: "done" },
-              { label: "Ricezione nostra", state: "now" },
-              { label: "Punto, qui sotto", state: "todo" },
-            ]}
-          />
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Chi ha ricevuto</p>
-        <PlayerChips
-          side="us"
-          players={data.roster.us}
-          selected={current.player}
-          onSelect={(player) => setChoice({ ...current, player })}
-          ariaLabel="Chi ha ricevuto"
-          court={view.court.us}
-          dense={compact}
-        />
-      </div>
-
-      {zoneRow}
-
-      <div>
-        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-          Voto{current.player === undefined ? " · scegli prima chi ha ricevuto" : ""}
-        </p>
-        <GradeButtons skill="reception" onPick={record} disabled={current.player === undefined} testId="reception" compact={compact} />
-      </div>
-    </section>
+    </>
   );
 }

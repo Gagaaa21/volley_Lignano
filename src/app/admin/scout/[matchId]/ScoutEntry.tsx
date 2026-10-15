@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { BrickWall, ChevronsDown, CircleX, UserPlus, X, Zap, type LucideIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { BrickWall, ChevronsDown, CircleX, UserPlus, Zap, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
@@ -13,6 +13,7 @@ import { newId } from "@/lib/scout/id";
 import { asksPlayer, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
 import { otherSide, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutSide } from "@/lib/scout/types";
 import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
+import { Sheet } from "./ScoutSheet";
 
 /**
  * Dove si segna ogni scambio. Due colonne — «Punto nostro» e «Punto loro» —
@@ -37,55 +38,6 @@ const POINT_BUTTONS: { how: ScoutHow; hint: string }[] = [
 
 /** Un segno per ogni modo di chiudere lo scambio: nelle caselle alte dello schermo intero riempie e si riconosce a colpo d'occhio. */
 const POINT_ICONS: Record<string, LucideIcon> = { attack: ChevronsDown, block: BrickWall, ace: Zap, error: CircleX };
-
-function Sheet({
-  title,
-  subtitle,
-  onClose,
-  children,
-  testId,
-}: {
-  title: ReactNode;
-  subtitle?: ReactNode;
-  onClose: () => void;
-  children: ReactNode;
-  testId: string;
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-sea-950/45 backdrop-blur-[2px] sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={typeof title === "string" ? title : undefined}
-        data-scout-sheet={testId}
-        className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-4 shadow-[0_24px_60px_-20px_rgba(9,26,38,0.55)] sm:rounded-2xl sm:p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-display text-lg font-bold leading-tight text-foreground">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>}
-          </div>
-          <Button variant="quiet" size="icon-sm" onClick={onClose} aria-label="Chiudi">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 function PlayerButton({
   player,
@@ -284,7 +236,6 @@ function SideButton({
   disabled,
   testId,
   compact = false,
-  lowered = false,
 }: {
   side: ScoutSide;
   label: string;
@@ -299,8 +250,6 @@ function SideButton({
    * che resta (più alti, più facili da toccare), con il testo che cresce insieme all'altezza dello schermo.
    */
   compact?: boolean;
-  /** La ricezione è in primo piano: i pulsanti restano alla misura minima, per lasciarle il posto. */
-  lowered?: boolean;
 }) {
   return (
     <button
@@ -313,7 +262,6 @@ function SideButton({
         // La casella è il suo contenitore: icona e testi si dimensionano sulla sua altezza (che cresce con lo spazio che c'è) e
         // l'icona compare solo se la casella è alta abbastanza; così nei momenti stretti (ricezione aperta) ne bastano 4,25 rem.
         compact && "h-full min-h-[4.25rem] justify-between px-3 py-2.5 [container-type:size] short:min-h-[3.25rem] short:py-2 sm:min-h-[4.25rem] sm:short:min-h-[3.25rem]",
-        lowered && "min-h-[3.25rem] py-2 sm:min-h-[3.25rem] short:min-h-[2.75rem] short:py-1.5 sm:short:min-h-[2.75rem]",
         side === "us"
           ? "bg-primary-soft text-primary hover:bg-primary-soft-hover"
           : "bg-accent text-accent-foreground hover:bg-accent-hover",
@@ -348,7 +296,6 @@ export function ScoutEntry({
   courts,
   server = null,
   compact = false,
-  lowered = false,
 }: {
   data: ScoutData;
   /** Partita decisa o chiusa: non si aggiunge altro. */
@@ -360,8 +307,6 @@ export function ScoutEntry({
   server?: ScoutSide | null;
   /** A schermo intero su schermi larghi: i quattro modi di ogni squadra in due colonne, per stare tutti in vista. */
   compact?: boolean;
-  /** A due colonne, con la ricezione in primo piano: i pulsanti dei punti non riempiono l'altezza, restano bassi. */
-  lowered?: boolean;
 }) {
   const [step, setStep] = useState<Step | null>(null);
   const close = () => setStep(null);
@@ -400,7 +345,6 @@ export function ScoutEntry({
         className={cn(
           "min-w-0 rounded-2xl border border-t-4 bg-card p-2.5 shadow-card sm:p-3.5",
           compact && "flex flex-col sm:p-3",
-          lowered && "p-2 sm:p-2.5",
           scorer === "us" ? "border-border border-t-primary" : "border-border border-t-sand-400",
         )}
       >
@@ -408,19 +352,17 @@ export function ScoutEntry({
           className={cn(
             "mb-2.5 px-0.5 font-display text-[17px] font-extrabold leading-none tracking-[-0.01em]",
             compact && "mb-2 text-[clamp(17px,2.4vh,23px)]",
-            lowered && "mb-1.5",
             scorer === "us" ? "text-primary" : "text-accent-foreground",
           )}
         >
           {scorer === "us" ? "Punto nostro" : "Punto loro"}
         </h2>
-        <div className={compact ? (lowered ? "grid grid-cols-2 gap-2" : "grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2") : "space-y-2"}>
+        <div className={compact ? "grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2" : "space-y-2"}>
           {POINT_BUTTONS.map(({ how, hint }) => (
             <SideButton
               key={how}
               side={scorer}
               compact={compact}
-              lowered={lowered}
               icon={POINT_ICONS[how]}
               label={HOW_META[how].label}
               hint={hint}
@@ -432,7 +374,6 @@ export function ScoutEntry({
           <SideButton
             side={scorer}
             compact={compact}
-            lowered={lowered}
             icon={POINT_ICONS.error}
             label={errorLabel}
             hint={errorHint}
@@ -449,7 +390,7 @@ export function ScoutEntry({
 
   return (
     <>
-      <div className={cn("grid grid-cols-2 gap-2.5 sm:gap-4", compact && (lowered ? "gap-3 sm:gap-3" : "flex-1 gap-3 sm:gap-3"))} data-scout-entry>
+      <div className={cn("grid grid-cols-2 gap-2.5 sm:gap-4", compact && "flex-1 gap-3 sm:gap-3")} data-scout-entry>
         {panel("us")}
         {panel("opp")}
       </div>

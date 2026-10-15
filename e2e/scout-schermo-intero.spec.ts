@@ -248,62 +248,27 @@ const mainOverflow = (page: Page) =>
     return element.scrollHeight - element.clientHeight;
   });
 
-/**
- * Una colonna sola: la scheda della ricezione, già aperta (battono loro), sta subito sotto la fascia della palla, ha il suo
- * contenuto e il campo è in vista; poi si segna dal campo e la scheda si rimpicciolisce. La pagina scorre da sola: prima la
- * scheda restava oltre il bordo dello schermo (sotto il tabellone, la fascia e «In campo»: su iPad a 820 px di altezza
- * cominciava a 814, sul telefono a 826) e, a schermo intero in una colonna, a volte restava un riquadro vuoto.
- */
-async function receptionInPlace(page: Page, { gradesInView }: { gradesInView: boolean }) {
-  const card = page.locator('[data-scout-reception="open"]');
-  await expect(card).toHaveAttribute("data-scout-reception-court");
+/** La finestra della ricezione: si apre da sola quando battono loro, come quelle dei tasti dei punti. */
+const receptionSheet = (page: Page) => page.locator('[data-scout-sheet="reception"]');
 
-  // Lo scorrimento è morbido (ci mette un attimo): la scheda finisce subito sotto la fascia della palla, che resta in alto.
-  await expect
-    .poll(
-      async () => {
-        const ball = await page.locator("[data-scout-ball]").boundingBox();
-        const top = (await card.boundingBox())?.y;
-        if (!ball || top === undefined) return false;
-        const gap = top - (ball.y + ball.height);
-        return gap >= -2 && gap <= 40;
-      },
-      { message: "la scheda della ricezione non è finita sotto la fascia della palla", timeout: 10_000 },
-    )
-    .toBe(true);
-
-  // La scheda ha il suo contenuto e il campo (e, se c'è posto, i voti) è in vista senza toccare altro.
-  expect((await box(card)).height, "la scheda è vuota").toBeGreaterThanOrEqual(300);
-  const height = page.viewportSize()!.height;
-  const cell = await box(card.locator('[data-scout-spot="4"]'));
-  expect(cell.y, "il campo è sopra il bordo alto").toBeGreaterThanOrEqual(0);
-  expect(cell.y + cell.height, "il campo è oltre il bordo basso").toBeLessThanOrEqual(height);
-  if (gradesInView) {
-    const grade = await box(card.locator('[data-scout-grades="reception"] [data-scout-grade="#"]'));
-    expect(grade.y + grade.height, "i voti sono oltre il bordo basso").toBeLessThanOrEqual(height);
-  }
-
-  // Si segna dal campo; poi la scheda si rimpicciolisce.
-  await card.locator('[data-scout-spot="2"]').click();
-  await card.locator('[data-scout-grades="reception"] [data-scout-grade="!"]').click();
-  await expect(page.locator('[data-scout-reception="done"]')).toContainText("Bea Neri");
+/** La finestra c'è e sta tutta dentro la finestra del browser: niente da cercare scorrendo. */
+async function expectReceptionWindowInView(page: Page) {
+  await expect(receptionSheet(page)).toBeVisible();
+  const { width, height } = page.viewportSize()!;
+  const b = await box(receptionSheet(page));
+  expect(b.y, "la finestra esce dal bordo alto").toBeGreaterThanOrEqual(-1);
+  expect(b.y + b.height, "la finestra esce dal bordo basso").toBeLessThanOrEqual(height + 1);
+  expect(b.x, "la finestra esce a sinistra").toBeGreaterThanOrEqual(-1);
+  expect(b.x + b.width, "la finestra esce a destra").toBeLessThanOrEqual(width + 1);
 }
 
-/** Pagina normale: la scheda sta sotto la fascia della palla, prima di «In campo»; appena battono loro la pagina scorre fino a lei. */
-async function receptionComesIntoView(page: Page, { gradesInView }: { gradesInView: boolean }) {
-  await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
-  const order = await page.evaluate(() => {
-    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    const ball = document.querySelector("[data-scout-ball]")!;
-    const card = document.querySelector("[data-scout-reception]")!;
-    const strip = document.querySelector("[data-scout-court-strip]")!;
-    return { ballFirst: follows(ball, card), cardBeforeStrip: follows(card, strip) };
-  });
-  expect(order, "l'ordine non è fascia della palla, ricezione, «In campo»").toEqual({ ballFirst: true, cardBeforeStrip: true });
-
-  await opponentPoint(page);
-  await expect(score(page)).toHaveText("0–1");
-  await receptionInPlace(page, { gradesInView });
+/** Si segna la ricezione sul campo della finestra: la giocatrice in posizione `spot` e il voto; la finestra si chiude. */
+async function receiveOnCourt(page: Page, spot: number, grade: string, name: string) {
+  const reception = page.locator('[data-scout-reception="open"]');
+  await reception.locator(`[data-scout-spot="${spot}"]`).click();
+  await reception.locator(`[data-scout-grades="reception"] [data-scout-grade="${grade}"]`).click();
+  await expect(receptionSheet(page)).toHaveCount(0);
+  await expect(page.locator('[data-scout-reception="done"]')).toContainText(name);
 }
 
 test.describe("su iPad in orizzontale (1180×820)", () => {
@@ -344,28 +309,30 @@ test.describe("su iPad in orizzontale (1180×820)", () => {
     await deleteMatchById(page, matchId);
   });
 
-  test("livello Con ricezioni, con la formazione e 13 giocatrici: la ricezione in primo piano, col campo, voti grandi e punti ridotti", async ({ page }) => {
+  test("livello Con ricezioni, con la formazione e 13 giocatrici: quando battono loro si apre da sola la finestra con il campo e i voti grandi", async ({ page }) => {
     test.setTimeout(240_000);
     await loginAsDev(page);
     await switchTeam(page, "u14u15");
-    const matchId = await createMatch(page, uniqueName("Ricezione campo "));
+    const matchId = await createMatch(page, uniqueName("Ricezione finestra "));
     await prepare(page, matchId, "ricezioni", { bench: true });
     await fullscreenButton(page).click();
     await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
     await expect.poll(() => stageFillsWindow(page)).toBe(true);
 
-    // Batte la nostra squadra: la scheda è chiusa e i pulsanti dei punti riempiono l'altezza.
+    // Batte la nostra squadra: nessuna finestra, e i pulsanti dei punti riempiono l'altezza.
     await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
-    const bigTile = (await box(page.locator('[data-scout-add="us-attack"]'))).height;
-    expect(bigTile).toBeGreaterThanOrEqual(120);
+    await expect(receptionSheet(page)).toHaveCount(0);
+    expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(120);
 
-    // Punto loro: tocca alla nostra ricezione. La scheda passa in primo piano, col campo (non più una riga di numeri).
+    // Punto loro: ora battono loro e la finestra si apre da sola, col campo (non una riga di numeri).
     await opponentPoint(page);
     await expect(score(page)).toHaveText("0–1");
+    await expectReceptionWindowInView(page);
     const reception = page.locator('[data-scout-reception="open"]');
-    await expect(reception).toBeVisible();
     await expect(reception).toHaveAttribute("data-scout-reception-court");
     await expect(reception.locator("[data-scout-chips]")).toHaveCount(0);
+    // I tre passi dello scambio dicono a che punto si è.
+    await expect(reception.locator('[data-scout-flow-step="now"]')).toContainText("Ricezione nostra");
     const court = reception.locator("[data-scout-court-picker='us']");
     await expect(court).toBeVisible();
     await expect(court).toContainText("Rete");
@@ -382,7 +349,7 @@ test.describe("su iPad in orizzontale (1180×820)", () => {
     await expect(reception.locator('[data-scout-spot="6"]')).toContainText("libero");
     for (const position of [1, 2, 3, 4, 5, 6]) expect((await box(reception.locator(`[data-scout-spot="${position}"]`))).height, `la casella ${position} è bassa`).toBeGreaterThanOrEqual(52);
 
-    // I voti sono grandi, in due colonne e tre righe.
+    // La finestra è larga: i voti sono grandi, in due colonne e tre righe, accanto al campo.
     const grades = await reception.locator('[data-scout-grades="reception"] [data-scout-grade]').evaluateAll((buttons) =>
       buttons.map((button) => {
         const r = button.getBoundingClientRect();
@@ -393,20 +360,15 @@ test.describe("su iPad in orizzontale (1180×820)", () => {
     expect([...new Set(grades.map((g) => g.x))], "i voti non sono su due colonne").toHaveLength(2);
     expect([...new Set(grades.map((g) => g.y))], "i voti non sono su tre righe").toHaveLength(3);
     for (const g of grades) {
-      expect(g.h, "un voto è basso").toBeGreaterThanOrEqual(44);
+      expect(g.h, "un voto è basso").toBeGreaterThanOrEqual(56);
       expect(g.w, "un voto è stretto").toBeGreaterThanOrEqual(90);
     }
+    expect(Math.min(...grades.map((g) => g.x)), "i voti non stanno a destra del campo").toBeGreaterThan(c[2].x);
 
-    // In primo piano: la scheda è molto più alta dei riquadri dei punti, che restano bassi; tutto entra senza scorrere.
-    const card = await box(reception);
-    const entry = await box(page.locator("[data-scout-entry]"));
-    expect(card.height, "la ricezione non è in primo piano").toBeGreaterThan(entry.height * 1.5);
-    expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeLessThanOrEqual(64);
+    // Dietro la finestra la pagina non cambia: la riga «Ricezione nostra» e i pulsanti dei punti restano grandi, senza scorrere.
+    await expect(page.locator('[data-scout-reception="prompt"]')).toBeVisible();
+    expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(120);
     expect(await mainOverflow(page)).toBeLessThanOrEqual(1);
-    const viewport = page.viewportSize()!;
-    const footer = await box(page.locator("[data-scout-footer]"));
-    expect(footer.y + footer.height).toBeLessThanOrEqual(viewport.height);
-    expect(entry.y + entry.height).toBeLessThanOrEqual(footer.y + 1);
 
     // La panchina e «Non so» sono in una riga sola sotto il campo.
     const bench = reception.locator('[data-scout-bench="inline"] button');
@@ -427,57 +389,116 @@ test.describe("su iPad in orizzontale (1180×820)", () => {
     await expect(reception.locator('[data-scout-spot="1"]')).toHaveAttribute("aria-pressed", "false");
     await reception.locator('[data-scout-grades="reception"] [data-scout-grade="+"]').click();
 
-    // Segnata la ricezione la scheda si rimpicciolisce e i pulsanti dei punti tornano grandi.
+    // Segnata la ricezione la finestra si chiude: in pagina resta «Ricezione segnata» e il punto si segna come sempre.
+    await expect(receptionSheet(page)).toHaveCount(0);
     await expect(page.locator('[data-scout-reception="done"]')).toContainText("Carla Bruni");
-    await expect.poll(async () => (await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(120);
+    expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(120);
 
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);
   });
 
-  test("livello Con ricezioni, senza formazione e con 13 giocatrici: «chi» su due righe al massimo e comandi in vista senza scorrere", async ({ page }) => {
+  test("la finestra della ricezione si chiude con «Salta» o con Esc, si riapre dal pulsante in pagina e toccare fuori non la chiude", async ({ page }) => {
     test.setTimeout(240_000);
     await loginAsDev(page);
     await switchTeam(page, "u14u15");
-    const matchId = await createMatch(page, uniqueName("Spazio ric "));
+    const matchId = await createMatch(page, uniqueName("Ricezione chiusa "));
+    await prepare(page, matchId, "ricezioni");
+    await fullscreenButton(page).click();
+    await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
+    await expect.poll(() => stageFillsWindow(page)).toBe(true);
+
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("0–1");
+    await expectReceptionWindowInView(page);
+
+    // Un tocco fuori dalla finestra non la chiude (un tocco di troppo non deve cancellare la ricezione).
+    await page.mouse.click(4, 4);
+    await expect(receptionSheet(page)).toBeVisible();
+    // Esc la chiude; in pagina resta la riga con il pulsante.
+    await page.keyboard.press("Escape");
+    await expect(receptionSheet(page)).toHaveCount(0);
+    const prompt = page.locator('[data-scout-reception="prompt"]');
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("Ricezione nostra");
+    // Il pulsante la riapre e «Salta la ricezione» la richiude.
+    await prompt.locator("[data-scout-reception-open]").click();
+    await expectReceptionWindowInView(page);
+    await page.locator("[data-scout-reception-skip]").click();
+    await expect(receptionSheet(page)).toHaveCount(0);
+
+    // Senza ricezione il punto si segna lo stesso: punto nostro (attacco di Anna); ora batte la nostra squadra, niente finestra.
+    await page.locator('[data-scout-add="us-attack"]').click();
+    const sheet = page.locator("[data-scout-sheet^='player']");
+    await sheet.waitFor();
+    await sheet.locator("[data-scout-pick]", { hasText: "Anna" }).click();
+    await expect(score(page)).toHaveText("1–1");
+    await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
+    await expect(receptionSheet(page)).toHaveCount(0);
+
+    // Al punto loro dopo battono ancora loro: la finestra si apre di nuovo da sola (la chiusura valeva per lo scambio di prima).
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("1–2");
+    await expectReceptionWindowInView(page);
+
+    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+    await deleteMatchById(page, matchId);
+  });
+
+  test("livello Con ricezioni, senza formazione e con 13 giocatrici: la finestra ha la riga di numeri, la zona e i voti", async ({ page }) => {
+    test.setTimeout(240_000);
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Ricezione numeri "));
     await prepare(page, matchId, "ricezioni", { bench: true, lineup: false });
     await fullscreenButton(page).click();
     await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
     await expect.poll(() => stageFillsWindow(page)).toBe(true);
 
-    // Punto loro: ora tocca alla nostra ricezione, con la scheda aperta sopra i pulsanti dei punti (senza formazione: una riga di numeri).
+    // Punto loro: ora tocca alla nostra ricezione; senza formazione la finestra non ha il campo ma una riga di numeri.
     await opponentPoint(page);
     await expect(score(page)).toHaveText("0–1");
+    await expectReceptionWindowInView(page);
     const reception = page.locator('[data-scout-reception="open"]');
-    await expect(reception).toBeVisible();
     await expect(reception.locator("[data-scout-court-picker]")).toHaveCount(0);
-
-    // Le 13 giocatrici (e «Non so») stanno su due righe, non di più: non c'è un terzo piano che mangia altezza.
     await expect(reception.locator("[data-scout-chips] > button")).toHaveCount(14);
-    const tops = await reception.locator("[data-scout-chips] > button").evaluateAll((buttons) => [...new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top)))]);
-    expect(tops, "le giocatrici vanno su più di due righe").toHaveLength(2);
-    // Tutto in vista: il piede non esce dalla finestra e i pulsanti dei punti restano da toccare. Senza formazione il piede ha
-    // un pulsante in più («Segui la formazione») e va su due righe: la colonna può scorrere di pochi punti, non di più.
-    expect(await mainOverflow(page)).toBeLessThanOrEqual(12);
-    const viewport = page.viewportSize()!;
-    const footer = await box(page.locator("[data-scout-footer]"));
-    expect(footer.y + footer.height).toBeLessThanOrEqual(viewport.height);
-    const entry = await box(page.locator("[data-scout-entry]"));
-    expect(entry.y + entry.height).toBeLessThanOrEqual(footer.y + 1);
+    // Dietro la finestra i pulsanti dei punti restano grandi, come a ogni altro momento.
     expect((await box(page.locator('[data-scout-add="us-attack"]'))).height).toBeGreaterThanOrEqual(64);
+
+    // Si segna: la giocatrice, la zona (facoltativa) e il voto.
+    await expect(reception.locator('[data-scout-grades="reception"] [data-scout-grade="+"]')).toBeDisabled();
+    await reception.locator("[data-scout-who]", { hasText: "Anna" }).click();
+    await reception.locator("details summary").click();
+    await reception.locator('[data-scout-zone-pick="6"]').click();
+    await reception.locator('[data-scout-grades="reception"] [data-scout-grade="+"]').click();
+    await expect(receptionSheet(page)).toHaveCount(0);
+    await expect(page.locator('[data-scout-reception="done"]')).toContainText("Anna Verdi");
+    await expect(page.locator('[data-scout-reception="done"]')).toContainText("zona 6");
 
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);
   });
 
-  test("pagina normale (senza schermo intero): la ricezione sta sotto la fascia della palla e la pagina scorre da sola fino a lei", async ({ page }) => {
+  test("pagina normale (senza schermo intero): quando battono loro la finestra della ricezione si apre da sola e sta tutta nello schermo", async ({ page }) => {
     test.setTimeout(240_000);
     await loginAsDev(page);
     await switchTeam(page, "u14u15");
     const matchId = await createMatch(page, uniqueName("Ricezione pagina "));
     await prepare(page, matchId, "ricezioni", { bench: true });
     await expect(page.locator("[data-scout-columns]")).toHaveCount(0);
-    await receptionComesIntoView(page, { gradesInView: true });
+    await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
+    await expect(receptionSheet(page)).toHaveCount(0);
+
+    // Punto loro (dal tasto dei punti, come sempre): subito dopo si apre la finestra, col campo e i voti in vista.
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("0–1");
+    await expectReceptionWindowInView(page);
+    const reception = page.locator('[data-scout-reception="open"]');
+    await expect(reception).toHaveAttribute("data-scout-reception-court");
+    const height = page.viewportSize()!.height;
+    const grade = await box(reception.locator('[data-scout-grades="reception"] [data-scout-grade="#"]'));
+    expect(grade.y + grade.height, "i voti sono oltre il bordo basso").toBeLessThanOrEqual(height);
+    await receiveOnCourt(page, 2, "!", "Bea Neri");
 
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);
@@ -487,7 +508,7 @@ test.describe("su iPad in orizzontale (1180×820)", () => {
 test.describe("su iPad in verticale (820×1180)", () => {
   test.use({ viewport: { width: 820, height: 1180 } });
 
-  test("schermo intero in una colonna: la scheda della ricezione ha il suo contenuto e sta subito sotto la fascia della palla", async ({ page }) => {
+  test("schermo intero in una colonna (app installata): la finestra della ricezione si apre da sola e sta tutta nello schermo", async ({ page }) => {
     test.setTimeout(240_000);
     // Come sull'iPad con l'app installata: niente schermo intero vero, il riquadro ricopre la finestra.
     await page.addInitScript(() => {
@@ -499,15 +520,22 @@ test.describe("su iPad in verticale (820×1180)", () => {
     await switchTeam(page, "u14u15");
     const matchId = await createMatch(page, uniqueName("Ricezione verticale "));
     await prepare(page, matchId, "ricezioni", { bench: true });
-    // La scheda è già aperta quando si passa a schermo intero (era così che restava vuota).
-    await opponentPoint(page);
-    await expect(score(page)).toHaveText("0–1");
-    await expect(page.locator('[data-scout-reception="open"]')).toBeVisible();
     await fullscreenButton(page).click();
-    // In verticale non ci sono due colonne: la scheda sta in cima alla colonna che scorre, sotto la fascia della palla.
+    // In verticale non ci sono due colonne: la finestra si apre sopra la colonna che scorre.
     await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
     await expect.poll(() => stageFillsWindow(page)).toBe(true);
-    await receptionInPlace(page, { gradesInView: true });
+
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("0–1");
+    await expectReceptionWindowInView(page);
+    await expect(page.locator('[data-scout-reception="open"]')).toHaveAttribute("data-scout-reception-court");
+    // Esc chiude solo la finestra: lo schermo intero (simulato, si chiude anch'esso con Esc) resta com'è.
+    await page.keyboard.press("Escape");
+    await expect(receptionSheet(page)).toHaveCount(0);
+    await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
+    await page.locator("[data-scout-reception-open]").click();
+    await expectReceptionWindowInView(page);
+    await receiveOnCourt(page, 2, "!", "Bea Neri");
 
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);
@@ -564,19 +592,21 @@ test.describe("sul telefono", () => {
     await deleteMatchById(page, matchId);
   });
 
-  test("Con ricezioni, con la formazione: il campo sopra e i voti sotto in una colonna, senza scorrere di lato", async ({ page }) => {
+  test("Con ricezioni, con la formazione: la finestra sale dal basso, il campo sopra e i voti sotto in una colonna, senza scorrere di lato", async ({ page }) => {
     test.setTimeout(240_000);
     await loginAsDev(page);
     await switchTeam(page, "u14u15");
     const matchId = await createMatch(page, uniqueName("Ricezione telefono "));
     await prepare(page, matchId, "ricezioni", { bench: true });
+    await expect(receptionSheet(page)).toHaveCount(0);
     await opponentPoint(page);
     await expect(score(page)).toHaveText("0–1");
+    // Si apre da sola e sta tutta nello schermo (scorre dentro, se serve).
+    await expectReceptionWindowInView(page);
     const reception = page.locator('[data-scout-reception="open"]');
     await expect(reception).toHaveAttribute("data-scout-reception-court");
-    await reception.scrollIntoViewIfNeeded();
 
-    // Sul telefono la scheda è stretta: il campo sta sopra i voti, che sono su tre colonne e due righe, grandi da toccare.
+    // Sul telefono la finestra è stretta: il campo sta sopra i voti, che sono su tre colonne e due righe, grandi da toccare.
     const court = await box(reception.locator("[data-scout-court-picker='us']"));
     const grades = await reception.locator('[data-scout-grades="reception"] [data-scout-grade]').evaluateAll((buttons) =>
       buttons.map((button) => {
@@ -592,23 +622,8 @@ test.describe("sul telefono", () => {
     for (const position of [1, 2, 3, 4, 5, 6]) expect((await box(reception.locator(`[data-scout-spot="${position}"]`))).height).toBeGreaterThanOrEqual(60);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 
-    // Si segna: la giocatrice sul campo, il voto.
-    await reception.locator('[data-scout-spot="2"]').click();
-    await reception.locator('[data-scout-grades="reception"] [data-scout-grade="!"]').click();
-    await expect(page.locator('[data-scout-reception="done"]')).toContainText("Bea Neri");
-
-    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
-    await deleteMatchById(page, matchId);
-  });
-
-  test("pagina normale (senza schermo intero): la ricezione sta sotto la fascia della palla e la pagina scorre da sola fino a lei", async ({ page }) => {
-    test.setTimeout(240_000);
-    await loginAsDev(page);
-    await switchTeam(page, "u14u15");
-    const matchId = await createMatch(page, uniqueName("Ricezione pagina telefono "));
-    await prepare(page, matchId, "ricezioni", { bench: true });
-    await expect(page.locator("[data-scout-columns]")).toHaveCount(0);
-    await receptionComesIntoView(page, { gradesInView: false });
+    // Si segna: la giocatrice sul campo, il voto; la finestra si chiude.
+    await receiveOnCourt(page, 2, "!", "Bea Neri");
 
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);
