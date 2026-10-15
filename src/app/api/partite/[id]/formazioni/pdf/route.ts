@@ -366,7 +366,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const pdfBytes = await doc.save();
   const safeOpponent = match.opponent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const filename = `formazioni-${safeOpponent || "partita"}.pdf`;
+  // Con la categoria e la data: le formazioni di Under 14 e Under 15 contro la stessa avversaria non hanno lo stesso nome.
+  const filename = ["formazioni", match.category ? match.category.toLowerCase() : null, safeOpponent || "partita", match.matchDate.slice(0, 10)]
+    .filter(Boolean)
+    .join("-")
+    .concat(".pdf");
 
   return new NextResponse(Buffer.from(pdfBytes), {
     headers: {

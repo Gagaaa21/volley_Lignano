@@ -19,6 +19,7 @@ import { ScoutLineups } from "@/components/scout/ScoutLineups";
 import { lineupSummary } from "@/lib/scout/court";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -67,6 +68,7 @@ export default async function ScoutTabellinoPage({
   const lineups = view && scout ? lineupSummary(view, scout.roster, selected) : null;
   const showLineups = Boolean(lineups && (lineups.starts.length > 0 || lineups.subs.length > 0));
 
+  const pdfHref = `/api/scout/${matchId}/pdf${setParam ? `?set=${encodeURIComponent(setParam)}` : ""}`;
   const header = (
     <PageHeader
       back={{ href: "/admin/scout", label: "Scout" }}
@@ -93,7 +95,7 @@ export default async function ScoutTabellinoPage({
           </LinkButton>
           {summary.state !== "none" && (
             <LinkButton
-              href={`/api/scout/${matchId}/pdf${setParam ? `?set=${encodeURIComponent(setParam)}` : ""}`}
+              href={pdfHref}
               variant="outline"
               data-scout-pdf
               data-tour="scout-tab-pdf"
@@ -101,6 +103,9 @@ export default async function ScoutTabellinoPage({
               <FileDown className="h-4 w-4" />
               Scarica PDF
             </LinkButton>
+          )}
+          {summary.state !== "none" && (
+            <SharePdfButton href={pdfHref} title={`Tabellino ${matchTitle(match)}`} prefetch data-share-pdf="tabellino" />
           )}
         </>
       }

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Download, Save, X } from "lucide-react";
+import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Button } from "@/components/ui/Button";
 import { FieldError } from "@/components/ui/Field";
@@ -146,6 +147,7 @@ export function CallUpsAndLineupsDialog({
               <Download className="h-4 w-4" />
               Esporta PDF
             </LinkButton>
+            <SharePdfButton href={`/api/partite/${matchId}/formazioni/pdf`} title={`Formazioni ${title}`} data-share-pdf="formazioni" />
             {state.error && <FieldError>{state.error}</FieldError>}
             {state.success && <span className="text-sm font-semibold text-success">Salvato.</span>}
           </div>

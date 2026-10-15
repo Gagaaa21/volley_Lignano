@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
 import { pdfFilename, pdfResponse } from "@/lib/pdf/report";
+import { CATEGORY_SHORT } from "@/lib/category";
 import { summarizeScout } from "@/lib/scout/match";
 import { requireScoutAccess, withScoutStore } from "@/lib/scout/access";
 
@@ -23,5 +24,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ matc
     set: Number.isInteger(setParam) && setParam > 0 ? setParam : null,
   });
   const { match } = access;
-  return pdfResponse(bytes, pdfFilename(`tabellino ${match.opponent} ${match.matchDate.slice(0, 10)}`));
+  const category = match.category ? `${CATEGORY_SHORT[match.category]} ` : "";
+  return pdfResponse(bytes, pdfFilename(`tabellino ${category}${match.opponent} ${match.matchDate.slice(0, 10)}`));
 }

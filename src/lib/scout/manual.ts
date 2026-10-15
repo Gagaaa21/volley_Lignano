@@ -1405,7 +1405,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Il PDF" },
       {
         type: "p",
-        text: "**Scarica PDF** (in alto nel tabellino, e accanto a ogni partita nell'elenco) crea il tabellino da stampare, con le stesse schede del livello della partita: da quattro pagine a livello Base a sette a livello Completo. Se hai scelto un set, il PDF contiene solo quello.",
+        text: "**Scarica PDF** (in alto nel tabellino, e accanto a ogni partita nell'elenco) crea il tabellino da stampare, con le stesse schede del livello della partita: da quattro pagine a livello Base a sette a livello Completo. Se hai scelto un set, il PDF contiene solo quello. **Condividi PDF** (accanto) lo manda come file: dal telefono si apre il foglio di condivisione con il PDF già allegato, dal computer il file si scarica.",
       },
       {
         type: "callout",

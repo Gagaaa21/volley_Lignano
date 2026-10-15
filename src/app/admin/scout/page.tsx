@@ -19,6 +19,7 @@ import { HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
+import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { ShareManualButton } from "@/components/scout/ShareManualButton";
 import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
 import { Badge } from "@/components/ui/Badge";
@@ -74,6 +75,16 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
           <FileDown className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only">PDF</span>
         </LinkButton>
+        <SharePdfButton
+          href={`/api/scout/${match.id}/pdf`}
+          title={`Tabellino ${matchTitle(match)}`}
+          label="Condividi il tabellino in PDF"
+          iconOnly
+          variant="quiet"
+          size="sm"
+          className="w-9 px-0"
+          data-share-pdf="tabellino"
+        />
       </div>
     );
 

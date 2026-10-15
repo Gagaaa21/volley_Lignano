@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Download, FileDown } from "lucide-react";
+import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Button } from "@/components/ui/Button";
@@ -169,6 +170,8 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
 
   const best = useMemo(() => bestByMetric(rows), [rows]);
   const averages = useMemo(() => averagesByMetric(rows), [rows]);
+  // Il PDF riproduce la tabella com'è a schermo: stessa vista, giorno, filtri e ordine (lo stesso indirizzo per scaricarlo e condividerlo).
+  const pdfHref = `/api/test-fisici/riepilogo/pdf?${tableParamsToSearch({ view, day, query, label, includeEmpty, sort })}`;
 
   const hasOthers = rows.some((r) => r.others.length > 0);
   const testedCount = rows.filter((r) => r.date !== null).length;
@@ -267,14 +270,13 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
             </Button>
           ) : (
             // Il PDF riproduce la tabella com'è a schermo: stessa vista, giorno, filtri e ordine.
-            <a
-              href={`/api/test-fisici/riepilogo/pdf?${tableParamsToSearch({ view, day, query, label, includeEmpty, sort })}`}
-              data-riepilogo-pdf
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              <FileDown className="h-4 w-4" />
-              Scarica PDF
-            </a>
+            <>
+              <a href={pdfHref} data-riepilogo-pdf className={buttonVariants({ variant: "outline", size: "sm" })}>
+                <FileDown className="h-4 w-4" />
+                Scarica PDF
+              </a>
+              <SharePdfButton href={pdfHref} title="Riepilogo test fisici · Volley Lignano" size="sm" data-share-pdf="test-fisici" />
+            </>
           )}
           <Button type="button" variant="outline" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
             <Download className="h-4 w-4" />

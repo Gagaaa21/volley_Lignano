@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AlertTriangle, Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
+import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -78,6 +79,14 @@ export default async function AthletesPage({ searchParams }: { searchParams: Pro
               <FileDown className="h-4 w-4" />
               Riepilogo presenze
             </LinkButton>
+            <SharePdfButton
+              href="/api/presenze/riepilogo/pdf"
+              title="Riepilogo presenze · Volley Lignano"
+              variant="quiet"
+              size="sm"
+              label="Condividi"
+              data-share-pdf="riepilogo-presenze"
+            />
           </div>
         </>
       )}

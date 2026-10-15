@@ -13,7 +13,9 @@ import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
 import { StandingsSection } from "@/components/calendar/StandingsSection";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
+import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { CATEGORY_LABELS } from "@/lib/category";
 import { getPublicCalendarData, getPublicSeasonRecord, getPublicStandings } from "@/lib/publicCalendarData";
 import {
   expandTrainings,
@@ -42,6 +44,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const monthParam = formatMonthParam(monthDate);
   const activeCategory: "all" | Category =
     catParamRaw === "U14" || catParamRaw === "U15" ? catParamRaw : "all";
+  // Il PDF delle partite segue la categoria scelta: lo stesso indirizzo per scaricarlo e per condividerlo.
+  const pdfHref = activeCategory === "all" ? "/calendario-partite.pdf" : `/calendario-partite.pdf?cat=${activeCategory}`;
+  const pdfTitle =
+    activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`;
 
   const { start: gridStart, end: gridEnd } = getMonthGridRange(monthDate);
   const { start: agendaStart, end: agendaEnd } = getUpcomingAgendaRange();
@@ -146,13 +152,23 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 Aggiungi al tuo calendario
               </a>
               <a
-                href={activeCategory === "all" ? "/calendario-partite.pdf" : `/calendario-partite.pdf?cat=${activeCategory}`}
+                href={pdfHref}
                 data-public-matches-pdf
+                data-tour="public-pdf"
                 className={buttonVariants({ variant: "outline", size: "lg" })}
               >
                 <FileDown className="h-[18px] w-[18px]" />
                 Scarica le partite (PDF)
               </a>
+              <SharePdfButton
+                href={pdfHref}
+                title={pdfTitle}
+                text="Le partite di Volley Lignano."
+                prefetch
+                size="lg"
+                label="Condividi le partite (PDF)"
+                data-share-pdf="calendario-partite"
+              />
             </div>
           </div>
 

@@ -29,14 +29,21 @@ const PUBLIC_TOUR_STEPS_U14U15: BaseTourStep[] = [
     path: "/",
     target: "public-category-filter",
     title: "Filtra per categoria",
-    body: "Passa dalla vista di tutte le squadre a quella di una sola categoria, Under 14 o Under 15.",
+    body: "Passa dalla vista di tutte le squadre a quella di una sola categoria, Under 14 o Under 15. Ogni partita ha la sua etichetta: U14 in verde acqua, U15 in viola.",
   },
   {
     id: "public-ics-button",
     path: "/",
     target: "public-ics-button",
     title: "Aggiungi al tuo calendario",
-    body: "Con un tocco, allenamenti e partite si aggiungono al calendario del telefono e restano sempre aggiornati.",
+    body: "Con un tocco, allenamenti e partite si aggiungono al calendario del telefono e restano sempre aggiornati. Se hai scelto una categoria, si aggiungono solo le partite di quella.",
+  },
+  {
+    id: "public-pdf",
+    path: "/",
+    target: "public-pdf",
+    title: "Le partite in PDF",
+    body: "«Scarica» salva il calendario delle partite in PDF; «Condividi» lo manda a chi vuoi (dal telefono si apre WhatsApp, e-mail e simili). Segue la categoria scelta.",
   },
   {
     id: "public-nav-area-tecnici",

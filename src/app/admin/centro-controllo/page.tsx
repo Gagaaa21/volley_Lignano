@@ -3,6 +3,7 @@ import { Bell, BellRing, Clock, KeyRound, ListChecks, Shield, Trophy } from "luc
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
+import { CATEGORY_SHORT } from "@/lib/category";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -96,8 +97,10 @@ export default async function CentroControlloPage() {
     if (a.updatedAt !== a.createdAt)
       activity.push({ type: "Atleta", label: a.fullName, by: null, at: a.updatedAt, kind: "aggiornata" });
   }
+  // «U14 · vs Degano»: due partite di categorie diverse contro la stessa avversaria non si confondono nel registro.
+  const matchLabel = (m: (typeof matches)[number]) => (m.category ? `${CATEGORY_SHORT[m.category]} · ${matchTitle(m)}` : matchTitle(m));
   for (const m of matches) {
-    const label = matchTitle(m);
+    const label = matchLabel(m);
     activity.push({ type: "Partita", label, by: byName(m.createdBy), at: m.createdAt, kind: "creata" });
     if (m.updatedAt !== m.createdAt)
       activity.push({ type: "Partita", label, by: null, at: m.updatedAt, kind: "aggiornata" });
@@ -121,7 +124,7 @@ export default async function CentroControlloPage() {
   for (const s of staff) {
     activity.push({ type: "Staff", label: s.fullName, by: byName(s.createdBy), at: s.createdAt, kind: "creata" });
   }
-  const matchLabelById = new Map(matches.map((m) => [m.id, matchTitle(m)] as const));
+  const matchLabelById = new Map(matches.map((m) => [m.id, matchLabel(m)] as const));
   for (const l of lineups) {
     activity.push({
       type: "Formazioni",

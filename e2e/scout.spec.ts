@@ -206,7 +206,7 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   const pdf = await page.request.get(`/api/scout/${matchId}/pdf`);
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
-  expect(pdf.headers()["content-disposition"]).toMatch(/^attachment; filename="tabellino-scout-.*\.pdf"$/);
+  expect(pdf.headers()["content-disposition"]).toMatch(/^attachment; filename="tabellino-(?:u1[45]-)?scout-.*\.pdf"$/);
   expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
   const pdfSet = await page.request.get(`/api/scout/${matchId}/pdf?set=1`);
   expect(pdfSet.status()).toBe(200);
