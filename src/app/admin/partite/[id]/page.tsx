@@ -6,10 +6,11 @@ import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
 import { matchTitle } from "@/lib/calendar";
 import { Card, CardBody } from "@/components/ui/Card";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
-import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { deleteMatchAction } from "../actions";
 import { MatchForm } from "../MatchForm";
@@ -41,7 +42,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
     <div className="mx-auto max-w-3xl">
       <PageHeader
         back={{ href: "/admin/partite", label: "Partite" }}
-        eyebrow={match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL}
+        eyebrow={match.category ? <CategoryTag category={match.category} size="md" long /> : MATCH_NO_CATEGORY_LABEL}
         title={matchTitle(match)}
         description={`${formatDateLong(match.matchDate.slice(0, 10))} · ${match.matchDate.slice(11, 16)} · ${match.location}`}
         actions={

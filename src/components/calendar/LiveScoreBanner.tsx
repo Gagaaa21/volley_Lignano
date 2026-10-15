@@ -5,8 +5,8 @@ import Image from "next/image";
 import { Timer, Trophy, Volleyball } from "lucide-react";
 import crestU14U15 from "@/assets/lignano-crest.png";
 import crestMinivolley from "@/assets/minivolley-crest.png";
-import { CATEGORY_LABELS } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { readableTextColor, teamMonogram } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam, TrainingTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
@@ -245,9 +245,7 @@ export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
                   In diretta
                 </span>
               )}
-              {live.category && (
-                <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white/75">{CATEGORY_LABELS[live.category]}</span>
-              )}
+              {live.category && <CategoryTag category={live.category} size="md" long className="rounded-full px-3 ring-1 ring-white/30" />}
               {!live.finished && (
                 <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white/75" data-public-livescore-set>
                   {currentSet}° set

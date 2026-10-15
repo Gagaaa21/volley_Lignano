@@ -6,6 +6,7 @@ import { Lock, MapPin, Target, Trophy } from "lucide-react";
 import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
+import { CATEGORY_LABELS, parseCategoryFilter } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import {
   computeLeaderboard,
@@ -16,7 +17,9 @@ import {
   matchHasResult,
   predictionClosingLabel,
 } from "@/lib/predictions";
+import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { PageHeader, SectionHeading } from "@/components/ui/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
@@ -30,16 +33,20 @@ export const metadata: Metadata = {
   title: "Pronostici",
 };
 
-export default async function PronosticiPage() {
+export default async function PronosticiPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const session = await requireStaff();
   const team = await resolveActiveTeam(session);
+  const { cat } = await searchParams;
+  // Under 14 e Under 15 si possono guardare una alla volta (le partite in elenco; la classifica resta su tutte).
+  const category = team === "u14u15" ? parseCategoryFilter(cat) : "all";
 
   const [repo, staffRepo] = await Promise.all([getActiveRepo(), getRepo()]);
-  const [matches, allPredictions, staff] = await Promise.all([
+  const [allMatches, allPredictions, staff] = await Promise.all([
     repo.listMatches({ team }),
     repo.listPredictions(),
     staffRepo.listStaff(),
   ]);
+  const matches = allMatches.filter((m) => category === "all" || m.category === category);
 
   const nameById = new Map(staff.map((s) => [s.id, s.fullName]));
 
@@ -54,7 +61,8 @@ export default async function PronosticiPage() {
   const upcoming = matches.filter((m) => !arePredictionsClosed(m));
   const lockedNoResult = matches.filter((m) => arePredictionsClosed(m) && !matchHasResult(m));
 
-  const leaderboard = computeLeaderboard(withResult, predictionsByMatch);
+  // La classifica conta sempre tutte le partite, qualunque categoria si stia guardando.
+  const leaderboard = computeLeaderboard(allMatches.filter((m) => matchHasResult(m)), predictionsByMatch);
 
   return (
     <div>
@@ -64,13 +72,15 @@ export default async function PronosticiPage() {
         help={<SectionTour steps={SECTION_PRONOSTICI_STEPS} />}
       />
 
+      {team === "u14u15" && <CategoryFilterLinks path="/admin/pronostici" active={category} className="mb-6" dataTour="section-pronostici-filter" />}
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10">
         <div className="min-w-0 space-y-9">
           <section data-tour="section-pronostici-open">
             <SectionHeading title="Da pronosticare" />
             {upcoming.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-10 text-center text-sm text-muted-foreground">
-                Nessuna partita in programma al momento.
+                {category === "all" ? "Nessuna partita in programma al momento." : `Nessuna partita ${CATEGORY_LABELS[category]} in programma al momento.`}
               </div>
             ) : (
               <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
@@ -217,7 +227,10 @@ function MatchRow({ match, status, action }: { match: Match; status?: ReactNode;
           </span>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-foreground">{matchTitle(match)}</p>
+          <p className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-semibold text-foreground">{matchTitle(match)}</span>
+            <CategoryTag category={match.category} long />
+          </p>
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
             <span className="tabular shrink-0 font-semibold text-foreground/75">{match.matchDate.slice(11, 16)}</span>
             <MapPin className="ml-1 h-3.5 w-3.5 shrink-0" />
@@ -244,7 +257,10 @@ function MatchResultCard({
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-display text-base font-bold text-foreground">{matchTitle(match)}</p>
+          <p className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-foreground">
+            {matchTitle(match)}
+            <CategoryTag category={match.category} long />
+          </p>
           <p className="text-[13px] text-muted-foreground">{formatDateLong(match.matchDate.slice(0, 10))}</p>
         </div>
       </CardHeader>

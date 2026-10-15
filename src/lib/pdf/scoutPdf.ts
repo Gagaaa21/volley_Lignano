@@ -543,6 +543,7 @@ export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdf
     footerLabel: "Volley Lignano · scout, riservato allo staff",
     orientation: "landscape",
     generatedAt,
+    tag: match.category ? { text: CATEGORY_LABELS[match.category].toUpperCase(), tone: match.category === "U14" ? "u14" : "u15" } : undefined,
   });
 
   const over = view.decided || scout.finished;

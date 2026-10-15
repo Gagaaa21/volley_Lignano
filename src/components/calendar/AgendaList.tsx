@@ -5,8 +5,9 @@ import { format, isToday, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarX2, ChevronRight, ChevronUp, Clock, History, Home, MapPin, Plane } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS, categoryBadgeClass, categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
+import { categoryBadgeClass, categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import type { CalendarEvent } from "@/lib/types";
 
 function isPastDate(dateStr: string) {
@@ -134,11 +135,12 @@ function EventRow({ event, isPast, onSelect }: { event: CalendarEvent; isPast: b
       <span className="min-w-0 flex-1 py-0.5">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-semibold text-foreground group-hover:text-primary">{title}</span>
-          {!isTraining && (
-            <span className={cn(tagClass, categoryBadgeClass(event.category))}>
-              {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}
-            </span>
-          )}
+          {!isTraining &&
+            (event.category ? (
+              <CategoryTag category={event.category} long />
+            ) : (
+              <span className={cn(tagClass, categoryBadgeClass(event.category))}>{MATCH_NO_CATEGORY_LABEL}</span>
+            ))}
           {!isTraining && event.isFriendly && <span className={cn(tagClass, "bg-muted text-muted-foreground")}>Amichevole</span>}
           {event.isTournament && <span className={cn(tagClass, "bg-accent text-accent-foreground")}>Torneo</span>}
           {isTraining && event.usual && (

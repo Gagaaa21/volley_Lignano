@@ -1,12 +1,15 @@
 import { Trophy } from "lucide-react";
 import { CATEGORY_LABELS, categoryDotClass, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import type { CalendarEvent, TrainingColor } from "@/lib/types";
+import { CategoryTag } from "@/components/ui/CategoryTag";
+import type { CalendarEvent, Category, TrainingColor } from "@/lib/types";
 
 interface LegendEntry {
   key: string;
   label: string;
   dotClass?: string;
+  /** Una partita di questa categoria: davanti c'è la stessa etichetta che sta sulle partite. */
+  category?: Category;
   tournament?: boolean;
 }
 
@@ -35,6 +38,7 @@ function buildEntries(events: CalendarEvent[]): LegendEntry[] {
           key: `match-${key}`,
           label: event.category ? `Partita ${CATEGORY_LABELS[event.category]}` : "Partita",
           dotClass: categoryDotClass(event.category),
+          category: event.category ?? undefined,
         });
       }
     }
@@ -64,6 +68,8 @@ export function CalendarLegend({ events, className }: { events: CalendarEvent[];
         <li key={entry.key} className="inline-flex items-center gap-2">
           {entry.tournament ? (
             <Trophy className="h-3.5 w-3.5 text-sand-600" />
+          ) : entry.category ? (
+            <CategoryTag category={entry.category} size="xs" />
           ) : (
             <span className={cn("h-2.5 w-2.5 rounded-full", entry.dotClass)} aria-hidden />
           )}

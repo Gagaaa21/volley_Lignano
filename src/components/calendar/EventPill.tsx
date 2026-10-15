@@ -2,6 +2,7 @@ import { Trophy } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
 import { categoryBadgeClass, categoryDotClass, categoryLabel, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import type { CalendarEvent } from "@/lib/types";
 
 /**
@@ -47,7 +48,13 @@ export function EventPill({ event, onSelect }: { event: CalendarEvent; onSelect?
       className={cn(base, "font-semibold hover:brightness-[0.97]", categoryBadgeClass(event.category))}
       title={`${event.time} · ${categoryLabel(event.category)} ${event.isHome ? "in casa" : "in trasferta"} · ${matchTitle(event)} · ${event.location}`}
     >
-      {event.isTournament ? (
+      {event.category ? (
+        // La categoria si legge anche senza vedere i colori: sigla piena, poi (per un torneo) la coppa.
+        <>
+          <CategoryTag category={event.category} size="xs" />
+          {event.isTournament && <Trophy className="h-3 w-3 shrink-0" />}
+        </>
+      ) : event.isTournament ? (
         <Trophy className="h-3 w-3 shrink-0" />
       ) : (
         <span className={cn("h-2 w-2 shrink-0 rounded-full", categoryDotClass(event.category))} aria-hidden />

@@ -17,8 +17,9 @@ import {
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
 import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
-import { categoryDotClass, CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
+import { categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { StatTile } from "@/components/ui/StatTile";
 import { SectionHeading } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -247,11 +248,12 @@ export default async function AdminDashboardPage({
                         <span className="truncate font-semibold text-foreground group-hover:text-primary">
                           {isTraining ? event.title : matchTitle(event)}
                         </span>
-                        {!isTraining && (
-                          <span className="text-xs font-semibold text-muted-foreground">
-                            {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}
-                          </span>
-                        )}
+                        {!isTraining &&
+                          (event.category ? (
+                            <CategoryTag category={event.category} long />
+                          ) : (
+                            <span className="text-xs font-semibold text-muted-foreground">{MATCH_NO_CATEGORY_LABEL}</span>
+                          ))}
                       </span>
                       <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
                         <span className="tabular shrink-0 font-semibold text-foreground/75">

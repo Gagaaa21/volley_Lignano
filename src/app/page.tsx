@@ -137,8 +137,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <a
-                href="/calendario.ics"
+                href={activeCategory === "all" ? "/calendario.ics" : `/calendario.ics?cat=${activeCategory}`}
                 data-tour="public-ics-button"
+                data-public-ics
                 className={buttonVariants({ variant: "primary", size: "lg" })}
               >
                 <CalendarPlus className="h-[18px] w-[18px]" />

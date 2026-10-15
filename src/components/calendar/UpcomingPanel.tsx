@@ -5,8 +5,9 @@ import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarCheck2, ChevronRight, Clock, MapPin } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS, categoryDotClass, trainingDotClass } from "@/lib/category";
+import { categoryDotClass, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import type { CalendarEvent } from "@/lib/types";
 import { EventDetailDialog, type EventAttendance, type EventCallUps, type EventPlan } from "./EventDetailDialog";
 
@@ -18,11 +19,17 @@ function eventLabel(event: CalendarEvent) {
   return event.kind === "training" ? event.title : matchTitle(event);
 }
 
+/** Che cos'è: la categoria di una partita non è qui, la dice l'etichetta piena che le sta davanti (CategoryMarker). */
 function kindLabel(event: CalendarEvent) {
   if (event.kind === "training") return event.isTournament ? "Torneo" : "Allenamento";
-  const category = event.category ? ` ${CATEGORY_LABELS[event.category]}` : "";
-  if (event.isTournament) return `Torneo${category}`;
-  return `Partita${category} · ${event.isHome ? "in casa" : "in trasferta"}`;
+  if (event.isTournament) return "Torneo";
+  return `Partita · ${event.isHome ? "in casa" : "in trasferta"}`;
+}
+
+/** Davanti a ogni riga: l'etichetta della categoria per le partite, il pallino del colore per il resto. */
+function CategoryMarker({ event, size, long = false }: { event: CalendarEvent; size: "xs" | "sm"; long?: boolean }) {
+  if (event.kind === "match" && event.category) return <CategoryTag category={event.category} size={size} long={long} />;
+  return <span className={cn("h-2 w-2 shrink-0 rounded-full", dotClass(event))} aria-hidden />;
 }
 
 function relativeDay(dateStr: string) {
@@ -102,8 +109,8 @@ export function UpcomingPanel({
           </span>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground">
-            <span className={cn("h-2 w-2 shrink-0 rounded-full", dotClass(first))} aria-hidden />
+          <span className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
+            <CategoryMarker event={first} size="sm" long />
             <span className="truncate">{kindLabel(first)}</span>
           </span>
           <span className="display-wide mt-1 block text-[1.375rem] leading-tight text-foreground transition-colors group-hover:text-primary sm:text-2xl">
@@ -143,7 +150,9 @@ export function UpcomingPanel({
                   <span className="w-[4.5rem] shrink-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
                     {format(parseISO(event.date), "EEE d", { locale: it })}
                   </span>
-                  <span className={cn("h-2 w-2 shrink-0 rounded-full", dotClass(event))} aria-hidden />
+                  <span className="flex w-9 shrink-0 justify-center">
+                    <CategoryMarker event={event} size="xs" />
+                  </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground group-hover:text-primary">
                     {eventLabel(event)}
                   </span>

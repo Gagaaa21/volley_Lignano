@@ -14,6 +14,7 @@ import {
   predictionClosingLabel,
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PredictionForm } from "../PredictionForm";
 import { SetRankingBadges } from "../PredictionRankings";
@@ -40,7 +41,12 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
     <div className="mx-auto max-w-2xl">
       <PageHeader
         back={{ href: "/admin/pronostici", label: "Pronostici" }}
-        eyebrow={<span>{formatDateLong(match.matchDate.slice(0, 10))}</span>}
+        eyebrow={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <CategoryTag category={match.category} size="md" long />
+            {formatDateLong(match.matchDate.slice(0, 10))}
+          </span>
+        }
         title={matchTitle(match)}
         description={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">

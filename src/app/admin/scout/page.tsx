@@ -6,7 +6,7 @@ import { Binoculars, BookOpen, ChartNoAxesColumn, FileDown, MapPin, Pencil } fro
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS } from "@/lib/category";
+import { CATEGORY_LABELS, parseCategoryFilter } from "@/lib/category";
 import { todayIso } from "@/lib/today";
 import { LEVEL_META } from "@/lib/scout/levels";
 import { isScoutable, summarizeScout, type ScoutSummary } from "@/lib/scout/match";
@@ -20,8 +20,10 @@ import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { ShareManualButton } from "@/components/scout/ShareManualButton";
+import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
 import { Badge } from "@/components/ui/Badge";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -86,7 +88,7 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="truncate font-semibold text-foreground">{matchTitle(match)}</span>
-            {match.category && <Badge tone={match.category === "U14" ? "u14" : "u15"}>{CATEGORY_LABELS[match.category]}</Badge>}
+            <CategoryTag category={match.category} long />
             {match.isFriendly && <Badge tone="neutral">Amichevole</Badge>}
           </p>
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
@@ -111,10 +113,12 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
   );
 }
 
-export default async function ScoutHubPage({ searchParams }: { searchParams: Promise<{ vista?: string }> }) {
+export default async function ScoutHubPage({ searchParams }: { searchParams: Promise<{ vista?: string; cat?: string }> }) {
   const session = await requireStaffPage("scout");
-  const { vista } = await searchParams;
+  const { vista, cat } = await searchParams;
   const season = vista === "stagione";
+  // Under 14 e Under 15 sono due squadre: si guardano insieme o una alla volta (partite e totali di stagione).
+  const category = parseCategoryFilter(cat);
 
   const repo = await getActiveRepo();
   let allMatches: Match[];
@@ -131,22 +135,32 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       </div>
     );
   }
-  const matches = allMatches.filter(isScoutable);
+  const matches = allMatches.filter(isScoutable).filter((m) => category === "all" || m.category === category);
   const scoutByMatch = new Map(scouts.map((scout) => [scout.matchId, scout]));
 
   const today = todayIso();
   const upcoming = matches.filter((m) => m.matchDate.slice(0, 10) >= today).sort((a, b) => a.matchDate.localeCompare(b.matchDate));
   const played = matches.filter((m) => m.matchDate.slice(0, 10) < today).sort((a, b) => b.matchDate.localeCompare(a.matchDate));
 
+  const hubHref = (params: { vista?: string }) => {
+    const query = new URLSearchParams();
+    if (params.vista) query.set("vista", params.vista);
+    if (category !== "all") query.set("cat", category);
+    const qs = query.toString();
+    return qs ? `/admin/scout?${qs}` : "/admin/scout";
+  };
   const tabs = (
-    <div className="mb-6 w-fit" data-tour="section-scout-tabs">
-      <SegmentedLinks
-        ariaLabel="Vista"
-        items={[
-          { href: "/admin/scout", label: "Partite", active: !season },
-          { href: "/admin/scout?vista=stagione", label: "Stagione", active: season },
-        ]}
-      />
+    <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="w-fit" data-tour="section-scout-tabs">
+        <SegmentedLinks
+          ariaLabel="Vista"
+          items={[
+            { href: hubHref({}), label: "Partite", active: !season },
+            { href: hubHref({ vista: "stagione" }), label: "Stagione", active: season },
+          ]}
+        />
+      </div>
+      <CategoryFilterLinks path="/admin/scout" active={category} params={{ vista: season ? "stagione" : undefined }} dataTour="section-scout-filter" />
     </div>
   );
 
@@ -269,7 +283,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       {matches.length === 0 ? (
         <EmptyState
           icon={Binoculars}
-          title="Nessuna partita"
+          title={category === "all" ? "Nessuna partita" : `Nessuna partita ${CATEGORY_LABELS[category]}`}
           description="Lo scout si fa su una partita del calendario (campionato o amichevole). Aggiungine una dalla sezione Partite."
           action={
             <LinkButton href="/admin/partite/nuovo" variant="outline">

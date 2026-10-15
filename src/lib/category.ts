@@ -10,6 +10,29 @@ export const CATEGORY_DOT: Record<Category, string> = {
   U15: "bg-[var(--color-u15)]",
 };
 
+/** Sigla corta, per le etichette strette (una cella del calendario, una riga d'elenco). */
+export const CATEGORY_SHORT: Record<Category, string> = {
+  U14: "U14",
+  U15: "U15",
+};
+
+/** Etichetta piena (testo bianco): la categoria si legge anche da lontano e senza distinguere i colori. */
+export const CATEGORY_SOLID: Record<Category, string> = {
+  U14: "bg-[var(--color-u14-solid)]",
+  U15: "bg-[var(--color-u15-solid)]",
+};
+
+/** Gli stessi due colori pieni, per i PDF (RGB 0-255). */
+export const CATEGORY_RGB: Record<Category, [number, number, number]> = {
+  U14: [15, 118, 110],
+  U15: [109, 40, 217],
+};
+
+/** Il filtro «?cat=» delle pagine: U14, U15 oppure tutte (qualunque altro valore). */
+export function parseCategoryFilter(value: string | null | undefined): "all" | Category {
+  return value === "U14" || value === "U15" ? value : "all";
+}
+
 export const CATEGORY_BADGE: Record<Category, string> = {
   U14: "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]",
   U15: "bg-[var(--color-u15-soft)] text-[var(--color-u15-strong)]",

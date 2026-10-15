@@ -1,4 +1,5 @@
 import { matchTitle } from "@/lib/calendar";
+import { CATEGORY_SHORT } from "@/lib/category";
 import type { CalendarEvent } from "@/lib/types";
 
 /** Un evento del calendario dura sempre esattamente quanto sa l'app tranne
@@ -53,6 +54,13 @@ export function eventTitle(event: CalendarEvent): string {
   return event.kind === "training" ? event.title : matchTitle(event);
 }
 
+/** Il titolo con la categoria davanti («U14 · vs Degano»), per dove non c'è un'etichetta colorata accanto: il calendario del
+ * telefono e la condivisione. Altrimenti due partite di categorie diverse con la stessa avversaria sarebbero uguali. */
+export function eventFullTitle(event: CalendarEvent): string {
+  if (event.kind === "match" && event.category) return `${CATEGORY_SHORT[event.category]} · ${matchTitle(event)}`;
+  return eventTitle(event);
+}
+
 function eventDescription(event: CalendarEvent): string | null {
   if (event.kind === "training") return event.notes;
   const parts: string[] = [];
@@ -84,7 +92,7 @@ function eventToVEVENT(event: CalendarEvent, stamp: string): string[] {
     `DTSTAMP:${stamp}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,
-    `SUMMARY:${escapeICSText(eventTitle(event))}`,
+    `SUMMARY:${escapeICSText(eventFullTitle(event))}`,
     `LOCATION:${escapeICSText(event.location)}`,
   ];
   if (description) lines.push(`DESCRIPTION:${escapeICSText(description)}`);
@@ -116,5 +124,5 @@ export function buildICSCalendar(events: CalendarEvent[], calendarName: string):
 
 /** Singolo evento (download rapido dal dettaglio di un evento). */
 export function buildICSSingleEvent(event: CalendarEvent): string {
-  return buildICSCalendar([event], eventTitle(event));
+  return buildICSCalendar([event], eventFullTitle(event));
 }

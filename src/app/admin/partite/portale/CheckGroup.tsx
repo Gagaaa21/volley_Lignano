@@ -3,12 +3,11 @@
 import { useActionState, type ReactNode } from "react";
 import Link from "next/link";
 import { AlertTriangle, CalendarPlus, Check, Link2, Trash2, X } from "lucide-react";
-import { CATEGORY_LABELS } from "@/lib/category";
 import type { OrphanMatch } from "@/lib/federation/calendarImport";
 import type { PortalGame } from "@/lib/federation/portal";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { Select } from "@/components/ui/Field";
 import { List } from "@/components/ui/List";
 import type { Category } from "@/lib/types";
@@ -219,7 +218,7 @@ function OrphanRow({
   return (
     <li className="px-4 py-4 sm:px-5" data-portal-orphan={match.id}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-        <Badge tone={category === "U14" ? "u14" : "u15"}>{CATEGORY_LABELS[category]}</Badge>
+        <CategoryTag category={category} long />
         <span>Partita del sito</span>
       </div>
       <p className="mt-1.5 text-sm">

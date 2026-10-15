@@ -25,6 +25,7 @@ import { ScoutBoard } from "@/components/scout/ScoutBoard";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutMatchTourSteps } from "@/components/tour/scoutSteps";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -39,6 +40,7 @@ import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { ballOf } from "@/lib/scout/phases";
 import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
+import type { Category } from "@/lib/types";
 import { ScoutBallSide } from "./ScoutBallSide";
 import { ScoutCourtStrip } from "./ScoutCourtStrip";
 import { ScoutEntry } from "./ScoutEntry";
@@ -56,6 +58,7 @@ export interface ScoutMatchInfo {
   dateLabel: string;
   time: string;
   location: string;
+  category: Category | null;
   categoryLabel: string | null;
   isFriendly: boolean;
 }
@@ -413,6 +416,7 @@ export function ScoutClient({
                   isFullscreen && "sm:line-clamp-1 sm:shrink-0 sm:text-[1.375rem]",
                 )}
               >
+                <CategoryTag category={match.category} className="mr-2 align-[0.2em]" />
                 {match.title}
               </h1>
               <p className={cn("mt-1 text-[13px] leading-snug text-muted-foreground", isFullscreen && "sm:mt-0 sm:min-w-0 sm:truncate")}>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Binoculars, ChartNoAxesColumn, FileDown, Pencil } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { deriveScout } from "@/lib/scout/derive";
 import { footnoteFor, legendFor } from "@/lib/scout/legend";
@@ -20,6 +19,7 @@ import { ScoutLineups } from "@/components/scout/ScoutLineups";
 import { lineupSummary } from "@/lib/scout/court";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -71,9 +71,11 @@ export default async function ScoutTabellinoPage({
     <PageHeader
       back={{ href: "/admin/scout", label: "Scout" }}
       eyebrow={
-        <span>
-          {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
-          {match.category ? ` · ${CATEGORY_LABELS[match.category]}` : ""}
+        <span className="inline-flex flex-wrap items-center gap-2">
+          <CategoryTag category={match.category} size="md" long />
+          <span>
+            {formatDateLong(match.matchDate.slice(0, 10))} · {match.matchDate.slice(11, 16)}
+          </span>
         </span>
       }
       title={`Tabellino ${matchTitle(match)}`}

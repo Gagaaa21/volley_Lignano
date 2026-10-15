@@ -7,7 +7,12 @@ staff (Developer e Admin).
 ## Funzionalità incluse
 
 - **Calendario pubblico** (`/`) — vista mensile + agenda con allenamenti
-  ricorrenti (congiunti U14/U15) e partite, filtrabile per categoria.
+  ricorrenti (congiunti U14/U15) e partite, filtrabile per categoria. Ogni
+  partita porta l'etichetta piena «U14» (verde acqua) o «U15» (viola)
+  (`CategoryTag`, `src/components/ui/CategoryTag.tsx`: calendario, elenchi
+  dell'area tecnici, Scout, Pronostici, banner in diretta, PDF); il feed
+  `.ics` (`/calendario.ics`, `?cat=U14|U15`) mette la categoria nel titolo e
+  segue il filtro scelto sulla home.
 - **Autenticazione staff** — login con nome utente e password (nessun
   account richiesto per i visitatori pubblici). Due ruoli:
   - `DEVELOPER` — ruolo più alto, account iniziale `Gaga`.

@@ -64,6 +64,10 @@ const FOOTER_RESERVE = 34;
 const RUNNING_HEADER_HEIGHT = 29;
 /** Righe massime per cella: oltre, il testo si tronca con «…» invece di gonfiare la riga. */
 const MAX_CELL_LINES = 8;
+/** Larghezza della barra colorata sul bordo di una riga (vedi PdfCell.bar). */
+const BAR_WIDTH = 3;
+/** Margine del riquadro pieno attorno a un testo (vedi PdfCell.pill). */
+const PILL_PAD_X = 3.5;
 
 const BODY_SIZE = 9;
 const SUB_SIZE = 7.5;
@@ -107,6 +111,10 @@ export interface PdfCell {
   subTone?: PdfTone;
   bold?: boolean;
   tone?: PdfTone;
+  /** Il testo su un riquadro pieno del colore di `tone`, scritto in bianco: per un'etichetta corta come «U14». */
+  pill?: boolean;
+  /** Una barra verticale di questo colore sul bordo sinistro della cella, alta quanto la riga (la categoria di una partita). */
+  bar?: PdfTone;
 }
 
 export type PdfCellInput = string | PdfCell;
@@ -168,6 +176,8 @@ export interface PdfReportOptions {
   theme?: PdfTheme;
   /** Data mostrata in alto a destra («Aggiornato al …»); default oggi. */
   generatedAt?: Date;
+  /** Un'etichetta piena accanto a «Volley Lignano», in ogni intestazione (la categoria del documento, es. «UNDER 14»). */
+  tag?: { text: string; tone: PdfTone };
 }
 
 /** Date «gg/mm/aaaa» nell'ora italiana, come tutto il sito. */
@@ -379,6 +389,8 @@ interface PreparedCell {
   bold: boolean;
   color: RGB;
   subColor: RGB;
+  pill: boolean;
+  bar: RGB | null;
   height: number;
 }
 
@@ -473,6 +485,18 @@ export class PdfReport {
     return this.pageH - top;
   }
 
+  /** L'etichetta piena (`options.tag`) subito dopo «Volley Lignano», con la stessa base del testo. */
+  private drawHeaderTag(left: number, baseline: number, size: number) {
+    const tag = this.options.tag;
+    if (!tag) return;
+    const { bold } = this.fonts;
+    const text = this.safe(tag.text);
+    const tagSize = size - 0.5;
+    const x = left + bold.widthOfTextAtSize(this.safe("Volley Lignano"), size) + 10;
+    this.drawPill(x, baseline, bold.widthOfTextAtSize(text, tagSize), tagSize, toneColor(tag.tone, this.palette));
+    this.page.drawText(text, { x, y: baseline, size: tagSize, font: bold, color: WHITE });
+  }
+
   private drawFirstHeader() {
     const { regular, bold } = this.fonts;
     const crestSize = 46;
@@ -492,6 +516,7 @@ export class PdfReport {
       font: bold,
       color: this.palette.primary,
     });
+    this.drawHeaderTag(left, this.yOf(this.cursor + 11), 9);
     this.page.drawText(this.safe(this.options.title), {
       x: left,
       y: this.yOf(this.cursor + 31),
@@ -536,6 +561,7 @@ export class PdfReport {
       font: bold,
       color: this.palette.primary,
     });
+    this.drawHeaderTag(MARGIN, this.yOf(this.cursor + 8), 8.5);
     const label = this.safe(this.options.title);
     const width = regular.widthOfTextAtSize(label, 8.5);
     this.page.drawText(label, {
@@ -1062,6 +1088,17 @@ export class PdfReport {
     });
   }
 
+  /** Il riquadro pieno dietro un testo che parte da `x` con la base a `baseline` (il testo, bianco, lo scrive chi chiama). */
+  private drawPill(x: number, baseline: number, textWidth: number, size: number, color: RGB) {
+    this.page.drawRectangle({
+      x: x - PILL_PAD_X,
+      y: baseline - size * 0.27,
+      width: textWidth + PILL_PAD_X * 2,
+      height: size * 1.2,
+      color,
+    });
+  }
+
   private columnWidths(columns: PdfColumn[]): number[] {
     const total = columns.reduce((sum, c) => sum + c.weight, 0);
     return columns.map((c) => (c.weight / total) * this.contentW);
@@ -1083,6 +1120,8 @@ export class PdfReport {
       bold: Boolean(input.bold),
       color: toneColor(input.tone, this.palette),
       subColor: input.subTone ? toneColor(input.subTone, this.palette) : MUTED,
+      pill: Boolean(input.pill),
+      bar: input.bar ? toneColor(input.bar, this.palette) : null,
       height: textHeight + m.padY * 2,
     };
   }
@@ -1190,15 +1229,19 @@ export class PdfReport {
       row.cells.forEach((cell, i) => {
         const align = columns[i].align ?? "left";
         let lineTop = top + m.padY;
-        const drawLine = (text: string, size: number, font: PDFFont, color: RGB) => {
+        if (cell.bar) {
+          this.page.drawRectangle({ x, y: this.yOf(top + row.height), width: BAR_WIDTH, height: row.height, color: cell.bar });
+        }
+        const drawLine = (text: string, size: number, font: PDFFont, color: RGB, pill = false) => {
           const width = font.widthOfTextAtSize(text, size);
           const textX =
             align === "right" ? x + widths[i] - m.padX - width : align === "center" ? x + (widths[i] - width) / 2 : x + m.padX;
-          this.page.drawText(text, { x: textX, y: this.yOf(lineTop + size), size, font, color });
+          if (pill) this.drawPill(textX, this.yOf(lineTop + size), width, size, color);
+          this.page.drawText(text, { x: textX, y: this.yOf(lineTop + size), size, font, color: pill ? WHITE : color });
           lineTop += size * LINE_FACTOR;
         };
-        const mainFont = cell.bold ? this.fonts.bold : this.fonts.regular;
-        for (const line of cell.lines) drawLine(line, m.body, mainFont, cell.color);
+        const mainFont = cell.bold || cell.pill ? this.fonts.bold : this.fonts.regular;
+        for (const line of cell.lines) drawLine(line, m.body, mainFont, cell.color, cell.pill);
         for (const line of cell.subLines) drawLine(line, m.sub, this.fonts.regular, cell.subColor);
         x += widths[i];
       });

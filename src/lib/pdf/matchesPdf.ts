@@ -1,10 +1,10 @@
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { CATEGORY_LABELS, CATEGORY_SHORT, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { todayIso } from "@/lib/today";
 import type { Category, Match } from "@/lib/types";
-import { PdfReport, type PdfCell, type PdfCellInput, type PdfColumn } from "@/lib/pdf/report";
+import { PdfReport, type PdfCell, type PdfCellInput, type PdfColumn, type PdfTone } from "@/lib/pdf/report";
 
 /**
  * PDF con tutte le partite: lo stesso documento per il sito pubblico (chi
@@ -31,12 +31,20 @@ function dateLabel(iso: string): string {
   return format(parseISO(iso.slice(0, 10)), "EEE d MMM yyyy", { locale: it });
 }
 
-function categoryCell(match: Match): PdfCell {
-  return {
-    text: match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL,
-    bold: true,
-    tone: match.category === "U14" ? "u14" : match.category === "U15" ? "u15" : "default",
-  };
+/** Il colore della categoria di una partita nei PDF (verde acqua per l'Under 14, viola per l'Under 15). */
+export function categoryTone(category: Category | null): PdfTone | undefined {
+  return category === "U14" ? "u14" : category === "U15" ? "u15" : undefined;
+}
+
+/** «U14» / «U15» su un riquadro pieno: si riconosce anche stampato in bianco e nero (la sigla è scritta). */
+export function categoryCell(match: Match): PdfCell {
+  if (!match.category) return { text: MATCH_NO_CATEGORY_LABEL, bold: true };
+  return { text: CATEGORY_SHORT[match.category], tone: categoryTone(match.category), pill: true };
+}
+
+/** La data, con la barra del colore della categoria sul bordo della riga. */
+export function dateCell(match: Match): PdfCell {
+  return { text: dateLabel(match.matchDate), bold: true, bar: categoryTone(match.category) };
 }
 
 function opponentCell(match: Match): PdfCell {
@@ -124,6 +132,8 @@ export async function buildMatchesPdf(input: MatchesPdfInput): Promise<Uint8Arra
     documentTitle: matchesPdfTitle(category),
     footerLabel: audience === "public" ? "Volley Lignano · calendario partite" : "Volley Lignano · riservato allo staff",
     generatedAt: input.generatedAt,
+    // Un documento di una sola categoria lo dice in ogni intestazione, anche senza la colonna Categoria.
+    tag: category ? { text: CATEGORY_LABELS[category].toUpperCase(), tone: categoryTone(category) ?? "primary" } : undefined,
   });
 
   /** La colonna Categoria c'è solo quando il documento mostra più categorie. */
@@ -139,7 +149,7 @@ export async function buildMatchesPdf(input: MatchesPdfInput): Promise<Uint8Arra
     { header: "Luogo", weight: 2.9 },
   ];
   const upcomingRows: PdfCellInput[][] = upcoming.map((m) => [
-    { text: dateLabel(m.matchDate), bold: true },
+    dateCell(m),
     m.matchDate.slice(11, 16),
     ...categoryOnly<PdfCellInput>(categoryCell(m)),
     opponentCell(m),
@@ -166,7 +176,7 @@ export async function buildMatchesPdf(input: MatchesPdfInput): Promise<Uint8Arra
   const playedRows: PdfCellInput[][] = played.map((m) => {
     const partials = partialsText(m);
     return [
-      { text: dateLabel(m.matchDate), bold: true },
+      dateCell(m),
       ...categoryOnly<PdfCellInput>(categoryCell(m)),
       opponentCell(m),
       sideCell(m),

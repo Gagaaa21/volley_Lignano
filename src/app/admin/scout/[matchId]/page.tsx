@@ -79,6 +79,7 @@ export default async function ScoutMatchPage({
         dateLabel: formatDateLong(match.matchDate.slice(0, 10)),
         time: match.matchDate.slice(11, 16),
         location: match.location,
+        category: match.category,
         categoryLabel: match.category ? CATEGORY_LABELS[match.category] : null,
         isFriendly: match.isFriendly,
       }}

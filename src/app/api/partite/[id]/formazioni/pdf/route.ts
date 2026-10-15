@@ -6,7 +6,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { getActiveRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { CATEGORY_LABELS, CATEGORY_RGB, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { emptyMatchLineupSets, emptySetLineup } from "@/lib/types";
 import type { Athlete, CourtPosition, SetLineup } from "@/lib/types";
@@ -242,6 +242,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   let y = PAGE_H - MARGIN;
 
   page.drawText("Volley Lignano", { x: MARGIN, y: y - 16, size: 18, font: fontBold, color: SEA });
+  if (match.category) {
+    // La categoria su un riquadro pieno accanto al nome, perché le formazioni di Under 14 e Under 15 non si confondano.
+    const [r, g, b] = CATEGORY_RGB[match.category];
+    const label = CATEGORY_LABELS[match.category].toUpperCase();
+    const tagSize = 10;
+    const tagX = MARGIN + fontBold.widthOfTextAtSize("Volley Lignano", 18) + 14;
+    page.drawRectangle({
+      x: tagX - 5,
+      y: y - 16 - 3.5,
+      width: fontBold.widthOfTextAtSize(label, tagSize) + 10,
+      height: tagSize + 5,
+      color: rgb(r / 255, g / 255, b / 255),
+    });
+    page.drawText(label, { x: tagX, y: y - 16, size: tagSize, font: fontBold, color: rgb(1, 1, 1) });
+  }
   page.drawText("Riservato allo staff — formazioni di gara", {
     x: MARGIN,
     y: y - 30,

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { CATEGORY_LABELS } from "@/lib/category";
-import { Badge } from "@/components/ui/Badge";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import type { OfficialResultFormState } from "../official-actions";
 import type { PortalGame } from "@/lib/federation/portal";
 import { sideLabel, whenLabel } from "./format";
@@ -10,7 +9,7 @@ export function GameMeta({ game, extra }: { game: PortalGame; extra?: ReactNode 
   const { official, category } = game;
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-      <Badge tone={category === "U14" ? "u14" : "u15"}>{CATEGORY_LABELS[category]}</Badge>
+      <CategoryTag category={category} long />
       <span>
         Gara {official.externalId}
         {official.round !== null && ` · giornata ${official.round}`}

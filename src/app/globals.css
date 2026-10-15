@@ -36,6 +36,9 @@
   --color-u15: #7c3aed;
   --color-u15-soft: #ece6fd;
   --color-u15-strong: #6d28d9;
+  /* Etichetta piena «U14»/«U15» (testo bianco): stessi due colori in chiaro e in scuro. */
+  --color-u14-solid: #0f766e;
+  --color-u15-solid: #6d28d9;
   --color-training: var(--color-sand-500);
   --color-training-soft: var(--color-sand-100);
   --color-training-strong: var(--color-sand-800);

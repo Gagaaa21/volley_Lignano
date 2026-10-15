@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { CATEGORY_LABELS } from "@/lib/category";
 import type { PortalCategoryView, PortalGame, PortalGameStatus } from "@/lib/federation/portal";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { sideLabel, whenLabel } from "./format";
 
 const STATUS: Record<PortalGameStatus, { label: string; tone: BadgeTone }> = {
@@ -66,7 +66,7 @@ export function FullCalendar({ views }: { views: PortalCategoryView[] }) {
             data-portal-calendar={view.category}
           >
             <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground sm:px-5">
-              <Badge tone={view.category === "U14" ? "u14" : "u15"}>{CATEGORY_LABELS[view.category]}</Badge>
+              <CategoryTag category={view.category} long />
               {view.games.length} gare in calendario
               <span className="font-normal text-muted-foreground">· {inSite} già nel sito</span>
             </summary>

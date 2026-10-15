@@ -18,11 +18,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { CATEGORY_LABELS, categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
+import { categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { BlockContent } from "@/components/schede/BlockContent";
-import { buildICSSingleEvent, eventTitle } from "@/lib/ics";
+import { buildICSSingleEvent, eventFullTitle, eventTitle } from "@/lib/ics";
 import type { CalendarEvent } from "@/lib/types";
 import type { PublicAttendanceRecord } from "@/lib/publicCalendarData";
 
@@ -54,7 +55,7 @@ const ATTENDANCE_CLASS: Record<PublicAttendanceRecord["status"], string> = {
 function eventShareText(event: CalendarEvent): string {
   const dateLabel = format(parseISO(event.date), "EEEE d MMMM", { locale: it });
   const time = event.kind === "training" ? `${event.startTime}–${event.endTime}` : event.time;
-  return `${eventTitle(event)} — ${dateLabel} alle ${time} · ${event.location}`;
+  return `${eventFullTitle(event)} — ${dateLabel} alle ${time} · ${event.location}`;
 }
 
 function downloadICS(event: CalendarEvent) {
@@ -62,7 +63,7 @@ function downloadICS(event: CalendarEvent) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${eventTitle(event).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}.ics`;
+  link.download = `${eventFullTitle(event).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}.ics`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -77,7 +78,7 @@ function EventActions({ event }: { event: CalendarEvent }) {
     const url = window.location.origin;
     if (navigator.share) {
       try {
-        await navigator.share({ title: eventTitle(event), text, url });
+        await navigator.share({ title: eventFullTitle(event), text, url });
       } catch {
         // Annullata dall'utente: nessuna azione.
       }
@@ -216,9 +217,13 @@ export function EventDetailDialog({
           <div className="px-5 pb-5 pt-4 sm:px-6 sm:pt-6">
             <div className="flex items-start justify-between gap-3">
               <p className="flex items-center gap-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted-foreground">
-                <span className={cn("h-2.5 w-2.5 rounded-full", dotClass)} aria-hidden />
+                {!isTraining && event.category ? (
+                  <CategoryTag category={event.category} size="md" long />
+                ) : (
+                  <span className={cn("h-2.5 w-2.5 rounded-full", dotClass)} aria-hidden />
+                )}
                 {kind}
-                {!isTraining && <> · {event.category ? CATEGORY_LABELS[event.category] : MATCH_NO_CATEGORY_LABEL}</>}
+                {!isTraining && !event.category && <> · {MATCH_NO_CATEGORY_LABEL}</>}
               </p>
               <button
                 type="button"

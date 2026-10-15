@@ -1286,7 +1286,7 @@ export function LiveScoreClient({
             <option value="">Nessuna</option>
             {todayMatches.map((m) => (
               <option key={m.id} value={m.id}>
-                {[m.time, m.category ? CATEGORY_LABELS[m.category] : null, m.opponent].filter(Boolean).join(" · ")}
+                {[m.category ? CATEGORY_LABELS[m.category] : null, m.time, m.opponent].filter(Boolean).join(" · ")}
               </option>
             ))}
           </Select>

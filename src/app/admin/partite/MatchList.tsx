@@ -6,9 +6,10 @@ import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { ChevronRight, Home, MapPin, Plane } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
-import { CATEGORY_LABELS, categoryDotClass, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { categoryDotClass, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/Badge";
+import { CategoryTag } from "@/components/ui/CategoryTag";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionHeading } from "@/components/ui/PageHeader";
 import type { Match } from "@/lib/types";
@@ -60,9 +61,11 @@ function MatchRow({ match, isPast }: { match: Match; isPast: boolean }) {
       <span className={cn("w-1 self-stretch rounded-full", categoryDotClass(match.category))} aria-hidden />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-muted-foreground">
-          <span className="text-foreground/75">
-            {match.category ? CATEGORY_LABELS[match.category] : MATCH_NO_CATEGORY_LABEL}
-          </span>
+          {match.category ? (
+            <CategoryTag category={match.category} long />
+          ) : (
+            <span className="text-foreground/75">{MATCH_NO_CATEGORY_LABEL}</span>
+          )}
           <span className="inline-flex items-center gap-1">
             {match.isHome ? <Home className="h-3.5 w-3.5" /> : <Plane className="h-3.5 w-3.5" />}
             {match.isHome ? "Casa" : "Trasferta"}
