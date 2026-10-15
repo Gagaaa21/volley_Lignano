@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -27,7 +27,32 @@ import { FlowSteps } from "./ScoutPhaseBanner";
  * tocca chi ha ricevuto (la panchina e «Non so» sotto), a destra i voti grandi e la
  * zona; a due colonne prende tutta l'altezza che resta e i pulsanti dei punti si
  * abbassano. Senza formazione chi ha ricevuto si sceglie da una riga di numeri.
+ *
+ * Fuori dalle due colonne (pagina normale, telefono, iPad in verticale) la scheda sta
+ * subito sotto la fascia della palla e, appena battono loro, la pagina scorre da sola
+ * fino a lei: altrimenti, sotto il tabellone, resterebbe oltre il bordo dello schermo.
  */
+
+/**
+ * Scorre la pagina (o, a schermo intero in una colonna, l'area che scorre) fino a mettere la scheda subito sotto la fascia
+ * della palla, che sta appiccicata in alto: sotto l'intestazione del sito o, a schermo intero, in cima alla finestra.
+ * Lo scorrimento si calcola a mano e la scheda non riceve nessuno stile: con `scroll-margin` in linea, a schermo intero in
+ * una colonna, la scheda restava vuota (il contenuto non veniva disegnato).
+ */
+function bringBelowBallStrip(card: HTMLElement, fullscreen: boolean) {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let scroller: HTMLElement | null = card.parentElement;
+  while (scroller && !(/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight + 1)) {
+    scroller = scroller.parentElement;
+  }
+  const viewTop = scroller ? scroller.getBoundingClientRect().top : 0;
+  const ball = document.querySelector<HTMLElement>("[data-scout-ball]");
+  const headerHeight = fullscreen ? 0 : Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--admin-header-h")) || 0;
+  const wanted = viewTop + (ball ? headerHeight + ball.offsetHeight : 0) + 8;
+  const delta = card.getBoundingClientRect().top - wanted;
+  if (Math.abs(delta) < 4) return;
+  (scroller ?? window).scrollBy({ top: delta, behavior: reduceMotion ? "auto" : "smooth" });
+}
 
 export function ScoutReception({
   data,
@@ -35,6 +60,7 @@ export function ScoutReception({
   locked,
   dispatch,
   compact = false,
+  fullscreen = false,
 }: {
   data: ScoutData;
   view: ScoutView;
@@ -42,6 +68,8 @@ export function ScoutReception({
   dispatch: (action: ScoutAction) => void;
   /** Schermo intero su schermo largo: tessere più basse, meno spazio tra le parti e, sugli schermi bassi, senza frasi di aiuto: lascia posto ai pulsanti dei punti. */
   compact?: boolean;
+  /** Schermo intero (anche su telefono o iPad in verticale, in una colonna): la fascia della palla sta in cima alla finestra, non sotto l'intestazione del sito. */
+  fullscreen?: boolean;
 }) {
   const rallyKey = `${view.rallies.length}`;
   // La scelta vale per lo scambio in cui è stata fatta: appena lo scambio cambia, riparte da zero.
@@ -56,6 +84,17 @@ export function ScoutReception({
   const receiving = server === "opp";
   const recorded = view.pending.find((t) => t.skill === "reception" && t.side === "us");
   const meta = TOUCH_SKILLS.reception;
+  const court = receptionCourt(data, view);
+
+  // La scheda aperta (da segnare) fuori dalle due colonne: quando si apre, a ogni scambio in cui battono loro e quando si
+  // toglie la ricezione con «Cambia», si porta in vista, subito sotto la fascia della palla che resta in alto.
+  const open = receiving && !recorded;
+  const cardRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!open || compact) return;
+    const card = cardRef.current;
+    if (card) bringBelowBallStrip(card, fullscreen);
+  }, [open, compact, fullscreen, rallyKey]);
 
   function record(grade: ScoutGrade) {
     if (current.player === undefined) return;
@@ -123,7 +162,6 @@ export function ScoutReception({
     );
   }
 
-  const court = receptionCourt(data, view);
   const zoneRow = (
     <details className={cn("group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2", compact && "py-1.5 short:py-1")}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
@@ -153,6 +191,7 @@ export function ScoutReception({
         data-scout-reception="open"
         data-scout-reception-court
         data-tour="scout-reception"
+        ref={cardRef}
       >
         <div className="shrink-0">
           <h2 className="font-display text-xl font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
@@ -220,7 +259,17 @@ export function ScoutReception({
   }
 
   return (
-    <section className={cn(shell, "space-y-3 border-t-4 border-t-primary", compact && "space-y-1.5 py-2.5 sm:py-2.5")} aria-label="Ricezione" data-scout-reception="open" data-tour="scout-reception">
+    <section
+      className={cn(
+        shell,
+        "space-y-3 border-t-[6px] border-t-primary ring-1 ring-primary/20 shadow-[0_14px_34px_-16px_rgba(11,60,120,0.5)]",
+        compact && "space-y-1.5 py-2.5 sm:py-2.5",
+      )}
+      aria-label="Ricezione"
+      data-scout-reception="open"
+      data-tour="scout-reception"
+      ref={cardRef}
+    >
       <div>
         <h2 className="font-display text-[17px] font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
         <p className={cn("mt-1 text-xs text-muted-foreground", compact && "short:hidden")}>

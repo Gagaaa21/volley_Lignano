@@ -515,12 +515,17 @@ export function ScoutClient({
               <>
                 <div data-tour="section-scout-entry" className={cn(twoColumns ? "flex flex-1 flex-col gap-3 short:gap-2" : "space-y-3")}>
                   {!locked && ball && <ScoutBallSide ball={ball} fullscreen={isFullscreen} />}
+                  {/* In una colonna la ricezione sta subito sotto la fascia della palla, prima di «In campo»: quando battono loro è la cosa da fare, e sotto
+                   * il tabellone finirebbe oltre il bordo dello schermo. A due colonne sta sopra i pulsanti dei punti e «In campo» è a destra. */}
+                  {!twoColumns && level === "ricezioni" && (
+                    <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} fullscreen={isFullscreen} />
+                  )}
                   {!twoColumns && courtStrip}
                   {level === "completo" ? (
                     <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />
                   ) : (
                     <>
-                      {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />}
+                      {twoColumns && level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} compact fullscreen />}
                       <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} compact={twoColumns} lowered={twoColumns && receptionInFocus} />
                     </>
                   )}

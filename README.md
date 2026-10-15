@@ -199,7 +199,9 @@ staff (Developer e Admin).
     usate insieme dalla pagina e dal PDF. Inserimento: scheda della
     ricezione (`ScoutReception.tsx`: con la formazione è in primo piano, il campo
     a sinistra dove si tocca chi ha ricevuto e i voti grandi a destra, e a due
-    colonne i pulsanti dei punti si abbassano; senza formazione una riga di
+    colonne i pulsanti dei punti si abbassano; in una colonna (pagina normale,
+    telefono) la scheda sta subito sotto la fascia della palla e la pagina scorre
+    da sola fino a lei quando battono loro; senza formazione una riga di
     numeri) e schermata dei tocchi
     (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
     solo il punto»); correzione dei tocchi dal Registro.

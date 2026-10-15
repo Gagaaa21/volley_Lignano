@@ -248,6 +248,64 @@ const mainOverflow = (page: Page) =>
     return element.scrollHeight - element.clientHeight;
   });
 
+/**
+ * Una colonna sola: la scheda della ricezione, già aperta (battono loro), sta subito sotto la fascia della palla, ha il suo
+ * contenuto e il campo è in vista; poi si segna dal campo e la scheda si rimpicciolisce. La pagina scorre da sola: prima la
+ * scheda restava oltre il bordo dello schermo (sotto il tabellone, la fascia e «In campo»: su iPad a 820 px di altezza
+ * cominciava a 814, sul telefono a 826) e, a schermo intero in una colonna, a volte restava un riquadro vuoto.
+ */
+async function receptionInPlace(page: Page, { gradesInView }: { gradesInView: boolean }) {
+  const card = page.locator('[data-scout-reception="open"]');
+  await expect(card).toHaveAttribute("data-scout-reception-court");
+
+  // Lo scorrimento è morbido (ci mette un attimo): la scheda finisce subito sotto la fascia della palla, che resta in alto.
+  await expect
+    .poll(
+      async () => {
+        const ball = await page.locator("[data-scout-ball]").boundingBox();
+        const top = (await card.boundingBox())?.y;
+        if (!ball || top === undefined) return false;
+        const gap = top - (ball.y + ball.height);
+        return gap >= -2 && gap <= 40;
+      },
+      { message: "la scheda della ricezione non è finita sotto la fascia della palla", timeout: 10_000 },
+    )
+    .toBe(true);
+
+  // La scheda ha il suo contenuto e il campo (e, se c'è posto, i voti) è in vista senza toccare altro.
+  expect((await box(card)).height, "la scheda è vuota").toBeGreaterThanOrEqual(300);
+  const height = page.viewportSize()!.height;
+  const cell = await box(card.locator('[data-scout-spot="4"]'));
+  expect(cell.y, "il campo è sopra il bordo alto").toBeGreaterThanOrEqual(0);
+  expect(cell.y + cell.height, "il campo è oltre il bordo basso").toBeLessThanOrEqual(height);
+  if (gradesInView) {
+    const grade = await box(card.locator('[data-scout-grades="reception"] [data-scout-grade="#"]'));
+    expect(grade.y + grade.height, "i voti sono oltre il bordo basso").toBeLessThanOrEqual(height);
+  }
+
+  // Si segna dal campo; poi la scheda si rimpicciolisce.
+  await card.locator('[data-scout-spot="2"]').click();
+  await card.locator('[data-scout-grades="reception"] [data-scout-grade="!"]').click();
+  await expect(page.locator('[data-scout-reception="done"]')).toContainText("Bea Neri");
+}
+
+/** Pagina normale: la scheda sta sotto la fascia della palla, prima di «In campo»; appena battono loro la pagina scorre fino a lei. */
+async function receptionComesIntoView(page: Page, { gradesInView }: { gradesInView: boolean }) {
+  await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
+  const order = await page.evaluate(() => {
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const ball = document.querySelector("[data-scout-ball]")!;
+    const card = document.querySelector("[data-scout-reception]")!;
+    const strip = document.querySelector("[data-scout-court-strip]")!;
+    return { ballFirst: follows(ball, card), cardBeforeStrip: follows(card, strip) };
+  });
+  expect(order, "l'ordine non è fascia della palla, ricezione, «In campo»").toEqual({ ballFirst: true, cardBeforeStrip: true });
+
+  await opponentPoint(page);
+  await expect(score(page)).toHaveText("0–1");
+  await receptionInPlace(page, { gradesInView });
+}
+
 test.describe("su iPad in orizzontale (1180×820)", () => {
   test.use({ viewport: { width: 1180, height: 820 } });
 
@@ -411,6 +469,49 @@ test.describe("su iPad in orizzontale (1180×820)", () => {
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);
   });
+
+  test("pagina normale (senza schermo intero): la ricezione sta sotto la fascia della palla e la pagina scorre da sola fino a lei", async ({ page }) => {
+    test.setTimeout(240_000);
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Ricezione pagina "));
+    await prepare(page, matchId, "ricezioni", { bench: true });
+    await expect(page.locator("[data-scout-columns]")).toHaveCount(0);
+    await receptionComesIntoView(page, { gradesInView: true });
+
+    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+    await deleteMatchById(page, matchId);
+  });
+});
+
+test.describe("su iPad in verticale (820×1180)", () => {
+  test.use({ viewport: { width: 820, height: 1180 } });
+
+  test("schermo intero in una colonna: la scheda della ricezione ha il suo contenuto e sta subito sotto la fascia della palla", async ({ page }) => {
+    test.setTimeout(240_000);
+    // Come sull'iPad con l'app installata: niente schermo intero vero, il riquadro ricopre la finestra.
+    await page.addInitScript(() => {
+      const proto = Element.prototype as unknown as Record<string, unknown>;
+      delete proto.requestFullscreen;
+      delete proto.webkitRequestFullscreen;
+    });
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Ricezione verticale "));
+    await prepare(page, matchId, "ricezioni", { bench: true });
+    // La scheda è già aperta quando si passa a schermo intero (era così che restava vuota).
+    await opponentPoint(page);
+    await expect(score(page)).toHaveText("0–1");
+    await expect(page.locator('[data-scout-reception="open"]')).toBeVisible();
+    await fullscreenButton(page).click();
+    // In verticale non ci sono due colonne: la scheda sta in cima alla colonna che scorre, sotto la fascia della palla.
+    await expect(page.locator('[data-scout-columns="fullscreen"]')).toBeVisible();
+    await expect.poll(() => stageFillsWindow(page)).toBe(true);
+    await receptionInPlace(page, { gradesInView: true });
+
+    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+    await deleteMatchById(page, matchId);
+  });
 });
 
 test.describe("sul telefono", () => {
@@ -495,6 +596,19 @@ test.describe("sul telefono", () => {
     await reception.locator('[data-scout-spot="2"]').click();
     await reception.locator('[data-scout-grades="reception"] [data-scout-grade="!"]').click();
     await expect(page.locator('[data-scout-reception="done"]')).toContainText("Bea Neri");
+
+    await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+    await deleteMatchById(page, matchId);
+  });
+
+  test("pagina normale (senza schermo intero): la ricezione sta sotto la fascia della palla e la pagina scorre da sola fino a lei", async ({ page }) => {
+    test.setTimeout(240_000);
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Ricezione pagina telefono "));
+    await prepare(page, matchId, "ricezioni", { bench: true });
+    await expect(page.locator("[data-scout-columns]")).toHaveCount(0);
+    await receptionComesIntoView(page, { gradesInView: false });
 
     await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
     await deleteMatchById(page, matchId);

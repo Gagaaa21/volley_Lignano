@@ -741,7 +741,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
     blocks: [
       {
         type: "p",
-        text: `Il livello **Con ricezioni** è il Base con **una cosa in più**: quando batte l'avversaria, segni anche la **nostra ricezione**. Sopra i pulsanti dei punti compare il riquadro **«Ricezione nostra»**; sotto, tutto come nel Base (${cap("segnare")}). Se segui la formazione in campo il riquadro è **in primo piano**: a sinistra il **campo**, dove tocchi chi ha ricevuto, a destra i **voti** grandi; i pulsanti dei punti si abbassano finché non hai segnato la ricezione.`,
+        text: `Il livello **Con ricezioni** è il Base con **una cosa in più**: quando batte l'avversaria, segni anche la **nostra ricezione**. Sopra i pulsanti dei punti compare il riquadro **«Ricezione nostra»**; sotto, tutto come nel Base (${cap("segnare")}). Se segui la formazione in campo il riquadro è **in primo piano**: a sinistra il **campo**, dove tocchi chi ha ricevuto, a destra i **voti** grandi; i pulsanti dei punti si abbassano finché non hai segnato la ricezione. Fuori dallo schermo intero, e sul telefono, il riquadro sta subito sotto la fascia della palla e, appena battono loro, la pagina scorre da sola fino a lui: non devi cercarlo.`,
       },
       { type: "sub", title: "Come si segna una ricezione" },
       {
