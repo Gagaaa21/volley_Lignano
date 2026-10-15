@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
-import { benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, reentryOfPlayer, substitutionWarningFor } from "@/lib/scout/court";
+import { benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, receptionCourt, reentryOfPlayer, substitutionWarningFor } from "@/lib/scout/court";
 import type { Match } from "@/lib/types";
 import {
   addPlayer,
   addRally,
+  addTouch,
   endSet,
   newScoutData,
   opponentPlayer,
@@ -18,6 +19,7 @@ import {
   type LineupInput,
 } from "@/lib/scout/actions";
 import { currentServer, deriveScout, type ScoutCourt } from "@/lib/scout/derive";
+import { receptionOpen } from "@/lib/scout/phases";
 import { canDo, isBlockHow } from "@/lib/scout/rules";
 import { scoutDataSchema } from "@/lib/scout/schema";
 import type { ScoutData, ScoutHow, ScoutSide } from "@/lib/scout/types";
@@ -284,6 +286,42 @@ test.describe("il campo del «chi?»", () => {
     expect(jerseyLabel({ id: "a", name: "Anna Verdi", number: "9", libero: false }, "us")).toBe("9");
     expect(jerseyLabel({ id: "a", name: "anna Verdi", number: null, libero: false }, "us")).toBe("A");
     expect(jerseyLabel({ id: "o", name: "?", number: null, libero: false }, "opp")).toBe("?");
+  });
+});
+
+test.describe("la ricezione in primo piano", () => {
+  test("la ricezione è da segnare quando battono loro e la nostra non è ancora segnata", () => {
+    let data = withLineups(roster());
+    // All'inizio batte noi: niente da ricevere.
+    expect(receptionOpen(deriveScout(data))).toBe(false);
+    // Loro fanno punto e conquistano la battuta: ora riceviamo noi.
+    data = point(data, "opp");
+    expect(currentServer(deriveScout(data))).toBe("opp");
+    expect(receptionOpen(deriveScout(data))).toBe(true);
+    // Segnata la nostra ricezione la scheda si chiude: il punto si segna come sempre.
+    data = addTouch(data, { side: "us", skill: "reception", player: "u2", grade: "+" }, at(data), id());
+    expect(receptionOpen(deriveScout(data))).toBe(false);
+    // Tolta la ricezione, torna da segnare.
+    const touch = data.events[data.events.length - 1];
+    data = scoutReducer(data, { type: "removeTouch", id: touch.id });
+    expect(receptionOpen(deriveScout(data))).toBe(true);
+    // Riconquistiamo la battuta: di nuovo non c'è niente da ricevere.
+    data = point(data, "us");
+    expect(receptionOpen(deriveScout(data))).toBe(false);
+  });
+
+  test("il campo della ricezione c'è solo se si segue la nostra formazione e c'è chi può ricevere", () => {
+    const withCourt = withLineups(roster());
+    expect(receptionCourt(withCourt, deriveScout(withCourt))?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    // Senza formazione: nessun campo, si sceglie da una riga di numeri.
+    const without = roster();
+    expect(receptionCourt(without, deriveScout(without))).toBeNull();
+    // La formazione c'è ma la rosa è vuota (tolte tutte le giocatrici): niente campo.
+    const emptied = { ...withCourt, roster: { ...withCourt.roster, us: [] } };
+    expect(receptionCourt(emptied, deriveScout(withCourt))).toBeNull();
+    // Seguire solo la loro formazione non dà il campo della nostra ricezione.
+    const onlyTheirs = setLineup(roster(), "opp", THEIRS, T0, id());
+    expect(receptionCourt(onlyTheirs, deriveScout(onlyTheirs))).toBeNull();
   });
 });
 

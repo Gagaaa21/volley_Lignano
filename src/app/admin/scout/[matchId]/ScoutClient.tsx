@@ -31,12 +31,13 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { cn } from "@/lib/cn";
+import { receptionCourt } from "@/lib/scout/court";
 import { currentServer, defaultNextServer, deriveScout, isMatchDecided, setTarget, suggestedSetEnd, type ScoutSet, type ScoutView } from "@/lib/scout/derive";
 import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
-import { ballOf } from "@/lib/scout/phases";
+import { ballOf, receptionOpen } from "@/lib/scout/phases";
 import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
 import { ScoutBallSide } from "./ScoutBallSide";
@@ -256,6 +257,8 @@ export function ScoutClient({
   const hasRallies = view.rallies.length > 0;
   // Da che parte del campo è la palla: sul tabellone e sopra i pulsanti per segnare (non a partita finita).
   const ball = useMemo(() => (view.decided || data.finished ? null : ballOf(view, level)), [view, data.finished, level]);
+  // Con le ricezioni e la formazione, mentre batte l'avversaria la scheda della ricezione (con il campo) è la parte principale.
+  const receptionInFocus = level === "ricezioni" && !locked && receptionCourt(data, view) !== null && receptionOpen(view);
   // Finché la partita è in corso lo schermo non si spegne.
   useWakeLock(!locked);
 
@@ -505,7 +508,7 @@ export function ScoutClient({
                   ) : (
                     <>
                       {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />}
-                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} compact={twoColumns} />
+                      <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} compact={twoColumns} lowered={twoColumns && receptionInFocus} />
                     </>
                   )}
                 </div>

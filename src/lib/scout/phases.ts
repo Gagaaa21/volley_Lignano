@@ -48,6 +48,11 @@ export function tracksSetsOf(view: ScoutView): boolean {
   return view.pending.some((t) => t.skill === "set") || view.rallies.some((r) => r.touches.some((t) => t.skill === "set"));
 }
 
+/** La nostra ricezione è da segnare: battono loro e non l'abbiamo ancora segnata (livello «Con ricezioni»). */
+export function receptionOpen(view: ScoutView): boolean {
+  return currentServer(view) === "opp" && !view.pending.some((t) => t.skill === "reception" && t.side === "us");
+}
+
 /** Dove sta la palla adesso: da che parte del campo e che fase si sta giocando. */
 export interface BallState {
   /** Da che parte della rete è la palla. */

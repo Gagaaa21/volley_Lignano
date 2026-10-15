@@ -78,6 +78,11 @@ export function courtSpots(court: ScoutCourt, roster: ScoutPlayer[], eligible: S
   );
 }
 
+/** Il campo su cui si segna la ricezione: si segue la formazione nostra e c'è almeno una giocatrice in rosa. Altrimenti null (si sceglie da una riga di numeri). */
+export function receptionCourt(data: ScoutData, view: ScoutView): ScoutCourt | null {
+  return data.roster.us.length > 0 ? view.court.us : null;
+}
+
 /** Chi può fare l'azione e non è in campo (la panchina da cui scegliere), per numero di maglia. */
 export function benchOptions(eligible: ScoutPlayer[], court: ScoutCourt): ScoutPlayer[] {
   return sortPlayers(eligible).filter((player) => positionOf(court, player.id) === null);

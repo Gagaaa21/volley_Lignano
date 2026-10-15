@@ -5,21 +5,28 @@ import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { ScoutAction } from "@/lib/scout/actions";
+import { receptionCourt } from "@/lib/scout/court";
 import { currentServer, type ScoutView } from "@/lib/scout/derive";
 import { playerLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutData, ScoutGrade } from "@/lib/scout/types";
 import { GradeDot } from "@/components/scout/GradeChart";
+import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
 import { GradeButtons, PlayerChips, ZonePicker } from "./ScoutInputParts";
 import { FlowSteps } from "./ScoutPhaseBanner";
 
 /**
  * Livello «Con ricezioni»: sopra i pulsanti dei punti, mentre batte
- * l'avversaria, la striscia per segnare la nostra ricezione. Si tocca chi ha
+ * l'avversaria, la scheda per segnare la nostra ricezione. Si tocca chi ha
  * ricevuto, il voto e, se si vuole, la zona. Un voto di errore (=) chiude da solo
  * lo scambio con il punto per loro; gli altri lasciano lo scambio aperto, e
  * il punto si segna sotto come sempre.
+ *
+ * Se si segue la formazione la scheda è in primo piano: a sinistra il campo, dove si
+ * tocca chi ha ricevuto (la panchina e «Non so» sotto), a destra i voti grandi e la
+ * zona; a due colonne prende tutta l'altezza che resta e i pulsanti dei punti si
+ * abbassano. Senza formazione chi ha ricevuto si sceglie da una riga di numeri.
  */
 
 export function ScoutReception({
@@ -116,6 +123,102 @@ export function ScoutReception({
     );
   }
 
+  const court = receptionCourt(data, view);
+  const zoneRow = (
+    <details className={cn("group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2", compact && "py-1.5 short:py-1")}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
+        <span>
+          Zona <span className="font-normal text-muted-foreground">(facoltativa)</span>
+        </span>
+        <span className="text-xs font-bold text-primary">{current.zone ? `Zona ${current.zone}` : "Scegli"}</span>
+      </summary>
+      <div className="mt-2 flex justify-center">
+        <ZonePicker value={current.zone} onChange={(zone) => setChoice({ ...current, zone })} label="Zona della ricezione" />
+      </div>
+    </details>
+  );
+
+  if (court) {
+    const label = "text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground";
+    const chosen = current.player === undefined ? " · scegli prima chi" : ` · ${current.player === null ? "non so chi" : playerLabel(data.roster, "us", current.player)}`;
+    const choose = (player: string | null) => setChoice({ ...current, player });
+    return (
+      <section
+        className={cn(
+          shell,
+          "@container border-t-[6px] border-t-primary ring-1 ring-primary/20 shadow-[0_14px_34px_-16px_rgba(11,60,120,0.5)]",
+          compact && "flex flex-1 flex-col py-2.5 short:py-2 sm:py-3 sm:short:py-2",
+        )}
+        aria-label="Ricezione"
+        data-scout-reception="open"
+        data-scout-reception-court
+        data-tour="scout-reception"
+      >
+        <div className="shrink-0">
+          <h2 className="font-display text-xl font-extrabold leading-none tracking-[-0.01em] text-primary">Ricezione nostra</h2>
+          <p className={cn("mt-1 text-xs text-muted-foreground", compact && "short:hidden")}>
+            Battono loro. Tocca sul campo chi ha ricevuto e poi il voto; per l&apos;errore (=) il punto va a loro.
+          </p>
+          {/* A due colonne i passi a pastiglia si tolgono: il titolo e la frase dicono già a che punto si è, e l'altezza serve al campo. */}
+          <div className={cn("mt-2", compact && "hidden")}>
+            <FlowSteps
+              steps={[
+                { label: "Battuta loro", state: "done" },
+                { label: "Ricezione nostra", state: "now" },
+                { label: "Punto, qui sotto", state: "todo" },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className={cn("mt-2.5 grid gap-3 @md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @md:grid-rows-[minmax(0,1fr)]", compact && "min-h-0 flex-1")}>
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <p className={cn(label, "mb-1.5 shrink-0")}>Chi ha ricevuto</p>
+            <div className="min-h-0 flex-1">
+              <CourtPicker side="us" court={court} roster={data.roster.us} eligible={data.roster.us} selected={current.player} attr="who" fill={compact} onPick={choose} />
+            </div>
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-col gap-2">
+            <p className={cn(label, "shrink-0 truncate")}>Voto{chosen}</p>
+            <div className="min-h-0 flex-1">
+              <GradeButtons skill="reception" layout="grid" onPick={record} disabled={current.player === undefined} testId="reception" compact={compact} />
+            </div>
+            <div className="shrink-0">{zoneRow}</div>
+          </div>
+        </div>
+
+        <div className="mt-2 shrink-0">
+          <CourtBench
+            inline
+            side="us"
+            court={court}
+            roster={data.roster.us}
+            eligible={data.roster.us}
+            selected={current.player}
+            attr="who"
+            onPick={choose}
+            extra={
+              <button
+                type="button"
+                aria-pressed={current.player === null}
+                onClick={() => choose(null)}
+                data-scout-who="unknown"
+                className={cn(
+                  "flex min-h-[2.75rem] min-w-0 flex-col items-center justify-center rounded-xl border border-dashed px-1.5 py-1 text-center transition-colors active:translate-y-px short:min-h-[2.5rem]",
+                  current.player === null ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border-strong bg-surface hover:bg-muted",
+                )}
+              >
+                <span className="font-display text-lg font-extrabold leading-none text-muted-foreground">?</span>
+                <span className="mt-0.5 text-[11px] font-semibold leading-tight text-muted-foreground">Non so</span>
+              </button>
+            }
+          />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={cn(shell, "space-y-3 border-t-4 border-t-primary", compact && "space-y-1.5 py-2.5 sm:py-2.5")} aria-label="Ricezione" data-scout-reception="open" data-tour="scout-reception">
       <div>
@@ -147,17 +250,7 @@ export function ScoutReception({
         />
       </div>
 
-      <details className={cn("group rounded-xl border border-border-subtle bg-surface-muted/50 px-3 py-2", compact && "py-1.5")}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[13px] font-semibold text-foreground marker:hidden [&::-webkit-details-marker]:hidden">
-          <span>
-            Zona <span className="font-normal text-muted-foreground">(facoltativa)</span>
-          </span>
-          <span className="text-xs font-bold text-primary">{current.zone ? `Zona ${current.zone}` : "Scegli"}</span>
-        </summary>
-        <div className="mt-2 flex justify-center">
-          <ZonePicker value={current.zone} onChange={(zone) => setChoice({ ...current, zone })} label="Zona della ricezione" />
-        </div>
-      </details>
+      {zoneRow}
 
       <div>
         <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">

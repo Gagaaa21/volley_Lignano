@@ -193,8 +193,11 @@ staff (Developer e Admin).
     totali, efficienza, difese, zone e rotazioni (si parte dalla 1ª a ogni set
     e si avanza a ogni cambio palla: senza formazioni sono indicative). Le
     colonne del tabellino sono in `columns.ts` e la legenda in `legend.ts`,
-    usate insieme dalla pagina e dal PDF. Inserimento: striscia della
-    ricezione (`ScoutReception.tsx`) e schermata dei tocchi
+    usate insieme dalla pagina e dal PDF. Inserimento: scheda della
+    ricezione (`ScoutReception.tsx`: con la formazione è in primo piano, il campo
+    a sinistra dove si tocca chi ha ricevuto e i voti grandi a destra, e a due
+    colonne i pulsanti dei punti si abbassano; senza formazione una riga di
+    numeri) e schermata dei tocchi
     (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
     solo il punto»); correzione dei tocchi dal Registro.
   - **Formazione in campo** (facoltativa, come nel Live score): si scrive

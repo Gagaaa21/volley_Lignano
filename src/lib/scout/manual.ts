@@ -730,13 +730,13 @@ export const SCOUT_MANUAL: ManualChapter[] = [
     blocks: [
       {
         type: "p",
-        text: `Il livello **Con ricezioni** è il Base con **una cosa in più**: quando batte l'avversaria, segni anche la **nostra ricezione**. Sopra i pulsanti dei punti compare il riquadro **«Ricezione nostra»**; sotto, tutto come nel Base (${cap("segnare")}).`,
+        text: `Il livello **Con ricezioni** è il Base con **una cosa in più**: quando batte l'avversaria, segni anche la **nostra ricezione**. Sopra i pulsanti dei punti compare il riquadro **«Ricezione nostra»**; sotto, tutto come nel Base (${cap("segnare")}). Se segui la formazione in campo il riquadro è **in primo piano**: a sinistra il **campo**, dove tocchi chi ha ricevuto, a destra i **voti** grandi; i pulsanti dei punti si abbassano finché non hai segnato la ricezione.`,
       },
       { type: "sub", title: "Come si segna una ricezione" },
       {
         type: "steps",
         items: [
-          "Tocca **chi ha ricevuto**: il numero di maglia (la libero è nell'elenco, con la «L»). Se non hai visto chi è stata, tocca **«Non so»**.",
+          "Tocca **chi ha ricevuto**: sul **campo** se segui la formazione (davanti 4-3-2, dietro 5-6-1, la libero in scuro, la panchina sotto), altrimenti sul numero di maglia (la libero ha la «L»). Se non hai visto chi è stata, tocca **«Non so»**.",
           "Se vuoi, apri **«Zona»** e tocca la zona del campo dove ha ricevuto: davanti 4, 3, 2 (vicino alla rete), dietro 5, 6, 1. Toccandola di nuovo la togli. È facoltativa: serve per la mappa delle zone nel tabellino.",
           "Tocca il **voto**: sei pulsanti colorati, dal verde della ricezione perfetta al rosso dell'errore.",
         ],
@@ -1543,7 +1543,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "steps",
         items: [
-          "Quando battono loro, nel riquadro **Ricezione nostra** tocca **chi** ha ricevuto (e, se vuoi, la **zona**), poi il **voto**.",
+          "Quando battono loro, nel riquadro **Ricezione nostra** tocca **chi** ha ricevuto (sul campo, se segui la formazione) e, se vuoi, la **zona**, poi il **voto**.",
           "Con **=** il punto va a loro da solo; con gli altri voti segna il punto come nel Base.",
         ],
       },

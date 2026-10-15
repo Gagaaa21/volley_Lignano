@@ -350,7 +350,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       target: "scout-reception",
       chapter: C_PLAY,
       title: "La ricezione",
-      body: "Quando batte l'avversaria compare qui «Ricezione nostra». Tocca chi ha ricevuto e poi il voto: # perfetta (l'alzatrice ha tutte le opzioni), + positiva, ! neutra, − negativa (alzata obbligata), / scarsa (palla rimandata di là), = errore.\n\nSe vuoi puoi anche scegliere la zona del campo dove è stata ricevuta: serve alla mappa del tabellino. Con «=» il punto va a loro da solo; con gli altri voti lo scambio resta aperto e il punto lo segni con i pulsanti qui sotto, come sempre.",
+      body: "Quando batte l'avversaria compare qui «Ricezione nostra», in primo piano. Tocca chi ha ricevuto (sul campo, se segui la formazione) e poi il voto: # perfetta (l'alzatrice ha tutte le opzioni), + positiva, ! neutra, − negativa (alzata obbligata), / scarsa (palla rimandata di là), = errore.\n\nSe vuoi puoi anche scegliere la zona del campo dove è stata ricevuta: serve alla mappa del tabellino. Con «=» il punto va a loro da solo; con gli altri voti lo scambio resta aperto e il punto lo segni con i pulsanti qui sotto, come sempre.",
       example: "Batte la loro n. 5, la n. 4 ricevuta bene: tocchi 4, poi «+ Positiva». Poi la nostra alzatrice mette giù l'attacco: «Punto nostro», «Attacco», la giocatrice.",
       tip: "Quando batte la nostra squadra la striscia resta chiusa: la ricezione è solo quella nostra. Se hai sbagliato, «Cambia» (o «Annulla ultimo») la toglie.",
     });
