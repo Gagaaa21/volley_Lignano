@@ -58,6 +58,7 @@ const SECTIONS: Section[] = [
     intro: "Partite di campionato per categoria U14/U15.",
     points: [
       "Ogni partita ha categoria, avversario, casa/trasferta, data/ora e luogo.",
+      "L'ora di ritrovo è facoltativa: si scrive in \"Ora ritrovo\" (1730 o 17.30 diventano 17:30), oppure si tocca \"1 ora\", \"45 min\" o \"30 min\", che la contano dall'ora della partita; la X la toglie. Se un salvataggio si ferma con un errore, quello che avevi scritto resta nel modulo.",
       "Compaiono nel calendario pubblico insieme agli allenamenti, filtrabili per categoria.",
       "Creare, modificare o eliminare una partita invia una notifica push agli iscritti.",
       "Nella scheda di una partita si scelgono le convocate, poi si costruiscono le formazioni per ciascuno dei 5 set su un campo interattivo (ruoli S/OH/MB/OP/L e capitana): sono riservate allo staff, mai visibili sul sito pubblico, ed esportabili in PDF.",

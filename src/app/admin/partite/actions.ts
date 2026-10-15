@@ -8,6 +8,7 @@ import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
 import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { parseClockTime } from "@/lib/clockTime";
 import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
@@ -25,10 +26,18 @@ const schema = z
     isTournament: z.boolean(),
     location: z.string().min(1, "Inserisci il luogo della partita."),
     matchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Inserisci data e ora della partita."),
+    // Facoltativa: vuota = nessuna ora di ritrovo (si toglie così). Si legge anche scritta a mano (1730, 17.30, 17:30:00).
     meetingTime: z
-      .union([z.literal(""), z.string().regex(/^\d{2}:\d{2}$/)])
+      .string()
       .optional()
-      .transform((v) => v || null),
+      .transform((v, ctx) => {
+        const parsed = parseClockTime(v);
+        if (!parsed.ok) {
+          ctx.addIssue({ code: "custom", message: "L'ora di ritrovo non è valida: scrivila così, 17:30." });
+          return z.NEVER;
+        }
+        return parsed.value;
+      }),
     meetingLocation: z.string().optional(),
     notes: z.string().optional(),
   })
@@ -37,8 +46,46 @@ const schema = z
     path: ["category"],
   });
 
+/** Valori grezzi così come inseriti, riportati indietro insieme a un errore (di validazione o di salvataggio): React svuota
+ * da solo i campi di un modulo dopo ogni invio, e senza questo un errore farebbe perdere tutto quello che si era scritto
+ * (e a chi stava cambiando un orario farebbe tornare quello vecchio, come se il cambio non avesse funzionato). */
+export interface MatchFormValues {
+  category: string;
+  opponent: string;
+  isHome: boolean;
+  isFriendly: boolean;
+  isTournament: boolean;
+  location: string;
+  matchDate: string;
+  meetingTime: string;
+  meetingLocation: string;
+  notes: string;
+  notify: boolean;
+  setUs: string[];
+  setThem: string[];
+}
+
 export interface MatchFormState {
   error?: string;
+  values?: MatchFormValues;
+}
+
+function readRawValues(formData: FormData): MatchFormValues {
+  return {
+    category: formData.get("category")?.toString() ?? "",
+    opponent: formData.get("opponent")?.toString() ?? "",
+    isHome: formData.get("isHome") !== "away",
+    isFriendly: formData.get("isFriendly") === "on",
+    isTournament: formData.get("isTournament") === "on",
+    location: formData.get("location")?.toString() ?? "",
+    matchDate: formData.get("matchDate")?.toString() ?? "",
+    meetingTime: formData.get("meetingTime")?.toString() ?? "",
+    meetingLocation: formData.get("meetingLocation")?.toString() ?? "",
+    notes: formData.get("notes")?.toString() ?? "",
+    notify: formData.get("notify") === "on",
+    setUs: formData.getAll("setUs").map((v) => v.toString()),
+    setThem: formData.getAll("setThem").map((v) => v.toString()),
+  };
 }
 
 function matchScheduleLabel(matchDate: string, location: string): string {
@@ -84,9 +131,10 @@ export async function saveMatchAction(
   formData: FormData,
 ): Promise<MatchFormState> {
   const session = await requireStaffPage("partite");
+  const values = readRawValues(formData);
   const parsed = parseMatchForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi.", values };
   }
 
   const isTournament = parsed.data.isTournament;
@@ -95,13 +143,13 @@ export async function saveMatchAction(
   // esclusione reciproca, mai valorizzati entrambi.
   const result = isTournament ? { setScores: null, resultSetsWon: null, resultSetsLost: null } : parseSetScoresFromFormData(formData);
   if ("error" in result && result.error) {
-    return { error: result.error };
+    return { error: result.error, values };
   }
   const tournamentResult = isTournament
     ? parseTournamentGamesJson(formData.get("tournamentGames")?.toString() ?? "[]", { requireCompleteScore: false })
     : { tournamentGames: null };
   if ("error" in tournamentResult && tournamentResult.error) {
-    return { error: tournamentResult.error };
+    return { error: tournamentResult.error, values };
   }
 
   const hasResultInput =
@@ -112,7 +160,7 @@ export async function saveMatchAction(
     // risultato lo fa comunque a partita già conclusa da un pezzo.
     const todayStr = todayIso();
     if (parsed.data.matchDate.slice(0, 10) > todayStr) {
-      return { error: "Puoi inserire il risultato solo dopo che la partita è stata giocata." };
+      return { error: "Puoi inserire il risultato solo dopo che la partita è stata giocata.", values };
     }
   }
 
@@ -189,7 +237,7 @@ export async function saveMatchAction(
     updateTag(PUBLIC_CALENDAR_TAG);
   } catch (err) {
     console.error("[saveMatchAction]", err);
-    return { error: "Non è stato possibile salvare la partita. Riprova." };
+    return { error: "Non è stato possibile salvare la partita. Riprova.", values };
   }
 
   redirect("/admin/partite");

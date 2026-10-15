@@ -5,12 +5,14 @@ import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea, FieldError, FieldHint, FormActions, FormSection, RadioSegment, Toggle } from "@/components/ui/Field";
+import { TimeField } from "@/components/ui/TimeField";
 import {
   TournamentGamesEditor,
   tournamentGamesToFormState,
   type TournamentGameFormState,
 } from "@/components/admin/TournamentGamesEditor";
 import { CATEGORY_LABELS } from "@/lib/category";
+import { clockTimeMinusMinutes } from "@/lib/clockTime";
 import { saveMatchAction, type MatchFormState } from "./actions";
 import type { Match, TrainingTeam } from "@/lib/types";
 
@@ -33,14 +35,29 @@ function todayStr() {
 
 const MAX_SETS = 5;
 
+/** Orari di ritrovo che si propongono con un tocco, contati dall'ora della partita. */
+const MEETING_OFFSETS = [
+  { label: "1 ora", minutes: 60 },
+  { label: "45 min", minutes: 45 },
+  { label: "30 min", minutes: 30 },
+];
+
 export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: TrainingTeam }) {
   const [state, formAction] = useActionState(saveMatchAction, initialState);
+  // Dopo un errore i campi tornano com'erano stati scritti (React altrimenti li riporterebbe ai valori salvati).
+  const values = state.values;
   const [isTournament, setIsTournament] = useState(match?.isTournament ?? false);
+  const [matchDate, setMatchDate] = useState(match?.matchDate ?? "");
+  const [meetingTime, setMeetingTime] = useState(match?.meetingTime ?? "");
   const [tournamentGames, setTournamentGames] = useState<TournamentGameFormState[]>(() =>
     tournamentGamesToFormState(match?.tournamentGames),
   );
   const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
   const effectiveTeam = match?.team ?? team;
+  const meetingSuggestions = MEETING_OFFSETS.flatMap(({ label, minutes }) => {
+    const time = clockTimeMinusMinutes(matchDate.slice(11, 16), minutes);
+    return time ? [{ label, time }] : [];
+  });
 
   return (
     <form action={formAction} noValidate>
@@ -53,7 +70,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
             <Label>Categoria</Label>
             <RadioSegment
               name="category"
-              defaultValue={match?.category ?? "U15"}
+              defaultValue={(values?.category || match?.category || "U15") as "U14" | "U15"}
               options={[
                 { value: "U14", label: CATEGORY_LABELS.U14 },
                 { value: "U15", label: CATEGORY_LABELS.U15 },
@@ -67,7 +84,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
           <Input
             id="opponent"
             name="opponent"
-            defaultValue={match?.opponent}
+            defaultValue={values?.opponent ?? match?.opponent}
             placeholder={isTournament ? "Es. Triangolare con Latisana e Concordia" : "Es. Pallavolo Udine"}
             required
           />
@@ -83,7 +100,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
           <Label>Casa o trasferta</Label>
           <RadioSegment
             name="isHome"
-            defaultValue={match ? (match.isHome ? "home" : "away") : "home"}
+            defaultValue={(values ? values.isHome : (match?.isHome ?? true)) ? "home" : "away"}
             options={[
               { value: "home", label: "Casa" },
               { value: "away", label: "Trasferta" },
@@ -96,7 +113,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
             name="isFriendly"
             label="Amichevole"
             description="Non di campionato: non conta nel bilancio stagione."
-            defaultChecked={match?.isFriendly ?? false}
+            defaultChecked={values?.isFriendly ?? match?.isFriendly ?? false}
           />
           <Toggle
             name="isTournament"
@@ -114,7 +131,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
           <Input
             id="location"
             name="location"
-            defaultValue={match?.location}
+            defaultValue={values?.location ?? match?.location}
             placeholder="Es. Palestra Comunale, Lignano Sabbiadoro"
             required
           />
@@ -122,26 +139,63 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
 
         <div>
           <Label htmlFor="matchDate">Data e ora</Label>
-          <Input id="matchDate" name="matchDate" type="datetime-local" defaultValue={match?.matchDate} required />
+          <Input
+            id="matchDate"
+            name="matchDate"
+            type="datetime-local"
+            defaultValue={values?.matchDate ?? match?.matchDate}
+            onChange={(e) => setMatchDate(e.target.value)}
+            required
+          />
         </div>
 
         <div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
             <div>
               <Label htmlFor="meetingTime">Ora ritrovo</Label>
-              <Input id="meetingTime" name="meetingTime" type="time" defaultValue={match?.meetingTime ?? ""} />
+              <TimeField
+                id="meetingTime"
+                name="meetingTime"
+                value={meetingTime}
+                onChange={setMeetingTime}
+                clearLabel="Togli l'ora di ritrovo"
+              />
             </div>
             <div>
               <Label htmlFor="meetingLocation">Luogo ritrovo</Label>
               <Input
                 id="meetingLocation"
                 name="meetingLocation"
-                defaultValue={match?.meetingLocation ?? ""}
+                defaultValue={values?.meetingLocation ?? match?.meetingLocation ?? ""}
                 placeholder="Se diverso dal luogo della partita"
               />
             </div>
           </div>
-          <FieldHint>Facoltativi: lasciali vuoti se il ritrovo coincide con orario e luogo della partita.</FieldHint>
+          {meetingSuggestions.length > 0 && (
+            <div className="mt-3" data-meeting-suggestions>
+              <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Ritrovo prima della partita</p>
+              <div className="flex flex-wrap gap-1.5">
+                {meetingSuggestions.map(({ label, time }) => (
+                  <Button
+                    key={time}
+                    type="button"
+                    size="xs"
+                    variant={meetingTime === time ? "soft" : "outline"}
+                    aria-pressed={meetingTime === time}
+                    onClick={() => setMeetingTime(time)}
+                    data-meeting-suggestion={time}
+                    className="gap-1 px-2"
+                  >
+                    {label} · <span className="tabular">{time}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          <FieldHint>
+            Facoltativi: lasciali vuoti se il ritrovo coincide con orario e luogo della partita. L&apos;ora si scrive (1730 diventa
+            17:30) e con la X si toglie.
+          </FieldHint>
         </div>
       </FormSection>
 
@@ -179,7 +233,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
                   min={0}
                   max={99}
                   inputMode="numeric"
-                  defaultValue={match?.setScores?.[i]?.us ?? ""}
+                  defaultValue={values?.setUs[i] ?? match?.setScores?.[i]?.us ?? ""}
                   className="tabular px-1 text-center font-semibold"
                   aria-label={`Punti Lignano, set ${i + 1}`}
                 />
@@ -193,7 +247,7 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
                   min={0}
                   max={99}
                   inputMode="numeric"
-                  defaultValue={match?.setScores?.[i]?.them ?? ""}
+                  defaultValue={values?.setThem[i] ?? match?.setScores?.[i]?.them ?? ""}
                   className="tabular px-1 text-center"
                   aria-label={`Punti avversario, set ${i + 1}`}
                 />
@@ -206,9 +260,9 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
       <FormSection title="Altro">
         <div>
           <Label htmlFor="notes">Note (opzionale)</Label>
-          <Textarea id="notes" name="notes" defaultValue={match?.notes ?? ""} placeholder="Es. Portare la seconda maglia…" />
+          <Textarea id="notes" name="notes" defaultValue={values?.notes ?? match?.notes ?? ""} placeholder="Es. Portare la seconda maglia…" />
         </div>
-        <Toggle name="notify" label="Invia notifica push" description="A chi segue il calendario." defaultChecked />
+        <Toggle name="notify" label="Invia notifica push" description="A chi segue il calendario." defaultChecked={values?.notify ?? true} />
       </FormSection>
 
       {state.error && (
