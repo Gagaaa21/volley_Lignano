@@ -20,6 +20,27 @@ import type { ScoutPlayer, ScoutSide } from "@/lib/scout/types";
 /** Come si segna la scelta: «pick» sceglie e chiude, «who» seleziona e aspetta il voto (la ricezione). */
 export type PickAttr = "pick" | "who";
 
+/** La rete in cima alla metà campo: la prima linea le sta accanto. Anche il cambio disegna il campo così. */
+export function CourtNet() {
+  return (
+    <div className="relative mb-2.5 flex items-center justify-center" aria-hidden>
+      <span className="absolute inset-x-0 h-2 rounded-full bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.92)_0_6px,rgba(9,26,38,0.88)_6px_12px)] shadow-[0_0_0_1px_rgba(9,26,38,0.25)]" />
+      <span className="relative rounded-full bg-surface px-2.5 text-[10px] font-bold uppercase leading-4 tracking-[0.18em] text-muted-foreground shadow-[0_0_0_1px_rgba(9,26,38,0.12)]">Rete</span>
+    </div>
+  );
+}
+
+/** Tra la prima e la seconda linea. */
+export function CourtThreeMeterLine() {
+  return (
+    <div className="my-2 flex items-center gap-2" aria-hidden>
+      <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
+      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">linea dei 3 m</span>
+      <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
+    </div>
+  );
+}
+
 function SpotCell({
   spot,
   side,
@@ -152,21 +173,11 @@ export function CourtPicker({
         data-scout-court-picker={side}
         className={cn("rounded-2xl border p-2.5 sm:p-3", ours ? "border-primary/25 bg-primary-soft/60" : "border-sand-400/50 bg-accent/50")}
       >
-        {/* La rete: la prima linea le sta accanto. */}
-        <div className="relative mb-2.5 flex items-center justify-center" aria-hidden>
-          <span className="absolute inset-x-0 h-2 rounded-full bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.92)_0_6px,rgba(9,26,38,0.88)_6px_12px)] shadow-[0_0_0_1px_rgba(9,26,38,0.25)]" />
-          <span className="relative rounded-full bg-surface px-2.5 text-[10px] font-bold uppercase leading-4 tracking-[0.18em] text-muted-foreground shadow-[0_0_0_1px_rgba(9,26,38,0.12)]">Rete</span>
-        </div>
+        <CourtNet />
 
         {rows.map((row, index) => (
           <div key={index}>
-            {index === 1 && (
-              <div className="my-2 flex items-center gap-2" aria-hidden>
-                <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">linea dei 3 m</span>
-                <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
-              </div>
-            )}
+            {index === 1 && <CourtThreeMeterLine />}
             <div className="grid grid-cols-3 gap-2" data-scout-court-row={index === 0 ? "front" : "back"}>
               {row.map((spot) => (
                 <SpotCell

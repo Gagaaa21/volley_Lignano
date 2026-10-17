@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type MutableRefObject } from "react";
 import { Check } from "lucide-react";
 import { DualLiveScoreCourt } from "@/app/admin/livescore/LiveScoreCourt";
 import { Button } from "@/components/ui/Button";
@@ -8,11 +8,13 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { FieldHint, Label, Select } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { cleanNumber, opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
-import type { ScoutView } from "@/lib/scout/derive";
+import { lineupWrittenThisSet } from "@/lib/scout/court";
+import type { ScoutCourt, ScoutView } from "@/lib/scout/derive";
 import { shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import type { ScoutData, ScoutPlayer, ScoutSide } from "@/lib/scout/types";
 import type { CourtPosition, VolleyRole } from "@/lib/types";
+import { Sheet } from "./ScoutSheet";
 import type { ScoutAthlete } from "./ScoutSetup";
 
 /** La formazione di un set salvata nella sezione Partite: chi sta in ogni posizione, i ruoli (le centrali sono «MB») e la libero. */
@@ -29,10 +31,13 @@ interface Draft {
   hosts: [string, string];
 }
 
-const EMPTY: Draft = { positions: ["", "", "", "", "", ""], libero: "", hosts: ["", ""] };
+/** L'istante in cui si scrive una formazione: si chiama solo da un tocco o da «Comincia», mai mentre si disegna la pagina. */
+const clock = () => Date.now();
+
+const emptyDraft = (): Draft => ({ positions: ["", "", "", "", "", ""], libero: "", hosts: ["", ""] });
 
 const FIELD =
-  "w-full rounded-full bg-white/95 px-2 py-1.5 text-center text-xs font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700";
+  "w-full rounded-full bg-white/95 px-2 py-2 text-center text-[13px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700";
 
 /** Invio in un numero: passa al campo dopo, nell'ordine delle posizioni (le due squadre una di seguito all'altra). */
 function focusNextOnEnter(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -49,9 +54,9 @@ function numberOf(roster: ScoutPlayer[], id: string | null | undefined): string 
   return roster.find((p) => p.id === id)?.number ?? "";
 }
 
-function draftFor(side: ScoutSide, view: ScoutView, data: ScoutData): Draft {
-  const court = view.court[side];
-  if (!court) return { ...EMPTY, positions: [...EMPTY.positions] };
+/** La formazione che si sta seguendo (o con cui è cominciato un set), pronta da correggere. Senza formazione, vuota. */
+function draftFromCourt(side: ScoutSide, court: ScoutCourt | null, data: ScoutData): Draft {
+  if (!court) return emptyDraft();
   if (side === "us") return { positions: [...court.positions], libero: court.libero ?? "", hosts: [...court.hosts] };
   const opp = data.roster.opp;
   return {
@@ -61,12 +66,33 @@ function draftFor(side: ScoutSide, view: ScoutView, data: ScoutData): Draft {
   };
 }
 
+/** La formazione preparata in Partite per un set: le centrali («MB») sono le due che la libero sostituisce. */
+function draftFromSaved(saved: SavedScoutLineup): Draft {
+  const centrals = saved.athleteIds.filter((id, i): id is string => Boolean(id) && saved.roles[i] === "MB");
+  return {
+    positions: Array.from({ length: 6 }, (_, i) => saved.athleteIds[i] ?? ""),
+    libero: saved.liberoId ?? "",
+    hosts: [centrals[0] ?? "", centrals[1] ?? ""],
+  };
+}
+
+function sameDraft(a: Draft, b: Draft): boolean {
+  return a.libero === b.libero && a.positions.every((id, i) => id === b.positions[i]) && a.hosts.every((id, i) => id === b.hosts[i]);
+}
+
+/** Da dove viene quello che si vede scritto: la formazione di Partite, quella del set prima, o niente di particolare. */
+type Source = "saved" | "previous" | "carried" | null;
+
 /**
  * La formazione in campo, come nel Live score: chi gioca nelle posizioni 1…6
  * (la 1 è chi batte, poi in senso orario), la libero e le due giocatrici che
  * sostituisce. È facoltativa e vale per le squadre in cui la scrivi: da lì lo
  * Scout segue da solo le rotazioni, la libero e i cambi, propone chi batte e ti
  * fa scegliere le giocatrici dal campo.
+ *
+ * Si parte da quello che c'è già: la formazione preparata in Partite per questo set (niente da riscrivere), altrimenti
+ * quella del set prima, altrimenti quella che si sta seguendo. Sta in due posti: come scheda nella preparazione
+ * (`variant="card"`) e come finestra «Formazione del N° set» (`variant="sheet"`), che si apre da sola a ogni set nuovo.
  */
 export function ScoutLineupEditor({
   data,
@@ -74,6 +100,9 @@ export function ScoutLineupEditor({
   athletes,
   saved,
   dispatch,
+  variant = "card",
+  onDone,
+  commitRef,
 }: {
   data: ScoutData;
   view: ScoutView;
@@ -81,23 +110,50 @@ export function ScoutLineupEditor({
   /** Le formazioni salvate in Partite, una per set (vuote se non ce n'è). */
   saved: SavedScoutLineup[];
   dispatch: (action: ScoutAction) => void;
+  variant?: "card" | "sheet";
+  /** Dopo «Conferma»: la finestra si chiude. */
+  onDone?: () => void;
+  /**
+   * Chi apre e chiude la preparazione («Comincia», «Fatto») ci mette dentro la funzione che applica quello che è scritto e non
+   * ancora confermato: così non resta una formazione scritta e dimenticata.
+   */
+  commitRef?: MutableRefObject<(() => void) | null>;
 }) {
-  const [us, setUs] = useState<Draft>(() => draftFor("us", view, data));
-  const [opp, setOpp] = useState<Draft>(() => draftFor("opp", view, data));
-  const [done, setDone] = useState(false);
-
   const cur = view.current;
   const fresh = cur ? cur.rallies.length === 0 : false;
-  const roster = sortPlayers(data.roster.us);
+  const previous = cur && cur.n > 1 ? view.sets[cur.n - 2] : null;
+  const savedForSet = cur ? saved[cur.n - 1] : undefined;
+  const savedHasPlayers = Boolean(savedForSet && savedForSet.athleteIds.some(Boolean));
+  const written = lineupWrittenThisSet(data.events);
+  // Prima formazione del set e in Partite ce n'è una per questo set: si parte da quella.
+  const fromSaved = fresh && savedHasPlayers && !written;
+  const carried = fresh && Boolean(cur && cur.n > 1) && !written && Boolean(view.court.us || view.court.opp);
+
+  const [us, setUs] = useState<Draft>(() => (fromSaved && savedForSet ? draftFromSaved(savedForSet) : draftFromCourt("us", view.court.us, data)));
+  const [opp, setOpp] = useState<Draft>(() => draftFromCourt("opp", view.court.opp, data));
+  const [source, setSource] = useState<Source>(fromSaved ? "saved" : carried ? "carried" : null);
+  const [done, setDone] = useState(false);
+
+  // Chi è nella formazione ma non è ancora in rosa (la formazione di Partite): entra in rosa con «Conferma».
+  const inRoster = new Set(data.roster.us.map((p) => p.id));
+  const extras: ScoutPlayer[] = [...new Set([...us.positions, us.libero, ...us.hosts].filter(Boolean))]
+    .filter((id) => !inRoster.has(id))
+    .flatMap((id) => {
+      const athlete = athletes.find((a) => a.id === id);
+      return athlete ? [{ id: athlete.id, name: athlete.name, number: athlete.number, libero: id === us.libero }] : [];
+    });
+  const roster = sortPlayers([...data.roster.us, ...extras]);
   const onCourtUs = new Set(us.positions.filter(Boolean));
   const usPlayers = roster.filter((p) => !p.libero);
   const liberoChoices = roster.filter((p) => !onCourtUs.has(p.id));
-  const savedForSet = cur ? saved[cur.n - 1] : undefined;
-  const savedHasPlayers = Boolean(savedForSet && savedForSet.athleteIds.some(Boolean));
   const hasCourt = Boolean(view.court.us || view.court.opp);
+  const draftHasAny = us.positions.some(Boolean) || opp.positions.some((n) => cleanNumber(n));
+  const previousHadLineup = Boolean(previous && (previous.lineups.us || previous.lineups.opp));
+  const dirty = !sameDraft(us, draftFromCourt("us", view.court.us, data)) || !sameDraft(opp, draftFromCourt("opp", view.court.opp, data));
 
   function touch<T>(setter: (value: T) => void, value: T) {
     setDone(false);
+    setSource(null);
     setter(value);
   }
 
@@ -111,25 +167,26 @@ export function ScoutLineupEditor({
     touch(setOpp, { ...opp, positions: opp.positions.map((current, i) => (i === index ? number : current)) });
   }
 
-  function useSaved() {
+  function applySaved() {
     if (!savedForSet) return;
-    const ids = [...savedForSet.athleteIds, savedForSet.liberoId].filter((id): id is string => Boolean(id));
-    // Chi non è ancora in rosa ci entra, con il numero dell'anagrafica.
-    for (const id of ids) {
-      if (data.roster.us.some((p) => p.id === id)) continue;
-      const athlete = athletes.find((a) => a.id === id);
-      if (athlete) dispatch({ type: "addPlayer", side: "us", player: { id: athlete.id, name: athlete.name, number: athlete.number, libero: id === savedForSet.liberoId } });
-    }
-    const centrals = savedForSet.athleteIds.filter((id, i): id is string => Boolean(id) && savedForSet.roles[i] === "MB");
-    touch(setUs, {
-      positions: Array.from({ length: 6 }, (_, i) => savedForSet.athleteIds[i] ?? ""),
-      libero: savedForSet.liberoId ?? "",
-      hosts: [centrals[0] ?? "", centrals[1] ?? ""],
-    });
+    touch(setUs, draftFromSaved(savedForSet));
+    setSource("saved");
   }
 
-  function confirm() {
-    const at = Date.now();
+  /** Come nel set prima: le formazioni con cui è cominciato (per noi e per loro), con la libero di adesso se è stata cambiata. */
+  function applyPrevious() {
+    if (!previous) return;
+    const ours = draftFromCourt("us", previous.lineups.us, data);
+    if (ours.positions.some(Boolean) && view.court.us?.libero && !ours.positions.includes(view.court.us.libero)) ours.libero = view.court.us.libero;
+    touch(setUs, ours);
+    touch(setOpp, draftFromCourt("opp", previous.lineups.opp, data));
+    setSource("previous");
+  }
+
+  /** Scrive la formazione (una per squadra) e porta in rosa chi manca. `at` è l'istante in cui la si scrive. */
+  function apply(at: number) {
+    // 0) chi viene dalla formazione preparata in Partite entra in rosa, con il numero dell'anagrafica.
+    for (const player of extras) dispatch({ type: "addPlayer", side: "us", player });
     // 1) l'avversaria: i numeri scritti entrano nella rosa, se non ci sono già.
     const oppNumbers = [...opp.positions, opp.libero].map((n) => cleanNumber(n)).filter((n): n is string => n !== null);
     for (const number of new Set(oppNumbers)) {
@@ -165,8 +222,24 @@ export function ScoutLineupEditor({
         id: newId(),
       });
     }
-    setDone(true);
   }
+
+  function confirm() {
+    apply(clock());
+    setDone(true);
+    onDone?.();
+  }
+
+  // «Comincia» / «Fatto»: quello che è scritto e non ancora confermato si applica da solo (aggiornato a ogni disegno, per non usare dati vecchi).
+  useEffect(() => {
+    if (!commitRef) return;
+    commitRef.current = () => {
+      if (dirty) apply(clock());
+    };
+    return () => {
+      commitRef.current = null;
+    };
+  });
 
   function stopTracking() {
     const at = Date.now();
@@ -175,178 +248,246 @@ export function ScoutLineupEditor({
         dispatch({ type: "lineup", side, input: { positions: [null, null, null, null, null, null], libero: null, hosts: [null, null] }, at, id: newId() });
       }
     }
-    setUs({ ...EMPTY, positions: [...EMPTY.positions] });
-    setOpp({ ...EMPTY, positions: [...EMPTY.positions] });
+    setUs(emptyDraft());
+    setOpp(emptyDraft());
+    setSource(null);
     setDone(false);
   }
 
   const oppOnCourt = opp.positions.filter((n) => cleanNumber(n));
 
-  return (
-    <Card data-tour="scout-setup-lineup" data-scout-lineup>
-      <CardHeader className="pb-3">
-        <CardTitle>Formazione in campo (facoltativa)</CardTitle>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Come nel Live score: scrivi chi gioca nelle posizioni da 1 a 6 (la 1 è chi batte, poi in senso orario), la libero e le due giocatrici che
-          sostituisce (di solito le centrali). Lo Scout segue da solo le rotazioni, quando entra la libero e i cambi, ti propone chi batte e ti fa
-          scegliere le giocatrici tra quelle in campo. Se non ti serve, salta questo passaggio.
+  const note =
+    cur && source === "saved"
+      ? `È quella preparata in «Partite» per il ${cur.n}° set: controllala e conferma.`
+      : source === "previous"
+        ? "Come nel set precedente."
+        : source === "carried"
+          ? "Per ora è quella del set precedente: cambia solo chi serve e conferma."
+          : null;
+
+  const body = !cur ? (
+    <p className="rounded-xl bg-surface-muted px-3.5 py-3 text-sm text-muted-foreground">La partita è finita: la formazione non si può più cambiare.</p>
+  ) : (
+    <>
+      <div>
+        <p className="text-[13px] font-semibold text-foreground/80" data-scout-lineup-scope>
+          {fresh
+            ? `Formazione di partenza del ${cur.n}° set.`
+            : `${cur.n}° set già cominciato: quello che scrivi corregge chi è in campo adesso (le rotazioni fatte restano).`}
         </p>
-      </CardHeader>
-      <CardBody className="space-y-4">
-        {!cur ? (
-          <p className="rounded-xl bg-surface-muted px-3.5 py-3 text-sm text-muted-foreground">La partita è finita: la formazione non si può più cambiare.</p>
-        ) : (
-          <>
-            <p className="text-[13px] font-semibold text-foreground/80" data-scout-lineup-scope>
-              {fresh
-                ? `Formazione di partenza del ${cur.n}° set.`
-                : `${cur.n}° set già cominciato: quello che scrivi corregge chi è in campo adesso (le rotazioni fatte restano).`}
-            </p>
+        {note && (
+          <p className="mt-0.5 text-[13px] text-muted-foreground" data-scout-lineup-source={source ?? undefined}>
+            {note}
+          </p>
+        )}
+      </div>
 
-            <DualLiveScoreCourt
-              players={6}
-              labelA="Noi"
-              labelB="Loro"
-              renderCellA={(position: CourtPosition) => (
-                <select
-                  value={us.positions[position - 1] ?? ""}
-                  onChange={(e) => setUsPosition(position - 1, e.target.value)}
-                  aria-label={`Noi, posizione ${position}`}
-                  data-scout-lineup-cell={`us-${position}`}
-                  className={FIELD}
-                >
-                  <option value="">—</option>
-                  {usPlayers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.number ? `${p.number} · ${shortName(p, roster)}` : p.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              renderCellB={(position: CourtPosition) => (
-                <input
-                  value={opp.positions[position - 1] ?? ""}
-                  onChange={(e) => setOppPosition(position - 1, e.target.value)}
-                  onKeyDown={focusNextOnEnter}
-                  inputMode="numeric"
-                  enterKeyHint="next"
-                  placeholder="N."
-                  aria-label={`Loro, posizione ${position}`}
-                  data-scout-lineup-cell={`opp-${position}`}
-                  className={FIELD}
-                />
-              )}
-            />
+      <DualLiveScoreCourt
+        players={6}
+        labelA="Noi"
+        labelB="Loro"
+        renderCellA={(position: CourtPosition) => (
+          <select
+            value={us.positions[position - 1] ?? ""}
+            onChange={(e) => setUsPosition(position - 1, e.target.value)}
+            aria-label={`Noi, posizione ${position}`}
+            data-scout-lineup-cell={`us-${position}`}
+            className={FIELD}
+          >
+            <option value="">—</option>
+            {usPlayers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.number ? `${p.number} · ${shortName(p, roster)}` : p.name}
+              </option>
+            ))}
+          </select>
+        )}
+        renderCellB={(position: CourtPosition) => (
+          <input
+            value={opp.positions[position - 1] ?? ""}
+            onChange={(e) => setOppPosition(position - 1, e.target.value)}
+            onKeyDown={focusNextOnEnter}
+            inputMode="numeric"
+            enterKeyHint="next"
+            placeholder="N."
+            aria-label={`Loro, posizione ${position}`}
+            data-scout-lineup-cell={`opp-${position}`}
+            className={FIELD}
+          />
+        )}
+      />
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-3">
-                <p className="text-[13px] font-bold text-primary">Noi</p>
-                <div>
-                  <Label htmlFor="scout-lineup-us-libero">Libero</Label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-3">
+          <p className="text-[13px] font-bold text-primary">Noi</p>
+          <div>
+            <Label htmlFor="scout-lineup-us-libero">Libero</Label>
+            <Select id="scout-lineup-us-libero" value={us.libero} onChange={(e) => touch(setUs, { ...us, libero: e.target.value })}>
+              <option value="">Nessuna</option>
+              {liberoChoices.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.number ? `${p.number} · ${p.name}` : p.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {us.libero && (
+            <div className="grid grid-cols-2 gap-2">
+              {([0, 1] as const).map((index) => (
+                <div key={index}>
+                  <Label htmlFor={`scout-lineup-us-host${index + 1}`}>{index + 1}ª centrale</Label>
                   <Select
-                    id="scout-lineup-us-libero"
-                    value={us.libero}
-                    onChange={(e) => touch(setUs, { ...us, libero: e.target.value })}
+                    id={`scout-lineup-us-host${index + 1}`}
+                    value={us.hosts[index]}
+                    onChange={(e) => touch(setUs, { ...us, hosts: us.hosts.map((h, i) => (i === index ? e.target.value : h)) as [string, string] })}
                   >
-                    <option value="">Nessuna</option>
-                    {liberoChoices.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.number ? `${p.number} · ${p.name}` : p.name}
+                    <option value="">…</option>
+                    {us.positions.filter(Boolean).map((id) => {
+                      const p = roster.find((x) => x.id === id);
+                      return (
+                        <option key={id} value={id}>
+                          {p ? (p.number ? `${p.number} · ${p.name}` : p.name) : id}
+                        </option>
+                      );
+                    })}
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-3">
+          <p className="text-[13px] font-bold text-accent-foreground">Loro (libero e centrali: facoltativi)</p>
+          <div>
+            <Label htmlFor="scout-lineup-opp-libero">Numero della libero</Label>
+            <input
+              id="scout-lineup-opp-libero"
+              value={opp.libero}
+              onChange={(e) => touch(setOpp, { ...opp, libero: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+              inputMode="numeric"
+              placeholder="N."
+              className="w-full rounded-xl border border-input bg-surface px-3.5 py-2 text-base leading-6 text-foreground shadow-xs focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 sm:text-sm"
+            />
+          </div>
+          {opp.libero && (
+            <div className="grid grid-cols-2 gap-2">
+              {([0, 1] as const).map((index) => (
+                <div key={index}>
+                  <Label htmlFor={`scout-lineup-opp-host${index + 1}`}>{index + 1}ª centrale</Label>
+                  <Select
+                    id={`scout-lineup-opp-host${index + 1}`}
+                    value={opp.hosts[index]}
+                    onChange={(e) => touch(setOpp, { ...opp, hosts: opp.hosts.map((h, i) => (i === index ? e.target.value : h)) as [string, string] })}
+                  >
+                    <option value="">…</option>
+                    {oppOnCourt.map((n) => (
+                      <option key={n} value={cleanNumber(n) ?? n}>
+                        n. {n}
                       </option>
                     ))}
                   </Select>
                 </div>
-                {us.libero && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {([0, 1] as const).map((index) => (
-                      <div key={index}>
-                        <Label htmlFor={`scout-lineup-us-host${index + 1}`}>{index + 1}ª centrale</Label>
-                        <Select
-                          id={`scout-lineup-us-host${index + 1}`}
-                          value={us.hosts[index]}
-                          onChange={(e) => touch(setUs, { ...us, hosts: us.hosts.map((h, i) => (i === index ? e.target.value : h)) as [string, string] })}
-                        >
-                          <option value="">…</option>
-                          {us.positions.filter(Boolean).map((id) => {
-                            const p = data.roster.us.find((x) => x.id === id);
-                            return (
-                              <option key={id} value={id}>
-                                {p ? (p.number ? `${p.number} · ${p.name}` : p.name) : id}
-                              </option>
-                            );
-                          })}
-                        </Select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-3">
-                <p className="text-[13px] font-bold text-accent-foreground">Loro (libero e centrali: facoltativi)</p>
-                <div>
-                  <Label htmlFor="scout-lineup-opp-libero">Numero della libero</Label>
-                  <input
-                    id="scout-lineup-opp-libero"
-                    value={opp.libero}
-                    onChange={(e) => touch(setOpp, { ...opp, libero: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    inputMode="numeric"
-                    placeholder="N."
-                    className="w-full rounded-xl border border-input bg-surface px-3.5 py-2 text-base leading-6 text-foreground shadow-xs focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/12 sm:text-sm"
-                  />
-                </div>
-                {opp.libero && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {([0, 1] as const).map((index) => (
-                      <div key={index}>
-                        <Label htmlFor={`scout-lineup-opp-host${index + 1}`}>{index + 1}ª centrale</Label>
-                        <Select
-                          id={`scout-lineup-opp-host${index + 1}`}
-                          value={opp.hosts[index]}
-                          onChange={(e) => touch(setOpp, { ...opp, hosts: opp.hosts.map((h, i) => (i === index ? e.target.value : h)) as [string, string] })}
-                        >
-                          <option value="">…</option>
-                          {oppOnCourt.map((n) => (
-                            <option key={n} value={cleanNumber(n) ?? n}>
-                              n. {n}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
-            <FieldHint>
-              La libero sostituisce chi sta in seconda linea, senza limiti di cambi, e non batte mai: se in battuta c&apos;è una centrale, batte lei e la libero
-              entra al suo posto quando la squadra torna a ricevere. Esce quando la centrale ruota a rete.
-            </FieldHint>
+          )}
+        </div>
+      </div>
+      <FieldHint>
+        La libero sostituisce chi sta in seconda linea, senza limiti di cambi, e non batte mai: se in battuta c&apos;è una centrale, batte lei e la libero
+        entra al suo posto quando la squadra torna a ricevere. Esce quando la centrale ruota a rete.
+      </FieldHint>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={confirm} data-scout-lineup-confirm>
-                <Check className="h-4 w-4" />
-                Conferma la formazione
-              </Button>
-              {savedHasPlayers && (
-                <Button variant="outline" onClick={useSaved} data-scout-lineup-saved>
-                  Usa la formazione salvata del {cur.n}° set
-                </Button>
-              )}
-              {hasCourt && (
-                <Button variant="ghost" onClick={stopTracking} data-scout-lineup-stop>
-                  Non seguire la formazione
-                </Button>
-              )}
-              {done && (
-                <span className={cn("text-sm font-semibold text-success")} role="status" data-scout-lineup-done>
-                  Formazione salvata.
-                </span>
-              )}
-            </div>
-          </>
+      {/* Nella finestra il pulsante per confermare resta in fondo, in vista, anche scorrendo i campi. */}
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2",
+          variant === "sheet" && "sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border-subtle bg-surface px-4 py-3 sm:-mx-5 sm:-mb-5 sm:px-5",
         )}
-      </CardBody>
+      >
+        <Button onClick={confirm} data-scout-lineup-confirm>
+          <Check className="h-4 w-4" />
+          {variant === "sheet" && fresh ? `Conferma e comincia il ${cur.n}° set` : "Conferma la formazione"}
+        </Button>
+        {savedHasPlayers && source !== "saved" && (
+          <Button variant="outline" onClick={applySaved} data-scout-lineup-saved>
+            Usa la formazione salvata del {cur.n}° set
+          </Button>
+        )}
+        {fresh && previousHadLineup && source !== "previous" && source !== "carried" && (
+          <Button variant="outline" onClick={applyPrevious} data-scout-lineup-previous>
+            Come nel set precedente
+          </Button>
+        )}
+        {(hasCourt || draftHasAny) && (
+          <Button variant="ghost" onClick={stopTracking} data-scout-lineup-stop>
+            Non seguire la formazione
+          </Button>
+        )}
+        {done && (
+          <span className={cn("text-sm font-semibold text-success")} role="status" data-scout-lineup-done>
+            Formazione salvata.
+          </span>
+        )}
+      </div>
+    </>
+  );
+
+  if (variant === "sheet") {
+    return (
+      <div className="space-y-4" data-scout-lineup>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Card data-tour="scout-setup-lineup" data-scout-lineup>
+      <CardHeader className="pb-3">
+        <CardTitle>Formazione in campo</CardTitle>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Scrivi chi gioca nelle posizioni da 1 a 6 (la 1 è chi batte, poi in senso orario), la libero e le due giocatrici che sostituisce (di solito le
+          centrali). Lo Scout poi ruota da solo, fa entrare la libero, conta i cambi e ti fa scegliere chi ha giocato tra le sei in campo. Se in «Partite» hai
+          già preparato la formazione, la trovi già scritta: controlla e vai avanti. Se non ti serve, lasciala vuota.
+        </p>
+      </CardHeader>
+      <CardBody className="space-y-4">{body}</CardBody>
     </Card>
+  );
+}
+
+/**
+ * La formazione in una finestra: si apre da sola a ogni set nuovo («Formazione del 2° set», già scritta come quella del set prima
+ * o come l'hai preparata in Partite) e dal pulsante «Formazione» in qualunque momento. Chiusa senza confermare, il set parte
+ * comunque dalla formazione del set prima.
+ */
+export function ScoutLineupSheet({
+  data,
+  view,
+  athletes,
+  saved,
+  dispatch,
+  onClose,
+}: {
+  data: ScoutData;
+  view: ScoutView;
+  athletes: ScoutAthlete[];
+  saved: SavedScoutLineup[];
+  dispatch: (action: ScoutAction) => void;
+  onClose: () => void;
+}) {
+  const cur = view.current;
+  const fresh = cur ? cur.rallies.length === 0 : false;
+  return (
+    <Sheet
+      title={cur && fresh ? `Formazione del ${cur.n}° set` : "Formazione in campo"}
+      subtitle={cur && fresh && cur.n > 1 ? "Ogni set si può cominciare con una formazione diversa: controlla e conferma." : undefined}
+      onClose={onClose}
+      testId="lineup"
+      wide
+      closeOnBackdrop={false}
+    >
+      <ScoutLineupEditor data={data} view={view} athletes={athletes} saved={saved} dispatch={dispatch} variant="sheet" onDone={onClose} />
+    </Sheet>
   );
 }

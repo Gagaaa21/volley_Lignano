@@ -78,6 +78,28 @@ export function courtSpots(court: ScoutCourt, roster: ScoutPlayer[], eligible: S
   );
 }
 
+/** Dall'inizio del set in corso qualcuno ha già scritto una formazione (o fatto un cambio)? */
+export function lineupWrittenThisSet(events: ScoutData["events"]): boolean {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const type = events[i].type;
+    if (type === "setEnd") return false;
+    if (type === "lineup" || type === "sub") return true;
+  }
+  return false;
+}
+
+/**
+ * A un set nuovo (dal 2°) che non ha ancora un punto, e solo se si segue la formazione di una squadra: nessuno ha ancora
+ * detto con quale formazione si ricomincia. Appena si scrive una formazione (o un cambio) la domanda non serve più.
+ * Il set parte comunque dalla formazione del set prima: la domanda serve a scegliere se cambiarla.
+ */
+export function setLineupPending(events: ScoutData["events"], view: ScoutView): boolean {
+  const cur = view.current;
+  if (!cur || cur.n < 2 || cur.rallies.length > 0 || view.pending.length > 0) return false;
+  if (!view.court.us && !view.court.opp) return false;
+  return !lineupWrittenThisSet(events);
+}
+
 /** Il campo su cui si segna la ricezione: si segue la formazione nostra e c'è almeno una giocatrice in rosa. Altrimenti null (si sceglie da una riga di numeri). */
 export function receptionCourt(data: ScoutData, view: ScoutView): ScoutCourt | null {
   return data.roster.us.length > 0 ? view.court.us : null;

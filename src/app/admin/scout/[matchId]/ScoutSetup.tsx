@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Plus, UserPlus, X } from "lucide-react";
+import { useState, type MutableRefObject } from "react";
+import { Check, Pencil, Plus, UserPlus, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -34,38 +34,29 @@ const FORMATS: { value: ScoutFormat; label: string; hint: string }[] = [
 ];
 
 /**
- * La scelta del livello, prima di ogni partita: quanto si vuole segnare. Ogni
- * livello dice cosa si segna, cosa si ottiene e cosa serve, con le stesse parole
- * del manuale (src/lib/scout/levels.ts).
+ * La scelta del livello, prima di ogni partita: quanto si vuole segnare. Tre scelte in una riga sola, con le stesse
+ * parole del manuale (src/lib/scout/levels.ts); sotto, cosa si segna, cosa si ottiene e cosa serve per quella scelta.
  */
 function LevelChoice({ value, onChange }: { value: ScoutLevel; onChange: (level: ScoutLevel) => void }) {
+  const chosen = LEVEL_META[value];
   return (
-    <div role="radiogroup" aria-label="Livello dello scout" className="grid gap-2.5 lg:grid-cols-3" data-scout-levels>
-      {LEVEL_ORDER.map((level) => {
-        const meta = LEVEL_META[level];
-        const active = value === level;
-        const lists = (
-          <>
-            <LevelList title="Segni" lines={meta.marks} />
-            <LevelList title="Ottieni" lines={meta.gets} />
-            <LevelList title="Serve" lines={meta.needs} muted />
-          </>
-        );
-        return (
-          <div
-            key={level}
-            className={cn(
-              "flex flex-col rounded-2xl border transition-colors",
-              active ? "border-primary bg-primary-soft/60 ring-2 ring-primary/30" : "border-border-subtle bg-surface",
-            )}
-          >
+    <div className="space-y-3" data-scout-levels>
+      <div role="radiogroup" aria-label="Livello dello scout" className="grid gap-2 sm:grid-cols-3">
+        {LEVEL_ORDER.map((level) => {
+          const meta = LEVEL_META[level];
+          const active = value === level;
+          return (
             <button
+              key={level}
               type="button"
               role="radio"
               aria-checked={active}
               onClick={() => onChange(level)}
               data-scout-level={level}
-              className="flex w-full flex-col rounded-2xl p-3.5 text-left transition-colors hover:bg-foreground/[0.03] active:translate-y-px"
+              className={cn(
+                "flex w-full flex-col rounded-2xl border p-3 text-left transition-colors active:translate-y-px",
+                active ? "border-primary bg-primary-soft/60 ring-2 ring-primary/30" : "border-border-subtle bg-surface hover:bg-foreground/[0.03]",
+              )}
             >
               <span className="flex items-start justify-between gap-2">
                 <span className="font-display text-lg font-extrabold leading-tight text-foreground">{meta.label}</span>
@@ -85,17 +76,17 @@ function LevelChoice({ value, onChange }: { value: ScoutLevel; onChange: (level:
                 {level === "ricezioni" && <Badge tone="gold">Per cominciare</Badge>}
               </span>
             </button>
-            {/* Sul telefono i dettagli si aprono a richiesta (la scelta si fa prima di ogni partita: non deve occupare tutto lo schermo); sul computer sono sempre in vista. */}
-            <details className="px-3.5 pb-3 lg:hidden" data-scout-level-details={level}>
-              <summary className="cursor-pointer py-1 text-[13px] font-semibold text-primary marker:hidden [&::-webkit-details-marker]:hidden">
-                Cosa segni e cosa ottieni
-              </summary>
-              {lists}
-            </details>
-            <div className="hidden px-3.5 pb-3.5 lg:block">{lists}</div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      {/* I dettagli solo del livello scelto: tre colonne sugli schermi larghi, una sotto l'altra sul telefono. */}
+      <div className="rounded-2xl bg-surface-muted px-3.5 pb-3 pt-0.5" data-scout-level-details={value}>
+        <div className="grid gap-x-6 sm:grid-cols-3">
+          <LevelList title="Segni" lines={chosen.marks} />
+          <LevelList title="Ottieni" lines={chosen.gets} />
+          <LevelList title="Serve" lines={chosen.needs} muted />
+        </div>
+      </div>
     </div>
   );
 }
@@ -224,6 +215,8 @@ export function ScoutSetup({
   athletes,
   savedLineups,
   dispatch,
+  lineupCommit,
+  onOpenLineup,
 }: {
   data: ScoutData;
   view: ScoutView;
@@ -231,6 +224,10 @@ export function ScoutSetup({
   /** Le formazioni salvate in Partite, una per set. */
   savedLineups: SavedScoutLineup[];
   dispatch: (action: ScoutAction) => void;
+  /** «Comincia» e «Fatto» ci trovano la funzione che applica la formazione scritta e non ancora confermata. */
+  lineupCommit?: MutableRefObject<(() => void) | null>;
+  /** A partita iniziata la formazione ha la sua finestra: qui resta un pulsante per aprirla, al posto della scheda intera. */
+  onOpenLineup?: () => void;
 }) {
   const [manualName, setManualName] = useState("");
   const [manualNumber, setManualNumber] = useState("");
@@ -406,6 +403,25 @@ export function ScoutSetup({
         </CardBody>
       </Card>
 
+      {onOpenLineup ? (
+        <Card data-tour="scout-setup-lineup">
+          <CardHeader className="pb-3">
+            <CardTitle>Formazione in campo</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Chi gioca nelle sei posizioni, la libero e la formazione di ogni set si scrivono nella finestra «Formazione».
+            </p>
+          </CardHeader>
+          <CardBody>
+            <Button variant="outline" onClick={onOpenLineup} data-scout-open-lineup>
+              <Pencil className="h-4 w-4" />
+              Apri la formazione
+            </Button>
+          </CardBody>
+        </Card>
+      ) : (
+        <ScoutLineupEditor data={data} view={view} athletes={athletes} saved={savedLineups} dispatch={dispatch} commitRef={lineupCommit} />
+      )}
+
       <Card data-tour="scout-setup-opp">
         <CardHeader className="pb-3">
           <CardTitle>L&apos;avversaria</CardTitle>
@@ -460,8 +476,6 @@ export function ScoutSetup({
           )}
         </CardBody>
       </Card>
-
-      <ScoutLineupEditor data={data} view={view} athletes={athletes} saved={savedLineups} dispatch={dispatch} />
 
       <Card data-tour="scout-setup-rules">
         <CardHeader className="pb-3">

@@ -219,10 +219,14 @@ staff (Developer e Admin).
     (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
     solo il punto»); correzione dei tocchi dal Registro.
   - **Formazione in campo** (facoltativa, come nel Live score): si scrive
-    nella preparazione (`ScoutLineupEditor.tsx`, o dal pulsante «Segui la
-    formazione») o si riprende da quella salvata in Partita («Usa la
-    formazione salvata del 1° set»): chi gioca nelle sei posizioni, la libero
-    e le due centrali che sostituisce. Due eventi in più nello scout,
+    nella preparazione (`ScoutLineupEditor.tsx`, subito sotto le giocatrici) o
+    nella finestra «Formazione» (`ScoutLineupSheet`: dal pulsante «Formazione»,
+    da «Segui la formazione» o da sola a ogni set nuovo, quando `setLineupPending`
+    in `court.ts` dice che nessuno l'ha ancora scritta per quel set). Parte da
+    quella preparata in Partita per quel set, altrimenti da quella del set
+    prima: «Comincia» (`commitRef`) applica da sola quella scritta e non
+    ancora confermata, quindi non va riscritta due volte. Chi gioca nelle sei
+    posizioni, la libero e le due centrali che sostituisce. Due eventi in più nello scout,
     `lineup` e `sub` (`types.ts`, `schema.ts`, `actions.ts`): `derive.ts` li
     legge con lo stesso motore di `src/lib/lineup.ts` (stessa rotazione, stessa
     libero, stessi avvertimenti sui cambi) e ricava `ScoutView.court`, la
@@ -236,7 +240,9 @@ staff (Developer e Admin).
     dal campo (`ScoutCourtPicker.tsx`: rete, 4-3-2 davanti e 5-6-1 dietro, libero
     in scuro, pallone verde su chi batte, panchina sotto; a muro la libero non si
     sceglie e la seconda linea è più chiara; senza formazione resta l'elenco di
-    numeri); formazioni di partenza e cambi nel tabellino
+    numeri, con un avviso per impostarla). Il cambio disegna lo stesso campo con
+    numero e nome di ognuna e ha «Cambia la libero» (non conta tra i cambi: è un
+    evento `lineup` con la libero nuova); formazioni di partenza e cambi nel tabellino
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF
     (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
     `data` jsonb, e gli scout vecchi si leggono come prima.

@@ -251,21 +251,21 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         warning: "Due maglie con lo stesso numero fanno diventare rosso il campo: in una partita ogni numero è di una sola giocatrice.",
       },
       {
+        id: "scout-setup-lineup",
+        path,
+        target: "scout-setup-lineup",
+        chapter: C_SETUP,
+        title: "La formazione in campo",
+        body: "Come nel Live score: scegli chi gioca nelle posizioni da 1 a 6 (la 1 è chi batte, poi si ruota in senso orario), la libero e le due giocatrici che sostituisce (di solito le centrali). Per l'avversaria scrivi i numeri di seguito e premi Invio.\n\nSe in «Partite» hai già preparato la formazione, la trovi già scritta: controlla e vai avanti, «Comincia» la applica da sola. Da quel momento lo Scout segue le rotazioni e i cambi, propone chi batte e, per ogni punto, ti fa scegliere tra le sei in campo, con numero e nome.",
+        tip: "Non ti serve? Lasciala vuota: la puoi attivare anche a partita iniziata con «Segui la formazione». A ogni set nuovo lo Scout ti chiede la formazione di quel set, già scritta come quella del set prima.",
+      },
+      {
         id: "scout-setup-opp",
         path,
         target: "scout-setup-opp",
         chapter: C_SETUP,
         title: "L'avversaria",
         body: "Di solito basta il numero di maglia. Scrivili separati da uno spazio (per esempio 1 4 7 9 12) e premi «Aggiungi»: compaiono come bollini, con una X per toglierli.\n\nNon conosci i numeri? Nessun problema: quando segni un punto che riguarda una loro giocatrice puoi scrivere un numero nuovo al volo.",
-      },
-      {
-        id: "scout-setup-lineup",
-        path,
-        target: "scout-setup-lineup",
-        chapter: C_SETUP,
-        title: "La formazione in campo (se vuoi)",
-        body: "È facoltativa e funziona come nel Live score: scegli chi gioca nelle posizioni da 1 a 6 (la 1 è chi batte, poi si ruota in senso orario), la libero e le due giocatrici che sostituisce (di solito le centrali). Per l'avversaria scrivi i numeri di seguito e premi Invio. Se hai già preparato la formazione in «Partite», un pulsante la porta qui.\n\nPoi «Conferma la formazione»: da quel momento lo Scout segue da solo le rotazioni e i cambi, propone chi batte e ti fa scegliere le giocatrici tra quelle in campo.",
-        tip: "Non ti serve? Salta: puoi attivarla anche a partita iniziata con «Segui la formazione».",
       },
       {
         id: "scout-setup-rules",
@@ -343,7 +343,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       target: "scout-court-strip",
       chapter: C_PLAY,
       title: "Chi è in campo",
-      body: `Le due squadre con le sei posizioni: davanti 4-3-2, dietro 5-6-1 (la rete è in alto). Il pallone verde segna chi batte; la libero compare in scuro al posto della centrale che sostituisce. Quando una squadra conquista la battuta ruota da sola (sotto il nome vedi la rotazione: la 1ª è quella di partenza).\n\nCon «Cambio» registri una sostituzione: scegli chi esce e chi entra; se non è regolare (per esempio più di ${SUBSTITUTIONS_PER_SET} cambi in un set) ti avvisa, ma puoi confermare lo stesso. «Formazione» riapre la scheda per correggere o riscrivere chi è in campo.`,
+      body: `Le due squadre con le sei posizioni, ognuna con numero e nome: davanti 4-3-2, dietro 5-6-1 (la rete è in alto). Il pallone verde segna chi batte; la libero compare in scuro al posto della centrale che sostituisce. Quando una squadra conquista la battuta ruota da sola (sotto il nome vedi la rotazione: la 1ª è quella di partenza).\n\nCon «Cambio» registri una sostituzione: tocchi chi esce direttamente sul campo (ogni giocatrice sta dove sta davvero, con numero e nome) e scegli chi entra; se non è regolare (per esempio più di ${SUBSTITUTIONS_PER_SET} cambi in un set) ti avvisa, ma puoi confermare lo stesso. Nello stesso Cambio c'è «Cambia la libero», che non è un cambio ufficiale e non conta tra quelli del set. «Formazione» riapre la formazione per correggerla: a ogni set nuovo si apre da sola.`,
       tip: "Quando scegli «chi» vedi il campo come qui: tocchi la giocatrice dove sta (davanti 4-3-2, dietro 5-6-1); la panchina è sotto, più chiara.",
     });
   }
@@ -443,7 +443,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       target: "scout-set-end",
       chapter: C_SET,
       title: "Il set è finito",
-      body: "Quando una squadra arriva al limite (di solito 25 con due punti di scarto) compare da solo questo riquadro. Scegli chi batte per primo nel set successivo (di norma si alternano; prima del set decisivo c'è un nuovo sorteggio) e premi «Chiudi il set». Con l'ultimo set compare «Chiudi il set e la partita».",
+      body: "Quando una squadra arriva al limite (di solito 25 con due punti di scarto) compare da solo questo riquadro. Scegli chi batte per primo nel set successivo (di norma si alternano; prima del set decisivo c'è un nuovo sorteggio) e premi «Chiudi il set». Con l'ultimo set compare «Chiudi il set e la partita».\n\nSe segui la formazione, subito dopo si apre «Formazione del 2° set» (o del set che viene): è già scritta come quella del set prima, o come l'hai preparata in «Partite». Se non cambia niente basta «Conferma e comincia»; se cambia, correggi le posizioni prima.",
       warning: "Finché non lo chiudi, i punti che segni continuano a contare nel set appena finito.",
     });
   }

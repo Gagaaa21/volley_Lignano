@@ -11,14 +11,21 @@ import type { ScoutCourt, ScoutView } from "@/lib/scout/derive";
 import { playerLabel, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import type { ScoutData, ScoutPlayer, ScoutSide } from "@/lib/scout/types";
+import { CourtNet, CourtThreeMeterLine } from "./ScoutCourtPicker";
 
 /** Come si legge una giocatrice sul campo: il numero di maglia (per noi, in mancanza, l'iniziale). */
 function chipText(player: ScoutPlayer | undefined, side: ScoutSide): string {
   return player ? jerseyLabel(player, side) : "?";
 }
 
+/** Chi è, a parole: «7 Giulia B.» per noi, «n. 7» per l'avversaria. */
+function whoText(player: ScoutPlayer | undefined, side: ScoutSide, roster: ScoutPlayer[]): string {
+  if (!player) return "?";
+  return side === "us" ? `${chipText(player, side)} ${shortName(player, roster)}` : `n. ${chipText(player, side)}`;
+}
+
 /**
- * Una metà campo in piccolo: chi gioca in ogni posizione, con la libero in scuro
+ * Una metà campo in piccolo: chi gioca in ogni posizione (numero e, per noi, il nome), con la libero in scuro
  * al posto di chi sostituisce e un pallone verde su chi batte.
  */
 function MiniCourt({
@@ -50,8 +57,8 @@ function MiniCourt({
                 data-scout-court-position={position}
                 data-scout-court-player={id || undefined}
                 className={cn(
-                  "relative flex min-w-0 flex-col items-center justify-center rounded-lg border text-center",
-                  large ? "h-[clamp(3rem,7.4vh,4.5rem)]" : "h-11 sm:h-12",
+                  "relative flex min-w-0 flex-col items-center justify-center rounded-lg border px-0.5 text-center",
+                  large ? "h-[clamp(3.25rem,8vh,4.75rem)]" : "h-[3.25rem] sm:h-14",
                   id ? (isLibero ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-foreground") : "border-dashed border-border-strong bg-surface-muted/50 text-muted-foreground/60",
                   isServer && "ring-2 ring-green-500 ring-offset-1 ring-offset-card",
                 )}
@@ -59,7 +66,13 @@ function MiniCourt({
               >
                 <span className="absolute left-1 top-0.5 text-[9px] font-bold leading-none text-muted-foreground/70">{position}</span>
                 <span className={cn("tabular font-display font-extrabold leading-none", large ? "text-[clamp(17px,3vh,26px)]" : "text-[17px]")}>{id ? chipText(player, side) : "–"}</span>
-                {isLibero && <span className="absolute bottom-0.5 text-[8px] font-bold uppercase leading-none tracking-wide opacity-80">libero</span>}
+                {/* Il nome, per chi non conosce ancora i numeri a memoria (solo per noi: dell'avversaria si hanno solo i numeri). */}
+                {side === "us" && player && (
+                  <span className={cn("mt-0.5 w-full truncate font-semibold leading-none", large ? "text-[clamp(10px,1.7vh,13px)]" : "text-[10px]", isLibero ? "opacity-80" : "text-muted-foreground")}>
+                    {shortName(player, roster)}
+                  </span>
+                )}
+                {isLibero && <span className="absolute right-1 top-0.5 text-[8px] font-bold uppercase leading-none tracking-wide opacity-80">libero</span>}
                 {isServer && (
                   <span className="absolute -right-1 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-green-500 text-white shadow-sm" aria-label="Batte">
                     <Volleyball className="h-2.5 w-2.5" />
@@ -74,29 +87,161 @@ function MiniCourt({
   );
 }
 
+/** Un giocatore da scegliere (numero e nome), per «Chi entra» e per la nuova libero. */
+function BenchChip({
+  player,
+  side,
+  roster,
+  selected,
+  onClick,
+  testId,
+  extra,
+  tone = "default",
+}: {
+  player: ScoutPlayer;
+  side: ScoutSide;
+  roster: ScoutPlayer[];
+  selected: boolean;
+  onClick: () => void;
+  testId: Record<`data-${string}`, string | undefined>;
+  /** Sotto il nome: per esempio «rientra». */
+  extra?: string;
+  tone?: "default" | "reentry";
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      {...testId}
+      className={cn(
+        "flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors",
+        selected
+          ? "border-primary bg-primary-soft ring-2 ring-primary/30"
+          : tone === "reentry"
+            ? "border-emerald-600/50 bg-emerald-50 hover:bg-emerald-100"
+            : "border-border-subtle bg-surface hover:bg-muted",
+      )}
+    >
+      <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">{chipText(player, side)}</span>
+      {extra ? (
+        <span className="mt-0.5 w-full truncate text-[10px] font-bold uppercase tracking-wide text-emerald-800">{extra}</span>
+      ) : (
+        side === "us" && <span className="mt-0.5 w-full truncate text-[11px] font-semibold text-muted-foreground">{shortName(player, roster)}</span>
+      )}
+    </button>
+  );
+}
+
 /**
- * Il cambio: si sceglie chi esce (tra chi è in campo) e chi entra (dalla
+ * Cambio di libero: non è un cambio ufficiale (non conta tra quelli del set), quindi non passa dalla sostituzione.
+ * Si sceglie chi diventa la libero tra chi è in panchina; centrali sostituite e posizioni restano come sono.
+ */
+function LiberoPanel({
+  court,
+  roster,
+  dispatch,
+  onBack,
+  onClose,
+}: {
+  court: ScoutCourt;
+  roster: ScoutPlayer[];
+  dispatch: (action: ScoutAction) => void;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  const bench = benchOf(roster, court);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const current = roster.find((p) => p.id === court.libero);
+
+  function confirm() {
+    const player = roster.find((p) => p.id === chosen);
+    if (!player) return;
+    // La nuova libero si segna come tale nella rosa (così non attacca né batte); poi la formazione, con tutto il resto com'è.
+    if (!player.libero) dispatch({ type: "updatePlayer", side: "us", id: player.id, patch: { libero: true } });
+    dispatch({
+      type: "lineup",
+      side: "us",
+      input: {
+        positions: court.positions.map((id) => id || null),
+        libero: player.id,
+        hosts: [court.hosts[0] || null, court.hosts[1] || null],
+      },
+      at: Date.now(),
+      id: newId(),
+    });
+    onClose();
+  }
+
+  return (
+    <div data-scout-libero-panel>
+      <p className="mt-4 text-[13px] leading-snug text-muted-foreground">
+        Il cambio della libero non è un cambio ufficiale: non conta tra gli {SUBSTITUTIONS_PER_SET} del set. Chi esce va in panchina, la nuova libero entra e
+        esce da sola come la precedente.
+      </p>
+      <div className="mt-3 rounded-xl bg-surface-muted px-3.5 py-2.5 text-sm">
+        <span className="text-muted-foreground">Adesso la libero è </span>
+        <b className="text-foreground">{current ? whoText(current, "us", roster) : "—"}</b>
+      </div>
+      <p className="mb-1.5 mt-4 text-[13px] font-semibold text-foreground/80">Chi diventa la libero</p>
+      {bench.length > 0 ? (
+        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5" role="group" aria-label="Nuova libero">
+          {bench.map((player) => (
+            <BenchChip
+              key={player.id}
+              player={player}
+              side="us"
+              roster={roster}
+              selected={chosen === player.id}
+              onClick={() => setChosen(player.id)}
+              testId={{ "data-scout-libero-in": player.id }}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">Non c&apos;è nessuna giocatrice in panchina.</p>
+      )}
+      <div className="mt-5 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onBack}>
+          Indietro
+        </Button>
+        <Button onClick={confirm} disabled={!chosen} data-scout-libero-confirm>
+          <ArrowLeftRight className="h-4 w-4" />
+          Cambia la libero
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Il cambio: si sceglie chi esce (toccandola dove sta sul campo, con numero e nome) e chi entra (dalla
  * panchina; per l'avversaria si può scrivere un numero nuovo). Se il cambio non
  * rispetta le regole compare un avvertimento, ma si può confermare lo stesso.
  * Una titolare uscita può rientrare (una volta sola) solo al posto di chi l'ha
  * sostituita, dovunque quella sia adesso: scegliendola, «chi esce» si sceglie da solo.
+ * Per la nostra squadra c'è anche il cambio della libero, che non è un cambio ufficiale.
  */
 function SubstitutionSheet({
   side,
   data,
   view,
+  serving,
   dispatch,
   onClose,
 }: {
   side: ScoutSide;
   data: ScoutData;
   view: ScoutView;
+  /** La squadra batte adesso: il pallone verde sta su chi è in posizione 1. */
+  serving: boolean;
   dispatch: (action: ScoutAction) => void;
   onClose: () => void;
 }) {
   const court = view.court[side] as ScoutCourt;
   const roster = data.roster[side];
   const bench = benchOf(roster, court);
+  const [mode, setMode] = useState<"sub" | "libero">("sub");
   const [position, setPosition] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null);
   const [incoming, setIncoming] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
@@ -139,22 +284,25 @@ function SubstitutionSheet({
   const sideName = side === "us" ? "nostra squadra" : "avversaria";
   // Un'avversaria appena scritta non è ancora in panchina finché la rosa non si aggiorna: la si mostra comunque.
   const shownBench = incoming && !bench.some((p) => p.id === incoming) && roster.some((p) => p.id === incoming) ? sortPlayers([...bench, ...roster.filter((p) => p.id === incoming)]) : bench;
+  const outPlayer = position !== null ? roster.find((p) => p.id === court.positions[position - 1]) : undefined;
+  const inPlayer = incoming ? roster.find((p) => p.id === incoming) : undefined;
+  const canChangeLibero = side === "us" && Boolean(court.libero);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-sea-950/45 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Cambio: ${sideName}`}
+        aria-label={mode === "libero" ? "Cambio della libero" : `Cambio: ${sideName}`}
         data-scout-sheet="sub"
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-4 shadow-[0_24px_60px_-20px_rgba(9,26,38,0.55)] sm:rounded-2xl sm:p-5"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-4 shadow-[0_24px_60px_-20px_rgba(9,26,38,0.55)] sm:rounded-2xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 font-display text-lg font-bold leading-tight text-foreground">
               <ArrowLeftRight className="h-5 w-5 text-primary" />
-              Cambio · {side === "us" ? "noi" : "loro"}
+              {mode === "libero" ? "Cambio della libero" : `Cambio · ${side === "us" ? "noi" : "loro"}`}
             </h2>
             <p className="mt-0.5 text-[13px] text-muted-foreground">
               {view.current?.n}° set · cambi fatti: <b className="text-foreground">{used}</b> su {SUBSTITUTIONS_PER_SET}
@@ -165,121 +313,157 @@ function SubstitutionSheet({
           </Button>
         </div>
 
-        <div className="mt-4">
-          <p className="mb-1.5 text-[13px] font-semibold text-foreground/80">Chi esce</p>
-          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Chi esce">
-            {([1, 2, 3, 4, 5, 6] as const).map((pos) => {
-              const id = court.positions[pos - 1];
-              const player = id ? roster.find((p) => p.id === id) : undefined;
-              const replacedByLibero = Boolean(id) && court.liberoFor === id;
-              const enteredFor = id ? sideSubs.find((sub) => sub.in === id) : undefined;
-              return (
-                <button
-                  key={pos}
-                  type="button"
-                  disabled={!id}
-                  aria-pressed={position === pos}
-                  onClick={() => setPosition(pos)}
-                  data-scout-sub-out={pos}
-                  className={cn(
-                    "flex min-h-[3.5rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors disabled:opacity-40",
-                    position === pos ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border-subtle bg-surface hover:bg-muted",
-                  )}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Pos. {pos}</span>
-                  <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">{id ? chipText(player, side) : "–"}</span>
-                  {replacedByLibero && <span className="text-[10px] text-muted-foreground">ora c&apos;è la libero</span>}
-                  {enteredFor && <span className="text-[10px] text-muted-foreground">entrata per {chipText(roster.find((p) => p.id === enteredFor.out), side)}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <p className="mb-1.5 text-[13px] font-semibold text-foreground/80">Chi entra</p>
-          {shownBench.length > 0 ? (
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5" role="group" aria-label="Chi entra">
-              {shownBench.map((player) => {
-                const back = reentryOfPlayer(view, side, player.id);
-                return (
-                  <button
-                    key={player.id}
-                    type="button"
-                    aria-pressed={incoming === player.id}
-                    onClick={() => chooseIncoming(player.id)}
-                    data-scout-sub-in={player.id}
-                    data-scout-sub-reentry-chip={back ? "" : undefined}
-                    className={cn(
-                      "flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors",
-                      incoming === player.id
-                        ? "border-primary bg-primary-soft ring-2 ring-primary/30"
-                        : back
-                          ? "border-emerald-600/50 bg-emerald-50 hover:bg-emerald-100"
-                          : "border-border-subtle bg-surface hover:bg-muted",
-                    )}
-                  >
-                    <span className="tabular font-display text-xl font-extrabold leading-none text-foreground">{chipText(player, side)}</span>
-                    {back ? (
-                      <span className="mt-0.5 w-full truncate text-[10px] font-bold uppercase tracking-wide text-emerald-800">rientra</span>
-                    ) : (
-                      side === "us" && <span className="mt-0.5 w-full truncate text-[11px] font-semibold text-muted-foreground">{shortName(player, roster)}</span>
-                    )}
-                  </button>
-                );
-              })}
+        {mode === "libero" ? (
+          <LiberoPanel court={court} roster={roster} dispatch={dispatch} onBack={() => setMode("sub")} onClose={onClose} />
+        ) : (
+          <>
+            <div className="mt-4">
+              <p className="mb-1.5 text-[13px] font-semibold text-foreground/80">
+                Chi esce <span className="font-normal text-muted-foreground">· tocca dove sta in campo</span>
+              </p>
+              {/* Il campo come lo si vede dalla propria metà (rete in alto, davanti 4-3-2, dietro 5-6-1): lo stesso disegno di «In campo». */}
+              <div
+                role="group"
+                aria-label="Chi esce"
+                className={cn("rounded-2xl border p-2.5", side === "us" ? "border-primary/25 bg-primary-soft/60" : "border-sand-400/50 bg-accent/50")}
+              >
+                <CourtNet />
+                {COURT_ROWS.map((row, r) => (
+                  <div key={r}>
+                    {r === 1 && <CourtThreeMeterLine />}
+                    <div className="grid grid-cols-3 gap-2">
+                      {row.map((pos) => {
+                        const place = pos as 1 | 2 | 3 | 4 | 5 | 6;
+                        const id = court.positions[place - 1];
+                        const player = id ? roster.find((p) => p.id === id) : undefined;
+                        const replacedByLibero = Boolean(id) && court.liberoFor === id;
+                        const enteredFor = id ? sideSubs.find((sub) => sub.in === id) : undefined;
+                        const isServer = serving && place === 1;
+                        return (
+                          <button
+                            key={pos}
+                            type="button"
+                            disabled={!id}
+                            aria-pressed={position === place}
+                            onClick={() => setPosition(place)}
+                            data-scout-sub-out={pos}
+                            className={cn(
+                              "relative flex min-h-[4.5rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1.5 py-1.5 text-center transition-colors disabled:opacity-40",
+                              position === place ? "border-primary bg-primary-soft ring-2 ring-primary/30" : "border-border bg-surface hover:bg-muted",
+                              isServer && position !== place && "ring-2 ring-green-500 ring-offset-1 ring-offset-surface",
+                            )}
+                          >
+                            <span className="absolute left-1.5 top-1 text-[10px] font-bold leading-none text-muted-foreground/80">{pos}</span>
+                            <span className="tabular font-display text-2xl font-extrabold leading-none text-foreground">{id ? chipText(player, side) : "–"}</span>
+                            {side === "us" && player && <span className="mt-0.5 w-full truncate text-[12px] font-semibold leading-tight text-muted-foreground">{shortName(player, roster)}</span>}
+                            {replacedByLibero && <span className="text-[10px] leading-tight text-muted-foreground">ora c&apos;è la libero</span>}
+                            {enteredFor && <span className="text-[10px] leading-tight text-muted-foreground">entrata per {chipText(roster.find((p) => p.id === enteredFor.out), side)}</span>}
+                            {isServer && (
+                              <span className="absolute -right-1 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-green-500 text-white shadow-sm" aria-label="Batte">
+                                <Volleyball className="h-3 w-3" />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : (
-            <p className="rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
-              {side === "us" ? "Non c'è nessuna giocatrice in panchina: aggiungila da «Squadre e regole»." : "Scrivi qui sotto il numero di chi entra."}
-            </p>
-          )}
-          {side === "opp" && (
-            <div className="mt-2 flex gap-2">
-              <Input
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addNumber();
-                  }
-                }}
-                inputMode="numeric"
-                placeholder="Altro numero di maglia"
-                aria-label="Numero di maglia di chi entra"
-                data-scout-sub-number
-                className="min-w-0"
-              />
-              <Button variant="outline" onClick={addNumber} disabled={!cleanNumber(typed)}>
-                <Plus className="h-4 w-4" />
-                Aggiungi
+
+            <div className="mt-4">
+              <p className="mb-1.5 text-[13px] font-semibold text-foreground/80">Chi entra</p>
+              {shownBench.length > 0 ? (
+                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5" role="group" aria-label="Chi entra">
+                  {shownBench.map((player) => {
+                    const back = reentryOfPlayer(view, side, player.id);
+                    return (
+                      <BenchChip
+                        key={player.id}
+                        player={player}
+                        side={side}
+                        roster={roster}
+                        selected={incoming === player.id}
+                        onClick={() => chooseIncoming(player.id)}
+                        extra={back ? "rientra" : undefined}
+                        tone={back ? "reentry" : "default"}
+                        testId={{ "data-scout-sub-in": player.id, "data-scout-sub-reentry-chip": back ? "" : undefined }}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="rounded-xl bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
+                  {side === "us" ? "Non c'è nessuna giocatrice in panchina: aggiungila da «Squadre e regole»." : "Scrivi qui sotto il numero di chi entra."}
+                </p>
+              )}
+              {side === "opp" && (
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addNumber();
+                      }
+                    }}
+                    inputMode="numeric"
+                    placeholder="Altro numero di maglia"
+                    aria-label="Numero di maglia di chi entra"
+                    data-scout-sub-number
+                    className="min-w-0"
+                  />
+                  <Button variant="outline" onClick={addNumber} disabled={!cleanNumber(typed)}>
+                    <Plus className="h-4 w-4" />
+                    Aggiungi
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {reentry && position === reentry.position && (
+              <p data-scout-sub-reentry className="mt-3 text-[13px] font-medium text-emerald-800">
+                Rientra al posto di {chipText(roster.find((p) => p.id === reentry.replacedBy), side)} (posizione {reentry.position}): una titolare può rientrare una volta sola, e solo per chi l&apos;ha sostituita.
+              </p>
+            )}
+
+            {warning && (
+              <p data-scout-sub-warning className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-medium text-amber-950 ring-1 ring-amber-500/40">
+                Attenzione: {warning} Puoi confermare lo stesso (per esempio per un infortunio).
+              </p>
+            )}
+
+            {/* Il cambio a parole, prima di confermarlo: chi esce, da che posizione, e chi entra. */}
+            {position !== null && incoming && (
+              <p data-scout-sub-summary className="mt-3 rounded-xl bg-primary-soft px-3 py-2 text-[13px] font-semibold text-foreground">
+                Esce <b>{whoText(outPlayer, side, roster)}</b> (posizione {position}) · entra <b>{whoText(inPlayer, side, roster)}</b>
+              </p>
+            )}
+
+            {canChangeLibero && (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-surface-muted px-3 py-2.5">
+                <p className="text-[13px] leading-snug text-muted-foreground">
+                  <b className="text-foreground">Cambi la libero?</b> Non è un cambio ufficiale: si fa da qui.
+                </p>
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => setMode("libero")} data-scout-libero-open>
+                  Cambia la libero
+                </Button>
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="ghost" onClick={onClose}>
+                Annulla
+              </Button>
+              <Button onClick={confirm} disabled={position === null || !incoming} data-scout-sub-confirm>
+                <ArrowLeftRight className="h-4 w-4" />
+                Conferma cambio
               </Button>
             </div>
-          )}
-        </div>
-
-        {reentry && position === reentry.position && (
-          <p data-scout-sub-reentry className="mt-3 text-[13px] font-medium text-emerald-800">
-            Rientra al posto di {chipText(roster.find((p) => p.id === reentry.replacedBy), side)} (posizione {reentry.position}): una titolare può rientrare una volta sola, e solo per chi l&apos;ha sostituita.
-          </p>
+          </>
         )}
-
-        {warning && (
-          <p data-scout-sub-warning className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-medium text-amber-950 ring-1 ring-amber-500/40">
-            Attenzione: {warning} Puoi confermare lo stesso (per esempio per un infortunio).
-          </p>
-        )}
-
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Annulla
-          </Button>
-          <Button onClick={confirm} disabled={position === null || !incoming} data-scout-sub-confirm>
-            <ArrowLeftRight className="h-4 w-4" />
-            Conferma cambio
-          </Button>
-        </div>
       </div>
     </div>
   );
@@ -325,7 +509,7 @@ export function ScoutCourtStrip({
           Formazione
         </Button>
       </header>
-      <div className={cn("grid gap-3", sides.length === 2 ? "grid-cols-2" : "grid-cols-1 sm:max-w-xs")}>
+      <div className={cn("grid gap-3", sides.length === 2 ? "grid-cols-2" : "grid-cols-1 sm:max-w-sm")}>
         {sides.map((side) => {
           const court = view.court[side] as ScoutCourt;
           const used = substitutionsUsed(view, side);
@@ -355,7 +539,7 @@ export function ScoutCourtStrip({
         })}
       </div>
       {subSide && view.court[subSide] && (
-        <SubstitutionSheet side={subSide} data={data} view={view} dispatch={dispatch} onClose={() => setSubSide(null)} />
+        <SubstitutionSheet side={subSide} data={data} view={view} serving={server === subSide} dispatch={dispatch} onClose={() => setSubSide(null)} />
       )}
     </section>
   );

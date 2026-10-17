@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
-import { benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, receptionCourt, reentryOfPlayer, substitutionWarningFor } from "@/lib/scout/court";
+import { benchOf, benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, lineupWrittenThisSet, receptionCourt, reentryOfPlayer, setLineupPending, substitutionWarningFor } from "@/lib/scout/court";
 import type { Match } from "@/lib/types";
 import {
   addPlayer,
@@ -15,6 +15,7 @@ import {
   setLineup,
   substitute,
   undoLast,
+  updatePlayer,
   usedPlayerIds,
   type LineupInput,
 } from "@/lib/scout/actions";
@@ -471,6 +472,116 @@ test.describe("cambi: il rientro", () => {
     expect(view.court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
     // Il nono cambio, anche con un'altra riserva, non è previsto.
     expect(substitutionWarningFor(data, view, "us", 3, "u11")).toContain("8 cambi");
+  });
+});
+
+test.describe("la formazione a ogni set", () => {
+  /** Il 1° set a 1–0 per noi, chiuso: comincia il 2°. */
+  function secondSet(data: ScoutData): ScoutData {
+    return endSet(point(data, "us"), "opp", at(data) + MIN, id());
+  }
+
+  test("a un set nuovo, seguendo la formazione, si chiede quale formazione usare; appena la si scrive la domanda non serve più", () => {
+    let data = withLineups(roster());
+    // Nel 1° set la formazione si scrive nella preparazione: nessuna domanda.
+    expect(setLineupPending(data.events, deriveScout(data))).toBe(false);
+    data = point(data, "us");
+    expect(setLineupPending(data.events, deriveScout(data))).toBe(false);
+
+    // Chiuso il 1° set, il 2° non ha ancora una formazione scritta: si chiede (parte comunque da quella del set prima).
+    data = secondSet(withLineups(roster()));
+    let view = deriveScout(data);
+    expect(view.current?.n).toBe(2);
+    expect(view.court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(lineupWrittenThisSet(data.events)).toBe(false);
+    expect(setLineupPending(data.events, view)).toBe(true);
+
+    // Scritta una formazione per il 2° set (qui cambia chi batte): non si chiede più, e vale quella nuova.
+    data = setLineup(data, "us", { ...OURS, positions: ["u7", "u2", "u3", "u4", "u5", "u6"] }, at(data), id());
+    view = deriveScout(data);
+    expect(lineupWrittenThisSet(data.events)).toBe(true);
+    expect(setLineupPending(data.events, view)).toBe(false);
+    expect(view.court.us?.positions[0]).toBe("u7");
+    expect(view.sets[0].lineups.us?.positions[0]).toBe("u1");
+  });
+
+  test("anche un cambio prima del primo punto chiude la domanda; a set cominciato non si chiede mai", () => {
+    let data = secondSet(withLineups(roster()));
+    expect(setLineupPending(data.events, deriveScout(data))).toBe(true);
+    data = substitute(data, "us", 2, "u7", at(data), id());
+    expect(setLineupPending(data.events, deriveScout(data))).toBe(false);
+
+    const started = point(secondSet(withLineups(roster())), "opp");
+    expect(setLineupPending(started.events, deriveScout(started))).toBe(false);
+  });
+
+  test("senza formazione da seguire (né per noi né per loro) a un set nuovo non si chiede niente", () => {
+    const data = secondSet(roster());
+    const view = deriveScout(data);
+    expect(view.current?.n).toBe(2);
+    expect(view.court).toEqual({ us: null, opp: null });
+    expect(setLineupPending(data.events, view)).toBe(false);
+  });
+
+  test("con la partita decisa non si chiede niente", () => {
+    let data = withLineups(roster());
+    for (let i = 0; i < 3; i++) data = endSet(point(data, "us"), "opp", at(data) + MIN, id());
+    const view = deriveScout(data);
+    expect(view.decided).toBe(true);
+    expect(setLineupPending(data.events, view)).toBe(false);
+  });
+
+  test("a un set nuovo si può cominciare con un'altra formazione: la partenza di ogni set resta nel tabellino", () => {
+    let data = secondSet(withLineups(roster()));
+    // 2° set: nuova formazione di partenza (u7 al posto di u1) e un punto.
+    data = setLineup(data, "us", { ...OURS, positions: ["u7", "u2", "u3", "u4", "u5", "u6"] }, at(data), id());
+    data = point(data, "us");
+    const view = deriveScout(data);
+    expect(view.sets[0].lineups.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(view.sets[1].lineups.us?.positions).toEqual(["u7", "u2", "u3", "u4", "u5", "u6"]);
+    const summary = lineupSummary(view, data.roster);
+    expect(summary.starts.filter((row) => row.side === "us").map((row) => row.set)).toEqual([1, 2]);
+  });
+
+  test("il cambio della libero: la nuova libero è nella formazione, la rotazione resta e non conta tra i cambi", () => {
+    let data = withLineups(roster());
+    data = addPlayer(data, "us", { id: "ul2", name: "Seconda libera", number: "21", libero: false });
+    data = point(point(data, "opp"), "us"); // noi riconquistiamo la battuta: ruotiamo, 2ª rotazione
+    let view = deriveScout(data);
+    const before = view.court.us as ScoutCourt;
+    expect(before.rotation).toBe(2);
+    expect(before.libero).toBe("ul");
+    expect(benchOf(data.roster.us, before).map((p) => p.id)).toContain("ul2");
+
+    // Quello che fa «Cambia la libero»: la nuova è una libero in rosa, e la formazione si riscrive uguale con lei.
+    data = updatePlayer(data, "us", "ul2", { libero: true });
+    data = setLineup(
+      data,
+      "us",
+      { positions: before.positions.map((p) => p || null), libero: "ul2", hosts: [before.hosts[0] || null, before.hosts[1] || null] },
+      at(data),
+      id(),
+    );
+    view = deriveScout(data);
+    const after = view.court.us as ScoutCourt;
+    expect(after.libero).toBe("ul2");
+    expect(after.positions).toEqual(before.positions);
+    expect(after.rotation).toBe(2);
+    expect(after.hosts).toEqual(before.hosts);
+    // Dove prima c'era la libero ora c'è la nuova; non è un cambio ufficiale.
+    expect(after.onCourt).toEqual(before.onCourt.map((id) => (id === "ul" ? "ul2" : id)));
+    expect(view.sets[0].subs).toHaveLength(0);
+    // La vecchia libero è in panchina, la formazione di partenza del set è rimasta quella con cui era cominciato.
+    expect(benchOf(data.roster.us, after).map((p) => p.id)).toContain("ul");
+    expect(view.sets[0].lineups.us?.libero).toBe("ul");
+
+    // Chiuso il set (1–1 non si chiude: un punto in più per noi), il successivo riparte dalla formazione di partenza ma con la libero di adesso: continua lei.
+    data = endSet(point(data, "us"), "opp", at(data) + 2 * MIN, id());
+    view = deriveScout(data);
+    expect(view.current?.n).toBe(2);
+    expect(view.court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(view.court.us?.libero).toBe("ul2");
+    expect(view.court.us?.rotation).toBe(1);
   });
 });
 

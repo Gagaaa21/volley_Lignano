@@ -399,7 +399,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       },
       {
         type: "p",
-        text: "Tocca **Segna i punti**. La prima volta si apre la **preparazione**, in più parti una sotto l'altra: il livello, le giocatrici, l'avversaria, la formazione in campo (facoltativa) e le regole. Non è obbligatorio compilare tutto, e puoi cambiare ogni cosa anche a partita iniziata.",
+        text: "Tocca **Segna i punti**. La prima volta si apre la **preparazione**, in più parti una sotto l'altra: il livello, le giocatrici, la formazione in campo (facoltativa), l'avversaria e le regole. Non è obbligatorio compilare tutto, e puoi cambiare ogni cosa anche a partita iniziata.",
       },
       { type: "sub", title: "Il livello" },
       {
@@ -526,7 +526,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           "Nella preparazione (o da **«Squadre e regole»** o dal pulsante **«Segui la formazione»** sotto i pannelli) trovi la scheda **«Formazione in campo»**.",
           "Nel campo **«Noi»** scegli chi gioca in ogni posizione, dalla **1** (chi batte) alla **6**, poi in senso orario. Nel campo **«Loro»** scrivi i numeri di maglia di seguito, premendo **Invio** per passare alla posizione dopo.",
           "Scegli la **libero** e le due **centrali** (le giocatrici che la libero sostituisce). Per le avversarie sono facoltative.",
-          "Tocca **«Conferma la formazione»**. Se hai già preparato la formazione nella sezione **Partite**, **«Usa la formazione salvata del 1° set»** la riempie da sola, con libero e centrali.",
+          "Tocca **«Conferma la formazione»** (o direttamente **«Comincia a segnare i punti»**: la applica da sola). Se hai già preparato la formazione nella sezione **Partite** la trovi già scritta, con libero e centrali: **niente da riscrivere**.",
         ],
       },
       {
@@ -563,14 +563,14 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "I cambi" },
       {
         type: "p",
-        text: `Tocca **«Cambio»** sotto la squadra: scegli **chi esce** (tra le sei in campo) e **chi entra** (dalla panchina; per le avversarie puoi scrivere un numero nuovo), poi **«Conferma cambio»**. Chi entra continua la rotazione al posto di chi è uscita e, se era una delle due sostituite dalla libero, ne prende il ruolo. Lo Scout conta i cambi del set (${SUBSTITUTIONS_PER_SET} al massimo nel 6 contro 6) e li mostra anche nel registro, dove si possono togliere.`,
+        text: `Tocca **«Cambio»** sotto la squadra: scegli **chi esce** (toccandola sul campo, dove sta davvero, con numero e nome) e **chi entra** (dalla panchina; per le avversarie puoi scrivere un numero nuovo), poi leggi il cambio a parole e tocca **«Conferma cambio»**. Chi entra continua la rotazione al posto di chi è uscita e, se era una delle due sostituite dalla libero, ne prende il ruolo. Lo Scout conta i cambi del set (${SUBSTITUTIONS_PER_SET} al massimo nel 6 contro 6) e li mostra anche nel registro, dove si possono togliere. Per cambiare la **libero** c'è **«Cambia la libero»** nella stessa finestra: non è un cambio ufficiale, quindi non conta tra gli ${SUBSTITUTIONS_PER_SET}.`,
       },
       {
         type: "image",
         file: "formazione-cambio.png",
         caption: "La finestra del cambio.",
         legend: [
-          "Chi esce: le sei posizioni, con il numero di chi c'è (la libero compare dove sostituisce).",
+          "Chi esce: il campo, con numero e nome di chi c'è in ogni posizione (la libero compare dove sostituisce).",
           "Chi entra: la panchina.",
           "Conferma. Se il cambio non è regolare compare prima un avvertimento, ma puoi confermare lo stesso.",
         ],
@@ -586,8 +586,8 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "bullets",
         items: [
-          "A ogni nuovo set ogni squadra **riparte dalla formazione con cui aveva cominciato** il set prima, con la libero ricalcolata: non devi riscrivere niente se non cambi.",
-          "Per cambiare la formazione di partenza, scrivila dal pulsante **«Formazione»** **prima del primo punto** del set.",
+          "A ogni nuovo set si apre da sola la finestra **«Formazione del 2° set»** (e così via): è già scritta come l'hai preparata in **Partite** per quel set o, se manca, **come la formazione con cui aveva cominciato** il set prima, con la libero ricalcolata. Se non cambia niente tocca **«Conferma e comincia»**.",
+          "Per cambiarla correggi le posizioni prima di confermare: **«Come nel set precedente»** e **«Usa la formazione salvata»** riportano indietro. Il pulsante **«Formazione»** della striscia «In campo» la riapre quando vuoi.",
           "Se la scrivi **a set cominciato** è una correzione: sistema chi è in campo adesso (le rotazioni fatte restano) senza cambiare la formazione di partenza.",
           "**«Annulla ultimo»** toglie anche una formazione o un cambio appena fatti.",
         ],

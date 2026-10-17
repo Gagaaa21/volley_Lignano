@@ -365,10 +365,14 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
         cur = newSet(sets.length + 1, event.nextServer);
         sets.push(cur);
         beforeSubs = { us: null, opp: null };
-        // Il set dopo riparte dalla formazione di partenza (a meno che non se ne segni un'altra).
+        // Il set dopo riparte dalla formazione di partenza (a meno che non se ne segni un'altra), con la libero di adesso:
+        // se è stata cambiata durante il set, continua lei.
         for (const side of SIDES) {
           const start = starts[side];
-          if (start) courts[side] = refreshLibero({ ...start, liberoActiveFor: null }, 6, true, event.nextServer === side);
+          if (start) {
+            const libero = courts[side]?.liberoName || start.liberoName;
+            courts[side] = refreshLibero({ ...start, liberoName: libero, liberoActiveFor: null }, 6, true, event.nextServer === side);
+          }
           rotations[side] = 0;
         }
       }

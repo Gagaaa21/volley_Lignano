@@ -36,6 +36,7 @@ import { currentServer, defaultNextServer, deriveScout, isMatchDecided, setTarge
 import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { setLineupPending } from "@/lib/scout/court";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { ballOf } from "@/lib/scout/phases";
 import { summarizeScout } from "@/lib/scout/match";
@@ -44,7 +45,7 @@ import type { Category } from "@/lib/types";
 import { ScoutBallSide } from "./ScoutBallSide";
 import { ScoutCourtStrip } from "./ScoutCourtStrip";
 import { ScoutEntry } from "./ScoutEntry";
-import type { SavedScoutLineup } from "./ScoutLineupEditor";
+import { ScoutLineupSheet, type SavedScoutLineup } from "./ScoutLineupEditor";
 import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
@@ -277,6 +278,14 @@ export function ScoutClient({
   const inlineSetup = setupOpen && !hasPlay;
 
   const cur = view.current;
+  // La formazione ha la sua finestra: si apre da sola a ogni set nuovo (dal 2°, ognuno può cominciare con una formazione diversa),
+  // e dal pulsante «Formazione» in qualunque momento. Chiusa senza confermare, il set riparte da quella del set prima.
+  const [lineupOpen, setLineupOpen] = useState(false);
+  const [lineupSkipped, setLineupSkipped] = useState<number[]>([]);
+  const [nudgeHidden, setNudgeHidden] = useState(false);
+  const lineupCommit = useRef<(() => void) | null>(null);
+  const lineupAsked = !locked && !inlineSetup && cur !== null && !lineupSkipped.includes(cur.n) && setLineupPending(data.events, view);
+  const lineupSheet = !inlineSetup && cur !== null && (lineupOpen || lineupAsked);
   const canForceClose = !locked && cur !== null && cur.rallies.length > 0 && !suggestion;
   const setEnding = !locked && Boolean(suggestion);
   const canFinish = !locked && hasRallies;
@@ -311,6 +320,11 @@ export function ScoutClient({
     setClosingSet(false);
   }
 
+  function closeLineup() {
+    setLineupOpen(false);
+    if (cur) setLineupSkipped((list) => (list.includes(cur.n) ? list : [...list, cur.n]));
+  }
+
   function finish() {
     if (!window.confirm("Chiudere la partita adesso? Si può sempre riaprire.")) return;
     dispatch({ type: "finish" });
@@ -323,7 +337,20 @@ export function ScoutClient({
     else window.alert("Non sono riuscito a cancellare: controlla la connessione e riprova.");
   }
 
-  const setup = <ScoutSetup data={data} view={view} athletes={athletes} savedLineups={savedLineups} dispatch={dispatch} />;
+  const setup = <ScoutSetup data={data} view={view} athletes={athletes} savedLineups={savedLineups} dispatch={dispatch} lineupCommit={lineupCommit} />;
+  const setupInDialog = (
+    <ScoutSetup
+      data={data}
+      view={view}
+      athletes={athletes}
+      savedLineups={savedLineups}
+      dispatch={dispatch}
+      onOpenLineup={() => {
+        setSetupOpen(false);
+        setLineupOpen(true);
+      }}
+    />
+  );
   const boardEl = (
     <div data-tour="section-scout-board">
       <ScoutBoard
@@ -337,7 +364,7 @@ export function ScoutClient({
       />
     </div>
   );
-  const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setSetupOpen(true)} large={twoColumns} />;
+  const courtStrip = <ScoutCourtStrip data={data} view={view} locked={locked} dispatch={dispatch} onEditLineup={() => setLineupOpen(true)} large={twoColumns} />;
 
   return (
     <div
@@ -506,18 +533,44 @@ export function ScoutClient({
                   <p className="mt-0.5 text-sm text-muted-foreground">Scegli chi gioca e le regole della gara. Si può cambiare anche dopo.</p>
                 </div>
                 {setup}
-                <Button onClick={() => setSetupOpen(false)} data-scout-start data-tour="scout-start">
-                  Comincia a segnare i punti
-                </Button>
+                {/* Il pulsante per cominciare resta sempre in vista in fondo allo schermo: la preparazione è lunga. */}
+                <div className="sticky bottom-0 z-10 -mx-1 border-t border-border-subtle bg-background/95 px-1 py-3 backdrop-blur" data-scout-start-bar>
+                  <Button
+                    onClick={() => {
+                      // La formazione scritta (o quella preparata in Partite) e non ancora confermata si applica da sola: niente da rifare.
+                      lineupCommit.current?.();
+                      setSetupOpen(false);
+                    }}
+                    data-scout-start
+                    data-tour="scout-start"
+                  >
+                    Comincia a segnare i punti
+                  </Button>
+                </div>
               </section>
             )}
 
             {!inlineSetup && (
               <>
                 <div data-tour="section-scout-entry" className={cn(twoColumns ? "flex flex-1 flex-col gap-3 short:gap-2" : "space-y-3")}>
+                  {!locked && !followsLineup && data.roster.us.length >= 6 && !nudgeHidden && (
+                    <div
+                      className="flex items-center gap-2 rounded-xl border border-primary/25 bg-primary-soft/50 px-3 py-2 text-sm"
+                      data-scout-lineup-nudge
+                    >
+                      <Users className="h-4 w-4 shrink-0 text-primary" />
+                      <p className="min-w-0 flex-1 leading-snug text-foreground">Non segui la formazione: per ogni punto scegli tra tutte le giocatrici, non solo le sei in campo.</p>
+                      <Button size="xs" onClick={() => setLineupOpen(true)} data-scout-lineup-nudge-open>
+                        Imposta la formazione
+                      </Button>
+                      <Button variant="quiet" size="icon-sm" onClick={() => setNudgeHidden(true)} aria-label="Nascondi questo avviso" title="Nascondi">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                   {!locked && ball && <ScoutBallSide ball={ball} fullscreen={isFullscreen} />}
                   {/* La ricezione sta subito sotto la fascia della palla: una riga sola (la finestra si apre da sola quando battono loro). */}
-                  {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} paused={setEnding || closingSet} dispatch={dispatch} />}
+                  {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} paused={setEnding || closingSet || lineupSheet} dispatch={dispatch} />}
                   {!twoColumns && courtStrip}
                   {level === "completo" ? (
                     <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />
@@ -580,7 +633,7 @@ export function ScoutClient({
                     <Button
                       variant="outline"
                       size="xs"
-                      onClick={() => setSetupOpen(true)}
+                      onClick={() => setLineupOpen(true)}
                       title="Segna chi gioca nelle sei posizioni e la libero: rotazioni e cambi si seguono da soli"
                       data-scout-follow-lineup
                     >
@@ -656,7 +709,7 @@ export function ScoutClient({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            {setup}
+            {setupInDialog}
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <Button variant="danger-ghost" size="sm" onClick={() => void wipe()} data-scout-wipe>
                 Azzera lo scout
@@ -665,6 +718,10 @@ export function ScoutClient({
             </div>
           </div>
         </div>
+      )}
+
+      {lineupSheet && (
+        <ScoutLineupSheet data={data} view={view} athletes={athletes} saved={savedLineups} dispatch={dispatch} onClose={closeLineup} />
       )}
 
       {conflict && <ConflictDialog conflict={conflict} onResolve={resolveConflict} />}

@@ -100,7 +100,7 @@ async function prepare(page: Page, matchId: string, level: Level) {
   for (const [name, number] of ROSTER) await addPlayer(page, name, number);
 
   const card = page.locator("[data-scout-lineup]");
-  await expect(card).toContainText("Formazione in campo (facoltativa)");
+  await expect(card).toContainText("Formazione in campo");
   for (const [index, number] of US_START.entries()) await chooseNumber(card.locator(`[data-scout-lineup-cell="us-${index + 1}"]`), number);
   for (const [index, number] of OPP_START.entries()) await card.locator(`[data-scout-lineup-cell="opp-${index + 1}"]`).fill(number);
   await chooseNumber(card.locator("#scout-lineup-us-libero"), "1");
