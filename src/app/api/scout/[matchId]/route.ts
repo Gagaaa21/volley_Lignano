@@ -35,7 +35,15 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
   const body = await request.json().catch(() => null);
   const parsed = putSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Dati non validi." }, { status: 400, headers: NO_STORE });
+  if (!parsed.success) {
+    // Un rifiuto non deve restare un mistero: il motivo (dove e perché) va nei log del server e arriva alla pagina.
+    const reasons = parsed.error.issues.slice(0, 3).map((issue) => `${issue.path.join(".") || "richiesta"}: ${issue.message}`);
+    console.error(`[scout PUT ${matchId}] dati rifiutati:`, reasons.join(" | "));
+    return NextResponse.json(
+      { error: `Il server non accetta questi dati (${reasons.join("; ")}). I punti restano su questo dispositivo: scarica una copia.` },
+      { status: 400, headers: NO_STORE },
+    );
+  }
 
   const result = await withScoutStore(() =>
     access.repo.saveMatchScout(matchId, parsed.data.data, access.session.sub, parsed.data.baseVersion),

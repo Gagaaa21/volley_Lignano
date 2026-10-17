@@ -190,9 +190,26 @@ staff (Developer e Admin).
   errori e falli, andamento del punteggio e riepilogo di stagione; a livello
   Base non ci sono attacchi tentati né percentuali di attacco e ricezione
   (arrivano con i livelli superiori, vedi sotto). Il salvataggio
-  (`useScoutSession`) è automatico, tiene una copia nel telefono se cade la
-  rete e confronta la versione (`version`) per non sovrascrivere in silenzio
-  un altro dispositivo (409 dalla API `/api/scout/[matchId]`). Solo partite di
+  (`useScoutSession`) è automatico e non deve mai far perdere punti: lo stato è
+  in un solo posto (`createSessionStore`) letto da pagina e salvataggi; ogni
+  richiesta ha un limite di tempo (`SAVE_TIMEOUT_MS`, poi si interrompe e si
+  rifà) e dopo un rifiuto non ci si ferma; le modifiche non salvate stanno in
+  una copia nel telefono (solo finché non sono sul server). Ogni salvataggio
+  dichiara la versione (`version`) su cui si basa: se il server ne ha un'altra
+  (409 dalla API `/api/scout/[matchId]`) `reconcile` (`sync.ts`) guarda gli
+  scambi: se uno dei due ne ha solo di più (di solito la risposta si era
+  persa) o se sono di momenti diversi, le versioni si uniscono da sole (rosa
+  sempre unita, mai scambi doppi); si chiede (`ConflictDialog`) solo se due
+  persone hanno segnato cose diverse negli stessi momenti. Anche all'apertura
+  (`planStart`). Le versioni sostituite o scartate e una copia per ogni set
+  chiuso restano nel dispositivo (`archive.ts`, «Squadre e regole», poi «Copia
+  di sicurezza», `ScoutSafety.tsx`) e si ripristinano; lo scout si scarica e si
+  rimette come file (`backupFile.ts`). Se il salvataggio non va (senza rete,
+  server che non risponde da più di 20 secondi, sessione scaduta, dati
+  rifiutati: il motivo è nei log del server e nel messaggio) compare un avviso
+  con gli scambi non ancora salvati. Test: `unit/scout-sync.spec.ts`,
+  `unit/scout-archive.spec.ts`, `e2e/scout-salvataggio.spec.ts` (risposta
+  persa, richiesta appesa, conflitto, copie). Solo partite di
   U14/U15, non tornei né Minivolley. Un account nuovo ha già il permesso
   «Scout»; per gli Admin esistenti va spuntato dal Centro di controllo.
   - **Livelli**: `level` sta nel `settings` jsonb dello scout, quindi non serve

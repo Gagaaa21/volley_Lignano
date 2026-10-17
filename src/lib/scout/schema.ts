@@ -81,6 +81,8 @@ function uniqueIds(items: { id: string }[]): boolean {
 }
 
 export const MAX_SCOUT_EVENTS = 6000;
+/** Giocatrici per squadra a referto: molte più di quante ne servano, per non rifiutare mai una partita vera. */
+export const MAX_SCOUT_PLAYERS = 60;
 
 export const scoutDataSchema = z
   .object({
@@ -95,8 +97,9 @@ export const scoutDataSchema = z
       level: z.enum(SCOUT_LEVELS).default("base"),
     }),
     roster: z.object({
-      us: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
-      opp: z.array(playerSchema).max(30).refine(uniqueIds, { message: "Giocatrici duplicate." }),
+      // Larghi: una rosa o un elenco di maglie avversarie più lungo di 30 non deve far rifiutare il salvataggio di una partita intera.
+      us: z.array(playerSchema).max(MAX_SCOUT_PLAYERS).refine(uniqueIds, { message: "Giocatrici duplicate." }),
+      opp: z.array(playerSchema).max(MAX_SCOUT_PLAYERS).refine(uniqueIds, { message: "Giocatrici duplicate." }),
     }),
     events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema, timeoutSchema])).max(MAX_SCOUT_EVENTS),
     finished: z.boolean(),

@@ -5,7 +5,8 @@ import { parseJerseyNumbers, playerLabel, rallyText, shortName, sideLabel, sortP
 import { deriveScout } from "@/lib/scout/derive";
 import { isScoutable, summarizeScout } from "@/lib/scout/match";
 import { isScoutTableMissing } from "@/lib/scout/missing";
-import { backupKey, canonicalJson, decideStart, parseBackup, sameScout, scoutContent, type LocalBackup } from "@/lib/scout/sync";
+import { scoutDataSchema } from "@/lib/scout/schema";
+import { backupKey, canonicalJson, mergeRoster, parseBackup, planStart, prefixLength, reconcile, sameScout, scoutContent, type LocalBackup } from "@/lib/scout/sync";
 import type { MatchScout, ScoutData } from "@/lib/scout/types";
 import type { MatchInput } from "@/lib/types";
 
@@ -68,26 +69,181 @@ test.describe("copia nel telefono", () => {
   });
 });
 
+/** Una storia: lo scout di base più questi scambi (id e istante), tutti di chi attacca. */
+function history(base: ScoutData, tail: { id: string; at: number }[], actor: "us" | "opp" = "us"): ScoutData {
+  let data = base;
+  for (const { id, at } of tail) data = addRally(data, { actor, how: "attack", player: actor === "us" ? "a1" : null }, at, id);
+  return data;
+}
+
+test.describe("unire due versioni", () => {
+  const base = sample(2); // r0, r1: la parte comune
+
+  test("hanno gli stessi scambi: si tiene questo dispositivo, senza perdere nessuna giocatrice", () => {
+    const server = history(base, [{ id: "s0", at: T0 + 10_000 }]);
+    const mine = addPlayer(server, "us", { id: "a2", name: "Sara Rossi", number: "7", libero: false });
+    const verdict = reconcile(server, mine);
+    expect(verdict.kind).toBe("same");
+    if (verdict.kind === "conflict") return;
+    expect(verdict.data.roster.us.map((p) => p.id)).toEqual(["a1", "a2"]);
+    expect(verdict.data.events).toHaveLength(3);
+  });
+
+  test("questo dispositivo ha in più (il salvataggio era arrivato ma la risposta no): si tiene, non si chiede", () => {
+    const server = sample(3);
+    const mine = sample(6);
+    const verdict = reconcile(server, mine);
+    expect(verdict.kind).toBe("mine");
+    if (verdict.kind === "conflict") return;
+    expect(verdict.data.events).toHaveLength(6);
+    expect(prefixLength(server.events, mine.events)).toBe(3);
+  });
+
+  test("il server ha in più (questo dispositivo era rimasto indietro): si adotta il server, niente di proprio da perdere", () => {
+    const verdict = reconcile(sample(6), sample(3));
+    expect(verdict.kind).toBe("server");
+    if (verdict.kind === "conflict") return;
+    expect(verdict.data.events).toHaveLength(6);
+  });
+
+  test("cose diverse ma di momenti diversi (due dispositivi uno dopo l'altro): si uniscono, in ordine di tempo", () => {
+    const server = history(base, [{ id: "s0", at: T0 + 10_000 }, { id: "s1", at: T0 + 11_000 }]);
+    const mine = history(base, [{ id: "m0", at: T0 + 20_000 }, { id: "m1", at: T0 + 21_000 }], "opp");
+    const verdict = reconcile(server, mine);
+    expect(verdict.kind).toBe("merged");
+    if (verdict.kind === "conflict") return;
+    expect(verdict.data.events.map((e) => e.id)).toEqual(["r0", "r1", "s0", "s1", "m0", "m1"]);
+    // Al contrario (è questo dispositivo ad aver segnato prima) l'ordine segue il tempo, non chi è «mio».
+    const reversed = reconcile(mine, server);
+    expect(reversed.kind).toBe("merged");
+    if (reversed.kind === "conflict") return;
+    expect(reversed.data.events.map((e) => e.id)).toEqual(["r0", "r1", "s0", "s1", "m0", "m1"]);
+    // Il risultato è uno scout valido: partita e punteggio si ricavano.
+    expect(deriveScout(verdict.data).rallies).toHaveLength(6);
+  });
+
+  test("cose diverse negli stessi momenti (due persone che segnano insieme): si chiede", () => {
+    const server = history(base, [{ id: "s0", at: T0 + 10_000 }, { id: "s1", at: T0 + 12_000 }]);
+    const mine = history(base, [{ id: "m0", at: T0 + 11_000 }, { id: "m1", at: T0 + 13_000 }], "opp");
+    expect(reconcile(server, mine).kind).toBe("conflict");
+  });
+
+  test("uno scambio corretto da una parte (stesso id, contenuto diverso) non passa inosservato: si chiede", () => {
+    const original = history(base, [{ id: "s0", at: T0 + 10_000 }]);
+    const corrected = scoutContent({ ...original, events: original.events.map((e) => (e.id === "s0" && e.type === "rally" ? { ...e, how: "block" as const } : e)) });
+    expect(prefixLength(original.events, corrected.events)).toBe(2);
+    expect(reconcile(original, corrected).kind).toBe("conflict");
+  });
+
+  test("la rosa si unisce sempre", () => {
+    const a = { us: [{ id: "a1", name: "Giulia", number: "4", libero: false }], opp: [] };
+    const b = { us: [{ id: "a2", name: "Sara", number: "7", libero: false }, { id: "a1", name: "Giulia B.", number: "4", libero: false }], opp: [opponentPlayer("3")] };
+    const merged = mergeRoster(a, b);
+    expect(merged.us.map((p) => p.id)).toEqual(["a1", "a2"]);
+    expect(merged.us[0].name).toBe("Giulia");
+    expect(merged.opp.map((p) => p.id)).toEqual(["opp-3"]);
+  });
+});
+
+test.describe("unire due versioni: nessuno scambio si perde mai senza chiedere", () => {
+  /** Un generatore di numeri casuali ripetibile (stessa serie a ogni esecuzione). */
+  function random(seed: number) {
+    let x = seed;
+    return () => {
+      x = (x * 1664525 + 1013904223) % 4294967296;
+      return x / 4294967296;
+    };
+  }
+
+  test("qualunque coppia di storie: se non si chiede, tutti gli scambi di entrambe ci sono e lo scout resta valido", () => {
+    const rnd = random(20261017);
+    let asked = 0;
+    let kept = 0;
+    for (let round = 0; round < 400; round++) {
+      const common = Math.floor(rnd() * 5);
+      const base = sample(common);
+      const makeTail = (prefix: string, count: number, from: number) =>
+        Array.from({ length: count }, (_, i) => ({
+          // Ogni tanto uno scambio ha lo stesso id dell'altra storia: scritto in due modi.
+          id: rnd() < 0.15 ? `shared-${i}` : `${prefix}${i}`,
+          at: T0 + from + i * 1000 + Math.floor(rnd() * 400),
+        }));
+      const serverTail = makeTail("s", Math.floor(rnd() * 4), 100_000 + Math.floor(rnd() * 8) * 1000);
+      const mineTail = makeTail("m", Math.floor(rnd() * 4), 100_000 + Math.floor(rnd() * 8) * 1000);
+      const server = history(base, serverTail);
+      const mine = history(base, mineTail, rnd() < 0.5 ? "us" : "opp");
+      const verdict = reconcile(server, mine);
+      if (verdict.kind === "conflict") {
+        asked++;
+        continue;
+      }
+      kept++;
+      expect(scoutDataSchema.safeParse(verdict.data).success, `round ${round}: ${verdict.kind}`).toBe(true);
+      const ids = new Set(verdict.data.events.map((e) => e.id));
+      const wanted = verdict.kind === "merged" ? [...server.events, ...mine.events] : verdict.kind === "mine" ? mine.events : verdict.kind === "server" ? server.events : [...mine.events];
+      for (const event of wanted) expect(ids.has(event.id), `round ${round}: manca ${event.id} (${verdict.kind})`).toBe(true);
+      // Quello che manca in un'esito «mio»/«server» è solo ciò che l'altra versione non aveva in più.
+      if (verdict.kind === "mine") expect(prefixLength(server.events, verdict.data.events)).toBe(server.events.length);
+      if (verdict.kind === "server") expect(prefixLength(mine.events, verdict.data.events)).toBe(mine.events.length);
+    }
+    // Il test prova davvero i due casi.
+    expect(asked).toBeGreaterThan(0);
+    expect(kept).toBeGreaterThan(0);
+  });
+});
+
 test.describe("da quale versione si riparte", () => {
   const server = saved(sample(3), 5);
 
   test("senza modifiche in sospeso conta il server (o si parte da zero)", () => {
-    expect(decideStart(null, null)).toBe("new");
-    expect(decideStart(server, null)).toBe("server");
-    expect(decideStart(server, backup(sample(6), 5, false))).toBe("server");
-    expect(decideStart(null, backup(sample(6), 5, false))).toBe("new");
+    expect(planStart(null, null)).toEqual({ kind: "new" });
+    expect(planStart(server, null)).toEqual({ kind: "server" });
+    expect(planStart(server, backup(sample(6), 5, false))).toEqual({ kind: "server" });
+    expect(planStart(null, backup(sample(6), 5, false))).toEqual({ kind: "new" });
   });
 
   test("con modifiche in sospeso si riparte dalla copia se il server non è cambiato", () => {
-    expect(decideStart(server, backup(sample(6), 5, true))).toBe("local");
-    expect(decideStart(null, backup(sample(6), 5, true))).toBe("local");
-    expect(decideStart(null, backup(sample(6), null, true))).toBe("local");
+    for (const [srv, bak] of [
+      [server, backup(sample(6), 5, true)],
+      [null, backup(sample(6), 5, true)],
+      [null, backup(sample(6), null, true)],
+    ] as const) {
+      const plan = planStart(srv, bak);
+      expect(plan.kind).toBe("local");
+      if (plan.kind === "local") {
+        expect(plan.merged).toBe(false);
+        expect(plan.data.events).toHaveLength(6);
+      }
+    }
   });
 
-  test("se il server è cambiato nel frattempo si chiede; se è già uguale non c'è nulla da scegliere", () => {
-    expect(decideStart(server, backup(sample(6), 4, true))).toBe("conflict");
-    expect(decideStart(server, backup(sample(6), null, true))).toBe("conflict");
-    expect(decideStart(server, backup(sample(3), 4, true))).toBe("server");
+  test("se il server è cambiato nel frattempo ma ha solo meno cose (risposta persa), si riparte dalla copia senza chiedere", () => {
+    // Il server è alla versione 5 con 3 scambi; la copia ne ha 6 e si basava sulla 4: il 4° salvataggio era arrivato, la risposta no.
+    const plan = planStart(server, backup(sample(6), 4, true));
+    expect(plan.kind).toBe("local");
+    if (plan.kind === "local") expect(plan.data.events).toHaveLength(6);
+    // Anche se la copia non sa su che versione si basava.
+    expect(planStart(server, backup(sample(6), null, true)).kind).toBe("local");
+  });
+
+  test("se il server ha più della copia, conta il server (la copia era rimasta indietro); se è già uguale non c'è nulla da scegliere", () => {
+    expect(planStart(saved(sample(6), 7), backup(sample(3), 4, true))).toEqual({ kind: "server" });
+    expect(planStart(server, backup(sample(3), 4, true))).toEqual({ kind: "server" });
+  });
+
+  test("cose di momenti diversi si uniscono; solo cose diverse negli stessi momenti chiedono di scegliere", () => {
+    const base = sample(2);
+    const remote = saved(history(base, [{ id: "s0", at: T0 + 10_000 }]), 8);
+    const later = history(base, [{ id: "m0", at: T0 + 20_000 }], "opp");
+    const merged = planStart(remote, backup(later, 7, true));
+    expect(merged.kind).toBe("local");
+    if (merged.kind === "local") {
+      expect(merged.merged).toBe(true);
+      expect(merged.data.events.map((e) => e.id)).toEqual(["r0", "r1", "s0", "m0"]);
+    }
+    const overlapping = history(base, [{ id: "m0", at: T0 + 10_500 }], "opp");
+    const remoteLate = saved(history(base, [{ id: "s0", at: T0 + 10_000 }, { id: "s1", at: T0 + 11_000 }]), 8);
+    expect(planStart(remoteLate, backup(overlapping, 7, true))).toEqual({ kind: "conflict" });
   });
 });
 

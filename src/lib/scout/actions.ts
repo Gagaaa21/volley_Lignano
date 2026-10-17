@@ -323,9 +323,14 @@ export function addTimeout(data: ScoutData, side: ScoutSide, at: number, id: str
 
 // ── rosa ────────────────────────────────────────────────────────────────
 
+/** La lunghezza massima del nome di una giocatrice a referto (come nel salvataggio, vedi schema.ts). */
+const MAX_PLAYER_NAME = 60;
+
 export function addPlayer(data: ScoutData, side: ScoutSide, player: ScoutPlayer): ScoutData {
   if (data.roster[side].some((p) => p.id === player.id)) return data;
-  return { ...data, roster: { ...data.roster, [side]: [...data.roster[side], player] } };
+  // Un nome troppo lungo si accorcia: non deve far rifiutare il salvataggio di tutta la partita.
+  const named = player.name.length > MAX_PLAYER_NAME ? { ...player, name: player.name.slice(0, MAX_PLAYER_NAME) } : player;
+  return { ...data, roster: { ...data.roster, [side]: [...data.roster[side], named] } };
 }
 
 export function updatePlayer(
@@ -334,9 +339,10 @@ export function updatePlayer(
   id: string,
   patch: Partial<Pick<ScoutPlayer, "name" | "number" | "libero">>,
 ): ScoutData {
+  const safe = patch.name !== undefined && patch.name.length > MAX_PLAYER_NAME ? { ...patch, name: patch.name.slice(0, MAX_PLAYER_NAME) } : patch;
   return {
     ...data,
-    roster: { ...data.roster, [side]: data.roster[side].map((p) => (p.id === id ? { ...p, ...patch } : p)) },
+    roster: { ...data.roster, [side]: data.roster[side].map((p) => (p.id === id ? { ...p, ...safe } : p)) },
   };
 }
 

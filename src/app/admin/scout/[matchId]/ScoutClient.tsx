@@ -39,7 +39,6 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 import { setLineupPending } from "@/lib/scout/court";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { ballOf } from "@/lib/scout/phases";
-import { summarizeScout } from "@/lib/scout/match";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
 import type { Category } from "@/lib/types";
 import { ScoutBallSide } from "./ScoutBallSide";
@@ -48,6 +47,7 @@ import { ScoutEntry } from "./ScoutEntry";
 import { ScoutLineupSheet, type SavedScoutLineup } from "./ScoutLineupEditor";
 import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
+import { ScoutBackups, UnsavedBanner, downloadScoutCopy, summaryLine } from "./ScoutSafety";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
 import { ScoutTouchEntry } from "./ScoutTouchEntry";
 import { useScoutSession, type ScoutConflict, type SyncStatus } from "./useScoutSession";
@@ -73,7 +73,7 @@ const SYNC_META: Record<SyncStatus, { text: string; tone: BadgeTone }> = {
   error: { text: "Non salvato", tone: "danger" },
 };
 
-function SyncBadge({ status, onRetry }: { status: SyncStatus; onRetry: () => void }) {
+function SyncBadge({ status }: { status: SyncStatus }) {
   const meta = SYNC_META[status];
   const Icon = status === "saved" ? Check : status === "saving" ? Loader2 : status === "offline" ? CloudOff : TriangleAlert;
   return (
@@ -82,20 +82,8 @@ function SyncBadge({ status, onRetry }: { status: SyncStatus; onRetry: () => voi
         <Icon className={cn("h-3.5 w-3.5", status === "saving" && "animate-spin")} />
         {meta.text}
       </Badge>
-      {(status === "offline" || status === "error") && (
-        <Button variant="quiet" size="xs" onClick={onRetry}>
-          Riprova
-        </Button>
-      )}
     </div>
   );
-}
-
-function summaryLine(scout: ScoutData | null): string {
-  const s = summarizeScout(scout);
-  if (s.state === "none") return "nessun punto segnato";
-  const sets = s.sets.map((score) => `${score.us}–${score.opp}`).join(", ");
-  return `${s.rallies} scambi · set ${s.setsWon.us}–${s.setsWon.opp} (${sets})`;
 }
 
 function ConflictDialog({
@@ -128,8 +116,8 @@ function ConflictDialog({
           Questa partita è stata modificata altrove
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Un altro dispositivo (o un&apos;altra scheda) ha salvato lo scout di questa partita mentre lo modificavi qui. Scegli quale versione tenere: l&apos;altra
-          verrà persa.
+          Un altro dispositivo (o un&apos;altra scheda) ha segnato cose diverse nello stesso momento in cui le segnavi tu. Scegli quale versione tenere: l&apos;altra
+          non va persa, resta nelle copie di questo dispositivo e si ripristina da «Squadre e regole» → «Copia di sicurezza».
         </p>
         <dl className="mt-4 space-y-2.5 text-sm">
           <div className="rounded-xl bg-surface-muted px-3.5 py-2.5">
@@ -248,12 +236,14 @@ export function ScoutClient({
   /** Apre la guida passo passo appena la pagina è pronta (link «Avvia la guida» dell'elenco partite). */
   autoGuide?: boolean;
 }) {
-  const { data, dispatch, status, message, conflict, resolveConflict, reset, retryNow } = useScoutSession({
+  const { data, saved, dirty, dispatch, status, message, conflict, resolveConflict, reset, retryNow, archive, restore } = useScoutSession({
     matchId: match.id,
     initial,
     blank,
   });
   const view = useMemo(() => deriveScout(data), [data]);
+  // Quanti scambi ci sono qui e non sono ancora sul server (serve all'avviso quando il salvataggio non va).
+  const unsavedRallies = useMemo(() => (dirty ? Math.max(0, view.rallies.length - deriveScout(saved).rallies.length) : 0), [dirty, view, saved]);
   const level = levelOf(data.settings);
   const suggestion = suggestedSetEnd(view, data.settings);
   const locked = view.decided || data.finished;
@@ -331,7 +321,14 @@ export function ScoutClient({
   }
 
   async function wipe() {
-    if (!window.confirm("Cancellare tutto lo scout di questa partita (giocatrici, numeri e tutti gli scambi)? Non si può annullare.")) return;
+    const played = view.sets.filter((set) => set.rallies.length > 0).length;
+    const total = `${view.rallies.length} ${view.rallies.length === 1 ? "scambio" : "scambi"} in ${played} set`;
+    if (
+      !window.confirm(
+        `Cancellare tutto lo scout di questa partita (${total}, giocatrici e numeri)? Dal sito sparisce; su questo dispositivo ne resta una copia in «Copia di sicurezza».`,
+      )
+    )
+      return;
     const ok = await reset();
     if (ok) setSetupOpen(true);
     else window.alert("Non sono riuscito a cancellare: controlla la connessione e riprova.");
@@ -420,7 +417,7 @@ export function ScoutClient({
                   Live sul sito
                 </Badge>
               )}
-              <SyncBadge status={status} onRetry={retryNow} />
+              <SyncBadge status={status} />
               <a
                 href="/api/scout/manuale"
                 download
@@ -467,20 +464,14 @@ export function ScoutClient({
           </div>
         </header>
 
-        {(status === "offline" || status === "denied" || status === "error") && (
-          <div
-            role="status"
-            className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground"
-            data-scout-sync-message
-          >
-            <CloudOff className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-            <p>
-              {status === "offline"
-                ? "Non riesco a collegarmi. Continua pure a segnare: i punti restano su questo dispositivo e partono da soli appena torna la rete."
-                : message}
-            </p>
-          </div>
-        )}
+        <UnsavedBanner
+          status={status}
+          dirty={dirty}
+          message={message}
+          unsavedRallies={unsavedRallies}
+          onRetry={retryNow}
+          onDownload={() => downloadScoutCopy(match.id, match.title, data)}
+        />
 
         {/* Sul telefono e fuori dallo schermo intero è una sola colonna (le fasce sono «contents»); a schermo intero e su
          * schermi larghi diventano due colonne che scorrono per conto loro. */}
@@ -533,6 +524,15 @@ export function ScoutClient({
                   <p className="mt-0.5 text-sm text-muted-foreground">Scegli chi gioca e le regole della gara. Si può cambiare anche dopo.</p>
                 </div>
                 {setup}
+                {archive.length > 0 && (
+                  <ScoutBackups
+                    matchId={match.id}
+                    archive={archive}
+                    locked={Boolean(conflict)}
+                    onDownload={() => downloadScoutCopy(match.id, match.title, data)}
+                    onRestore={restore}
+                  />
+                )}
                 {/* Il pulsante per cominciare resta sempre in vista in fondo allo schermo: la preparazione è lunga. */}
                 <div className="sticky bottom-0 z-10 -mx-1 border-t border-border-subtle bg-background/95 px-1 py-3 backdrop-blur" data-scout-start-bar>
                   <Button
@@ -710,6 +710,15 @@ export function ScoutClient({
               </Button>
             </div>
             {setupInDialog}
+            <div className="mt-5">
+              <ScoutBackups
+                matchId={match.id}
+                archive={archive}
+                locked={Boolean(conflict)}
+                onDownload={() => downloadScoutCopy(match.id, match.title, data)}
+                onRestore={restore}
+              />
+            </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <Button variant="danger-ghost" size="sm" onClick={() => void wipe()} data-scout-wipe>
                 Azzera lo scout

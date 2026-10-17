@@ -1173,7 +1173,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
   {
     id: "imprevisti",
     title: "Se qualcosa va storto",
-    summary: "Rete assente, due telefoni, pagina chiusa per sbaglio: non perdi niente.",
+    summary: "Rete assente, server che non risponde, due telefoni, pagina chiusa per sbaglio: non perdi niente.",
     blocks: [
       {
         type: "p",
@@ -1189,16 +1189,24 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         rows: [
           ["Salvato", "Tutto è al sicuro sul server.", "Niente."],
           ["Salvataggio...", "Sta partendo l'ultimo punto.", "Aspetta un attimo."],
-          ["Senza rete", "Internet non c'è: i punti restano sul dispositivo.", "Continua a segnare e non chiudere la scheda. Partono da soli quando torna la rete (o tocca «Riprova»)."],
-          ["Da risolvere", "Un altro dispositivo ha salvato la stessa partita.", "Scegli quale versione tenere (vedi sotto)."],
-          ["Non salvato", "La sessione è scaduta o l'accesso è stato tolto.", "Accedi di nuovo: le modifiche restano sul dispositivo."],
+          ["Senza rete", "Internet non c'è: i punti restano sul dispositivo.", "Continua a segnare e non chiudere la scheda. Partono da soli quando torna la rete (o tocca «Riprova adesso»)."],
+          ["Da risolvere", "Due dispositivi hanno segnato cose diverse negli stessi momenti.", "Scegli quale versione tenere (vedi sotto): l'altra resta nelle copie."],
+          ["Non salvato", "La sessione è scaduta o l'accesso è stato tolto.", "Accedi di nuovo (anche da un'altra scheda): le modifiche restano sul dispositivo e partono da sole."],
         ],
         keepTogether: true,
+      },
+      {
+        type: "p",
+        text: "Se il salvataggio non va, sopra i pulsanti compare un **avviso giallo** che dice quanti scambi sono ancora **solo su questo dispositivo**. Compare anche quando il server non risponde da più di venti secondi, anche senza errori. Non chiudere la pagina e non azzerare lo scout finché non torna **«Salvato»**. Intanto puoi toccare **«Riprova adesso»** o **«Scarica una copia»**: è un file con tutta la partita, al sicuro fuori dal sito.",
+      },
+      {
+        type: "p",
+        text: "Se una richiesta resta appesa, lo Scout la interrompe da solo dopo una ventina di secondi e riprova. Se il server aveva già ricevuto i punti ma la risposta si è persa, non devi fare niente: al tentativo dopo lo Scout se ne accorge e va avanti.",
       },
       { type: "sub", title: "Se due dispositivi toccano la stessa partita" },
       {
         type: "p",
-        text: "Lo Scout non sovrascrive mai in silenzio. Se un altro telefono (o un'altra scheda) ha salvato nel frattempo, compare la finestra **«Questa partita è stata modificata altrove»**, con il riepilogo delle due versioni. Scegli **«Usa quella salvata»** (si perde quella di questo dispositivo) oppure **«Tieni la mia»** (si perde l'altra).",
+        text: "Se un altro telefono (o un'altra scheda) ha salvato nel frattempo, lo Scout guarda cosa è cambiato. Se uno dei due ha solo scambi **in più** dell'altro, o se hanno segnato in **momenti diversi** (uno dopo l'altro), le due versioni **si uniscono da sole** e non ti chiede niente. Solo se hanno segnato **cose diverse negli stessi momenti** compare la finestra **«Questa partita è stata modificata altrove»**, con il riepilogo delle due versioni: scegli **«Usa quella salvata»** oppure **«Tieni la mia»**. La versione che non scegli **non va persa**: resta nelle copie di questo dispositivo.",
       },
       {
         type: "image",
@@ -1211,10 +1219,20 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         kind: "tip",
         text: "Il modo migliore per evitare il problema: **un solo dispositivo segna**. Un secondo telefono usalo solo per guardare il tabellino.",
       },
+      { type: "sub", title: "La copia di sicurezza" },
+      {
+        type: "p",
+        text: "Il dispositivo mette da parte da solo una copia dello scout **a ogni set chiuso** e **ogni volta che una versione viene sostituita o scartata** (una scelta nella finestra «modificata altrove», un'unione, un ripristino, un azzeramento). Le trovi in **«Squadre e regole», poi «Copia di sicurezza»**, con data e riepilogo, e le rimetti con **«Ripristina»**: quello che c'era prima resta a sua volta tra le copie. Lì c'è anche **«Scarica una copia»** (un file) e **«Ripristina da file»** per rimetterlo, anche su un altro dispositivo.",
+      },
+      {
+        type: "callout",
+        kind: "tip",
+        text: "Hai azzerato lo scout o scelto la versione sbagliata? Apri **«Squadre e regole», poi «Copia di sicurezza»** dallo **stesso dispositivo** e ripristina la copia. Non cancellare i dati del sito dal browser prima di averlo fatto.",
+      },
       { type: "sub", title: "Se la pagina si chiude o il telefono si spegne" },
       {
         type: "p",
-        text: "Riapri lo Scout e tocca **«Continua»** sulla partita. Quello che era già salvato c'è; le modifiche rimaste a metà sono conservate nel telefono e vengono recuperate in automatico. Se non coincidono con quelle del server compare la stessa finestra di scelta. Mentre la partita è in corso lo schermo **resta acceso da solo** (dove il telefono lo permette), così non devi riattivarlo a ogni pausa.",
+        text: "Riapri lo Scout e tocca **«Continua»** sulla partita. Quello che era già salvato c'è; le modifiche rimaste a metà sono conservate nel telefono e vengono recuperate in automatico, e se nel frattempo il server ha salvato qualcosa le due versioni si uniscono. Solo se hanno segnato cose diverse negli stessi momenti compare la finestra di scelta. Mentre la partita è in corso lo schermo **resta acceso da solo** (dove il telefono lo permette), così non devi riattivarlo a ogni pausa.",
       },
     ],
   },
@@ -1504,7 +1522,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Non conosco i numeri dell'avversaria." },
       { type: "p", text: "Non li scrivere in anticipo: quando segni un punto o un tocco che riguarda una loro giocatrice, scrivi il numero nella casella «Altro numero di maglia». Se proprio non lo vedi, tocca «Non so»." },
       { type: "sub", title: "Posso segnare con due telefoni insieme?" },
-      { type: "p", text: "È meglio di no: lo Scout si accorge del conflitto e ti chiede quale versione tenere, ma una delle due va persa. Segna con un solo dispositivo; gli altri guardano il tabellino." },
+      { type: "p", text: "È meglio di no. Se segnano in momenti diversi le due versioni si uniscono da sole; se segnano le stesse cose lo Scout ti chiede quale versione tenere (l'altra resta nelle copie di sicurezza, ma gli scambi doppi vanno puliti a mano). Segna con un solo dispositivo; gli altri guardano il tabellino." },
       { type: "sub", title: "Posso usare lo Scout e il Live score insieme?" },
       { type: "p", text: "Sì, sono strumenti indipendenti, ma conviene usarne uno alla volta per partita. Se hanno acceso tutti e due il punteggio sul sito, vale quello aggiornato per ultimo." },
       { type: "sub", title: "Chi vede il tabellino?" },
@@ -1581,7 +1599,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "callout",
         kind: "warning",
         title: "Fine set e senza rete",
-        text: "A fine set scegli chi batte per primo nel set dopo e tocca **Chiudi il set**. Senza rete continua a segnare e non chiudere la scheda: i punti partono da soli quando torna internet (la targhetta in alto torna a «Salvato»).",
+        text: "A fine set scegli chi batte per primo nel set dopo e tocca **Chiudi il set**. Senza rete continua a segnare e non chiudere la scheda: i punti partono da soli quando torna internet (la targhetta in alto torna a «Salvato»). Ogni set chiuso lascia una copia nel dispositivo («Squadre e regole», poi «Copia di sicurezza»).",
       },
       {
         type: "table",
