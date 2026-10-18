@@ -37,8 +37,32 @@ test.describe("punteggio live dallo scout", () => {
     expect(live(play(base(), 5, 3))).toBeNull();
   });
 
-  test("acceso ma senza punti: non compare ancora", () => {
-    expect(live(updateSettings(base(), { publicLive: true }))).toBeNull();
+  test("acceso ma senza punti: partita «non iniziata» a 0–0, senza battuta né time-out", () => {
+    const result = live(updateSettings(base(), { publicLive: true }));
+    expect(result).toEqual({
+      team: "u14u15",
+      category: "U15",
+      home: expect.objectContaining({ name: "Volley Lignano", score: 0, sets: 0 }),
+      away: expect.objectContaining({ name: "Pol. Esempio", score: 0, sets: 0 }),
+      serving: null,
+      sets: [],
+      timeouts: { home: 0, away: 0 },
+      finished: false,
+      notStarted: true,
+      updatedAt: "2026-10-17T09:30:00.000Z",
+    });
+    // Appena c'è un punto la partita è cominciata e la marca non c'è più.
+    expect(live(play(updateSettings(base(), { publicLive: true }), 1, 0))).not.toHaveProperty("notStarted");
+  });
+
+  test("spento, o chiuso a mano senza nemmeno un punto: niente", () => {
+    expect(live(base())).toBeNull();
+    expect(live({ ...updateSettings(base(), { publicLive: true }), finished: true })).toBeNull();
+  });
+
+  test("senza nome dell'avversaria anche la partita non iniziata scrive «Avversaria»", () => {
+    const data = updateSettings(base(), { publicLive: true });
+    expect(toPublicScoutScore({ ...data, updatedAt: "2026-10-17T09:30:00.000Z" }, { ...MATCH, opponent: " " })?.away.name).toBe("Avversaria");
   });
 
   test("acceso: squadre, punti del set, set vinti e chi batte", () => {
@@ -214,6 +238,19 @@ test.describe("punteggio live: Scout o Live score", () => {
     const recent = score("2026-10-17T09:05:00.000Z", "recente");
     expect(latestPublicLive(old, recent)?.home.name).toBe("recente");
     expect(latestPublicLive(recent, old)?.home.name).toBe("recente");
+  });
+
+  test("una partita non ancora iniziata (0–0) non ne copre mai una in corso, anche se è più recente", () => {
+    const running = score("2026-10-17T09:00:00.000Z", "in corso");
+    const waiting = { ...score("2026-10-17T09:30:00.000Z", "in attesa"), notStarted: true as const };
+    expect(latestPublicLive(running, waiting)?.home.name).toBe("in corso");
+    expect(latestPublicLive(waiting, running)?.home.name).toBe("in corso");
+    // Da sola, invece, vale.
+    expect(latestPublicLive(waiting, null)).toBe(waiting);
+    expect(latestPublicLive(null, waiting)).toBe(waiting);
+    // Due non iniziate: l'ultima.
+    const earlier = { ...waiting, updatedAt: "2026-10-17T09:10:00.000Z", home: { ...waiting.home, name: "prima" } };
+    expect(latestPublicLive(earlier, waiting)?.home.name).toBe("in attesa");
   });
 
   test("se ce n'è uno solo vale quello, se non ce n'è nessuno niente", () => {

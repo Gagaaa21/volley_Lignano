@@ -11,21 +11,22 @@ import { saveLiveStreamAction, type DirettaState } from "./diretta-actions";
 const initialState: DirettaState = {};
 const NAME_HINTS = ["Campo", "Dietro", "Panchina"];
 
-function CopyLinkButton() {
+/** Copia negli appunti un indirizzo di questo sito: la pagina dei genitori o la grafica da mettere in Streamlabs / OBS. */
+function CopyAddressButton({ path, label, kind }: { path: string; label: string; kind: "parents" | "graphic" }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(new URL("/diretta", window.location.origin).href);
+      await navigator.clipboard.writeText(new URL(path, window.location.origin).href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Appunti non disponibili: il link resta leggibile qui accanto.
+      // Appunti non disponibili: l'indirizzo si legge nella guida.
     }
   }
   return (
-    <Button type="button" variant="outline" onClick={copy} data-diretta-copy>
+    <Button type="button" variant="outline" onClick={copy} {...(kind === "parents" ? { "data-diretta-copy": true } : { "data-diretta-copy-graphic": true })}>
       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {copied ? "Copiato" : "Copia il link per i genitori"}
+      {copied ? "Copiato" : label}
     </Button>
   );
 }
@@ -108,7 +109,7 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
           <Button type="submit" name="intent" value="clear" variant="outline" disabled={pending} data-diretta-clear>
             Svuota
           </Button>
-          <CopyLinkButton />
+          <CopyAddressButton path="/diretta" label="Copia il link per i genitori" kind="parents" />
           <a
             href="/diretta"
             target="_blank"
@@ -119,6 +120,13 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             <ExternalLink className="h-4 w-4" />
             Apri la pagina dei genitori
           </a>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-muted/60 px-3.5 py-2.5" data-diretta-computer>
+          <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">
+            Dal computer con Streamlabs Desktop (o OBS) la grafica entra nel video: aggiungi una «Browser Source» con questo indirizzo, 1920×1080, e ai genitori
+            mandi direttamente il link di YouTube. I passi sono nella Guida.
+          </p>
+          <CopyAddressButton path="/diretta/grafica" label="Copia l'indirizzo della grafica" kind="graphic" />
         </div>
         {state.error && (
           <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5" data-diretta-error>

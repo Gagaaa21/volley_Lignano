@@ -708,6 +708,9 @@ export interface PublicLiveScore {
   /** Chi ha in mano il punto che chiude il set («set») o la partita («match»); assente negli altri momenti e nei dati
    * di prima di questo campo. Lo usa la grafica della diretta video (SET POINT / MATCH POINT). */
   point?: { side: "home" | "away"; kind: "set" | "match" } | null;
+  /** Punteggio live acceso ma ancora nessun punto: 0–0. Solo la grafica della diretta video lo riceve (con `?prima=1`), per
+   * far comparire la barra appena si accende il live; il banner del sito non lo vede mai. Assente quando la partita è cominciata. */
+  notStarted?: true;
   /** Ultimo salvataggio del tabellone (ISO). */
   updatedAt: string;
 }

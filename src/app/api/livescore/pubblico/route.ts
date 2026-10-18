@@ -14,6 +14,12 @@ import type { PublicLiveScore } from "@/lib/types";
  * toPublicLiveScore e toPublicScoutScore). Se sono accesi entrambi vale quello
  * aggiornato per ultimo.
  *
+ * Con `?prima=1` (la grafica della diretta video, vedi /diretta/grafica) risponde
+ * anche la partita dello Scout con il live acceso ma ancora senza punti, a 0–0
+ * (`notStarted`): così la barra compare appena si accende il live. Senza il
+ * parametro, come per il banner del sito, quella partita non c'è: il riquadro
+ * compare dal primo punto.
+ *
  * Il punteggio dello Scout si legge dalla copia compatta che lo Scout aggiorna a
  * ogni salvataggio (publicSnapshot.ts): poche centinaia di byte, invece
  * dell'intero scout. Se la copia non c'è, o non dice «in diretta», si ripiega
@@ -27,7 +33,8 @@ import type { PublicLiveScore } from "@/lib/types";
  * un giro di ritardo. Legge sempre l'archivio vero, mai quello della modalità
  * prova.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const withNotStarted = new URL(request.url).searchParams.get("prima") === "1";
   let fromLiveScore: PublicLiveScore | null = null;
   let fromScout: PublicLiveScore | null = null;
   try {
@@ -67,8 +74,9 @@ export async function GET() {
   } catch (error) {
     console.error("[livescore] diretta pubblica non disponibile:", error);
   }
+  const live = latestPublicLive(fromLiveScore, fromScout);
   return Response.json(
-    { live: latestPublicLive(fromLiveScore, fromScout) },
+    { live: live?.notStarted && !withNotStarted ? null : live },
     {
       headers: {
         "Cache-Control": "no-store",

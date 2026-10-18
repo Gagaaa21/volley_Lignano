@@ -288,8 +288,9 @@ staff (Developer e Admin).
     del salvataggio (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
     `live/…`, `embed/…`, accetta solo identificativi di 11 caratteri, scade dopo 12 ore).
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
-    anche da mettere in OBS come «Sorgente browser» 1920×1080. Legge `/api/livescore/pubblico`
-    (stesso punteggio del banner) e disegna la barra del punteggio
+    anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080 (la grafica
+    entra nel video e ai genitori basta il link di YouTube: i passi sono nella Guida). Legge
+    `/api/livescore/pubblico?prima=1` (stesso punteggio del banner) e disegna la barra del punteggio
     (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti, parziali,
     SET/MATCH POINT) e le schede di time-out, fine set e finale (`Cards.tsx`). Le misure sono in
     `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi scala con
@@ -313,8 +314,11 @@ staff (Developer e Admin).
     invece dell'intera riga dello scout; se non c'è una copia «in diretta» ripiega sulla
     lettura completa, come prima. Mai in modalità prova. Nessuna migrazione: `app_settings`
     esiste già. Il campo opzionale `PublicLiveScore.point` (SET/MATCH POINT) lo calcola
-    `toPublicScoutScore`. Con lo Scout acceso ma senza ancora un punto il sito (e la grafica)
-    non mostra niente: la barra compare dal primo punto segnato.
+    `toPublicScoutScore`. Con lo Scout acceso ma senza ancora un punto il banner del sito non
+    mostra niente (compare dal primo punto segnato), mentre la grafica riceve la partita «non
+    iniziata» a 0–0 (`PublicLiveScore.notStarted`): l'endpoint la dà solo con `?prima=1`, che
+    chiede la grafica, così la barra c'è appena si accende il live e in anteprima si vede
+    subito. `latestPublicLive` non la fa mai prevalere su una partita già in corso.
   - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a

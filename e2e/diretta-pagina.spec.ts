@@ -41,7 +41,8 @@ async function mockSite(page: Page, options: { cameras: { name: string; id: stri
     route.fulfill({ contentType: "text/html", body: "<!doctype html><body style='margin:0;background:#1d3557;color:#fff;font:20px sans-serif'>video</body>" }),
   );
   await page.route("**/api/diretta", (route) => route.fulfill({ json: { cameras: options.cameras, delaySeconds: options.delaySeconds ?? 15 } }));
-  await page.route("**/api/livescore/pubblico", (route) => route.fulfill({ json: { live: state.score } }));
+  // La grafica chiede `?prima=1`: il filtro deve prendere anche l'indirizzo con i parametri.
+  await page.route(/\/api\/livescore\/pubblico/, (route) => route.fulfill({ json: { live: state.score } }));
   return {
     score: (next: Live | null) => {
       state.score = next;

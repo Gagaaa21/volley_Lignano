@@ -18,6 +18,7 @@ type Live = {
   timeouts: { home: number; away: number };
   finished: boolean;
   point?: { side: "home" | "away"; kind: "set" | "match" } | null;
+  notStarted?: true;
   updatedAt: string;
 };
 
@@ -43,11 +44,15 @@ function live(over: Partial<Live> = {}): Live {
  */
 async function feed(page: Page, first: Live | null) {
   const state: { reading: Live | null; failing: boolean } = { reading: first, failing: false };
-  await page.route("**/api/livescore/pubblico", async (route) => {
+  const urls: string[] = [];
+  // Il filtro prende anche l'indirizzo con i parametri: la grafica chiede `?prima=1`.
+  await page.route(/\/api\/livescore\/pubblico/, async (route) => {
+    urls.push(route.request().url());
     if (state.failing) return route.abort("failed");
     return route.fulfill({ json: { live: state.reading } });
   });
   return {
+    urls,
     set: (reading: Live | null) => {
       state.reading = reading;
     },
@@ -94,6 +99,34 @@ test("la grafica ha lo sfondo trasparente, nessun avviso del sito e mostra punte
   await expect(page.getByText(/Installa l'app|Attiva le notifiche|Risultato non ufficiale/)).toHaveCount(0);
   await checkerboard(page);
   await page.screenshot(shots("barra"));
+});
+
+test("con il live acceso e ancora nessun punto la barra c'è già, a 0–0 e senza battuta, e il primo punto non apre schede", async ({ page }) => {
+  const source = await feed(
+    page,
+    live({
+      home: { name: "Volley Lignano", color: "#1c5bae", score: 0, sets: 0 },
+      away: { name: "Pol. Esempio", color: "#e11d48", score: 0, sets: 0 },
+      serving: null,
+      notStarted: true,
+    }),
+  );
+  await page.goto("/diretta/grafica");
+  await expect(page.locator("[data-grafica-bug]")).toBeVisible();
+  await expect(page.locator('[data-grafica-score="home"]')).toHaveText("0");
+  await expect(page.locator('[data-grafica-score="away"]')).toHaveText("0");
+  await expect(page.locator('[data-grafica-team="away"] [data-grafica-name]')).toHaveText("Pol. Esempio");
+  await expect(page.locator("[data-grafica-serving]")).toHaveCount(0);
+  await expect(page.locator("[data-grafica-card]")).toHaveCount(0);
+  // Chiede la risposta che comprende anche la partita non ancora iniziata (il banner del sito non la riceve).
+  expect(source.urls.length).toBeGreaterThan(0);
+  expect(source.urls.every((url) => new URL(url).searchParams.get("prima") === "1")).toBe(true);
+
+  // Primo punto: la barra segue, la battuta compare e non si apre nessuna scheda.
+  source.set(live({ home: { name: "Volley Lignano", color: "#1c5bae", score: 1, sets: 0 }, away: { name: "Pol. Esempio", color: "#e11d48", score: 0, sets: 0 }, serving: "home" }));
+  await expect(page.locator('[data-grafica-score="home"]')).toHaveText("1", { timeout: 15_000 });
+  await expect(page.locator('[data-grafica-serving="home"]')).toBeVisible();
+  await expect(page.locator("[data-grafica-card]")).toHaveCount(0);
 });
 
 test("un time-out nuovo apre la scheda con il conto alla rovescia, un set chiuso la scheda «Fine set», la partita finita il finale", async ({ page }) => {

@@ -60,7 +60,7 @@ test.describe("copia compatta del punteggio live", () => {
     expect((await readPublicScoutSnapshot(repo, Date.parse(UPDATED_AT)))?.point).toEqual({ side: "home", kind: "set" });
   });
 
-  test("punteggio spento o senza punti: la copia dice «niente» (null), senza ripiegare sulla lettura completa", async () => {
+  test("punteggio spento: la copia dice «niente» (null), senza ripiegare sulla lettura completa", async () => {
     const repo = createMemoryRepo(createEmptyStore());
     const now = Date.parse(UPDATED_AT);
     await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 3, opp: 1 })), MATCH);
@@ -69,10 +69,29 @@ test.describe("copia compatta del punteggio live", () => {
     // Spento dallo Scout: il salvataggio dopo toglie il punteggio.
     await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 3, opp: 1 }, false)), MATCH);
     expect(await readPublicScoutSnapshot(repo, now)).toBeNull();
+  });
 
-    // Riacceso senza ancora un punto (scout azzerato): ancora niente.
-    await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 3, opp: 1 })), MATCH);
+  test("acceso ma senza ancora un punto: nella copia c'è la partita «non iniziata» a 0–0, che diventa quella vera al primo punto", async () => {
+    const repo = createMemoryRepo(createEmptyStore());
+    const now = Date.parse(UPDATED_AT);
     await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 0, opp: 0 })), MATCH);
+    expect(await readPublicScoutSnapshot(repo, now)).toMatchObject({
+      home: { name: "Volley Lignano", score: 0, sets: 0 },
+      away: { name: "Pol. Esempio", score: 0, sets: 0 },
+      serving: null,
+      finished: false,
+      notStarted: true,
+    });
+
+    await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 1, opp: 0 })), MATCH);
+    const started = await readPublicScoutSnapshot(repo, now);
+    expect(started?.home.score).toBe(1);
+    expect(started).not.toHaveProperty("notStarted");
+
+    // Scout azzerato (di nuovo senza punti) ma ancora acceso: torna «non iniziata»; spento, niente.
+    await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 0, opp: 0 })), MATCH);
+    expect((await readPublicScoutSnapshot(repo, now))?.notStarted).toBe(true);
+    await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 0, opp: 0 }, false)), MATCH);
     expect(await readPublicScoutSnapshot(repo, now)).toBeNull();
   });
 

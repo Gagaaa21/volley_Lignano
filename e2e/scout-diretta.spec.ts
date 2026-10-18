@@ -63,11 +63,13 @@ type PublicLive = {
   sets: { home: number; away: number }[];
   timeouts: { home: number; away: number };
   finished: boolean;
+  notStarted?: true;
   updatedAt: string;
 } | null;
 
-async function publicLive(page: Page): Promise<PublicLive> {
-  const response = await page.request.get("/api/livescore/pubblico");
+/** Il punteggio pubblico; con `?prima=1` (come la chiede la grafica della diretta video) anche la partita ancora a 0–0. */
+async function publicLive(page: Page, query = ""): Promise<PublicLive> {
+  const response = await page.request.get(`/api/livescore/pubblico${query}`);
   expect(response.ok()).toBe(true);
   return ((await response.json()) as { live: PublicLive }).live;
 }
@@ -100,6 +102,15 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
 
   // Finché non c'è un punto il sito non mostra niente: il riquadro compare dal primo punto segnato.
   expect(await publicLive(page)).toBeNull();
+  // La grafica della diretta video invece riceve la partita già a 0–0: la barra c'è appena si accende il live.
+  await expect.poll(async () => await publicLive(page, "?prima=1"), { timeout: 15_000 }).toMatchObject({
+    notStarted: true,
+    home: { score: 0 },
+    away: { name: opponent, score: 0 },
+    serving: null,
+  });
+  // …e anche lì non esce niente che riguardi le giocatrici.
+  expect(JSON.stringify(await publicLive(page, "?prima=1"))).not.toContain("Segretissima");
 
   await addPoint(page, "us-attack", { text: "Segretissima R." });
   await addPoint(page, "opp-ace", { opp: "14" });

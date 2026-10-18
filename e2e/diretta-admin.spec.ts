@@ -39,6 +39,18 @@ test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", as
   expect((await api(page)).cameras).toEqual([]);
 
   await card.locator("summary").click();
+
+  // Due indirizzi da copiare: la pagina dei genitori e la grafica da mettere in Streamlabs Desktop / OBS (dal computer).
+  await expect(card.locator("[data-diretta-computer]")).toContainText("Streamlabs");
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+  await card.locator("[data-diretta-copy]").click();
+  await expect(card.locator("[data-diretta-copy]")).toContainText("Copiato");
+  expect(new URL(await clipboard()).pathname).toBe("/diretta");
+  await card.locator("[data-diretta-copy-graphic]").click();
+  await expect(card.locator("[data-diretta-copy-graphic]")).toContainText("Copiato");
+  expect(new URL(await clipboard()).pathname).toBe("/diretta/grafica");
+
   await page.locator("#diretta-name-0").fill("Campo");
   await page.locator("#diretta-link-0").fill("https://www.youtube.com/live/AAAAAAAAAAA?feature=share");
   await page.locator("#diretta-name-1").fill("Dietro");

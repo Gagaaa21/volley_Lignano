@@ -10,7 +10,8 @@ import { clampDelaySeconds, takeDue, type Reading } from "@/lib/diretta/delay";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
 
-const ENDPOINT = "/api/livescore/pubblico";
+/** Con `prima=1` risponde anche la partita con il live acceso e ancora nessun punto (0–0): la barra c'è appena si accende il live. */
+const ENDPOINT = "/api/livescore/pubblico?prima=1";
 /** Con una partita in corso si rilegge il punteggio ogni 2 secondi (la rete di Vercel lo tiene 3: il database non se ne accorge)… */
 const LIVE_POLL_MS = 2_000;
 /** …altrimenti ogni 15, per accorgersi di una partita che comincia. */

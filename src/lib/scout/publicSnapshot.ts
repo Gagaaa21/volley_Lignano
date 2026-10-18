@@ -12,8 +12,9 @@ import type { MatchScout } from "./types";
  * partita, quindi a ogni salvataggio dello Scout se ne ricava la versione pubblica (qualche centinaio di byte, mai nomi né
  * numeri di maglia, vedi toPublicScoutScore) e la si tiene in `app_settings`; la lettura pubblica rilegge solo quella.
  *
- * Valore salvato: `{ matchId, live }`. `live` è null quando quella partita ha spento il punteggio (o non ha ancora un
- * punto): serve a dire «non c'è niente» senza ripiegare sulla lettura completa.
+ * Valore salvato: `{ matchId, live }`. `live` è null quando quella partita ha spento il punteggio: serve a dire «non c'è
+ * niente» senza ripiegare sulla lettura completa. Acceso ma senza ancora un punto, `live` è la partita «non iniziata»
+ * (0–0, `notStarted`): la risposta pubblica la dà solo alla grafica della diretta video.
  */
 export const PUBLIC_LIVE_SCOUT_KEY = "public_live_scout";
 
@@ -40,6 +41,7 @@ export const publicLiveScoreSchema = z.object({
     .object({ side: z.enum(["home", "away"]), kind: z.enum(["set", "match"]) })
     .nullable()
     .optional(),
+  notStarted: z.literal(true).optional(),
 }) satisfies z.ZodType<PublicLiveScore>;
 
 const storedSchema = z.object({ matchId: z.string().min(1), live: publicLiveScoreSchema.nullable() });
