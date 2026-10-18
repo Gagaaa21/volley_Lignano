@@ -125,6 +125,9 @@ test("dall'elenco delle atlete, un numero già in campo (o della libero) non si 
     for (const name of [alfa, beta]) {
       await page.goto("/admin/presenze/atlete");
       const edit = page.getByRole("link", { name: `Modifica ${name}`, exact: true });
+      // Si aspetta che l'elenco sia comparso: contare subito, a pagina ancora in arrivo, salta la pulizia e lascia l'atleta
+      // nell'elenco, dove cambia le caselle del Live score di tutte le prove dopo (da campi liberi a menù).
+      await edit.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
       if ((await edit.count()) === 0) continue;
       await edit.click();
       await page.getByRole("button", { name: "Elimina", exact: true }).click(); // il dialogo di conferma lo accetta openSetup
