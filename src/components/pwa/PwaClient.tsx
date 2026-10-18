@@ -6,6 +6,7 @@ import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { buildOpenInChromeUrl, usePwaInstall } from "./PwaInstallContext";
 import { OVERLAY_PATH } from "@/lib/diretta/overlayEvents";
+import { hasTeamSubscription, subscribeTeam, syncPush, type PushDeps } from "@/lib/pwa/teamPush";
 import type { TrainingTeam } from "@/lib/types";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
@@ -23,77 +24,45 @@ const NOTIFY_REPROMPT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
  * ricompare subito, senza aspettare i 7 giorni. Si confrontano i valori
  * dell'istante scritto dal server, non gli orologi: nessun problema di fuso. */
 const NOTIFY_CAMPAIGN_SEEN_KEY = "vl-pwa-notify-campaign-seen";
-/** Squadra con cui questo browser si è iscritto alle notifiche, e quando
- * l'iscrizione è stata controllata l'ultima volta (vedi healPushSubscription). */
-const PUSH_TEAM_KEY = "vl-pwa-push-team";
-const PUSH_SYNCED_AT_KEY = "vl-pwa-push-synced-at";
-const PUSH_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** Quando l'invito ad attivare le notifiche di una squadra (permesso già dato, ma niente iscrizione per lei) è stato mostrato
+ * l'ultima volta: una chiave per squadra, così chiuderlo in un sito non lo nasconde nell'altro. */
+const inviteKey = (team: TrainingTeam) => `vl-pwa-notify-invited-at:${team}`;
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
+function pushSupported(): boolean {
+  return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
 }
 
-async function subscribeToPush(team: TrainingTeam) {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!publicKey) return;
+/** Quello che le funzioni di src/lib/pwa/teamPush.ts usano del browser. */
+function browserPushDeps(pathname: string): PushDeps {
+  return {
+    serviceWorker: navigator.serviceWorker,
+    storage: localStorage,
+    send: async (method, body) => {
+      try {
+        const response = await fetch("/api/push/subscribe", {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    },
+    publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    now: () => Date.now(),
+    iosApp: (navigator as Navigator & { standalone?: boolean }).standalone === true,
+    pathname,
+  };
+}
 
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-  });
-
-  const json = subscription.toJSON();
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, team }),
-  }).catch(() => {});
+/** Esegue un'operazione sulle iscrizioni: se il browser non collabora (archivio bloccato, worker che non parte) non succede niente. */
+async function withPushDeps<T>(pathname: string, task: (deps: PushDeps) => Promise<T>): Promise<T | undefined> {
   try {
-    localStorage.setItem(PUSH_TEAM_KEY, team);
-    localStorage.setItem(PUSH_SYNCED_AT_KEY, String(Date.now()));
+    return await task(browserPushDeps(pathname));
   } catch {
-    // localStorage non disponibile: nessun problema, si ricontrolla alla prossima visita.
+    return undefined;
   }
-}
-
-/**
- * Tiene viva l'iscrizione alle notifiche di chi le ha già concesse. Chrome (e
- * il risparmio energia dei telefoni) può cancellare l'iscrizione di un sito
- * senza togliere il permesso: l'utente resta convinto di riceverle, ma il
- * sito non ha più un indirizzo valido a cui scrivere. A ogni visita (al
- * massimo una volta al giorno) si controlla che l'iscrizione esista ancora:
- * se c'è, si rinnova sul sito in modo silenzioso (squadra e account non
- * cambiano); se manca, se ne crea una nuova senza chiedere nulla (il
- * permesso c'è già), con la squadra che il browser aveva scelto.
- */
-async function healPushSubscription(fallbackTeam: TrainingTeam) {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!publicKey) return;
-  const lastSynced = Number(localStorage.getItem(PUSH_SYNCED_AT_KEY) ?? "0");
-  if (Date.now() - lastSynced < PUSH_SYNC_INTERVAL_MS) return;
-
-  const registration = await navigator.serviceWorker.ready;
-  const existing = await registration.pushManager.getSubscription();
-  const storedTeam = localStorage.getItem(PUSH_TEAM_KEY);
-  const team: TrainingTeam = storedTeam === "minivolley" || storedTeam === "u14u15" ? storedTeam : fallbackTeam;
-
-  if (!existing) {
-    await subscribeToPush(team);
-    return;
-  }
-  const json = existing.toJSON();
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, team, refresh: true }),
-  }).catch(() => {});
-  localStorage.setItem(PUSH_SYNCED_AT_KEY, String(Date.now()));
 }
 
 function computeInitialStep(): "install" | "notify" {
@@ -135,6 +104,18 @@ function canAskForNotifications(): boolean {
   return supported && Notification.permission === "default";
 }
 
+/**
+ * Il permesso per le notifiche c'è già (dato da un'altra squadra o da un'altra app dello stesso sito) ma questa squadra non ha
+ * ancora la sua iscrizione: ogni squadra si attiva per conto suo, quindi dal suo sito si invita ad attivarla (al massimo una
+ * volta a settimana). Solo sulle pagine di una squadra: né nell'area riservata né in «Accedi» o «Diretta».
+ */
+function isTeamInviteDue(team: TrainingTeam, pathname: string | null, subscribed: boolean | null): boolean {
+  if (subscribed !== false || !pushSupported() || Notification.permission !== "granted") return false;
+  if (pathname !== "/" && !pathname?.startsWith("/minivolley")) return false;
+  const last = Number(localStorage.getItem(inviteKey(team)) ?? "0");
+  return Date.now() - last >= NOTIFY_REPROMPT_INTERVAL_MS;
+}
+
 function isNotifyEligible(promptCampaign: string | null): boolean {
   if (!canAskForNotifications()) return false;
   // Richiesta del Developer non ancora vista da questo browser: si chiede subito.
@@ -171,28 +152,33 @@ export function PwaClient() {
     }
   }, [overlay]);
 
-  // Riallinea silenziosamente l'iscrizione push allo staff/squadra corrente
-  // ogni volta che si entra nell'area riservata (o si cambia squadra lì
-  // dentro), quando il permesso è già "granted": subscribeToPush salva su
-  // staffId chi è loggato ADESSO. Senza questo, un account che ha concesso
-  // il permesso una volta sola (magari dal sito pubblico, prima di
-  // accedere come staff — il banner condivide lo stesso Notification.
-  // permission a livello di browser e non richiede mai il permesso una
-  // seconda volta) resterebbe per sempre associato a quel primo contesto:
-  // niente notifiche riservate allo staff finché non lo si nota e non si
-  // reimposta manualmente il permesso del browser. pushManager.subscribe()
-  // con permesso già concesso non mostra alcun prompt, quindi è sicuro
-  // farlo silenziosamente a ogni ingresso/cambio squadra.
-  const lastSyncedTeamRef = useRef<TrainingTeam | null>(null);
+  // Chi ha già dato il permesso: si sistemano le iscrizioni vecchie (una volta) e si tengono vive quelle che ci sono. Nell'area
+  // riservata l'account di chi è entrato si associa alle iscrizioni del dispositivo. Mai un cambio di squadra: le notifiche di
+  // U14/U15 e quelle di Minivolley sono due cose distinte, ognuna si attiva dal sito della sua squadra, e il selettore squadra
+  // dell'area riservata non sposta niente (vedi src/lib/pwa/teamPush.ts).
+  const admin = pathname?.startsWith("/admin") ?? false;
+  const syncedAs = useRef<"admin" | "public" | null>(null);
   useEffect(() => {
-    if (!pathname?.startsWith("/admin")) return;
-    if (typeof window === "undefined") return;
-    const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
-    if (!supported || Notification.permission !== "granted") return;
-    if (lastSyncedTeamRef.current === team) return;
-    lastSyncedTeamRef.current = team;
-    subscribeToPush(team).catch(() => {});
-  }, [pathname, team]);
+    if (overlay || !pushSupported() || Notification.permission !== "granted") return;
+    const mode = admin ? "admin" : "public";
+    if (syncedAs.current === mode) return;
+    syncedAs.current = mode;
+    void withPushDeps(pathname ?? "/", (deps) => syncPush(deps, { admin }));
+  }, [overlay, admin, pathname]);
+
+  // La squadra di questa pagina ha già la sua iscrizione su questo dispositivo? (solo con il permesso già dato)
+  const [subscription, setSubscription] = useState<{ team: TrainingTeam; has: boolean } | null>(null);
+  const teamSubscribed = subscription?.team === team ? subscription.has : null;
+  useEffect(() => {
+    if (overlay || admin || !pushSupported() || Notification.permission !== "granted") return;
+    let cancelled = false;
+    void withPushDeps(pathname ?? "/", (deps) => hasTeamSubscription(deps, team)).then((has) => {
+      if (!cancelled && has !== undefined) setSubscription({ team, has });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [overlay, admin, team, pathname]);
 
   // Solo chi può ancora attivare le notifiche chiede al server se c'è una
   // richiesta nuova: per tutti gli altri nessuna chiamata in più.
@@ -206,18 +192,6 @@ export function PwaClient() {
       .catch(() => {});
   }, []);
 
-  // Fuori dall'area riservata (lì ci pensa l'effect qui sopra): controllo
-  // periodico che l'iscrizione alle notifiche esista ancora.
-  useEffect(() => {
-    if (pathname?.startsWith("/admin")) return;
-    if (typeof window === "undefined") return;
-    const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
-    if (!supported || Notification.permission !== "granted") return;
-    healPushSubscription(team).catch(() => {});
-    // Una volta per caricamento della pagina, non a ogni cambio di rotta.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     if (step !== "install") return;
     const timeout = setTimeout(() => {
@@ -227,7 +201,8 @@ export function PwaClient() {
   }, [step, canInstall]);
 
   const showInstallBanner = mounted && step === "install" && canInstall && !isStandalone;
-  const showNotifyBanner = mounted && step === "notify" && isNotifyEligible(promptCampaign);
+  const showNotifyBanner =
+    mounted && step === "notify" && (isNotifyEligible(promptCampaign) || isTeamInviteDue(team, pathname, teamSubscribed));
 
   async function handleInstall(accept: boolean) {
     localStorage.setItem(INSTALL_PROMPTED_KEY, "1");
@@ -246,11 +221,15 @@ export function PwaClient() {
 
   async function handleNotify(accept: boolean) {
     localStorage.setItem(NOTIFY_LAST_PROMPTED_KEY, String(Date.now()));
+    localStorage.setItem(inviteKey(team), String(Date.now()));
     if (promptCampaign) localStorage.setItem(NOTIFY_CAMPAIGN_SEEN_KEY, promptCampaign);
     if (accept) {
       try {
         const permission = await Notification.requestPermission();
-        if (permission === "granted") await subscribeToPush(team);
+        // Si attivano le notifiche della squadra di questa pagina, e solo quelle.
+        if (permission === "granted" && (await withPushDeps(pathname ?? "/", (deps) => subscribeTeam(deps, team)))) {
+          setSubscription({ team, has: true });
+        }
       } catch {
         // ignora: l'utente resta comunque libero di attivarle dopo dal browser
       }

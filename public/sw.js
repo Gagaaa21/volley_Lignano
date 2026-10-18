@@ -36,6 +36,9 @@ self.addEventListener("push", (event) => {
       icon: payload.icon || "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       data: { url: payload.url || "/" },
+      // Due avvisi con lo stesso tag si sostituiscono: serve a non far comparire due volte lo stesso avviso a chi ha attive
+      // le notifiche di tutte e due le squadre sullo stesso dispositivo (vedi notifyAdmins).
+      tag: payload.tag || undefined,
       // Resta sullo schermo finché non viene aperta o chiusa: su computer
       // altrimenti sparirebbe dopo pochi secondi, magari mentre non si guarda.
       requireInteraction: true,
@@ -88,16 +91,36 @@ self.addEventListener("pushsubscriptionchange", (event) => {
   );
 });
 
+// Quale finestra già aperta può ricevere la notifica. Gli avvisi U14/U15 puntano a «/»: con il vecchio confronto
+// («l'indirizzo contiene...») qualunque finestra andava bene, e si tirava in primo piano anche l'app di Minivolley, che sta
+// sotto «/minivolley». Ora U14/U15 e Minivolley si tengono separati; i link dell'area riservata vogliono la stessa pagina.
+function isMinivolley(url) {
+  return url.pathname === "/minivolley" || url.pathname.startsWith("/minivolley/");
+}
+
+function canShow(clientUrl, target) {
+  let client;
+  try {
+    client = new URL(clientUrl);
+  } catch {
+    return false;
+  }
+  if (client.origin !== target.origin) return false;
+  if (isMinivolley(target)) return isMinivolley(client);
+  if (target.pathname === "/") return !isMinivolley(client);
+  return client.pathname === target.pathname;
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/";
+  const target = new URL(event.notification.data?.url || "/", self.location.origin);
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if (client.url.includes(targetUrl) && "focus" in client) return client.focus();
+        if (canShow(client.url, target) && "focus" in client) return client.focus();
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      if (self.clients.openWindow) return self.clients.openWindow(target.href);
     }),
   );
 });

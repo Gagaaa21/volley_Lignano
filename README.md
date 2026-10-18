@@ -439,6 +439,25 @@ staff (Developer e Admin).
   l'iscrizione esista ancora e, se manca, la ricrea senza chiedere nulla. Le
   impostazioni di batteria del telefono, invece, non si possono cambiare dal
   sito: vedi i consigli in `/admin/guida`.
+  Le notifiche di U14/U15 e quelle di Minivolley sono due cose distinte: ogni
+  squadra ha il suo service worker, quindi la sua iscrizione sul dispositivo
+  (`public/sw.js`, portata «/», per U14/U15; `public/sw-s3.js`, portata
+  «/minivolley», per Minivolley, che importa lo stesso `sw.js`). Un dispositivo
+  può averle tutte e due; ognuna si attiva solo dal sito della sua squadra (il
+  banner «Attiva le notifiche» compare anche a chi ha già dato il permesso ma
+  non ha ancora l'iscrizione di quella squadra) e niente la sposta: il sito non
+  cambia mai la squadra di un'iscrizione già registrata (`planSubscription` in
+  `src/lib/pushSubscribe.ts`) e l'area riservata, con qualunque squadra scelta
+  nel selettore, si limita ad associare l'account alle iscrizioni che ci sono
+  (`linkStaff` in `src/lib/pwa/teamPush.ts`, che raccoglie tutta la logica
+  dell'iscrizione lato dispositivo). Chi aveva ancora l'iscrizione unica di
+  prima passa da solo al nuovo schema: quella di Minivolley si sposta sul
+  worker di Minivolley e il worker di «/» resta di U14/U15; nelle app di
+  Minivolley su iPhone/iPad (un contenitore per app) si toglie, una volta, l'
+  iscrizione U14/U15 che il selettore le aveva dato. Toccando una notifica si
+  porta in primo piano una finestra della stessa squadra, mai quella
+  dell'altra. Il Centro di controllo conta le iscrizioni per squadra (un
+  dispositivo può averne due).
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati

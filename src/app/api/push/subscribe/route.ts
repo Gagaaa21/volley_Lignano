@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { planSubscription } from "@/lib/pushSubscribe";
 import type { TrainingTeam } from "@/lib/types";
 
 interface SubscribeBody {
@@ -11,6 +12,8 @@ interface SubscribeBody {
   refresh?: unknown;
   /** Indirizzo precedente, quando il browser lo ha sostituito (pushsubscriptionchange). */
   oldEndpoint?: unknown;
+  /** Area riservata: collega l'account di chi è entrato a un'iscrizione che c'è già (la squadra non cambia). */
+  linkStaff?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -29,23 +32,23 @@ export async function POST(request: Request) {
   const session = await getSession();
   const repo = await getRepo();
 
-  // Rinnovo silenzioso (il browser ha cambiato indirizzo o chiavi, oppure è
-  // un controllo periodico): squadra e account restano quelli già registrati,
-  // altrimenti chi segue Minivolley verrebbe spostato su U14/U15 solo perché
-  // ha aperto l'altra pagina del sito.
-  if (body?.refresh === true || typeof body?.oldEndpoint === "string") {
-    const known = await repo.listPushSubscriptions();
-    const previous =
-      known.find((sub) => sub.endpoint === endpoint) ??
-      (typeof body?.oldEndpoint === "string" ? known.find((sub) => sub.endpoint === body.oldEndpoint) : undefined);
-    if (previous) {
-      await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: previous.staffId, team: previous.team });
-      if (previous.endpoint !== endpoint) await repo.deletePushSubscriptionByEndpoint(previous.endpoint);
-      return NextResponse.json({ ok: true });
-    }
-  }
-
-  await repo.upsertPushSubscription({ endpoint, p256dh, auth, staffId: session?.sub ?? null, team });
+  // La squadra di un'iscrizione che il sito conosce già non cambia mai (vedi planSubscription): U14/U15 e Minivolley sono due
+  // cose distinte, e un rinnovo, l'area riservata o un'app rimasta alla versione vecchia non devono spostare nessuno.
+  const plan = planSubscription(
+    await repo.listPushSubscriptions(),
+    {
+      endpoint,
+      p256dh,
+      auth,
+      team,
+      refresh: body?.refresh === true,
+      linkStaff: body?.linkStaff === true,
+      oldEndpoint: typeof body?.oldEndpoint === "string" ? body.oldEndpoint : null,
+    },
+    session?.sub ?? null,
+  );
+  await repo.upsertPushSubscription(plan.upsert);
+  if (plan.removeEndpoint) await repo.deletePushSubscriptionByEndpoint(plan.removeEndpoint);
   return NextResponse.json({ ok: true });
 }
 

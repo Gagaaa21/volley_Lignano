@@ -44,6 +44,8 @@ export interface CalendarNotification {
    * Minivolley usa il logo S3, così l'avviso si riconosce subito come
    * "suo" anche fuori dall'app. */
   icon?: string;
+  /** Due avvisi con lo stesso tag si sostituiscono sul dispositivo (lo gestisce public/sw.js). */
+  tag?: string;
 }
 
 async function sendToSubscriptions(
@@ -56,6 +58,7 @@ async function sendToSubscriptions(
     body: payload.body,
     url: payload.url ?? "/",
     icon: payload.icon,
+    tag: payload.tag,
   });
 
   const result: PushResult = { delivered: 0, removed: 0, failed: 0 };
@@ -164,6 +167,9 @@ export async function notifyStaffChange(
  * sezione, quindi non filtra per allowedPages (a differenza di
  * notifyStaffChange): il Developer sta scegliendo esplicitamente
  * l'audience "tutti gli Admin", non una sezione specifica.
+ *
+ * Non filtra per squadra, quindi un Admin con le notifiche attive per tutte e due (due iscrizioni sullo stesso dispositivo)
+ * la riceverebbe due volte: tutte le copie dello stesso invio portano lo stesso tag, e sul dispositivo si sostituiscono.
  */
 export async function notifyAdmins(payload: CalendarNotification): Promise<PushResult> {
   try {
@@ -176,7 +182,7 @@ export async function notifyAdmins(payload: CalendarNotification): Promise<PushR
     const targeted = subscriptions.filter((sub) => sub.staffId && adminIds.has(sub.staffId));
     if (targeted.length === 0) return NOTHING_SENT;
 
-    return await sendToSubscriptions(targeted, payload);
+    return await sendToSubscriptions(targeted, { ...payload, tag: payload.tag ?? `admin-${Date.now()}` });
   } catch (err) {
     console.error("[push] notifyAdmins fallito:", err);
     return NOTHING_SENT;

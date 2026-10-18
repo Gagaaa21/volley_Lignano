@@ -55,7 +55,13 @@ export default defineConfig({
       url: "http://localhost:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { GEMINI_API_KEY: "chiave-finta-per-i-test", GOOGLE_GEMINI_BASE_URL: "http://localhost:4010" },
+      env: {
+        GEMINI_API_KEY: "chiave-finta-per-i-test",
+        GOOGLE_GEMINI_BASE_URL: "http://localhost:4010",
+        // Solo la chiave pubblica: la pagina può iscriversi alle notifiche (con un finto servizio push, vedi
+        // e2e/push-squadre.spec.ts) ma il sito, senza la chiave privata, non ne invia mai.
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: "BPUljHI1i6wY66IMP5OOmqhHNg0pZrNqp1PSCAi2_VFKLx0ACc8DxjvUKsrzY3OU5noshuSVoYtu9gUrvdaPRrU",
+      },
     },
   ],
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

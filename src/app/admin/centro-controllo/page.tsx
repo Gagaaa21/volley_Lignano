@@ -202,9 +202,11 @@ export default async function CentroControlloPage() {
         </CardHeader>
         <CardBody className="pt-0">
           <p className="mb-4 text-sm text-foreground/80" data-notify-prompt-last>
+            {/* Un dispositivo ha una iscrizione per squadra (U14/U15 e Minivolley sono distinte): si contano le iscrizioni. */}
             {pushSubscriptions.length === 1
-              ? "1 dispositivo ha già attivato le notifiche."
-              : `${pushSubscriptions.length} dispositivi hanno già attivato le notifiche.`}{" "}
+              ? "1 iscrizione alle notifiche"
+              : `${pushSubscriptions.length} iscrizioni alle notifiche`}{" "}
+            (U14/U15 {u14u15SubscriberCount}, Minivolley {minivolleySubscriberCount}): un dispositivo può avere quelle di tutte e due le squadre.{" "}
             {notifyPromptAt
               ? `Ultima richiesta inviata il ${formatMoment(notifyPromptAt)}.`
               : "Nessuna richiesta inviata finora."}

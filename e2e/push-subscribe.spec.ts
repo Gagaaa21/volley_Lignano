@@ -67,3 +67,40 @@ test("rinnovo e cambio di indirizzo mantengono la squadra", async ({ page }) => 
   }
   expect(await counts()).toEqual(before);
 });
+
+test("una squadra, una volta scelta, non cambia più: nemmeno con un'app vecchia o dall'area riservata", async ({ page }) => {
+  await loginAsDev(page);
+  const counts = async () => {
+    await page.goto("/admin/centro-controllo");
+    const u1415 = await page.getByText(/Tutti U14\/U15 \((\d+)\)/).textContent();
+    const mini = await page.getByText(/Tutti Minivolley \((\d+)\)/).textContent();
+    return {
+      u14u15: Number(/\((\d+)\)/.exec(u1415 ?? "")?.[1]),
+      minivolley: Number(/\((\d+)\)/.exec(mini ?? "")?.[1]),
+    };
+  };
+  const endpoint = "https://push.example/e2e-squadra";
+  const before = await counts();
+
+  await subscribe(page.request, { endpoint, keys: KEYS, team: "minivolley" });
+  const subscribed = { u14u15: before.u14u15, minivolley: before.minivolley + 1 };
+  expect(await counts()).toEqual(subscribed);
+
+  // Un'app rimasta alla versione vecchia dava all'iscrizione la squadra scelta nel selettore dell'area riservata.
+  await subscribe(page.request, { endpoint, keys: KEYS, team: "u14u15" });
+  expect(await counts()).toEqual(subscribed);
+
+  // L'area riservata collega l'account all'iscrizione, senza cambiarne la squadra.
+  await subscribe(page.request, { endpoint, keys: KEYS, team: "u14u15", linkStaff: true });
+  expect(await counts()).toEqual(subscribed);
+
+  // Per cambiare squadra si toglie l'iscrizione e se ne fa una nuova, come fa un dispositivo che attiva l'altra squadra.
+  const response = await page.request.delete("/api/push/subscribe", { data: { endpoint } });
+  expect(response.ok()).toBe(true);
+  await subscribe(page.request, { endpoint, keys: KEYS, team: "u14u15" });
+  expect(await counts()).toEqual({ u14u15: before.u14u15 + 1, minivolley: before.minivolley });
+
+  const cleanup = await page.request.delete("/api/push/subscribe", { data: { endpoint } });
+  expect(cleanup.ok()).toBe(true);
+  expect(await counts()).toEqual(before);
+});
