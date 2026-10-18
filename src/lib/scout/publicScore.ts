@@ -1,7 +1,8 @@
 import { DEFAULT_OPPONENT_COLOR, HOME_TEAM_LABEL, teamColor } from "@/lib/liveScore";
-import type { Match, PublicLiveScore } from "@/lib/types";
+import type { Match, PublicLiveScore, PublicSetRecap } from "@/lib/types";
 import { setPointHolder, setsToWin } from "@/lib/volleyRules";
-import { currentServer, deriveScout, setTarget, type ScoutView } from "./derive";
+import { currentServer, deriveScout, setTarget, type ScoutSet, type ScoutView } from "./derive";
+import { estimateMinutes, setRecapCounts } from "./stats";
 import type { MatchScout, ScoutSettings } from "./types";
 
 /**
@@ -16,6 +17,12 @@ function pointInHand(view: ScoutView, settings: ScoutSettings, finished: boolean
   const needed = setsToWin(settings.format);
   const sets = holder === "a" ? view.setsWon.us : view.setsWon.opp;
   return { side: holder === "a" ? "home" : "away", kind: needed !== null && sets + 1 >= needed ? "match" : "set" };
+}
+
+/** Il resoconto di un set chiuso: totali di squadra (attacchi, muri, ace, errori dell'avversaria, serie, time-out) e durata. */
+function publicSetRecap(set: ScoutSet): PublicSetRecap {
+  const counts = setRecapCounts(set);
+  return { n: set.n, minutes: estimateMinutes(set), home: counts.us, away: counts.opp };
 }
 
 /** Le due squadre del punteggio pubblico: Lignano è sempre «home»; senza nome dell'avversaria si scrive «Avversaria». */
@@ -66,6 +73,8 @@ export function toPublicScoutScore(
     (set) => ({ home: set.score.us, away: set.score.opp }),
   );
   const point = pointInHand(view, scout.settings, finished);
+  // L'ultimo set chiuso (a partita chiusa a mano, l'ultimo giocato) con i suoi numeri: la grafica di fine set lo usa quando se ne chiude uno.
+  const lastDone = [...view.sets].reverse().find((set) => (finished ? set.rallies.length > 0 : set.closed));
 
   return {
     team: match.team,
@@ -81,6 +90,7 @@ export function toPublicScoutScore(
     finished,
     // Solo quando c'è: negli altri momenti la risposta resta quella di sempre.
     ...(point ? { point } : {}),
+    ...(lastDone ? { recap: publicSetRecap(lastDone) } : {}),
     updatedAt: scout.updatedAt,
   };
 }

@@ -699,6 +699,29 @@ export interface PublicLiveScoreTeam {
   logo?: string | null;
 }
 
+/** I numeri di una squadra in un set, per il resoconto di fine set: solo totali di squadra, mai nomi né numeri di maglia. */
+export interface PublicSetRecapTeam {
+  /** Punti fatti con un attacco, con un muro, con un ace. */
+  attack: number;
+  block: number;
+  ace: number;
+  /** Punti avuti da errori o falli dell'avversaria. */
+  gifts: number;
+  /** Più punti consecutivi nel set. */
+  run: number;
+  /** Time-out usati nel set. */
+  timeouts: number;
+}
+
+export interface PublicSetRecap {
+  /** Il set a cui si riferisce (1 = primo). */
+  n: number;
+  /** Durata stimata in minuti, null se non si può dire. */
+  minutes: number | null;
+  home: PublicSetRecapTeam;
+  away: PublicSetRecapTeam;
+}
+
 export interface PublicLiveScore {
   team: TrainingTeam;
   category: Category | null;
@@ -714,6 +737,9 @@ export interface PublicLiveScore {
   /** Chi ha in mano il punto che chiude il set («set») o la partita («match»); assente negli altri momenti e nei dati
    * di prima di questo campo. Lo usa la grafica della diretta video (SET POINT / MATCH POINT). */
   point?: { side: "home" | "away"; kind: "set" | "match" } | null;
+  /** Il resoconto dell'ultimo set chiuso (a partita finita, dell'ultimo giocato), con i totali di squadra ricavati dallo Scout:
+   * serve alla grafica di fine set della diretta video. Assente finché non si chiude un set e col Live score. */
+  recap?: PublicSetRecap;
   /** Punteggio live acceso ma ancora nessun punto: 0–0. Solo la grafica della diretta video lo riceve (con `?prima=1`), per
    * far comparire la barra appena si accende il live; il banner del sito non lo vede mai. Assente quando la partita è cominciata. */
   notStarted?: true;

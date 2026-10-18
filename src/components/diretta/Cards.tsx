@@ -10,7 +10,7 @@ import type { PublicLiveScore } from "@/lib/types";
  */
 
 /** Gli ultimi istanti la scheda si dissolve, invece di sparire di colpo. */
-const FADE_MS = 300;
+export const FADE_MS = 300;
 
 function Frame({ card, now, children, kind }: { card: Card; now: number; children: ReactNode; kind: Card["kind"] }) {
   const leaving = card.until - now < FADE_MS;

@@ -27,6 +27,15 @@ const teamSchema = z.object({
 
 const scoreSchema = z.object({ home: z.number().int().min(0), away: z.number().int().min(0) });
 
+const recapTeamSchema = z.object({
+  attack: z.number().int().min(0),
+  block: z.number().int().min(0),
+  ace: z.number().int().min(0),
+  gifts: z.number().int().min(0),
+  run: z.number().int().min(0),
+  timeouts: z.number().int().min(0),
+});
+
 export const publicLiveScoreSchema = z.object({
   team: z.enum(["u14u15", "minivolley"]),
   category: z.enum(["U14", "U15"]).nullable(),
@@ -42,6 +51,14 @@ export const publicLiveScoreSchema = z.object({
     .nullable()
     .optional(),
   notStarted: z.literal(true).optional(),
+  recap: z
+    .object({
+      n: z.number().int().min(1).max(9),
+      minutes: z.number().int().min(0).max(1_000).nullable(),
+      home: recapTeamSchema,
+      away: recapTeamSchema,
+    })
+    .optional(),
 }) satisfies z.ZodType<PublicLiveScore>;
 
 const storedSchema = z.object({ matchId: z.string().min(1), live: publicLiveScoreSchema.nullable() });

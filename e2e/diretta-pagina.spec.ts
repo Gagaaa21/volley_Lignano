@@ -53,9 +53,9 @@ async function mockSite(page: Page, options: { cameras: { name: string; id: stri
 const overlay = (page: Page) => page.frameLocator("[data-diretta-overlay]");
 
 /**
- * Il riquadro del punteggio è davvero trasparente: sopra un fondo viola la metà in basso a destra (dove la barra non c'è) è
- * identica con il riquadro e senza. Se il riquadro avesse uno sfondo pieno (succede quando il tema del sito e quello
- * della grafica non coincidono) i due scatti sarebbero diversi.
+ * Il riquadro del punteggio è davvero trasparente: sopra un fondo viola la fascia a destra, a metà altezza (dove le barre non
+ * ci sono: la piccola sta in alto a sinistra, la larga in basso al centro) è identica con il riquadro e senza. Se il riquadro
+ * avesse uno sfondo pieno (succede quando il tema del sito e quello della grafica non coincidono) i due scatti sarebbero diversi.
  */
 async function expectOverlayTransparent(page: Page) {
   await page.evaluate(() => {
@@ -63,7 +63,7 @@ async function expectOverlayTransparent(page: Page) {
     (document.querySelector("[data-diretta-stage] > div") as HTMLElement).style.background = "rgb(255, 0, 255)";
   });
   const box = (await page.locator("[data-diretta-stage]").boundingBox())!;
-  const clip = { x: box.x + box.width * 0.5, y: box.y + box.height * 0.5, width: box.width * 0.45, height: box.height * 0.45 };
+  const clip = { x: box.x + box.width * 0.86, y: box.y + box.height * 0.25, width: box.width * 0.12, height: box.height * 0.4 };
   const withOverlay = await page.screenshot({ clip });
   await page.evaluate(() => ((document.querySelector("[data-diretta-overlay]") as HTMLElement).style.visibility = "hidden"));
   const without = await page.screenshot({ clip });
@@ -170,6 +170,38 @@ test("su un telefono in verticale la barra si ingrandisce per restare leggibile"
   const bug = (await overlay(page).locator("[data-grafica-bug]").boundingBox())!;
   expect(bug.width / frame.width).toBeLessThan(0.65);
   await page.screenshot(shots("diretta-telefono"));
+});
+
+test("nel lettore ci sono le due barre, e la larga resta dentro il riquadro anche su un telefono", async ({ page }) => {
+  await mockSite(page, { cameras: [{ name: "Campo", id: CAMPO }] });
+  await page.goto("/diretta");
+  const frame = (await page.locator("[data-diretta-overlay]").boundingBox())!;
+  await expect(overlay(page).locator("[data-grafica-bug]")).toBeVisible();
+  const wide = overlay(page).locator("[data-grafica-wide]");
+  await expect(wide).toBeVisible();
+  await expect(overlay(page).locator('[data-grafica-wide-score="home"]')).toHaveText("10");
+  // Su un riquadro largo la barra larga è circa il 70% della larghezza, centrata e in basso.
+  const box = (await wide.boundingBox())!;
+  expect(box.width).toBeGreaterThan(frame.width * 0.55);
+  expect(box.width).toBeLessThan(frame.width * 0.75);
+  expect(box.x + box.width / 2).toBeCloseTo(frame.x + frame.width / 2, 0);
+  expect(box.y).toBeGreaterThan(frame.y + frame.height * 0.7);
+
+  // Su un telefono in verticale (barre ingrandite) non esce dal riquadro: i nomi si accorciano.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  const small = (await page.locator("[data-diretta-overlay]").boundingBox())!;
+  await expect(overlay(page).locator('[data-grafica-wide-score="home"]')).toHaveText("10");
+  await expect
+    .poll(async () => {
+      const b = await overlay(page).locator("[data-grafica-wide]").boundingBox();
+      return b ? b.width / small.width : 0;
+    }, { timeout: 10_000 })
+    .toBeGreaterThan(0.8);
+  const phone = (await overlay(page).locator("[data-grafica-wide]").boundingBox())!;
+  expect(phone.x).toBeGreaterThanOrEqual(small.x - 1);
+  expect(phone.x + phone.width).toBeLessThanOrEqual(small.x + small.width + 1);
+  await page.screenshot(shots("diretta-telefono-barre"));
 });
 
 test("lo schermo intero è del riquadro intero (video e punteggio), e si esce con lo stesso pulsante", async ({ page }) => {

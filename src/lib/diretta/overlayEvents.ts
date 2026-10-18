@@ -1,4 +1,4 @@
-import type { PublicLiveScore } from "@/lib/types";
+import type { PublicLiveScore, PublicSetRecap } from "@/lib/types";
 import { TIMEOUT_SECONDS } from "@/lib/volleyRules";
 
 /**
@@ -20,6 +20,8 @@ export type Side = "home" | "away";
 /** Quanto resta aperta ogni scheda sotto la barra del punteggio. */
 export const TIMEOUT_CARD_MS = TIMEOUT_SECONDS * 1000;
 export const SET_CARD_MS = 9_000;
+/** Con il resoconto del set (i numeri di squadra) serve più tempo per leggerlo. */
+export const SET_RECAP_MS = 14_000;
 export const FINAL_CARD_MS = 30_000;
 
 export interface OverlayChange {
@@ -61,8 +63,8 @@ export function diffLive(prev: PublicLiveScore | null, next: PublicLiveScore | n
 /** La scheda che si apre sotto la barra del punteggio (o sopra, se la barra sta in basso). */
 export type Card =
   | { kind: "timeout"; side: Side; startedAt: number; until: number }
-  | { kind: "set"; n: number; home: number; away: number; startedAt: number; until: number }
-  | { kind: "final"; startedAt: number; until: number };
+  | { kind: "set"; n: number; home: number; away: number; recap?: PublicSetRecap; startedAt: number; until: number }
+  | { kind: "final"; recap?: PublicSetRecap; startedAt: number; until: number };
 
 /** Se arrivano due eventi insieme resta il più importante: la fine della partita non si copre con un time-out. */
 const RANK: Record<Card["kind"], number> = { timeout: 1, set: 2, final: 3 };
@@ -96,8 +98,12 @@ export function feedReducer(feed: Feed, action: FeedAction): Feed {
   if (change.timeouts.length > 0) {
     offer({ kind: "timeout", side: change.timeouts[change.timeouts.length - 1], startedAt: now, until: now + TIMEOUT_CARD_MS });
   }
-  if (change.setEnded) offer({ kind: "set", ...change.setEnded, startedAt: now, until: now + SET_CARD_MS });
-  if (change.matchEnded) offer({ kind: "final", startedAt: now, until: now + FINAL_CARD_MS });
+  if (change.setEnded) {
+    // Il resoconto vale solo se è quello del set appena chiuso (un altro, o nessuno col Live score: resta la striscia semplice).
+    const recap = live.recap && live.recap.n === change.setEnded.n ? live.recap : undefined;
+    offer({ kind: "set", ...change.setEnded, ...(recap ? { recap } : {}), startedAt: now, until: now + (recap ? SET_RECAP_MS : SET_CARD_MS) });
+  }
+  if (change.matchEnded) offer({ kind: "final", ...(live.recap ? { recap: live.recap } : {}), startedAt: now, until: now + FINAL_CARD_MS });
   return { live, card, now };
 }
 

@@ -301,13 +301,20 @@ staff (Developer e Admin).
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
     anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080 (la grafica
     entra nel video e ai genitori basta il link di YouTube: i passi sono nella Guida). Legge
-    `/api/livescore/pubblico?prima=1` (stesso punteggio del banner) e disegna la barra del punteggio
-    (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti, parziali,
-    SET/MATCH POINT) e le schede di time-out, fine set e finale (`Cards.tsx`). Le misure sono in
+    `/api/livescore/pubblico?prima=1` (stesso punteggio del banner) e disegna due barre: la piccola
+    in un angolo (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti,
+    parziali, SET/MATCH POINT) e la larga in basso al centro come in TV (`ScorebugWide.tsx`:
+    stemma e nome, «SETS», punti del set in un riquadro scuro, linguetta con il set), più le
+    schede di time-out e finale sotto la piccola (`Cards.tsx`) e, a fine set e a fine partita, il
+    resoconto con i numeri di squadra (`SetRecapPanel.tsx`). Il logo delle squadre è sempre
+    `TeamMark.tsx` (stemma nostro; per l'avversaria `away.logo` o le iniziali). Le misure sono in
     `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi scala con
     qualunque dimensione. Cosa è cambiato tra due letture è logica pura in
-    `src/lib/diretta/overlayEvents.ts` (`diffLive`, `feedReducer`). Opzioni nell'indirizzo:
-    `?prova=1` (partita finta, `demo.ts`), `?posizione=`, `?scala=`, `?ritardo=` (secondi: le
+    `src/lib/diretta/overlayEvents.ts` (`diffLive`, `feedReducer`: la scheda di fine set porta il
+    resoconto se `live.recap` è quello del set appena chiuso, e dura 14 s invece di 9). Opzioni
+    nell'indirizzo: `?stile=piccola|larga|entrambe` (di partenza entrambe; con la sola larga le
+    schede stanno sopra la barra), `?prova=1` (partita finta, `demo.ts`, con i numeri di squadra),
+    `?posizione=` (la piccola), `?scala=`, `?ritardo=` (secondi: le
     letture si tengono in coda, `delay.ts`, e si mostrano dopo il ritardo, per allinearle al
     video di YouTube che arriva con 10–20 s di ritardo) e `?intervallo=` (secondi tra due
     letture, e si ferma a scheda nascosta: lo usa la pagina `/diretta`, 8 s). La pagina dei
@@ -330,6 +337,17 @@ staff (Developer e Admin).
     iniziata» a 0–0 (`PublicLiveScore.notStarted`): l'endpoint la dà solo con `?prima=1`, che
     chiede la grafica, così la barra c'è appena si accende il live e in anteprima si vede
     subito. `latestPublicLive` non la fa mai prevalere su una partita già in corso.
+    **Logo dell'avversaria**: la risposta pubblica aggiunge `away.logo` alle partite U14/U15
+    (`src/lib/federation/teamLogos.ts`: la riga della classifica del girone più somigliante al
+    nome, mai la nostra squadra, nessun logo se il nome è ambiguo; logo scelto a mano o proxy
+    `/api/federation/logo`; classifiche in memoria 10 minuti), mai nella copia compatta. Senza
+    logo, o se non si carica, restano le iniziali (banner del sito e grafiche).
+    **Resoconto di fine set**: `PublicLiveScore.recap` (`n`, `minutes`, per squadra attacchi,
+    muri, ace, `gifts` = punti da errori dell'avversaria, serie più lunga e time-out del set)
+    per l'ultimo set chiuso, ricavato da `setRecapCounts` in `stats.ts` (stessa regola del
+    tabellino: attacchi + muri + ace + regali fanno il punteggio del set). Solo totali di
+    squadra, mai nomi né numeri di maglia; compare dopo il primo set chiuso e col Live score
+    non c'è (resta la striscia «Fine set»). Il banner del sito non lo mostra.
   - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a

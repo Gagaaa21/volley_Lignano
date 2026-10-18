@@ -3,7 +3,9 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Scorebug } from "@/components/diretta/Scorebug";
-import { GraficaCard } from "@/components/diretta/Cards";
+import { ScorebugWide } from "@/components/diretta/ScorebugWide";
+import { SetRecapPanel } from "@/components/diretta/SetRecapPanel";
+import { FADE_MS, GraficaCard } from "@/components/diretta/Cards";
 import { cn } from "@/lib/cn";
 import { demoScript } from "@/lib/diretta/demo";
 import { clampDelaySeconds, takeDue, type Reading } from "@/lib/diretta/delay";
@@ -34,6 +36,10 @@ const POSITIONS = {
 type Position = keyof typeof POSITIONS;
 
 const parsePosition = (value: string | null): Position => (value && value in POSITIONS ? (value as Position) : "alto-sinistra");
+
+/** Quali barre mostrare: la piccola in un angolo, la larga in basso al centro (come in TV), o tutte e due (di partenza). */
+type BarStyle = "piccola" | "larga" | "entrambe";
+const parseStyle = (value: string | null): BarStyle => (value === "piccola" || value === "larga" ? value : "entrambe");
 /** La scala in percentuale (50–200), 100 se manca o non è un numero. */
 const parseScale = (value: string | null): number => {
   const scale = Number(value);
@@ -51,8 +57,10 @@ const parseInterval = (value: string | null): number => {
  * un angolo e, sotto, le schede di time-out, fine set e finale. Legge lo stesso punteggio pubblico del banner del sito
  * (squadre, punti, set, battuta, time-out: mai nomi né numeri di maglia).
  *
- * Opzioni nell'indirizzo: `?prova=1` (partita finta in ciclo, per provare senza Scout), `?posizione=alto-destra|basso-sinistra|
- * basso-destra` (default alto-sinistra), `?scala=120` (percentuale), `?ritardo=15` (secondi: il punteggio si mostra dopo tanto,
+ * Due barre di partenza: la piccola in un angolo (con le schede di time-out e finale sotto) e la larga in basso al centro,
+ * con i due loghi; a fine set un resoconto al centro, sopra la larga. Opzioni nell'indirizzo: `?stile=piccola|larga` (una
+ * barra sola; di partenza tutte e due), `?prova=1` (partita finta in ciclo, per provare senza Scout), `?posizione=alto-destra|
+ * basso-sinistra|basso-destra` (default alto-sinistra, vale per la piccola), `?scala=120` (percentuale), `?ritardo=15` (secondi: il punteggio si mostra dopo tanto,
  * per allinearlo al video di YouTube, che arriva con 10–20 secondi di ritardo; la pagina /diretta lo cambia con un messaggio,
  * come la scala),
  * `?intervallo=8` (secondi tra una lettura e l'altra, e si ferma a scheda nascosta: per chi guarda dalla pagina /diretta).
@@ -61,6 +69,7 @@ export function GraficaClient() {
   const params = useSearchParams();
   const demo = params.get("prova") === "1";
   const position = parsePosition(params.get("posizione"));
+  const style = parseStyle(params.get("stile"));
   const viewer = params.get("intervallo") !== null;
   const livePollMs = viewer ? parseInterval(params.get("intervallo")) : LIVE_POLL_MS;
   const [feed, dispatch] = useReducer(feedReducer, INITIAL_FEED);
@@ -172,20 +181,53 @@ export function GraficaClient() {
 
   const { live, card, now } = feed;
   const bottom = position.startsWith("basso");
+  const showSmall = style !== "larga";
+  const showWide = style !== "piccola";
+  // Il resoconto (fine set o finale con i numeri di squadra) sta al centro, sopra la barra larga; time-out e le altre strisce
+  // sotto la piccola, o sopra la larga se la piccola non c'è.
+  const recapCard = card && (card.kind === "set" || card.kind === "final") && card.recap ? card : null;
+  const stripCard = card && !recapCard ? card : null;
+  const leaving = card ? card.until - now < FADE_MS : false;
+  const recapPanel =
+    live && recapCard?.recap ? (
+      <SetRecapPanel
+        live={live}
+        recap={recapCard.recap}
+        kind={recapCard.kind === "final" ? "final" : "set"}
+        score={recapCard.kind === "set" ? { home: recapCard.home, away: recapCard.away } : { home: 0, away: 0 }}
+        leaving={leaving}
+      />
+    ) : null;
 
   return (
     <>
       <style>{`html{font-size:calc(100vw / 120 * ${scale / 100}) !important}`}</style>
       <main
-        className={cn("fixed inset-0 flex p-[4rem]", POSITIONS[position])}
+        className="fixed inset-0"
         data-grafica={live ? "live" : "idle"}
         data-grafica-demo={demo ? "" : undefined}
         data-grafica-delay={delaySeconds}
+        data-grafica-style={style}
       >
-        {live && (
-          <div className={cn("flex w-[40rem] gap-[0.5rem]", bottom ? "flex-col-reverse" : "flex-col")} style={{ "--card-from": bottom ? "40%" : "-40%" } as React.CSSProperties}>
-            <Scorebug live={live} />
-            {card && <GraficaCard card={card} live={live} now={now} />}
+        {live && showSmall && (
+          <div className={cn("absolute inset-0 flex p-[4rem]", POSITIONS[position])}>
+            <div className={cn("flex w-[40rem] gap-[0.5rem]", bottom ? "flex-col-reverse" : "flex-col")} style={{ "--card-from": bottom ? "40%" : "-40%" } as React.CSSProperties}>
+              <Scorebug live={live} />
+              {stripCard && <GraficaCard card={stripCard} live={live} now={now} />}
+            </div>
+          </div>
+        )}
+        {live && showWide && (
+          <div className="absolute inset-x-0 bottom-[2.5rem] flex flex-col items-center gap-[0.8rem] px-[2rem]" style={{ "--card-from": "40%" } as React.CSSProperties}>
+            {recapPanel}
+            {!showSmall && stripCard && <GraficaCard card={stripCard} live={live} now={now} />}
+            <ScorebugWide live={live} />
+          </div>
+        )}
+        {/* Con la sola barra piccola il resoconto sta lo stesso al centro, in basso. */}
+        {live && !showWide && recapPanel && (
+          <div className="absolute inset-x-0 bottom-[4rem] flex justify-center px-[2rem]" style={{ "--card-from": "40%" } as React.CSSProperties}>
+            {recapPanel}
           </div>
         )}
       </main>

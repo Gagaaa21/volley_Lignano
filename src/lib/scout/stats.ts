@@ -338,10 +338,50 @@ export function addTeamStats(a: TeamStats, b: TeamStats): TeamStats {
 // ── set ─────────────────────────────────────────────────────────────────
 
 /** Il primo punto arriva a fine del primo scambio e l'ultimo a fine set: la durata è una stima per difetto. */
-function estimateMinutes(set: ScoutSet): number | null {
+export function estimateMinutes(set: ScoutSet): number | null {
   if (set.startedAt === null || set.endedAt === null || set.rallies.length < 2) return null;
   const minutes = Math.round((set.endedAt - set.startedAt) / 60_000);
   return minutes >= 1 ? minutes : null;
+}
+
+/** I numeri di una squadra in un set, per il resoconto di fine set (vedi toPublicScoutScore). */
+export interface SetRecapCounts {
+  /** Punti fatti con un attacco, con un muro, con un ace. */
+  attack: number;
+  block: number;
+  ace: number;
+  /** Punti avuti da errori o falli dell'avversaria. */
+  gifts: number;
+  /** Più punti consecutivi nel set. */
+  run: number;
+  /** Time-out usati nel set. */
+  timeouts: number;
+}
+
+/**
+ * I numeri di ogni squadra in un set: stessa regola di computeStats (il punto è «sul campo» se vince chi ha agito, altrimenti
+ * è un regalo dell'avversaria), così attacchi + muri + ace + regali fanno il punteggio del set.
+ */
+export function setRecapCounts(set: ScoutSet): Record<ScoutSide, SetRecapCounts> {
+  const empty = (): SetRecapCounts => ({ attack: 0, block: 0, ace: 0, gifts: 0, run: 0, timeouts: 0 });
+  const counts: Record<ScoutSide, SetRecapCounts> = { us: empty(), opp: empty() };
+  let streakSide: ScoutSide | null = null;
+  let streak = 0;
+  for (const rally of set.rallies) {
+    const team = counts[rally.winner];
+    if (rally.actor === rally.winner) {
+      if (rally.how === "attack") team.attack += 1;
+      else if (rally.how === "block") team.block += 1;
+      else team.ace += 1;
+    } else {
+      team.gifts += 1;
+    }
+    streak = rally.winner === streakSide ? streak + 1 : 1;
+    streakSide = rally.winner;
+    if (streak > team.run) team.run = streak;
+  }
+  for (const side of ["us", "opp"] as const) counts[side].timeouts = set.timeouts.filter((timeout) => timeout.side === side).length;
+  return counts;
 }
 
 function summarizeSet(set: ScoutSet): SetSummary {

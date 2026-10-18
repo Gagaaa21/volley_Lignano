@@ -6,11 +6,12 @@ import {
   feedReducer,
   INITIAL_FEED,
   SET_CARD_MS,
+  SET_RECAP_MS,
   secondsLeft,
   TIMEOUT_CARD_MS,
   type Feed,
 } from "@/lib/diretta/overlayEvents";
-import type { PublicLiveScore } from "@/lib/types";
+import type { PublicLiveScore, PublicSetRecap } from "@/lib/types";
 
 /** La logica della grafica della diretta video: cosa cambia tra due letture e quale scheda si apre. */
 
@@ -76,6 +77,53 @@ test.describe("grafica della diretta: cosa è cambiato", () => {
     expect(feed.card).toMatchObject({ kind: "set", n: 1, home: 25, away: 21, until: T + 4_000 + SET_CARD_MS });
   });
 
+  const recapOf = (n: number): PublicSetRecap => ({
+    n,
+    minutes: 27,
+    home: { attack: 12, block: 3, ace: 2, gifts: 8, run: 5, timeouts: 1 },
+    away: { attack: 10, block: 1, ace: 1, gifts: 9, run: 4, timeouts: 1 },
+  });
+  const afterSetOne = (recap?: PublicSetRecap) =>
+    reading({
+      home: { name: "Volley Lignano", color: "#1c5bae", score: 0, sets: 1 },
+      away: { name: "Pol. Esempio", color: "#e11d48", score: 0, sets: 0 },
+      sets: [{ home: 25, away: 21 }],
+      ...(recap ? { recap } : {}),
+    });
+  const beforeSetEnd = reading({ home: { name: "Volley Lignano", color: "#1c5bae", score: 25, sets: 0 }, away: { name: "Pol. Esempio", color: "#e11d48", score: 21, sets: 0 } });
+
+  test("con il resoconto del set la scheda lo porta con sé e dura di più; senza, o di un altro set, resta la striscia semplice", () => {
+    const withRecap = poll(poll(INITIAL_FEED, beforeSetEnd, T), afterSetOne(recapOf(1)), T + 4_000);
+    expect(withRecap.card).toMatchObject({ kind: "set", n: 1, home: 25, away: 21, recap: { n: 1, minutes: 27 }, until: T + 4_000 + SET_RECAP_MS });
+    expect(SET_RECAP_MS).toBeGreaterThan(SET_CARD_MS);
+    // Senza resoconto (il Live score non lo ha) la scheda è quella di prima.
+    const without = poll(poll(INITIAL_FEED, beforeSetEnd, T), afterSetOne(), T + 4_000);
+    expect(without.card).toMatchObject({ kind: "set", until: T + 4_000 + SET_CARD_MS });
+    expect(without.card).not.toHaveProperty("recap");
+    // Un resoconto di un altro set (rimasto da prima) non è quello di questo.
+    const other = poll(poll(INITIAL_FEED, beforeSetEnd, T), afterSetOne(recapOf(2)), T + 4_000);
+    expect(other.card).toMatchObject({ kind: "set", until: T + 4_000 + SET_CARD_MS });
+    expect(other.card).not.toHaveProperty("recap");
+    // Il resoconto che resta nelle letture dopo non riapre niente.
+    let feed = withRecap;
+    feed = poll(feed, afterSetOne(recapOf(1)), T + 6_000);
+    expect(feed.card).toEqual(withRecap.card);
+    expect(feedReducer(feed, { type: "tick", now: T + 4_000 + SET_RECAP_MS }).card).toBeNull();
+  });
+
+  test("il finale porta il resoconto dell'ultimo set", () => {
+    const playing = reading({ sets: [{ home: 25, away: 21 }], home: { name: "Volley Lignano", color: "#1c5bae", score: 24, sets: 1 }, recap: recapOf(1) });
+    const finished = reading({
+      sets: [{ home: 25, away: 21 }, { home: 25, away: 22 }],
+      home: { name: "Volley Lignano", color: "#1c5bae", score: 0, sets: 2 },
+      away: { name: "Pol. Esempio", color: "#e11d48", score: 0, sets: 0 },
+      finished: true,
+      recap: recapOf(2),
+    });
+    const feed = poll(poll(INITIAL_FEED, playing, T), finished, T + 1_000);
+    expect(feed.card).toMatchObject({ kind: "final", recap: { n: 2 }, until: T + 1_000 + FINAL_CARD_MS });
+  });
+
   test("la fine della partita batte tutto, e un time-out dopo non la copre", () => {
     const playing = reading({ sets: [{ home: 25, away: 21 }], home: { name: "Volley Lignano", color: "#1c5bae", score: 24, sets: 1 } });
     const finished = reading({
@@ -114,6 +162,23 @@ test.describe("grafica della diretta: la partita finta", () => {
     expect(frames[frames.length - 1]).toMatchObject({ finished: true, home: { sets: 2 }, away: { sets: 0 }, sets: [{ home: 25, away: 21 }, { home: 25, away: 22 }] });
     // Il 2° set comincia battendo gli altri (la battuta si alterna).
     expect(frames.find((f) => f.sets.length === 1)?.serving).toBe("away");
+  });
+
+  test("porta il resoconto dell'ultimo set chiuso, con numeri che tornano con il parziale", () => {
+    const frames = demoScript().filter((frame): frame is PublicLiveScore => frame !== null);
+    // Nel primo set non c'è ancora niente da riassumere.
+    expect(frames.filter((f) => f.sets.length === 0).every((f) => f.recap === undefined)).toBe(true);
+    const closed = frames.filter((f) => f.sets.length > 0);
+    expect(closed.length).toBeGreaterThan(0);
+    const total = (t: PublicSetRecap["home"]) => t.attack + t.block + t.ace + t.gifts;
+    for (const frame of closed) {
+      const n = frame.sets.length;
+      expect(frame.recap?.n).toBe(n);
+      expect(total(frame.recap!.home)).toBe(frame.sets[n - 1].home);
+      expect(total(frame.recap!.away)).toBe(frame.sets[n - 1].away);
+    }
+    // Il finale riassume il 2° set.
+    expect(frames[frames.length - 1].recap?.n).toBe(2);
   });
 
   test("passando per la grafica, si aprono le schede giuste e al giro dopo non scatta niente di fantasma", () => {
