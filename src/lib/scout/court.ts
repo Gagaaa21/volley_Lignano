@@ -83,7 +83,7 @@ export function lineupWrittenThisSet(events: ScoutData["events"]): boolean {
   for (let i = events.length - 1; i >= 0; i--) {
     const type = events[i].type;
     if (type === "setEnd") return false;
-    if (type === "lineup" || type === "sub") return true;
+    if (type === "lineup" || type === "sub" || type === "rotate") return true;
   }
   return false;
 }

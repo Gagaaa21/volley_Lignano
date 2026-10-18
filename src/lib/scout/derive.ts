@@ -1,4 +1,4 @@
-import { lineupAfterRally, refreshLibero, substituteLineup, substitutionProblemFor, type CourtLineup } from "@/lib/lineup";
+import { lineupAfterRally, refreshLibero, rotateLineupBy, substituteLineup, substitutionProblemFor, type CourtLineup } from "@/lib/lineup";
 import { isDecidingSet, isMatchDecided as isMatchDecidedBy, isSetWon, maxSets as maxSetsOf, targetForSet, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import { rallyWinner } from "./rules";
 import { touchOutcome } from "./touches";
@@ -66,6 +66,17 @@ export interface ScoutTimeout {
   score: ScoutScore;
 }
 
+/** Una correzione della rotazione fatta a set cominciato (vedi ScoutRotateEvent): non cambia il punteggio. */
+export interface ScoutRotation {
+  id: string;
+  at: number;
+  side: ScoutSide;
+  /** Positivo = avanti, negativo = indietro. */
+  steps: number;
+  /** Punteggio del set quando è stata fatta. */
+  score: ScoutScore;
+}
+
 export interface ScoutRally {
   /** Di uno scambio chiuso da un tocco è l'id di quel tocco; altrimenti quello dell'esito segnato. */
   id: string;
@@ -91,6 +102,11 @@ export interface ScoutRally {
   eventIds: string[];
   /** Chi era in campo all'inizio dello scambio (null per la squadra di cui non si segna la formazione). */
   court: ScoutCourts;
+  /**
+   * La rotazione di ogni squadra a inizio scambio (1…6), ricavata dall'ordine delle battute dall'inizio del set più le
+   * correzioni a mano: vale anche per la squadra di cui non si segna la formazione. Serve alla tabella delle rotazioni.
+   */
+  rotation: Record<ScoutSide, number>;
 }
 
 export interface ScoutSet {
@@ -110,6 +126,8 @@ export interface ScoutSet {
   subs: ScoutSubstitution[];
   /** I time-out chiesti nel set, in ordine (al massimo due per squadra). */
   timeouts: ScoutTimeout[];
+  /** Le correzioni della rotazione fatte a set cominciato, in ordine. */
+  rotations: ScoutRotation[];
 }
 
 export interface ScoutView {
@@ -163,10 +181,14 @@ function newSet(n: number, firstServer: ScoutSide): ScoutSet {
     lineups: { us: null, opp: null },
     subs: [],
     timeouts: [],
+    rotations: [],
   };
 }
 
 const SIDES: ScoutSide[] = ["us", "opp"];
+
+/** Un numero di rotazioni riportato tra 0 e 5, anche se è negativo (una correzione all'indietro). */
+const wrapTurns = (turns: number) => ((turns % 6) + 6) % 6;
 
 /** La formazione di una squadra come la leggono le schermate. */
 function snapshotOf(lineup: CourtLineup, rotations: number): ScoutCourt {
@@ -178,8 +200,28 @@ function snapshotOf(lineup: CourtLineup, rotations: number): ScoutCourt {
     libero,
     liberoFor: lineup.liberoActiveFor,
     hosts: [lineup.hostNames[0].trim(), lineup.hostNames[1].trim()],
-    rotation: (rotations % 6) + 1,
+    rotation: wrapTurns(rotations) + 1,
   };
+}
+
+/** La formazione dopo una correzione a mano: ruota di `steps` e la libero si riallinea a dove stanno ora le giocatrici. */
+function shiftLineup(lineup: CourtLineup, steps: number, isServing: boolean): CourtLineup {
+  return refreshLibero(rotateLineupBy(lineup, steps), 6, true, isServing);
+}
+
+/**
+ * Come starebbe in campo una squadra dopo una correzione della rotazione (vedi ScoutRotateEvent): la stessa operazione
+ * che fa derive.ts quando legge l'evento, così l'anteprima della schermata e il risultato vero non possono divergere.
+ * `serving` dice se la squadra batte adesso (la libero non sostituisce chi batte).
+ */
+export function shiftCourt(court: ScoutCourt, steps: number, serving: boolean): ScoutCourt {
+  const lineup: CourtLineup = {
+    positions: court.positions,
+    liberoName: court.libero ?? "",
+    hostNames: court.hosts,
+    liberoActiveFor: court.liberoFor,
+  };
+  return snapshotOf(shiftLineup(lineup, steps, serving), court.rotation - 1 + steps);
 }
 
 /** Chi era a muro nell'esito scelto a mano non dice chi attaccava: se l'ultimo tocco segnato è un attacco avversario, è lui. */
@@ -204,6 +246,9 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
   const courts: Record<ScoutSide, CourtLineup | null> = { us: null, opp: null };
   const starts: Record<ScoutSide, CourtLineup | null> = { us: null, opp: null };
   const rotations: Record<ScoutSide, number> = { us: 0, opp: 0 };
+  // Le rotazioni per l'ordine di battuta (0…5), per tutte e due le squadre dall'inizio del set e con le correzioni a mano:
+  // sono quelle della tabella delle rotazioni, che non ha bisogno della formazione (vedi ScoutRally.rotation).
+  const turns: Record<ScoutSide, number> = { us: 0, opp: 0 };
   // Un cambio prima del primo scambio del set non cambia la formazione di partenza: chi esce era titolare. Si ricorda com'era prima.
   let beforeSubs: Record<ScoutSide, { lineup: CourtLineup; snapshot: ScoutCourt } | null> = { us: null, opp: null };
 
@@ -233,6 +278,7 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
     pending = [];
     // Chi era in campo quando è cominciato lo scambio; al primo del set è la formazione di partenza.
     const court = snapshots();
+    const rotation: Record<ScoutSide, number> = { us: turns.us + 1, opp: turns.opp + 1 };
     if (set.rallies.length === 0) {
       const lineups: ScoutCourts = { us: null, opp: null };
       for (const side of SIDES) {
@@ -258,6 +304,7 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
       closedBy,
       eventIds: closedBy === "outcome" ? [...touches.map((t) => t.id), id] : touches.map((t) => t.id),
       court,
+      rotation,
     };
     set.rallies.push(rally);
     rallies.push(rally);
@@ -267,10 +314,12 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
     set.endedAt = at;
     // Dopo lo scambio: chi vince conquista la battuta (e ruota) o la tiene; la libero si riallinea.
     for (const side of SIDES) {
-      const lineup = courts[side];
-      if (!lineup) continue;
       const won = winner === side;
       const wasServing = rally.server === side;
+      // Conquistare la battuta vale una rotazione anche per la squadra di cui non si segue la formazione.
+      if (won && !wasServing) turns[side] = wrapTurns(turns[side] + 1);
+      const lineup = courts[side];
+      if (!lineup) continue;
       courts[side] = lineupAfterRally(lineup, { players: 6, useLibero: true, won, wasServing });
       if (won && !wasServing) rotations[side] += 1;
     }
@@ -347,6 +396,34 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
           cur.subs.push({ id: event.id, at: event.at, side: event.side, position: event.position, out: outgoing, in: event.player, score: { ...cur.score } });
         }
       }
+    } else if (event.type === "rotate") {
+      // Correzione a mano della rotazione: cambia solo chi sta in ogni posizione (e il conto delle rotazioni), mai il punteggio.
+      const court = courts[event.side];
+      if (court) {
+        const serving = serverOf(cur) === event.side;
+        const lineup = shiftLineup(court, event.steps, serving);
+        courts[event.side] = lineup;
+        if (cur.rallies.length === 0) {
+          // A set non cominciato corregge la formazione di partenza, come scriverne una: la rotazione di partenza è sempre la 1ª.
+          rotations[event.side] = 0;
+          turns[event.side] = 0;
+          const before = beforeSubs[event.side];
+          if (before) {
+            // Con cambi già fatti prima del primo scambio i titolari sono quelli di prima: ruotano anche loro.
+            const rotated = shiftLineup(before.lineup, event.steps, serving);
+            const snapshot = snapshotOf(rotated, 0);
+            beforeSubs[event.side] = { lineup: rotated, snapshot };
+            cur.lineups = { ...cur.lineups, [event.side]: snapshot };
+          } else {
+            starts[event.side] = lineup;
+            cur.lineups = { ...cur.lineups, [event.side]: null };
+          }
+        } else {
+          rotations[event.side] = wrapTurns(rotations[event.side] + event.steps);
+          turns[event.side] = wrapTurns(turns[event.side] + event.steps);
+          cur.rotations.push({ id: event.id, at: event.at, side: event.side, steps: event.steps, score: { ...cur.score } });
+        }
+      }
     } else if (event.type === "timeout") {
       // Un time-out in più del limite (dati a mano o vecchi) non conta: ogni squadra ne ha due per set.
       if (cur.timeouts.filter((t) => t.side === event.side).length < TIMEOUTS_PER_SET) {
@@ -374,6 +451,7 @@ export function deriveScout(data: Pick<ScoutData, "settings" | "events">): Scout
             courts[side] = refreshLibero({ ...start, liberoName: libero, liberoActiveFor: null }, 6, true, event.nextServer === side);
           }
           rotations[side] = 0;
+          turns[side] = 0;
         }
       }
     }

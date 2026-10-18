@@ -605,6 +605,8 @@ export function ScoutClient({
                       <p className="text-muted-foreground">Ultimo: cambio {lastEvent.side === "us" ? "nostro" : "loro"}</p>
                     ) : lastEvent?.type === "timeout" ? (
                       <p className="text-muted-foreground">Ultimo: time-out {lastEvent.side === "us" ? "nostro" : "loro"}</p>
+                    ) : lastEvent?.type === "rotate" ? (
+                      <p className="text-muted-foreground">Ultimo: rotazione {lastEvent.side === "us" ? "nostra" : "loro"} corretta</p>
                     ) : lastEvent ? (
                       <p className="text-muted-foreground">Ultimo: fine del set</p>
                     ) : (

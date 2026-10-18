@@ -472,3 +472,94 @@ test("livello «Con ricezioni»: i tre passi dello scambio dicono a che punto si
   await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);
 });
+
+test("rotazione sbagliata: la finestra «Rotazione» gira la squadra avanti o indietro senza toccare punteggio né cambi, compare nel registro, si annulla e resta dopo il salvataggio", async ({ page }) => {
+  test.setTimeout(240_000);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+  const matchId = await createMatch(page, uniqueName("Rotazione "));
+  await prepare(page, matchId, "base");
+
+  // Punto loro (battono loro) e punto nostro (riconquistiamo la battuta e ruotiamo): 1–1, siamo alla 2ª rotazione e batte la n. 2 (Bea).
+  await addPoint(page, "opp-attack", { opp: "21" });
+  await addPoint(page, "us-attack", { text: "Anna" });
+  await expect(score(page)).toHaveText("1–1");
+  await expect(usSpot(page, 1)).toContainText("Bea");
+  await expect(strip(page)).toContainText("2ª rot.");
+
+  const openUs = strip(page).locator('[data-scout-rotate-open="us"]');
+  const sheet = page.locator('[data-scout-sheet="rotate"]');
+  const previewSpot = (position: number) => sheet.locator(`[data-scout-rotate-preview="us"] [data-scout-preview-position="${position}"]`);
+
+  // Si apre, senza correzione non si può applicare, Esc la chiude e non cambia niente.
+  await openUs.click();
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator("[data-scout-rotate-steps]")).toHaveAttribute("data-scout-rotate-steps", "0");
+  await expect(sheet.locator("[data-scout-rotate-confirm]")).toBeDisabled();
+  await expect(previewSpot(1)).toContainText("Bea");
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await expect(usSpot(page, 1)).toContainText("Bea");
+
+  // Indietro di 1: l'anteprima mostra la rotazione di prima (batte la n. 9) e la riga «Dopo» dice 1ª; il campo vero non si muove finché non si applica.
+  await openUs.click();
+  await sheet.locator("[data-scout-rotate-back]").click();
+  await expect(sheet.locator("[data-scout-rotate-steps]")).toHaveText("Indietro di 1");
+  await expect(previewSpot(1)).toContainText("Anna");
+  await expect(sheet.locator("[data-scout-rotate-after]")).toHaveAttribute("data-scout-rotate-after", "1");
+  await expect(sheet.locator("[data-scout-rotate-after]")).toContainText("batte");
+  await expect(usSpot(page, 1)).toContainText("Bea");
+  // Indietro di 2 e di nuovo avanti di 1: si torna a «indietro di 1».
+  await sheet.locator("[data-scout-rotate-back]").click();
+  await expect(sheet.locator("[data-scout-rotate-steps]")).toHaveText("Indietro di 2");
+  await expect(previewSpot(1)).toContainText("Fede");
+  await sheet.locator("[data-scout-rotate-forward]").click();
+  await expect(sheet.locator("[data-scout-rotate-steps]")).toHaveText("Indietro di 1");
+  await sheet.locator("[data-scout-rotate-confirm]").click();
+  await expect(sheet).toHaveCount(0);
+
+  // Applicata: batte la n. 9, il punteggio è lo stesso, loro non sono toccati e il registro lo racconta.
+  await expect(usSpot(page, 1)).toContainText("Anna");
+  await expect(strip(page)).toContainText("1ª rot.");
+  await expect(score(page)).toHaveText("1–1");
+  await expect(oppSpot(page, 1)).toContainText("22");
+  const note = page.locator("[data-scout-rotation-note]");
+  await expect(note).toHaveCount(1);
+  await expect(note).toContainText("Rotazione nostra corretta");
+  await expect(note).toContainText("indietro di 1");
+  await expect(note).toContainText("sul 1–1");
+  await expect(page.locator("[data-scout-last]")).toContainText("rotazione nostra corretta");
+
+  // Annulla ultimo: la correzione sparisce e si torna a com'era, sempre sull'1–1.
+  await page.locator("[data-scout-undo]").click();
+  await expect(usSpot(page, 1)).toContainText("Bea");
+  await expect(note).toHaveCount(0);
+  await expect(score(page)).toHaveText("1–1");
+
+  // Avanti di 2: si salva (il server accetta la correzione) e dopo aver ricaricato la pagina la squadra sta ancora lì; col cestino del registro si toglie.
+  await openUs.click();
+  await sheet.locator("[data-scout-rotate-forward]").click();
+  await sheet.locator("[data-scout-rotate-forward]").click();
+  await expect(sheet.locator("[data-scout-rotate-steps]")).toHaveText("Avanti di 2");
+  await sheet.locator("[data-scout-rotate-confirm]").click();
+  await expect(usSpot(page, 1)).toContainText("Dora");
+  await expect(note).toContainText("avanti di 2");
+  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+  await page.reload();
+  await expect(score(page)).toHaveText("1–1");
+  await expect(usSpot(page, 1)).toContainText("Dora");
+  await expect(note).toHaveCount(1);
+  await note.getByRole("button", { name: "Togli questa correzione" }).click();
+  await expect(note).toHaveCount(0);
+  await expect(usSpot(page, 1)).toContainText("Bea");
+
+  // Anche la squadra avversaria ha il suo pulsante.
+  await strip(page).locator('[data-scout-rotate-open="opp"]').click();
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText("Rotazione · loro");
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+
+  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+  await deleteMatchById(page, matchId);
+});

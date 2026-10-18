@@ -263,6 +263,17 @@ staff (Developer e Admin).
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF
     (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
     `data` jsonb, e gli scout vecchi si leggono come prima.
+    **Correzione della rotazione**: se una rotazione è saltata, «Rotazione» sotto la
+    squadra (`RotationSheet` in `ScoutCourtStrip.tsx`) la gira avanti o indietro di 1…5
+    posizioni con l'anteprima del campo. È un evento `rotate` (`ScoutRotateEvent`,
+    `steps` da −5 a 5): `derive.ts` ruota la formazione con `shiftCourt` (la stessa
+    funzione dell'anteprima) e riallinea la libero, ma non tocca punteggio, chi batte,
+    cambi né time-out; correzioni ravvicinate della stessa squadra si sommano
+    (`rotateTeam` in `actions.ts`, a somma zero spariscono). A set non cominciato
+    corregge la formazione di partenza; a set cominciato compare nel registro del set
+    (`ScoutSet.rotations`, con il cestino). Ogni `ScoutRally.rotation` dà la rotazione
+    di ogni squadra a inizio scambio (anche senza formazione, dall'ordine di battuta più
+    le correzioni): la tabella delle rotazioni di `stats.ts` la legge da lì.
   - **Time-out**: un evento `timeout` (`ScoutTimeoutEvent`, come `sub`: `types.ts`,
     `schema.ts`, `actions.ts` con `addTimeout`) che non tocca punteggio, battuta né
     tocchi in sospeso. `derive.ts` li conta per set e per squadra (`ScoutSet.timeouts`,

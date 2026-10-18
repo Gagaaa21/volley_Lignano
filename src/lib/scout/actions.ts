@@ -87,7 +87,7 @@ export function usedPlayerIds(data: Pick<ScoutData, "events">): Set<string> {
       used.add(event.player);
       continue;
     }
-    if (event.type === "timeout") continue;
+    if (event.type === "timeout" || event.type === "rotate") continue;
     if (event.player) used.add(event.player);
     if (event.type === "rally" && event.victim) used.add(event.victim);
   }
@@ -321,6 +321,38 @@ export function addTimeout(data: ScoutData, side: ScoutSide, at: number, id: str
   return { ...data, events: [...data.events, { type: "timeout", id, at, side }] };
 }
 
+/**
+ * Un numero di rotazioni da correggere ridotto a quello che si può salvare: da −5 a 5, e 0 se è un giro intero (o non è un
+ * numero). Oltre i sei passi si tiene il resto, con il suo segno: 7 diventa 1, −7 diventa −1.
+ */
+export function foldRotationSteps(steps: number): number {
+  if (!Number.isFinite(steps)) return 0;
+  return Math.trunc(steps) % 6 || 0;
+}
+
+/**
+ * Corregge la rotazione di una squadra (di cui si segue la formazione) di `steps` posizioni, avanti se positivo e indietro
+ * se negativo, senza toccare punteggio, battuta, cambi né time-out (vedi ScoutRotateEvent). Se subito prima c'era già una
+ * correzione della stessa squadra le somma: toccare più volte non riempie il registro, e a somma zero spariscono.
+ */
+export function rotateTeam(data: ScoutData, side: ScoutSide, steps: number, at: number, id: string): ScoutData {
+  if (isLocked(data)) return data;
+  if (!deriveScout(data).court[side]) return data;
+  const folded = foldRotationSteps(steps);
+  if (folded === 0) return data;
+  const events = [...data.events];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const previous = events[i];
+    if (previous.type !== "rotate") break;
+    if (previous.side === side) {
+      const total = foldRotationSteps(previous.steps + folded);
+      events.splice(i, 1);
+      return { ...data, events: total === 0 ? events : [...events, { type: "rotate", id, at, side, steps: total }] };
+    }
+  }
+  return { ...data, events: [...events, { type: "rotate", id, at, side, steps: folded }] };
+}
+
 // ── rosa ────────────────────────────────────────────────────────────────
 
 /** La lunghezza massima del nome di una giocatrice a referto (come nel salvataggio, vedi schema.ts). */
@@ -375,6 +407,7 @@ export type ScoutAction =
   | { type: "lineup"; side: ScoutSide; input: LineupInput; at: number; id: string }
   | { type: "sub"; side: ScoutSide; position: ScoutSubEvent["position"]; player: string; at: number; id: string }
   | { type: "timeout"; side: ScoutSide; at: number; id: string }
+  | { type: "rotate"; side: ScoutSide; steps: number; at: number; id: string }
   | { type: "finish" }
   | { type: "reopen" }
   | { type: "settings"; patch: Partial<ScoutSettings> }
@@ -412,6 +445,8 @@ export function scoutReducer(data: ScoutData, action: ScoutAction): ScoutData {
       return substitute(data, action.side, action.position, action.player, action.at, action.id);
     case "timeout":
       return addTimeout(data, action.side, action.at, action.id);
+    case "rotate":
+      return rotateTeam(data, action.side, action.steps, action.at, action.id);
     case "finish":
       return finishMatch(data);
     case "reopen":

@@ -75,6 +75,19 @@ export function rotateLineup<T extends CourtLineup>(lineup: T): T {
 }
 
 /**
+ * `steps` rotazioni in senso orario, o indietro se negativo (una correzione a mano: la libero non si riallinea qui, vedi
+ * refreshLibero). Con 0, o un giro intero, la formazione resta la stessa.
+ */
+export function rotateLineupBy<T extends CourtLineup>(lineup: T, steps: number): T {
+  const size = lineup.positions.length;
+  if (size === 0) return lineup;
+  const turns = ((Math.trunc(steps) % size) + size) % size;
+  let positions = lineup.positions;
+  for (let i = 0; i < turns; i++) positions = rotateOnce(positions);
+  return turns === 0 ? lineup : { ...lineup, positions };
+}
+
+/**
  * Una squadra dopo uno scambio: chi vince conquista la battuta (e ruota) oppure
  * la tiene (e non ruota); chi perde, se batteva, passa a ricevere. In entrambi i
  * casi la libero si riallinea a dove stanno ora le giocatrici.

@@ -582,6 +582,19 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         title: "Quando un cambio non è regolare",
         text: `Lo Scout avvisa (senza vietare: un infortunio fa eccezione) se in un set si superano gli ${SUBSTITUTIONS_PER_SET} cambi, se una titolare rientra al posto di una giocatrice che non l'ha sostituita (o c'è già rientrata una volta), se una riserva già uscita rientra o se una riserva viene sostituita da chi non è la titolare per cui era entrata.`,
       },
+      { type: "sub", title: "Rotazione sbagliata?" },
+      {
+        type: "p",
+        text: "Se una rotazione è saltata (o ne hai segnata una di troppo) la squadra in campo non è più quella vera. Tocca **«Rotazione»** sotto la squadra: con **«Indietro»** e **«Avanti»** scegli di quante posizioni girare (anche più di una), guardi nel disegno come starà la squadra e tocchi **«Applica»**. Cambia **solo chi sta in ogni posizione**: punteggio, chi batte, cambi e time-out restano come sono. Se in realtà manca uno scambio, il punteggio si corregge dal registro.",
+      },
+      {
+        type: "bullets",
+        items: [
+          "Toccare più volte la stessa squadra somma i passi in una sola correzione; se si annullano (per esempio avanti di 2 e poi indietro di 2) spariscono.",
+          "A set già cominciato la correzione compare nel registro, sopra gli scambi del set, con il cestino per toglierla; **«Annulla ultimo»** toglie l'ultima. Le rotazioni della tabella (livello Completo) la seguono.",
+          "Prima del primo punto di un set vale come correzione della formazione di partenza.",
+        ],
+      },
       { type: "sub", title: "Set dopo set" },
       {
         type: "bullets",

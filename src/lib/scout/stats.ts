@@ -476,21 +476,18 @@ export function computeStats(view: ScoutView, roster: ScoutRoster, options: Stat
     }
   }
 
-  // Le rotazioni: ogni set riparte dalla rotazione 1 e una squadra ruota quando recupera la battuta.
+  // Le rotazioni: ogni set riparte dalla rotazione 1 e una squadra ruota quando recupera la battuta; le correzioni a mano
+  // contano (la rotazione di ogni scambio la ricava derive.ts, vedi ScoutRally.rotation).
   for (const set of view.sets) {
     if (only !== null && set.n !== only) continue;
-    const rotation: Record<ScoutSide, number> = { us: 0, opp: 0 };
     for (const r of set.rallies) {
-      const serving = analysis[r.server].rotations[rotation[r.server]];
+      const serving = analysis[r.server].rotations[r.rotation[r.server] - 1];
       serving.served += 1;
       if (r.winner === r.server) serving.breakPoints += 1;
       const other = otherSide(r.server);
-      const receiving = analysis[other].rotations[rotation[other]];
+      const receiving = analysis[other].rotations[r.rotation[other] - 1];
       receiving.received += 1;
-      if (r.winner === other) {
-        receiving.sideOuts += 1;
-        rotation[other] = (rotation[other] + 1) % 6;
-      }
+      if (r.winner === other) receiving.sideOuts += 1;
     }
   }
 

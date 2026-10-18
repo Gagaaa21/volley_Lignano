@@ -179,7 +179,28 @@ export interface ScoutTimeoutEvent {
   side: ScoutSide;
 }
 
-export type ScoutEvent = ScoutRallyEvent | ScoutSetEndEvent | ScoutTouchEvent | ScoutLineupEvent | ScoutSubEvent | ScoutTimeoutEvent;
+/**
+ * Correzione della rotazione di una squadra (di cui si segue la formazione): gira di `steps` posizioni, in avanti se positivo
+ * (come quando conquista la battuta), indietro se negativo. Cambia solo chi sta in ogni posizione: punteggio, chi batte,
+ * cambi e time-out restano come sono. Serve quando una rotazione è stata dimenticata o sbagliata.
+ */
+export interface ScoutRotateEvent {
+  type: "rotate";
+  id: string;
+  at: number;
+  side: ScoutSide;
+  /** Da −5 a 5, mai 0: positivo = avanti, negativo = indietro. */
+  steps: number;
+}
+
+export type ScoutEvent =
+  | ScoutRallyEvent
+  | ScoutSetEndEvent
+  | ScoutTouchEvent
+  | ScoutLineupEvent
+  | ScoutSubEvent
+  | ScoutTimeoutEvent
+  | ScoutRotateEvent;
 
 export interface ScoutData {
   settings: ScoutSettings;

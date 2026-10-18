@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Pencil, Plus, Volleyball, X } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, RotateCcw, RotateCw, Volleyball, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { cleanNumber, opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
 import { benchOf, COURT_ROWS, jerseyLabel, reentryOfPlayer, SUBSTITUTIONS_PER_SET, substitutionsUsed, substitutionWarningFor } from "@/lib/scout/court";
-import type { ScoutCourt, ScoutView } from "@/lib/scout/derive";
+import { shiftCourt, type ScoutCourt, type ScoutView } from "@/lib/scout/derive";
 import { playerLabel, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import type { ScoutData, ScoutPlayer, ScoutSide } from "@/lib/scout/types";
@@ -34,6 +34,7 @@ function MiniCourt({
   roster,
   serving,
   large = false,
+  preview = false,
 }: {
   side: ScoutSide;
   court: ScoutCourt;
@@ -41,9 +42,17 @@ function MiniCourt({
   serving: boolean;
   /** Celle più alte e numeri più grandi (schermo intero su schermo largo, dove c'è posto). */
   large?: boolean;
+  /** Anteprima dentro una finestra (la correzione della rotazione): non si confonde con il campo vero in pagina. */
+  preview?: boolean;
 }) {
   return (
-    <div className="grid gap-1" role="group" aria-label={side === "us" ? "Nostra squadra in campo" : "Avversaria in campo"} data-scout-court={side}>
+    <div
+      className="grid gap-1"
+      role="group"
+      aria-label={side === "us" ? "Nostra squadra in campo" : "Avversaria in campo"}
+      data-scout-court={preview ? undefined : side}
+      data-scout-rotate-preview={preview ? side : undefined}
+    >
       {COURT_ROWS.map((row, r) => (
         <div key={r} className="grid grid-cols-3 gap-1">
           {row.map((position) => {
@@ -54,8 +63,10 @@ function MiniCourt({
             return (
               <div
                 key={position}
-                data-scout-court-position={position}
-                data-scout-court-player={id || undefined}
+                data-scout-court-position={preview ? undefined : position}
+                data-scout-court-player={preview ? undefined : id || undefined}
+                data-scout-preview-position={preview ? position : undefined}
+                data-scout-preview-player={preview ? id || undefined : undefined}
                 className={cn(
                   "relative flex min-w-0 flex-col items-center justify-center rounded-lg border px-0.5 text-center",
                   large ? "h-[clamp(3.25rem,8vh,4.75rem)]" : "h-[3.25rem] sm:h-14",
@@ -470,9 +481,135 @@ function SubstitutionSheet({
 }
 
 /**
+ * Correzione della rotazione, per quando se ne è saltata una (o ne è stata segnata una di troppo): si sceglie di quante
+ * posizioni girare, avanti o indietro, si vede come starà la squadra in campo e si conferma. Cambia solo chi sta in ogni
+ * posizione: punteggio, battuta, cambi e time-out restano come sono. L'anteprima usa la stessa funzione che applica la
+ * correzione (shiftCourt), quindi il campo che si vede qui è quello che si ottiene.
+ */
+function RotationSheet({
+  side,
+  data,
+  view,
+  serving,
+  dispatch,
+  onClose,
+}: {
+  side: ScoutSide;
+  data: ScoutData;
+  view: ScoutView;
+  /** La squadra batte adesso: chi sta in posizione 1 batte, la libero non lo sostituisce. */
+  serving: boolean;
+  dispatch: (action: ScoutAction) => void;
+  onClose: () => void;
+}) {
+  const court = view.court[side] as ScoutCourt;
+  const roster = data.roster[side];
+  // Da −5 a 5: indietro (negativo) o avanti (positivo), 0 = nessuna correzione.
+  const [steps, setSteps] = useState(0);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const after = steps === 0 ? court : shiftCourt(court, steps, serving);
+  const sideName = side === "us" ? "nostra squadra" : "avversaria";
+  const who = (id: string | undefined) => whoText(id ? roster.find((p) => p.id === id) : undefined, side, roster);
+  const summary = steps === 0 ? "Nessuna correzione" : steps > 0 ? `Avanti di ${steps}` : `Indietro di ${-steps}`;
+
+  function confirm() {
+    if (steps === 0) return;
+    dispatch({ type: "rotate", side, steps, at: Date.now(), id: newId() });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-sea-950/45 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Rotazione: ${sideName}`}
+        data-scout-sheet="rotate"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface p-4 shadow-[0_24px_60px_-20px_rgba(9,26,38,0.55)] sm:rounded-2xl sm:p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold leading-tight text-foreground">
+              <RotateCw className="h-5 w-5 text-primary" />
+              Rotazione · {side === "us" ? "noi" : "loro"}
+            </h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              {view.current?.n}° set · adesso la <b className="text-foreground">{court.rotation}ª</b> rotazione
+            </p>
+          </div>
+          <Button variant="quiet" size="icon-sm" onClick={onClose} aria-label="Chiudi">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <p className="mt-3 text-[13px] leading-snug text-muted-foreground">
+          Se una rotazione è saltata, o ne è stata segnata una di troppo, gira la squadra avanti o indietro. Cambia solo chi sta in ogni posizione:{" "}
+          <b className="text-foreground">punteggio, battuta, cambi e time-out restano come sono.</b>
+        </p>
+
+        <div
+          className={cn("mt-3 rounded-2xl border p-2.5", side === "us" ? "border-primary/25 bg-primary-soft/60" : "border-sand-400/50 bg-accent/50")}
+          data-scout-rotate-court
+        >
+          <CourtNet />
+          <MiniCourt side={side} court={after} roster={roster} serving={serving} preview />
+        </div>
+
+        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <Button variant="outline" onClick={() => setSteps((value) => Math.max(-5, value - 1))} disabled={steps <= -5} data-scout-rotate-back>
+            <RotateCcw className="h-4 w-4" />
+            Indietro
+          </Button>
+          <span className="min-w-[8.5rem] text-center text-sm font-bold text-foreground" aria-live="polite" data-scout-rotate-steps={steps}>
+            {summary}
+          </span>
+          <Button variant="outline" onClick={() => setSteps((value) => Math.min(5, value + 1))} disabled={steps >= 5} data-scout-rotate-forward>
+            Avanti
+            <RotateCw className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <p className="mt-3 rounded-xl bg-surface-muted px-3 py-2 text-[13px] leading-snug text-foreground" data-scout-rotate-after={after.rotation}>
+          Dopo: <b>{after.rotation}ª</b> rotazione ·{" "}
+          {serving ? (
+            <>
+              batte <b>{who(after.positions[0])}</b>
+            </>
+          ) : (
+            <>
+              quando riconquista la battuta batte <b>{who(after.positions[1])}</b>
+            </>
+          )}
+        </p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Annulla
+          </Button>
+          <Button onClick={confirm} disabled={steps === 0} data-scout-rotate-confirm>
+            <RotateCw className="h-4 w-4" />
+            Applica
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Chi è in campo, sopra i pulsanti dei punti: le due squadre (quelle di cui si
  * segue la formazione) con le rotazioni, chi batte, la libero e i cambi del set.
- * Si ruota da soli quando una squadra conquista la battuta.
+ * Si ruota da soli quando una squadra conquista la battuta; se una rotazione è
+ * saltata, «Rotazione» la corregge avanti o indietro senza toccare il punteggio.
  */
 export function ScoutCourtStrip({
   data,
@@ -491,6 +628,7 @@ export function ScoutCourtStrip({
   large?: boolean;
 }) {
   const [subSide, setSubSide] = useState<ScoutSide | null>(null);
+  const [rotateSide, setRotateSide] = useState<ScoutSide | null>(null);
   const sides = (["us", "opp"] as const).filter((side) => view.court[side]);
   if (sides.length === 0) return null;
   const server = view.current ? (view.current.rallies.length > 0 ? view.current.rallies[view.current.rallies.length - 1].winner : view.current.firstServer) : null;
@@ -522,7 +660,22 @@ export function ScoutCourtStrip({
                     {court.rotation}ª rot.
                   </span>
                 </p>
-                {server === side && <span className="text-[10px] font-bold uppercase tracking-wide text-green-700">batte</span>}
+                <span className="flex items-center gap-1.5">
+                  {server === side && <span className="text-[10px] font-bold uppercase tracking-wide text-green-700">batte</span>}
+                  {/* Rotazione sbagliata? Si corregge da qui, accanto al numero: sul telefono solo l'icona, per non allargare la colonna. */}
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={locked}
+                    onClick={() => setRotateSide(side)}
+                    title="Correggi la rotazione: avanti o indietro, senza cambiare il punteggio"
+                    aria-label={`Correggi la rotazione: ${side === "us" ? "nostra squadra" : "avversaria"}`}
+                    data-scout-rotate-open={side}
+                  >
+                    <RotateCw className="h-3 w-3" />
+                    <span className="hidden sm:inline">Rotazione</span>
+                  </Button>
+                </span>
               </div>
               <MiniCourt side={side} court={court} roster={data.roster[side]} serving={server === side} large={large} />
               <div className="flex items-center justify-between gap-1">
@@ -540,6 +693,9 @@ export function ScoutCourtStrip({
       </div>
       {subSide && view.court[subSide] && (
         <SubstitutionSheet side={subSide} data={data} view={view} serving={server === subSide} dispatch={dispatch} onClose={() => setSubSide(null)} />
+      )}
+      {rotateSide && view.court[rotateSide] && (
+        <RotationSheet side={rotateSide} data={data} view={view} serving={server === rotateSide} dispatch={dispatch} onClose={() => setRotateSide(null)} />
       )}
     </section>
   );

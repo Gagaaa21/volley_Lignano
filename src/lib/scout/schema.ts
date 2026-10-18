@@ -76,6 +76,20 @@ const timeoutSchema = z.object({
   side: sideSchema,
 });
 
+const rotateSchema = z.object({
+  type: z.literal("rotate"),
+  id: z.string().min(1).max(64),
+  at: z.number().int().min(0),
+  side: sideSchema,
+  // Da −5 a 5, mai 0: una correzione che non cambia niente non ha senso e riempirebbe il registro.
+  steps: z
+    .number()
+    .int()
+    .min(-5)
+    .max(5)
+    .refine((steps) => steps !== 0, { message: "Nessuna rotazione da correggere." }),
+});
+
 function uniqueIds(items: { id: string }[]): boolean {
   return new Set(items.map((i) => i.id)).size === items.length;
 }
@@ -101,7 +115,9 @@ export const scoutDataSchema = z
       us: z.array(playerSchema).max(MAX_SCOUT_PLAYERS).refine(uniqueIds, { message: "Giocatrici duplicate." }),
       opp: z.array(playerSchema).max(MAX_SCOUT_PLAYERS).refine(uniqueIds, { message: "Giocatrici duplicate." }),
     }),
-    events: z.array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema, timeoutSchema])).max(MAX_SCOUT_EVENTS),
+    events: z
+      .array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema, timeoutSchema, rotateSchema]))
+      .max(MAX_SCOUT_EVENTS),
     finished: z.boolean(),
   })
   .refine((data) => uniqueIds(data.events), { message: "Eventi duplicati." }) satisfies z.ZodType<ScoutData>;
