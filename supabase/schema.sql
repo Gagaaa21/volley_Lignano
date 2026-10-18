@@ -691,11 +691,14 @@ create index if not exists federation_decisions_match_idx on federation_decision
 alter table federation_decisions enable row level security;
 
 -- =========================================================
--- app_settings — impostazioni globali del sito (chiave → testo). Per ora
--- ci sta solo `notify_prompt_at`: l'istante dell'ultima «richiesta di
--- attivazione delle notifiche» inviata dal Centro di controllo. Chi apre il
--- sito e non ha ancora attivato le notifiche rivede il messaggio «Attiva le
--- notifiche» anche se l'aveva chiuso da poco.
+-- app_settings — impostazioni globali del sito (chiave → testo). Chiavi:
+-- `notify_prompt_at`: l'istante dell'ultima «richiesta di attivazione delle
+-- notifiche» inviata dal Centro di controllo. Chi apre il sito e non ha ancora
+-- attivato le notifiche rivede il messaggio «Attiva le notifiche» anche se
+-- l'aveva chiuso da poco.
+-- `public_live_scout`: copia compatta (JSON, poche centinaia di byte) del
+-- punteggio live dello Scout, aggiornata a ogni salvataggio: il sito pubblico
+-- legge solo questa invece dell'intero scout (vedi src/lib/scout/publicSnapshot.ts).
 -- =========================================================
 create table if not exists app_settings (
   key text primary key,

@@ -273,6 +273,27 @@ staff (Developer e Admin).
     cambi del set con il cestino (`ScoutLog.tsx`). Lo Scout non ha il conto alla
     rovescia dei 30 secondi (c'è nel Live score). I time-out usati vanno sul riquadro
     «In diretta» (`PublicLiveScore.timeouts`).
+  - **Diretta video** (guida «Diretta video» in `/admin/guida`): il video va da OBS
+    a YouTube Live (telefoni come camere con VDO.Ninja) e **non passa mai da Vercel né da
+    Supabase**; il sito dà solo la grafica, `/diretta/grafica`
+    (`src/app/diretta/grafica/`, `GraficaClient.tsx`): una pagina con lo sfondo trasparente da
+    mettere in OBS come «Sorgente browser» 1920×1080. Legge `/api/livescore/pubblico` (stesso
+    punteggio del banner, in cache 3 s sulla rete di Vercel) ogni 2 s e disegna la barra del
+    punteggio (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti,
+    parziali, SET/MATCH POINT) e le schede di time-out, fine set e finale (`Cards.tsx`). Le
+    misure sono in `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi
+    scala con qualunque dimensione della sorgente. Cosa è cambiato tra due letture (e quale
+    scheda aprire) è logica pura in `src/lib/diretta/overlayEvents.ts` (`diffLive`,
+    `feedReducer`), provata da `unit/diretta-overlay.spec.ts`. `?prova=1` mostra una partita
+    finta in ciclo (`src/lib/diretta/demo.ts`), `?posizione=` e `?scala=` la spostano e la
+    ingrandiscono; mostra solo U14/U15. `PwaClient` non mostra niente su questa pagina.
+    **Copia compatta del punteggio**: a ogni salvataggio dello Scout (`PUT` e `DELETE` di
+    `/api/scout/[matchId]`, e la cancellazione della partita) si aggiorna, dopo la risposta
+    (`after()`), `app_settings.public_live_scout` (`src/lib/scout/publicSnapshot.ts`: il
+    punteggio pubblico, mai nomi, poche centinaia di byte) e l'endpoint pubblico legge quella
+    invece dell'intera riga dello scout; solo se manca ripiega sulla lettura completa. Mai in
+    modalità prova. Nessuna migrazione: `app_settings` esiste già. Il campo opzionale
+    `PublicLiveScore.point` (SET/MATCH POINT) lo calcola `toPublicScoutScore`.
   - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a

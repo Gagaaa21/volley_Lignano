@@ -108,6 +108,8 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   await expect(sync(page)).toContainText("Salvato");
 
   // Un visitatore senza accesso: la API dà solo il punteggio, senza nomi, numeri né dettagli degli scambi.
+  // La copia pubblica si aggiorna a risposta già partita: si aspetta che arrivi.
+  await expect.poll(async () => (await publicLive(page))?.home.score, { timeout: 15_000 }).toBe(2);
   const live = await publicLive(page);
   expect(live).not.toBeNull();
   expect(live!.team).toBe("u14u15");
@@ -163,7 +165,7 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   await expect(page.locator("[data-scout-timeout-note]")).toHaveCount(3);
   await expect(page.getByText("Ultimo: time-out loro")).toBeVisible();
   await expect(sync(page)).toContainText("Salvato");
-  expect((await publicLive(site))!.timeouts).toEqual({ home: 1, away: 2 });
+  await expect.poll(async () => (await publicLive(site))?.timeouts, { timeout: 15_000 }).toEqual({ home: 1, away: 2 });
   expect(Object.keys((await publicLive(site))!.timeouts).sort()).toEqual(["away", "home"]);
   await expect(site.locator("[data-public-timeouts]").nth(0)).toHaveAttribute("data-public-timeouts", "1", { timeout: 20_000 });
   await expect(site.locator("[data-public-timeouts]").nth(1)).toHaveAttribute("data-public-timeouts", "2", { timeout: 20_000 });
@@ -246,10 +248,9 @@ test("Scout: a partita finita il sito mostra «Partita finita» con i set, poi s
   );
   expect(saved).toBe(200);
 
-  const live = await (async () => {
-    const response = await page.request.get("/api/livescore/pubblico");
-    return ((await response.json()) as { live: PublicLive }).live;
-  })();
+  // La copia pubblica si aggiorna a risposta già partita: si aspetta che arrivi.
+  await expect.poll(async () => (await publicLive(page))?.finished, { timeout: 15_000 }).toBe(true);
+  const live = await publicLive(page);
   expect(live).not.toBeNull();
   expect(live!.finished).toBe(true);
   expect(live!.home.sets).toBe(2);
@@ -280,8 +281,7 @@ test("Scout: a partita finita il sito mostra «Partita finita» con i set, poi s
   await expect(liveToggle(page)).toContainText("Spegni il live sul sito");
   await liveToggle(page).click();
   await expect(sync(page)).toContainText("Salvato");
-  const after = await page.request.get("/api/livescore/pubblico");
-  expect(((await after.json()) as { live: PublicLive }).live).toBeNull();
+  await expect.poll(async () => await publicLive(page), { timeout: 15_000 }).toBeNull();
 
   await deleteMatchById(page, matchId);
 });

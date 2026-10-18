@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { buildOpenInChromeUrl, usePwaInstall } from "./PwaInstallContext";
+import { OVERLAY_PATH } from "@/lib/diretta/overlayEvents";
 import type { TrainingTeam } from "@/lib/types";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
@@ -158,11 +159,15 @@ export function PwaClient() {
       ? readActiveTeamCookie()
       : "u14u15";
 
+  // La grafica della diretta video (letta da OBS) deve restare pulita: niente avvisi sopra il video, niente service worker.
+  const overlay = pathname?.startsWith(OVERLAY_PATH) ?? false;
+
   useEffect(() => {
+    if (overlay) return;
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
-  }, []);
+  }, [overlay]);
 
   // Riallinea silenziosamente l'iscrizione push allo staff/squadra corrente
   // ogni volta che si entra nell'area riservata (o si cambia squadra lì
@@ -251,7 +256,7 @@ export function PwaClient() {
     setStep("done");
   }
 
-  if (!showInstallBanner && !showNotifyBanner) return null;
+  if (overlay || (!showInstallBanner && !showNotifyBanner)) return null;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 sm:px-6">

@@ -705,6 +705,9 @@ export interface PublicLiveScore {
   timeouts: { home: number; away: number };
   /** Vero quando una delle due squadre ha vinto la partita. */
   finished: boolean;
+  /** Chi ha in mano il punto che chiude il set («set») o la partita («match»); assente negli altri momenti e nei dati
+   * di prima di questo campo. Lo usa la grafica della diretta video (SET POINT / MATCH POINT). */
+  point?: { side: "home" | "away"; kind: "set" | "match" } | null;
   /** Ultimo salvataggio del tabellone (ISO). */
   updatedAt: string;
 }

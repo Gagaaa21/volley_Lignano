@@ -9,7 +9,14 @@ import { isScoutTableMissing } from "@/lib/scout/missing";
 import type { Match } from "@/lib/types";
 
 export type ScoutAccess =
-  | { ok: true; session: SessionPayload; match: Match; repo: Repo }
+  | {
+      ok: true;
+      session: SessionPayload;
+      match: Match;
+      repo: Repo;
+      /** Modalità prova del Developer: lo scout sta in un archivio separato e non deve mai arrivare sul sito pubblico. */
+      sandboxed: boolean;
+    }
   | { ok: false; response: NextResponse };
 
 function fail(message: string, status: number): ScoutAccess {
@@ -40,7 +47,7 @@ export async function requireScoutAccess(matchId: string): Promise<ScoutAccess> 
   if (!isScoutable(match)) return fail("Lo scout è disponibile per le partite di U14/U15, non per i tornei.", 400);
   if (allowedTeams && !allowedTeams.includes(match.team)) return fail("Non hai accesso a questa squadra.", 403);
 
-  return { ok: true, session, match, repo };
+  return { ok: true, session, match, repo, sandboxed: session.role === "dev" && session.testMode === true };
 }
 
 /**

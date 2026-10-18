@@ -3,6 +3,7 @@ import { toPublicLiveScore } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import { isScoutTableMissing } from "@/lib/scout/missing";
 import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
+import { readPublicScoutSnapshot } from "@/lib/scout/publicSnapshot";
 import type { PublicLiveScore } from "@/lib/types";
 
 /**
@@ -12,6 +13,10 @@ import type { PublicLiveScore } from "@/lib/types";
  * punteggio, set e chi serve — mai nomi, numeri di maglia o formazioni (vedi
  * toPublicLiveScore e toPublicScoutScore). Se sono accesi entrambi vale quello
  * aggiornato per ultimo.
+ *
+ * Il punteggio dello Scout si legge dalla copia compatta che lo Scout aggiorna a
+ * ogni salvataggio (publicSnapshot.ts): poche centinaia di byte, invece
+ * dell'intero scout. Solo se la copia non c'è si ripiega sulla lettura completa.
  *
  * Il sito la rilegge ogni pochi secondi da ogni telefono aperto sulla home:
  * la rete di Vercel (CDN) tiene la risposta 3 secondi, così il database riceve
@@ -27,20 +32,29 @@ export async function GET() {
   try {
     const repo = await getRepo();
     // Le due fonti sono indipendenti: se una non risponde, l'altra funziona lo stesso.
-    const [snapshot, scouted] = await Promise.all([
+    const [snapshot, compact] = await Promise.all([
       repo.getLiveScoreSnapshot().catch((error: unknown) => {
         console.error("[livescore] diretta pubblica non disponibile:", error);
         return null;
       }),
-      repo.getPublicLiveScout().catch((error: unknown) => {
-        // La tabella dello scout si crea a mano su Supabase: finché manca, niente da segnalare.
-        if (!isScoutTableMissing(error)) console.error("[scout] punteggio live pubblico non disponibile:", error);
-        return null;
+      // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
+      readPublicScoutSnapshot(repo).catch((error: unknown) => {
+        console.error("[scout] copia compatta del punteggio live non leggibile:", error);
+        return undefined;
       }),
     ]);
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
-    if (scouted) fromScout = toPublicScoutScore(scouted.scout, scouted.match);
+    if (compact !== undefined) {
+      fromScout = compact;
+    } else {
+      const scouted = await repo.getPublicLiveScout().catch((error: unknown) => {
+        // La tabella dello scout si crea a mano su Supabase: finché manca, niente da segnalare.
+        if (!isScoutTableMissing(error)) console.error("[scout] punteggio live pubblico non disponibile:", error);
+        return null;
+      });
+      if (scouted) fromScout = toPublicScoutScore(scouted.scout, scouted.match);
+    }
   } catch (error) {
     console.error("[livescore] diretta pubblica non disponibile:", error);
   }

@@ -90,6 +90,36 @@ export default async function ManutenzionePage() {
       <Card className="mt-4">
         <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
+            <Gauge className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="font-display text-base font-bold text-foreground">
+              Punteggio live e diretta video
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Il video non passa mai da Vercel né da Supabase; il punteggio costa poche centinaia di byte.
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody className="pt-0">
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground/80">
+            <li>
+              A ogni salvataggio dello Scout il sito aggiorna una copia compatta del punteggio
+              pubblico (poche centinaia di byte): chi guarda il banner o la grafica della diretta
+              non fa più rileggere a Supabase l&apos;intero scout a ogni controllo.
+            </li>
+            <li>
+              Se la copia non viene scritta (per esempio la tabella delle impostazioni manca) il
+              sito ripiega sulla lettura completa di prima: funziona, ma pesa di più. Dopo la
+              prima partita in diretta guarda Supabase → Usage e Vercel → Usage.
+            </li>
+          </ul>
+        </CardBody>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader className="flex flex-row items-start gap-3.5">
+          <span className="icon-chip shrink-0">
             <Database className="h-4 w-4" />
           </span>
           <div>

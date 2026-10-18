@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireScoutAccess, withScoutStore } from "@/lib/scout/access";
+import { clearPublicScore, publishPublicScore } from "@/lib/scout/publicSnapshot";
 import { scoutDataSchema } from "@/lib/scout/schema";
 
 /**
@@ -8,8 +9,25 @@ import { scoutDataSchema } from "@/lib/scout/schema";
  * su quale versione si basa (409 con la versione attuale se nel frattempo ne è
  * stata salvata un'altra), DELETE lo azzera. Sempre no-store: lo usa chi segna
  * i punti in diretta.
+ *
+ * Salvando o azzerando si aggiorna anche la copia compatta del punteggio live
+ * per il sito pubblico (src/lib/scout/publicSnapshot.ts).
  */
 const NO_STORE = { "Cache-Control": "no-store" };
+
+/**
+ * Lavora a risposta già partita e non può far fallire la richiesta: chi segna i punti ha già il suo «Salvato», un errore
+ * qui al massimo lascia il sito pubblico un giro indietro (si rimette a posto al salvataggio dopo).
+ */
+function afterResponse(matchId: string, task: () => Promise<void>) {
+  after(async () => {
+    try {
+      await task();
+    } catch (error) {
+      console.error(`[scout ${matchId}] copia pubblica del punteggio non aggiornata:`, error);
+    }
+  });
+}
 
 const putSchema = z.object({
   data: scoutDataSchema,
@@ -55,6 +73,8 @@ export async function PUT(request: Request, { params }: RouteContext) {
       { status: 409, headers: NO_STORE },
     );
   }
+  // In modalità prova lo scout sta in un archivio separato: sul sito pubblico non deve arrivare niente.
+  if (!access.sandboxed) afterResponse(matchId, () => publishPublicScore(access.repo, result.scout, access.match));
   return NextResponse.json({ version: result.scout.version, updatedAt: result.scout.updatedAt }, { headers: NO_STORE });
 }
 
@@ -65,5 +85,6 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   const done = await withScoutStore(() => access.repo.deleteMatchScout(matchId));
   if (done instanceof NextResponse) return done;
+  if (!access.sandboxed) afterResponse(matchId, () => clearPublicScore(access.repo, matchId));
   return NextResponse.json({ ok: true }, { headers: NO_STORE });
 }

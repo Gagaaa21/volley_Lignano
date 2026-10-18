@@ -660,6 +660,36 @@
   }
 }
 
+/* Grafica della diretta video (/diretta/grafica, src/components/diretta): la scheda che si apre sotto (o sopra) la barra
+   del punteggio, il conto alla rovescia del time-out e il lampeggio di «SET POINT». */
+@keyframes grafica-card-in {
+  0% {
+    transform: translateY(var(--card-from, -40%));
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes grafica-countdown {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+@keyframes grafica-point-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 /* Tour guidato (src/components/tour/Tour.tsx): dissolvenza della scheda a
    ogni nuovo passo. Stessa convenzione delle animazioni live score sopra. */
 @keyframes tour-fade-in {

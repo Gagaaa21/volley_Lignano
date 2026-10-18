@@ -322,3 +322,59 @@ test.describe("punteggio live: archivio in memoria", () => {
     expect(await repo.getPublicLiveScout()).toBeNull();
   });
 });
+
+test.describe("punteggio live: set point e match point", () => {
+  const on = (settings: Partial<ScoutData["settings"]> = {}) => updateSettings(base(), { publicLive: true, ...settings });
+  /** Un set già chiuso: `us` punti nostri contro `opp`, poi la chiusura con chi batte dopo. */
+  const closedSet = (data: ScoutData, us: number, opp: number, startAt: number, id: string) =>
+    endSet(play(data, us, opp, startAt), "us", T0 + (startAt + us + opp + 5) * 1000, id);
+
+  test("lontano dal limite non c'è niente da segnalare e la chiave non compare nemmeno", () => {
+    const result = live(play(on(), 10, 8));
+    expect(result).not.toBeNull();
+    expect(result).not.toHaveProperty("point");
+    expect(live(play(on(), 24, 24))).not.toHaveProperty("point");
+  });
+
+  test("a un punto dalla fine del set: set point di chi lo ha in mano, anche ai vantaggi", () => {
+    expect(live(play(on(), 24, 23))?.point).toEqual({ side: "home", kind: "set" });
+    expect(live(play(on(), 23, 24))?.point).toEqual({ side: "away", kind: "set" });
+    expect(live(play(on(), 26, 25))?.point).toEqual({ side: "home", kind: "set" });
+  });
+
+  test("a set già vinto, in attesa di chiuderlo, non c'è più un punto da segnalare", () => {
+    expect(live(play(on(), 25, 20))).not.toHaveProperty("point");
+  });
+
+  test("match point: l'ultimo set che serve per vincere, in base alla formula", () => {
+    // 2 set su 3, avanti 1-0: il set point del 2° set è anche match point.
+    const bo3 = closedSet(on({ format: "bo3" }), 25, 20, 0, "end1");
+    expect(live(play(bo3, 24, 20, 100))?.point).toEqual({ side: "home", kind: "match" });
+    // Chi è sotto 0-1 e sta per chiudere il 2° set pareggia i conti: solo set point.
+    expect(live(play(bo3, 20, 24, 100))?.point).toEqual({ side: "away", kind: "set" });
+    // 3 set su 5, avanti 1-0: servono ancora due set.
+    const bo5 = closedSet(on({ format: "bo5" }), 25, 20, 0, "end1");
+    expect(live(play(bo5, 24, 20, 100))?.point).toEqual({ side: "home", kind: "set" });
+  });
+
+  test("set decisivo: si gioca a 15 e chi ha il punto in mano ha anche il match point", () => {
+    let data = closedSet(on({ format: "bo3" }), 25, 20, 0, "end1");
+    data = closedSet(data, 20, 25, 100, "end2");
+    expect(live(play(data, 14, 13, 200))?.point).toEqual({ side: "home", kind: "match" });
+    expect(live(play(data, 13, 14, 200))?.point).toEqual({ side: "away", kind: "match" });
+    expect(live(play(data, 14, 14, 200))).not.toHaveProperty("point");
+  });
+
+  test("con 3 set obbligatori la partita non finisce prima: solo set point; a partita finita niente", () => {
+    // Avanti 1-0 e poi 2-0: vincere il set non decide mai la partita, che si gioca tutta (il 3° set è a 15).
+    const one = closedSet(on({ format: "fixed3" }), 25, 20, 0, "end1");
+    expect(live(play(one, 24, 20, 100))?.point).toEqual({ side: "home", kind: "set" });
+    const two = closedSet(one, 25, 20, 100, "end2");
+    expect(live(play(two, 14, 10, 200))?.point).toEqual({ side: "home", kind: "set" });
+    expect(live(play(two, 10, 8, 200))).not.toHaveProperty("point");
+    // Due set su tre vinti e partita decisa (formula 2 su 3): finita, nessun punto in mano.
+    const done = closedSet(closedSet(on({ format: "bo3" }), 25, 20, 0, "end1"), 25, 20, 100, "end2");
+    expect(live(done)?.finished).toBe(true);
+    expect(live(done)).not.toHaveProperty("point");
+  });
+});

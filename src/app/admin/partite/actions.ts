@@ -11,6 +11,7 @@ import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { parseClockTime } from "@/lib/clockTime";
 import { formatDateLong } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
+import { clearPublicScore } from "@/lib/scout/publicSnapshot";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
 import type { MatchInput, MatchLineupInput } from "@/lib/types";
 import { todayIso } from "@/lib/today";
@@ -255,6 +256,8 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   const repo = await getActiveRepo();
   const match = await repo.getMatch(id);
   await repo.deleteMatch(id);
+  // Con la partita se ne va anche lo scout: il suo punteggio live non deve restare sul sito.
+  await clearPublicScore(repo, id).catch((error: unknown) => console.error("[deleteMatchAction] punteggio live non tolto:", error));
   if (match) {
     const matchup = matchupLabel(match);
     await notifyCalendarChange(

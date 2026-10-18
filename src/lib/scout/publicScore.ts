@@ -1,7 +1,22 @@
 import { DEFAULT_OPPONENT_COLOR, HOME_TEAM_LABEL, teamColor } from "@/lib/liveScore";
 import type { Match, PublicLiveScore } from "@/lib/types";
-import { currentServer, deriveScout } from "./derive";
-import type { MatchScout } from "./types";
+import { setPointHolder, setsToWin } from "@/lib/volleyRules";
+import { currentServer, deriveScout, setTarget, type ScoutView } from "./derive";
+import type { MatchScout, ScoutSettings } from "./types";
+
+/**
+ * Il punto che chiude il set o la partita: chi ce l'ha in mano adesso. Nessuno a partita finita, a set già vinto (in attesa
+ * che lo si chiuda) o con 3 set obbligatori, dove la partita non finisce prima del 3° set e non c'è un «match point».
+ */
+function pointInHand(view: ScoutView, settings: ScoutSettings, finished: boolean): PublicLiveScore["point"] {
+  if (finished || !view.current) return null;
+  const { us, opp } = view.current.score;
+  const holder = setPointHolder(us, opp, setTarget(settings, view.current.n));
+  if (!holder) return null;
+  const needed = setsToWin(settings.format);
+  const sets = holder === "a" ? view.setsWon.us : view.setsWon.opp;
+  return { side: holder === "a" ? "home" : "away", kind: needed !== null && sets + 1 >= needed ? "match" : "set" };
+}
 
 /**
  * Il punteggio live pubblico ricavato dallo scout: lo stesso riquadro che il
@@ -26,6 +41,7 @@ export function toPublicScoutScore(
   const playedSets = (finished ? view.sets.filter((set) => set.rallies.length > 0) : view.sets.filter((set) => set.closed)).map(
     (set) => ({ home: set.score.us, away: set.score.opp }),
   );
+  const point = pointInHand(view, scout.settings, finished);
 
   return {
     team: match.team,
@@ -45,6 +61,8 @@ export function toPublicScoutScore(
       away: finished ? 0 : (view.current?.timeouts.filter((t) => t.side === "opp").length ?? 0),
     },
     finished,
+    // Solo quando c'è: negli altri momenti la risposta resta quella di sempre.
+    ...(point ? { point } : {}),
     updatedAt: scout.updatedAt,
   };
 }
