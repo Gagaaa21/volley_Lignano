@@ -1,4 +1,6 @@
+import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { getRepo } from "@/lib/db";
+import { opponentLogoFor } from "@/lib/federation/teamLogos";
 import { toPublicLiveScore } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import { isScoutTableMissing } from "@/lib/scout/missing";
@@ -19,6 +21,10 @@ import type { PublicLiveScore } from "@/lib/types";
  * (`notStarted`): così la barra compare appena si accende il live. Senza il
  * parametro, come per il banner del sito, quella partita non c'è: il riquadro
  * compare dal primo punto.
+ *
+ * Alle partite U14/U15 si aggiunge il logo dell'avversaria (`away.logo`, un
+ * indirizzo del nostro sito) quando il suo nome combacia con una squadra della
+ * classifica del girone (vedi src/lib/federation/teamLogos.ts).
  *
  * Il punteggio dello Scout si legge dalla copia compatta che lo Scout aggiorna a
  * ogni salvataggio (publicSnapshot.ts): poche centinaia di byte, invece
@@ -74,9 +80,20 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("[livescore] diretta pubblica non disponibile:", error);
   }
-  const live = latestPublicLive(fromLiveScore, fromScout);
+  let live = latestPublicLive(fromLiveScore, fromScout);
+  if (live?.notStarted && !withNotStarted) live = null;
+  // Il logo dell'avversaria dalla classifica del girone (le classifiche si tengono in memoria qualche minuto: di norma non
+  // costa letture). Mai nella copia compatta di Supabase, e un logo che non si trova non rompe mai il punteggio.
+  if (live && live.team === "u14u15") {
+    try {
+      const logo = await opponentLogoFor(await getRepo(), live.category, live.away.name, { manualLogo: (team) => manualLogoFor(team)?.src ?? null });
+      if (logo) live = { ...live, away: { ...live.away, logo } };
+    } catch (error) {
+      console.error("[livescore] logo dell'avversaria non disponibile:", error);
+    }
+  }
   return Response.json(
-    { live: live?.notStarted && !withNotStarted ? null : live },
+    { live },
     {
       headers: {
         "Cache-Control": "no-store",

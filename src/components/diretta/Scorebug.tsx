@@ -1,11 +1,9 @@
-import Image from "next/image";
 import { Timer, Trophy, Volleyball } from "lucide-react";
-import crest from "@/assets/lignano-crest.png";
 import { cn } from "@/lib/cn";
-import { readableTextColor, teamMonogram } from "@/lib/liveScore";
 import type { Side } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
+import { accent, TeamMark } from "./TeamMark";
 
 /**
  * La barra del punteggio della diretta video, in stile Serie A / SuperLega: categoria e set, le due squadre con battuta,
@@ -15,30 +13,6 @@ import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
  */
 
 const NAVY = "#0a1e2c";
-const HEX = /^#[0-9a-fA-F]{6}$/;
-
-/** Il colore scelto dal coach per la squadra, solo se è un esadecimale valido. */
-const accent = (color: string) => (HEX.test(color) ? color : "#475569");
-
-function Badge({ team, side }: { team: PublicLiveScoreTeam; side: Side }) {
-  if (side === "home") {
-    return (
-      <span className="grid h-[2.5rem] w-[2.5rem] place-items-center rounded-[0.6rem] bg-white p-[0.3rem]">
-        <Image src={crest} alt="" unoptimized className="h-full w-full object-contain" />
-      </span>
-    );
-  }
-  const color = accent(team.color);
-  return (
-    <span
-      aria-hidden
-      className="grid h-[2.5rem] w-[2.5rem] place-items-center rounded-full font-display text-[1rem] font-extrabold"
-      style={{ background: color, color: readableTextColor(color) }}
-    >
-      {teamMonogram(team.name)}
-    </span>
-  );
-}
 
 /** Due puntini per i time-out del set: pieni quelli già chiamati. */
 function TimeoutPips({ used, side }: { used: number; side: Side }) {
@@ -87,7 +61,7 @@ function TeamRow({
     >
       <span className="w-[0.45rem] shrink-0" style={{ background: color }} />
       <span className={cn("grid w-[3.7rem] shrink-0 place-items-center", dimmed && "opacity-60")}>
-        <Badge team={team} side={side} />
+        <TeamMark team={team} side={side} className="h-[2.5rem] w-[2.5rem]" />
       </span>
       <span className="flex min-w-0 flex-1 items-center gap-[0.7rem]">
         <span className={cn("truncate font-display text-[1.45rem] font-extrabold uppercase tracking-wide", dimmed && "text-white/60")} data-grafica-name>

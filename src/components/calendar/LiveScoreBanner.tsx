@@ -29,18 +29,46 @@ interface Snapshot {
 
 type Side = "home" | "away";
 
-/** Lo stemma per noi, il tondo con le iniziali (nel colore scelto dal coach) per l'avversaria. */
+const BADGE_TILE = "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white p-1.5 shadow-md ring-1 ring-white/40 sm:h-12 sm:w-12 sm:p-2";
+
+/**
+ * Lo stemma per noi; per l'avversaria il logo del girone, se la risposta ne porta uno e l'immagine si carica, altrimenti il
+ * tondo con le iniziali (nel colore scelto dal coach).
+ */
 function TeamBadge({ team, side, crest }: { team: PublicLiveScoreTeam; side: Side; crest: typeof crestU14U15 }) {
+  // Il logo che non si è caricato: se la risposta ne porta un altro si riprova.
+  const [failed, setFailed] = useState<string | null>(null);
   if (side === "home") {
     return (
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white p-1.5 shadow-md ring-1 ring-white/40 sm:h-12 sm:w-12 sm:p-2">
+      <span className={BADGE_TILE}>
         <Image src={crest} alt="" className="h-full w-full object-contain" />
+      </span>
+    );
+  }
+  const logo = team.logo ?? null;
+  if (logo && failed !== logo) {
+    return (
+      <span className={BADGE_TILE} data-public-team-logo>
+        {/* Immagine già ridotta e tenuta in cache dal nostro server: next/image non serve. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logo}
+          alt=""
+          decoding="async"
+          className="h-full w-full object-contain"
+          onError={() => setFailed(logo)}
+          // Se l'errore è arrivato prima che la pagina fosse pronta, l'evento si perde: si ricontrolla qui.
+          ref={(img) => {
+            if (img && img.complete && img.naturalWidth === 0) setFailed(logo);
+          }}
+        />
       </span>
     );
   }
   return (
     <span
       aria-hidden
+      data-public-team-monogram
       className="grid h-10 w-10 shrink-0 place-items-center rounded-full font-display text-sm font-extrabold tracking-wide shadow-md ring-2 ring-white/35 sm:h-12 sm:w-12 sm:text-base"
       style={{ background: team.color, color: readableTextColor(team.color) }}
     >

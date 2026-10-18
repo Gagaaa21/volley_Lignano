@@ -691,6 +691,12 @@ export interface PublicLiveScoreTeam {
   color: string;
   score: number;
   sets: number;
+  /**
+   * Il logo della squadra, un indirizzo del nostro sito (il logo del girone passa da /api/federation/logo). Solo per
+   * l'avversaria, e solo se la risposta pubblica l'ha trovato nella classifica del girone: la nostra squadra usa lo stemma del
+   * sito, e senza logo (o se non si carica) restano le iniziali nel colore scelto dal coach. Non sta nella copia compatta.
+   */
+  logo?: string | null;
 }
 
 export interface PublicLiveScore {
