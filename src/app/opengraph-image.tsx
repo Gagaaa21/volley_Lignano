@@ -33,7 +33,7 @@ export default async function OpengraphImage() {
           background: "linear-gradient(135deg, #2b64a1, #193e66)",
         }}
       >
-        <img src={crestSrc} width={220} height={220} style={{ objectFit: "contain" }} />
+        <img src={crestSrc} alt="" width={220} height={220} style={{ objectFit: "contain" }} />
         <div
           style={{
             marginTop: 40,

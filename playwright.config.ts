@@ -7,6 +7,12 @@ import { defineConfig, devices } from "@playwright/test";
  * incontrato più volte lavorando a mano su questo progetto). Per questo la
  * suite gira sempre in un solo worker, in sequenza — ogni file di test usa
  * comunque nomi/utenti con suffisso univoco per restare autonomo.
+ *
+ * Eccezione: le prove del Live score scrivono le formazioni in campi liberi, e
+ * presuppongono che nell'elenco delle atlete non ci siano giocatrici con il
+ * numero di maglia (altrimenti le caselle diventano menù con quei numeri). La
+ * suite le esegue prima di quelle che lasciano atlete; rilanciarne una sola su
+ * un server di prova già usato può quindi fallire: prima si riavvia il server.
  */
 // Anche i test ragionano in ora italiana, come il sito (src/instrumentation.ts)
 // e i telefoni di chi lo usa: tra mezzanotte e le 2 «oggi» in UTC sarebbe
