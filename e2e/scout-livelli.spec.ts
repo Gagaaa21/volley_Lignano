@@ -339,6 +339,8 @@ test("livello «Completo»: l'attacco loro non chiede chi (i voti sono subito at
   await entry.locator("[data-scout-who]", { hasText: "Sara R." }).click();
   await expect(grade("#")).toBeEnabled();
 
+  // Tutto salvato prima di lasciare la pagina (altrimenti il suo avviso «modifiche non salvate» si prende la conferma dell'eliminazione).
+  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);
 });
 
