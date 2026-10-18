@@ -8,13 +8,15 @@ export const metadata: Metadata = {
 };
 
 /**
- * Pagina per OBS (vedi GraficaClient): non è fatta per essere aperta dai visitatori. Lo sfondo del sito va tolto prima di
- * tutto il resto, così al caricamento non lampeggia un riquadro pieno sopra il video.
+ * Pagina per OBS (vedi GraficaClient) e per il riquadro sopra il lettore della pagina /diretta: non è fatta per essere aperta dai
+ * visitatori. Lo sfondo del sito va tolto prima di tutto il resto, così al caricamento non lampeggia un riquadro pieno sopra il
+ * video. Lo schema colori è sempre «chiaro», come quello del riquadro che la contiene: se i due non coincidono (tema scuro del
+ * sito) il browser dipinge il riquadro con uno sfondo pieno e il video sparisce.
  */
 export default function GraficaPage() {
   return (
     <>
-      <style>{"html,body{background:transparent!important}"}</style>
+      <style>{"html,body{background:transparent!important}html{color-scheme:light!important}"}</style>
       <Suspense fallback={null}>
         <GraficaClient />
       </Suspense>

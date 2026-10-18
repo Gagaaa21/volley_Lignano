@@ -10,6 +10,11 @@ import { TIMEOUT_SECONDS } from "@/lib/volleyRules";
 /** La pagina che OBS usa come «Sorgente browser». */
 export const OVERLAY_PATH = "/diretta/grafica";
 
+/** Come la pagina /diretta e la grafica che sta nel suo riquadro si parlano (stessa origine): `{ type, ritardo?, scala? }` verso la grafica… */
+export const OPTIONS_MESSAGE = "vl-opzioni";
+/** …e questo, dalla grafica alla pagina, quando è pronta ad ascoltare (un messaggio mandato prima andrebbe perso). */
+export const READY_MESSAGE = "vl-grafica-pronta";
+
 export type Side = "home" | "away";
 
 /** Quanto resta aperta ogni scheda sotto la barra del punteggio. */

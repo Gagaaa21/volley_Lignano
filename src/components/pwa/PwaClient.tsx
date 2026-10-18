@@ -161,6 +161,8 @@ export function PwaClient() {
 
   // La grafica della diretta video (letta da OBS) deve restare pulita: niente avvisi sopra il video, niente service worker.
   const overlay = pathname?.startsWith(OVERLAY_PATH) ?? false;
+  // Chi guarda la diretta (pagina /diretta) non vuole avvisi sopra il video.
+  const watching = pathname?.startsWith("/diretta") ?? false;
 
   useEffect(() => {
     if (overlay) return;
@@ -256,7 +258,7 @@ export function PwaClient() {
     setStep("done");
   }
 
-  if (overlay || (!showInstallBanner && !showNotifyBanner)) return null;
+  if (watching || (!showInstallBanner && !showNotifyBanner)) return null;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 sm:px-6">

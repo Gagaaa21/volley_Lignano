@@ -3,8 +3,9 @@ import type { ReactNode } from "react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Binoculars, BookOpen, ChartNoAxesColumn, FileDown, MapPin, Pencil } from "lucide-react";
-import { getActiveRepo } from "@/lib/db";
+import { getActiveRepo, getRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
+import { LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS, parseCategoryFilter } from "@/lib/category";
 import { todayIso } from "@/lib/today";
@@ -19,6 +20,7 @@ import { HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
+import { DirettaCard } from "./DirettaCard";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { ShareManualButton } from "@/components/scout/ShareManualButton";
 import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
@@ -280,6 +282,12 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
     );
   }
 
+  // I link della diretta video si leggono sempre dall'archivio vero (la pagina dei genitori fa lo stesso).
+  const streamSettings = await getRepo()
+    .then((real) => real.getAppSetting(LIVE_STREAM_KEY))
+    .then((raw) => parseStreamSettings(raw))
+    .catch(() => null);
+
   const firstId = (upcoming[0] ?? played[0])?.id;
   const rows = (list: Match[]) =>
     list.map((match) => (
@@ -290,6 +298,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
     <div>
       {header}
       {welcome}
+      <DirettaCard initial={streamSettings} />
       {tabs}
       {matches.length === 0 ? (
         <EmptyState

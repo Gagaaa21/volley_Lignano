@@ -273,27 +273,48 @@ staff (Developer e Admin).
     cambi del set con il cestino (`ScoutLog.tsx`). Lo Scout non ha il conto alla
     rovescia dei 30 secondi (c'è nel Live score). I time-out usati vanno sul riquadro
     «In diretta» (`PublicLiveScore.timeouts`).
-  - **Diretta video** (guida «Diretta video» in `/admin/guida`): il video va da OBS
-    a YouTube Live (telefoni come camere con VDO.Ninja) e **non passa mai da Vercel né da
-    Supabase**; il sito dà solo la grafica, `/diretta/grafica`
-    (`src/app/diretta/grafica/`, `GraficaClient.tsx`): una pagina con lo sfondo trasparente da
-    mettere in OBS come «Sorgente browser» 1920×1080. Legge `/api/livescore/pubblico` (stesso
-    punteggio del banner, in cache 3 s sulla rete di Vercel) ogni 2 s e disegna la barra del
-    punteggio (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti,
-    parziali, SET/MATCH POINT) e le schede di time-out, fine set e finale (`Cards.tsx`). Le
-    misure sono in `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi
-    scala con qualunque dimensione della sorgente. Cosa è cambiato tra due letture (e quale
-    scheda aprire) è logica pura in `src/lib/diretta/overlayEvents.ts` (`diffLive`,
-    `feedReducer`), provata da `unit/diretta-overlay.spec.ts`. `?prova=1` mostra una partita
-    finta in ciclo (`src/lib/diretta/demo.ts`), `?posizione=` e `?scala=` la spostano e la
-    ingrandiscono; mostra solo U14/U15. `PwaClient` non mostra niente su questa pagina.
+  - **Diretta video** (guida «Diretta video» in `/admin/guida`): ogni telefono su cavalletto fa
+    una diretta su YouTube e i genitori guardano da `/diretta` (`src/app/diretta/`,
+    `DirettaClient.tsx`): il video non passa mai da Vercel né da Supabase. La pagina è statica:
+    legge le camere da `GET /api/diretta` (`src/app/api/diretta/route.ts`, in cache 10 s sulla
+    rete di Vercel) e incorpora il lettore YouTube (`youtube-nocookie.com/embed/<id>?fs=0`, senza
+    il pulsante schermo intero di YouTube, che lascerebbe fuori il punteggio) con sopra, in un
+    secondo riquadro trasparente senza tocchi, la grafica `/diretta/grafica`. Pulsanti per
+    scegliere la camera (fino a 3, la scelta resta nel telefono), schermo intero del riquadro
+    intero (Fullscreen API; su iPhone il riquadro a tutta pagina) e controllo del ritardo del
+    punteggio con − e +. Le camere le incolla lo staff nella scheda «Diretta video» in cima
+    all'elenco Scout (`src/app/admin/scout/DirettaCard.tsx` + `diretta-actions.ts`, permesso
+    «Scout», mai in modalità prova): `app_settings.live_stream`, JSON con camere, ritardo e ora
+    del salvataggio (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
+    `live/…`, `embed/…`, accetta solo identificativi di 11 caratteri, scade dopo 12 ore).
+    **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
+    anche da mettere in OBS come «Sorgente browser» 1920×1080. Legge `/api/livescore/pubblico`
+    (stesso punteggio del banner) e disegna la barra del punteggio
+    (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti, parziali,
+    SET/MATCH POINT) e le schede di time-out, fine set e finale (`Cards.tsx`). Le misure sono in
+    `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi scala con
+    qualunque dimensione. Cosa è cambiato tra due letture è logica pura in
+    `src/lib/diretta/overlayEvents.ts` (`diffLive`, `feedReducer`). Opzioni nell'indirizzo:
+    `?prova=1` (partita finta, `demo.ts`), `?posizione=`, `?scala=`, `?ritardo=` (secondi: le
+    letture si tengono in coda, `delay.ts`, e si mostrano dopo il ritardo, per allinearle al
+    video di YouTube che arriva con 10–20 s di ritardo) e `?intervallo=` (secondi tra due
+    letture, e si ferma a scheda nascosta: lo usa la pagina `/diretta`, 8 s). La pagina dei
+    genitori cambia ritardo e scala senza ricaricare la grafica con un messaggio
+    (`OPTIONS_MESSAGE`, stessa origine); la grafica avvisa di essere pronta con `READY_MESSAGE`
+    (un messaggio mandato prima andrebbe perso). Lo schema colori è sempre «chiaro» sia per il
+    riquadro sia per il documento: se non coincidono (tema scuro del sito) il browser dipinge il
+    riquadro con uno sfondo pieno (provato con un confronto di pixel in
+    `e2e/diretta-pagina.spec.ts`). Mostra solo U14/U15, mai nomi né numeri di maglia.
+    `PwaClient` non mostra avvisi su `/diretta*`.
     **Copia compatta del punteggio**: a ogni salvataggio dello Scout (`PUT` e `DELETE` di
     `/api/scout/[matchId]`, e la cancellazione della partita) si aggiorna, dopo la risposta
     (`after()`), `app_settings.public_live_scout` (`src/lib/scout/publicSnapshot.ts`: il
-    punteggio pubblico, mai nomi, poche centinaia di byte) e l'endpoint pubblico legge quella
-    invece dell'intera riga dello scout; solo se manca ripiega sulla lettura completa. Mai in
-    modalità prova. Nessuna migrazione: `app_settings` esiste già. Il campo opzionale
-    `PublicLiveScore.point` (SET/MATCH POINT) lo calcola `toPublicScoutScore`.
+    punteggio pubblico, mai nomi, poche centinaia di byte) e l'endpoint pubblico la legge
+    invece dell'intera riga dello scout; se non c'è una copia «in diretta» ripiega sulla
+    lettura completa, come prima. Mai in modalità prova. Nessuna migrazione: `app_settings`
+    esiste già. Il campo opzionale `PublicLiveScore.point` (SET/MATCH POINT) lo calcola
+    `toPublicScoutScore`. Con lo Scout acceso ma senza ancora un punto il sito (e la grafica)
+    non mostra niente: la barra compare dal primo punto segnato.
   - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a
