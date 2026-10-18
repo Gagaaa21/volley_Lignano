@@ -46,9 +46,10 @@ async function addPlayer(page: Page, name: string, number: string) {
   await expect(page.locator(`[data-scout-athlete="${name}"]`)).toBeVisible();
 }
 
-/** Segna un punto con i pulsanti: lato, modo, e poi chi (indice di maglia o null). */
+/** Segna un punto con i pulsanti: lato, modo, e poi chi (indice di maglia o null). L'attacco vincente loro non lo chiede: si segna subito. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string } | null) {
   await page.locator(`[data-scout-add="${button}"]`).click();
+  if (button === "opp-attack") return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();
@@ -142,8 +143,8 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   await page.locator('[data-scout-add="opp-error"]').click();
   await page.locator('[data-scout-error="rotationFault"]').click();
   await expect(score(page)).toHaveText("3–2");
-  // 6) Attacco loro di un numero nuovo scritto al volo (n. 11) → 3-3
-  await page.locator('[data-scout-add="opp-attack"]').click();
+  // 6) Ace loro di un numero nuovo scritto al volo (n. 11) → 3-3
+  await page.locator('[data-scout-add="opp-ace"]').click();
   await page.locator("[data-scout-new-number]").fill("11");
   await page.locator("[data-scout-new-number]").press("Enter");
   await expect(score(page)).toHaveText("3–3");
@@ -216,6 +217,63 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   await expect(page.locator("[data-scout-season]")).toBeVisible();
   await expect(page.locator('[data-scout-table="us"]')).toContainText("Sara Rossi");
 
+  await deleteMatchById(page, matchId);
+});
+
+test("scout: l'attacco vincente loro si segna con un tocco solo, senza chiedere chi; gli altri punti lo chiedono ancora", async ({ page }) => {
+  test.setTimeout(120_000);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+  const matchId = await createMatch(page, uniqueName("Senza chi "));
+
+  await page.goto(`/admin/scout/${matchId}`);
+  await expect(page.getByRole("heading", { name: "Prima di cominciare" })).toBeVisible();
+  await addPlayer(page, "Giulia Bianchi", "4");
+  await page.getByLabel("Numeri di maglia dell'avversaria").fill("5");
+  await page.getByLabel("Numeri di maglia dell'avversaria").press("Enter");
+  await expect(page.locator('[data-scout-opponent="5"]')).toBeVisible();
+  await page.locator("[data-scout-start]").click();
+  await expect(score(page)).toHaveText("0–0");
+
+  const sheet = page.locator("[data-scout-sheet^='player']");
+
+  // 1) Attacco loro: il punto è segnato subito, nessuna finestra «chi?», nel registro «Squadra».
+  await page.locator('[data-scout-add="opp-attack"]').click();
+  await expect(score(page)).toHaveText("0–1");
+  await expect(sheet).toHaveCount(0);
+  await expect(page.locator('[data-scout-rally="1"]')).toContainText("Attacco");
+  await expect(page.locator('[data-scout-rally="1"]')).toContainText("Squadra");
+
+  // 2) Gli altri modi lo chiedono come prima: l'ace loro (con il suo numero) e il nostro attacco.
+  await page.locator('[data-scout-add="opp-ace"]').click();
+  await expect(sheet).toBeVisible();
+  await sheet.locator('[data-scout-pick="opp-5"]').click();
+  await expect(score(page)).toHaveText("0–2");
+  await page.locator('[data-scout-add="us-attack"]').click();
+  await expect(sheet).toBeVisible();
+  await sheet.locator("[data-scout-pick]", { hasText: "Giulia B." }).click();
+  await expect(score(page)).toHaveText("1–2");
+
+  // 3) Se si vuole dirlo lo stesso, si corregge lo scambio dal registro.
+  await page.getByLabel("Correggi lo scambio 1", { exact: true }).click();
+  await page.locator("#scout-edit-player").selectOption({ label: "n. 5" });
+  await page.locator("[data-scout-edit-save]").click();
+  await expect(page.locator('[data-scout-rally="1"]')).toContainText("n. 5");
+  await expect(score(page)).toHaveText("1–2");
+
+  // 4) «Annulla ultimo» toglie i punti come sempre; l'attacco loro si segna e si annulla senza finestre.
+  await page.locator("[data-scout-undo]").click();
+  await page.locator("[data-scout-undo]").click();
+  await page.locator("[data-scout-undo]").click();
+  await expect(score(page)).toHaveText("0–0");
+  await page.locator('[data-scout-add="opp-attack"]').click();
+  await expect(score(page)).toHaveText("0–1");
+  await expect(sheet).toHaveCount(0);
+  await page.locator("[data-scout-undo]").click();
+  await expect(score(page)).toHaveText("0–0");
+
+  // Tutto salvato prima di lasciare la pagina (altrimenti il suo avviso «modifiche non salvate» si prende la conferma dell'eliminazione).
+  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);
 });
 

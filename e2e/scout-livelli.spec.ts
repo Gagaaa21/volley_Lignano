@@ -48,9 +48,10 @@ async function addPlayer(page: Page, name: string, number: string) {
   await expect(page.locator(`[data-scout-athlete="${name}"]`)).toBeVisible();
 }
 
-/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi (testo della giocatrice o numero avversario). */
+/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi (testo della giocatrice o numero avversario). L'attacco vincente loro non lo chiede: si segna subito. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string } | null) {
   await page.locator(`[data-scout-add="${button}"]`).click();
+  if (button === "opp-attack") return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();
@@ -122,8 +123,8 @@ test("livello «Con ricezioni»: la striscia della ricezione, l'errore chiude lo
   // Batte la nostra squadra: la ricezione non c'è, il riquadro lo dice.
   await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
 
-  // 1) Punto loro (attacco del n. 5): ora battono loro e la striscia si apre.
-  await addPoint(page, "opp-attack", { opp: "5" });
+  // 1) Punto loro (attacco, senza chiedere chi): ora battono loro e la striscia si apre.
+  await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("0–1");
   await expect(page.locator('[data-scout-reception="open"]')).toBeVisible();
   // Senza dire chi ha ricevuto i voti restano spenti.
@@ -144,7 +145,7 @@ test("livello «Con ricezioni»: la striscia della ricezione, l'errore chiude lo
   await expect(page.locator('[data-scout-reception="idle"]')).toBeVisible();
 
   // 4) Ancora un punto loro, e una ricezione segnata per sbaglio che si toglie con «Cambia».
-  await addPoint(page, "opp-attack", { opp: "8" });
+  await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("1–3");
   await receive(page, "Giulia B.", "!");
   await expect(page.locator('[data-scout-reception="done"]')).toBeVisible();
@@ -254,7 +255,7 @@ test("livello «Completo»: ogni tocco, il punto lo dà il voto, si corregge e i
   // 6) Per un fallo o se si perde il filo: i pulsanti dei punti, con il tocco già segnato che resta.
   await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "!" });
   await page.locator("[data-scout-other-ways] summary").click();
-  await addPoint(page, "opp-attack", { opp: "5" });
+  await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("3–2");
   await expect(chip(page, 5, "serve:!")).toBeVisible();
   await expect(page.locator("[data-scout-rally]")).toHaveCount(5);
@@ -301,6 +302,42 @@ test("livello «Completo»: ogni tocco, il punto lo dà il voto, si corregge e i
   const sara = usTable.locator("[data-scout-player-row]", { hasText: "Sara Rossi" });
   await expect(sara.locator("td").nth(2)).toHaveText("1"); // un solo punto: l'attacco vincente dello scambio 4
   await expectPdf(page, matchId);
+
+  await deleteMatchById(page, matchId);
+});
+
+test("livello «Completo»: l'attacco loro non chiede chi (i voti sono subito attivi), il nostro sì", async ({ page }) => {
+  test.setTimeout(180_000);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+  const matchId = await createMatch(page, uniqueName("Completo senza chi "));
+
+  await prepare(page, matchId, "completo");
+  const entry = page.locator("[data-scout-touch-entry]");
+  const grade = (g: string) => entry.locator(`[data-scout-grades="touch"] [data-scout-grade="${g}"]`);
+
+  // Battuta in campo e ricezione loro: lo Scout propone da solo l'attacco loro.
+  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "!" });
+  await touch(page, { skill: "reception", side: "opp", who: "5", grade: "+" });
+  const attack = entry.locator('[data-scout-skill="attack"]');
+  await expect(attack).toHaveAttribute("data-scout-suggested", "true");
+  await expect(attack).toHaveAttribute("aria-pressed", "true");
+  await expect(entry.locator('[data-scout-side="opp"]')).toHaveAttribute("aria-pressed", "true");
+
+  // Non si sceglie nessuno: «Non so» è già scelto e il voto è attivo. Un attacco a terra (#) dà il punto loro.
+  await expect(entry.locator('[data-scout-who="unknown"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(grade("#")).toBeEnabled();
+  await grade("#").click();
+  await expect(score(page)).toHaveText("0–1");
+  await expect(rally(page, 1).locator("[data-scout-touch-chip]")).toHaveCount(3);
+  await expect(rally(page, 1)).toContainText("Squadra");
+
+  // L'attacco nostro invece chiede chi: finché non si sceglie, i voti restano spenti.
+  await attack.click();
+  await entry.locator('[data-scout-side="us"]').click();
+  await expect(grade("#")).toBeDisabled();
+  await entry.locator("[data-scout-who]", { hasText: "Sara R." }).click();
+  await expect(grade("#")).toBeEnabled();
 
   await deleteMatchById(page, matchId);
 });

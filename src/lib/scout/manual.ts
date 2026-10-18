@@ -675,6 +675,10 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       },
       {
         type: "p",
+        text: "**Eccezione: l'«Attacco» di «Punto loro».** Quando una loro schiacciata va a terra il punto si registra subito, con un solo tocco, e lo Scout non chiede mai chi è stata: conta per la squadra. Se vuoi dirlo lo stesso, correggi lo scambio dal Registro (la matita) e scegli il numero.",
+      },
+      {
+        type: "p",
         text: "Non hai visto chi è stato? Tocca **«Non so / non indicare»**: il punto conta lo stesso per la squadra, solo non entra nel tabellino di nessuna giocatrice.",
       },
       {
@@ -717,6 +721,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         rows: [
           ["La n. 7 batte e la palla cade a terra.", "Punto nostro > Ace > n. 7"],
           ["La n. 9 schiaccia e fa punto.", "Punto nostro > Attacco > n. 9"],
+          ["La loro n. 11 schiaccia e fa punto.", "Punto loro > Attacco (e basta: non chiede chi)"],
           ["La n. 3 ferma l'attacco della loro n. 12.", "Punto nostro > Muro > n. 3 > n. 12 (chi attaccava)"],
           ["La loro n. 4 attacca fuori.", "Punto nostro > Errore loro > Attacco sbagliato > n. 4"],
           ["La loro battuta finisce in rete.", "Punto nostro > Errore loro > Battuta sbagliata > il loro numero (o «Non so»)"],
@@ -932,7 +937,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         legend: [
           "I tocchi già segnati nello scambio: la lettera del fondamentale, il numero di maglia e il voto.",
           "**Cosa è successo**: S battuta, R ricezione, E alzata, A attacco, B muro, D difesa. Quello più probabile è già scelto.",
-          "**Chi**: «Noi» o «Loro» e il numero di maglia. «Non so» se non l'hai visto.",
+          "**Chi**: «Noi» o «Loro» e il numero di maglia. «Non so» se non l'hai visto; per l'attacco di «Loro» è già scelto.",
           "**Voto**: toccandolo, il tocco è segnato e si passa al successivo.",
         ],
         maxHeight: 360,
@@ -1533,7 +1538,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Il punteggio dello Scout non coincide con quello dell'arbitro." },
       { type: "p", text: "Significa che uno scambio è mancante o in più. Scorri il registro dall'ultimo scambio: di solito si trova guardando i punteggi riga per riga. Prima di correggere, controlla con l'arbitro quale dei due è giusto." },
       { type: "sub", title: "Non conosco i numeri dell'avversaria." },
-      { type: "p", text: "Non li scrivere in anticipo: quando segni un punto o un tocco che riguarda una loro giocatrice, scrivi il numero nella casella «Altro numero di maglia». Se proprio non lo vedi, tocca «Non so»." },
+      { type: "p", text: "Non li scrivere in anticipo: quando segni un punto o un tocco che riguarda una loro giocatrice, scrivi il numero nella casella «Altro numero di maglia». Se proprio non lo vedi, tocca «Non so». L'attacco vincente loro non lo chiede mai: si segna con un tocco solo." },
       { type: "sub", title: "Posso segnare con due telefoni insieme?" },
       { type: "p", text: "È meglio di no. Se segnano in momenti diversi le due versioni si uniscono da sole; se segnano le stesse cose lo Scout ti chiede quale versione tenere (l'altra resta nelle copie di sicurezza, ma gli scambi doppi vanno puliti a mano). Segna con un solo dispositivo; gli altri guardano il tabellino." },
       { type: "sub", title: "Posso usare lo Scout e il Live score insieme?" },

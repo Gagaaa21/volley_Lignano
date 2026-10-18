@@ -478,7 +478,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: "scout-entry-opp",
         chapter: C_PLAY,
         title: "Punto loro, ed errori",
-        body: "Il pannello di destra è per i punti delle avversarie. Quando un punto arriva perché sbagliamo noi, tocca «Errore nostro» nel pannello di destra; quando sbagliano loro, «Errore loro» nel pannello di sinistra.\n\nSi apre l'elenco: battuta, ricezione, attacco, muro, alzata, difesa sbagliati, poi i falli fischiati (tocco di rete, invasione, doppia, trattenuta, quattro tocchi, rotazione, sanzione). Scegli quello che ha fischiato l'arbitro o che hai visto.",
+        body: "Il pannello di destra è per i punti delle avversarie: una loro schiacciata a terra è «Attacco» e si segna subito, senza chiedere chi. Quando un punto arriva perché sbagliamo noi, tocca «Errore nostro» nel pannello di destra; quando sbagliano loro, «Errore loro» nel pannello di sinistra.\n\nSi apre l'elenco: battuta, ricezione, attacco, muro, alzata, difesa sbagliati, poi i falli fischiati (tocco di rete, invasione, doppia, trattenuta, quattro tocchi, rotazione, sanzione). Scegli quello che ha fischiato l'arbitro o che hai visto.",
         example: "La loro n. 4 attacca fuori: «Errore loro» (a sinistra), «Attacco sbagliato», poi la n. 4.",
         tip: "Falli di squadra come «Rotazione» o «Sanzione» non chiedono la giocatrice: riguardano tutta la squadra.",
       },
@@ -488,7 +488,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: null,
         chapter: C_PLAY,
         title: "Chi ha fatto l'azione?",
-        body: "Dopo il modo si apre l'elenco con i numeri di maglia (e il nome, per le nostre). Tocca il numero giusto e il punto è segnato.\n\nPer l'avversaria, se il numero non c'è, scrivilo nella casella «Altro numero di maglia» e premi «Aggiungi». Non l'hai visto? Tocca «Non so / non indicare»: il punto conta lo stesso, solo non finisce nel tabellino di nessuna giocatrice.",
+        body: "Dopo il modo si apre l'elenco con i numeri di maglia (e il nome, per le nostre). Tocca il numero giusto e il punto è segnato. Unica eccezione: «Attacco» nel pannello «Punto loro» si segna subito, con un tocco solo, senza chiedere chi.\n\nPer l'avversaria, se il numero non c'è, scrivilo nella casella «Altro numero di maglia» e premi «Aggiungi». Non l'hai visto? Tocca «Non so / non indicare»: il punto conta lo stesso, solo non finisce nel tabellino di nessuna giocatrice.",
         tip: "Un punto senza il «chi» è meglio di un «chi» sbagliato.",
       },
       {

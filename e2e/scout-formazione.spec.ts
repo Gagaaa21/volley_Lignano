@@ -46,9 +46,10 @@ async function addPlayer(page: Page, name: string, number: string) {
   await expect(page.locator(`[data-scout-athlete="${name}"]`)).toBeVisible();
 }
 
-/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi (testo della giocatrice o numero avversario). */
+/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi (testo della giocatrice o numero avversario). L'attacco vincente loro non lo chiede: si segna subito. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string } | null) {
   await page.locator(`[data-scout-add="${button}"]`).click();
+  if (button === "opp-attack") return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();
@@ -209,7 +210,7 @@ test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro,
   await expect(score(page)).toHaveText("2–0");
 
   // Loro hanno la battuta solo quando fanno punto: allora il pallone è sul loro campo, non sul nostro.
-  await addPoint(page, "opp-attack", { opp: "22" });
+  await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("2–1");
   await page.locator('[data-scout-add="opp-ace"]').click();
   await sheet.waitFor();
@@ -243,8 +244,8 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   // La palla è dalla parte di chi batte: all'inizio è nostra.
   await expectBall(page, "us", "Battuta");
 
-  // 1) Punto loro (attacco della n. 21): conquistano la battuta e ruotano.
-  await addPoint(page, "opp-attack", { opp: "21" });
+  // 1) Punto loro (attacco, senza chiedere chi): conquistano la battuta e ruotano.
+  await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("0–1");
   await expectBall(page, "opp", "Battuta");
   await expect(strip(page)).toContainText(/Loro\s*2ª rot\./);
@@ -455,7 +456,7 @@ test("livello «Con ricezioni»: i tre passi dello scambio dicono a che punto si
   await expectBall(page, "us", "Battuta");
 
   // Punto loro: ora battono loro e tocca alla ricezione nostra.
-  await addPoint(page, "opp-attack", { opp: "21" });
+  await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("0–1");
   await expect(page.locator('[data-scout-reception="open"]')).toBeVisible();
   await expect(now).toContainText("Ricezione nostra");
@@ -481,7 +482,7 @@ test("rotazione sbagliata: la finestra «Rotazione» gira la squadra avanti o in
   await prepare(page, matchId, "base");
 
   // Punto loro (battono loro) e punto nostro (riconquistiamo la battuta e ruotiamo): 1–1, siamo alla 2ª rotazione e batte la n. 2 (Bea).
-  await addPoint(page, "opp-attack", { opp: "21" });
+  await addPoint(page, "opp-attack", null);
   await addPoint(page, "us-attack", { text: "Anna" });
   await expect(score(page)).toHaveText("1–1");
   await expect(usSpot(page, 1)).toContainText("Bea");

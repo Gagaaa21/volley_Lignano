@@ -292,6 +292,16 @@ test.describe("testi del registro", () => {
     expect(fault).toMatchObject({ winner: "opp", label: "Rotazione / posizione", who: "Squadra" });
   });
 
+  test("attacco vincente loro: senza giocatrice si legge «Squadra», con una indicata resta il numero; il nostro dice «Non indicata»", () => {
+    let d = addRally(data, { actor: "opp", how: "attack", player: null }, T0, "e1");
+    d = addRally(d, { actor: "opp", how: "attack", player: "opp-7" }, T0, "e2");
+    d = addRally(d, { actor: "us", how: "attack", player: null }, T0, "e3");
+    const [oppTeam, oppNamed, usUnknown] = deriveScout(d).rallies.slice(-3);
+    expect(rallyText(oppTeam, d.roster)).toMatchObject({ winner: "opp", label: "Attacco", who: "Squadra" });
+    expect(rallyText(oppNamed, d.roster)).toMatchObject({ winner: "opp", label: "Attacco", who: "n. 7" });
+    expect(rallyText(usUnknown, d.roster)).toMatchObject({ winner: "us", label: "Attacco", who: "Non indicata" });
+  });
+
   test("numeri di maglia scritti a mano", () => {
     expect(parseJerseyNumbers("1 4, 7;9")).toEqual(["1", "4", "7", "9"]);
     expect(parseJerseyNumbers("7 7 07")).toEqual(["7"]);

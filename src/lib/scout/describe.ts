@@ -1,5 +1,5 @@
 import type { ScoutRally } from "./derive";
-import { asksPlayer, HOW_META } from "./rules";
+import { asksPlayerFor, HOW_META } from "./rules";
 import { cleanNumber } from "./actions";
 import { GRADE_META, TOUCH_SKILLS } from "./touches";
 import type { ScoutPlayer, ScoutRoster, ScoutSide, ScoutTouch } from "./types";
@@ -57,8 +57,8 @@ export function rallyText(rally: Pick<ScoutRally, "winner" | "actor" | "how" | "
   return {
     winner: rally.winner,
     label: meta.label,
-    // Rotazione e sanzioni sono della squadra: nessuna giocatrice da indicare.
-    who: !asksPlayer(rally.how) && rally.player === null ? "Squadra" : playerLabel(roster, rally.actor, rally.player),
+    // Rotazione e sanzioni sono della squadra, e l'attacco vincente loro non chiede chi: nessuna giocatrice da indicare.
+    who: !asksPlayerFor(rally.actor, rally.how) && rally.player === null ? "Squadra" : playerLabel(roster, rally.actor, rally.player),
     victim: rally.how === "block" && rally.victim ? playerLabel(roster, other, rally.victim) : null,
   };
 }

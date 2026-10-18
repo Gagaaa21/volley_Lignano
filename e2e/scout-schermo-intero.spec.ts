@@ -105,12 +105,9 @@ async function prepare(
   await expect(score(page)).toHaveText("0–0");
 }
 
-/** Punto loro con il pulsante del livello Base (attacco della n. 21). */
+/** Punto loro con il pulsante del livello Base (attacco: si segna subito, senza chiedere chi). */
 async function opponentPoint(page: Page) {
   await page.locator('[data-scout-add="opp-attack"]').click();
-  const sheet = page.locator("[data-scout-sheet^='player']");
-  await sheet.waitFor();
-  await sheet.locator('[data-scout-pick="opp-21"]').click();
 }
 
 /** Il riquadro dello Scout ricopre tutta la finestra? */

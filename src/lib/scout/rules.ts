@@ -176,6 +176,15 @@ export function asksPlayer(how: ScoutHow): boolean {
   return !TEAM_FAULT_HOWS.includes(how);
 }
 
+/**
+ * Se a quell'azione di quella squadra si chiede «chi?». Mai per l'attacco vincente dell'avversaria: una loro schiacciata a
+ * terra si segna con un tocco solo, senza dire chi (le sue giocatrici si riconoscono a fatica e la partita non aspetta). Per
+ * il resto vale `asksPlayer`.
+ */
+export function asksPlayerFor(actor: ScoutSide, how: ScoutHow): boolean {
+  return asksPlayer(how) && !(actor === "opp" && how === "attack");
+}
+
 /** Il muro vincente e l'errore a muro. */
 export function isBlockHow(how: ScoutHow): boolean {
   return how === "block" || how === "blockError";

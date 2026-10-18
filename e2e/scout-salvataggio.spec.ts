@@ -41,9 +41,10 @@ const score = (page: Page) => page.locator("[data-scout-score]");
 const sync = (page: Page) => page.locator("[data-scout-sync]");
 const conflictDialog = (page: Page) => page.locator("[data-scout-conflict]");
 
-/** Segna un punto con i pulsanti, senza dire chi. */
+/** Segna un punto con i pulsanti, senza dire chi (l'attacco vincente loro non lo chiede: si segna subito). */
 async function addPoint(page: Page, button: string) {
   await page.locator(`[data-scout-add="${button}"]`).click();
+  if (button === "opp-attack") return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   await sheet.locator('[data-scout-pick="unknown"]').click();

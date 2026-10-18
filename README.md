@@ -257,7 +257,10 @@ staff (Developer e Admin).
     dal campo (`ScoutCourtPicker.tsx`: rete, 4-3-2 davanti e 5-6-1 dietro, libero
     in scuro, pallone verde su chi batte, panchina sotto; a muro la libero non si
     sceglie e la seconda linea è più chiara; senza formazione resta l'elenco di
-    numeri, con un avviso per impostarla). Il cambio disegna lo stesso campo con
+    numeri, con un avviso per impostarla). Il «chi?» non si chiede mai per
+    l'attacco vincente loro («Punto loro > Attacco» si segna con un tocco solo,
+    regola `asksPlayerFor` in `rules.ts`; nel Completo il tocco d'attacco loro
+    parte già da «Non so» e nel Registro si legge «Squadra»). Il cambio disegna lo stesso campo con
     numero e nome di ognuna e ha «Cambia la libero» (non conta tra i cambi: è un
     evento `lineup` con la libero nuova); formazioni di partenza e cambi nel tabellino
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF

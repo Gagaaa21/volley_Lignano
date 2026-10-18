@@ -7,7 +7,7 @@ import { opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
 import { currentServer, type ScoutView } from "@/lib/scout/derive";
 import { newId } from "@/lib/scout/id";
 import { serverId } from "@/lib/scout/court";
-import { canDo } from "@/lib/scout/rules";
+import { asksPlayerFor, canDo } from "@/lib/scout/rules";
 import { describeNext, TOUCH_SKILL_ORDER, TOUCH_SKILLS } from "@/lib/scout/touches";
 import { tracksSetsOf } from "@/lib/scout/phases";
 import type { ScoutData, ScoutGrade, ScoutSide, ScoutTouchSkill } from "@/lib/scout/types";
@@ -51,6 +51,8 @@ function lastSetterPlayer(view: ScoutView, side: ScoutSide): string | null | und
 }
 
 function defaultPlayer(view: ScoutView, skill: ScoutTouchSkill, side: ScoutSide): string | null | undefined {
+  // L'attacco dell'avversaria non chiede mai chi è stata: parte da «Non so» e i voti sono subito attivi (il numero si tocca solo se lo si vuole dire).
+  if (skill === "attack" && !asksPlayerFor(side, "attack")) return null;
   // Con la formazione, batte chi è in posizione 1; senza, si propone chi ha battuto per ultima.
   if (skill === "serve") return serverId(view, side) ?? lastServerPlayer(view, side);
   if (skill === "set") return lastSetterPlayer(view, side);

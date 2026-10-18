@@ -10,7 +10,7 @@ import { orderByCourt } from "@/lib/scout/court";
 import type { ScoutCourt, ScoutCourts } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
-import { asksPlayer, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
+import { asksPlayerFor, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
 import { otherSide, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutSide } from "@/lib/scout/types";
 import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
 import { Sheet } from "./ScoutSheet";
@@ -19,8 +19,12 @@ import { Sheet } from "./ScoutSheet";
  * Dove si segna ogni scambio. Due colonne — «Punto nostro» e «Punto loro» —
  * con i quattro modi in cui finisce uno scambio: attacco, muro, ace o errore
  * dell'altra squadra. Poi si dice chi l'ha fatto, e basta: due tocchi per un
- * punto normale, tre per un errore.
+ * punto normale, tre per un errore. Fa eccezione l'attacco vincente loro: un
+ * tocco solo, senza chiedere chi (vedi `asksPlayerFor`).
  */
+
+/** L'ora dello scambio: la legge un gestore di tocco, mai il rendering. */
+const clock = () => Date.now();
 
 type Step =
   /** Scelta dell'errore: `scorer` è chi ha fatto punto, sbaglia l'altra squadra. */
@@ -312,13 +316,19 @@ export function ScoutEntry({
   const close = () => setStep(null);
 
   function commit(input: { actor: ScoutSide; how: ScoutHow; player: string | null; victim?: string | null }) {
-    dispatch({ type: "rally", input, at: Date.now(), id: newId() });
+    dispatch({ type: "rally", input, at: clock(), id: newId() });
     setStep(null);
+  }
+
+  /** Attacco, muro o ace: si chiede chi è stata, tranne per l'attacco vincente loro, che si segna subito con un tocco solo. */
+  function pickPoint(actor: ScoutSide, how: ScoutHow) {
+    if (asksPlayerFor(actor, how)) setStep({ stage: "player", actor, how });
+    else commit({ actor, how, player: null });
   }
 
   function pickError(scorer: ScoutSide, how: ScoutHow) {
     const actor = otherSide(scorer);
-    if (asksPlayer(how)) setStep({ stage: "player", actor, how });
+    if (asksPlayerFor(actor, how)) setStep({ stage: "player", actor, how });
     else commit({ actor, how, player: null });
   }
 
@@ -368,7 +378,7 @@ export function ScoutEntry({
               hint={hint}
               disabled={locked}
               testId={`${scorer}-${how}`}
-              onClick={() => setStep({ stage: "player", actor: scorer, how })}
+              onClick={() => pickPoint(scorer, how)}
             />
           ))}
           <SideButton
