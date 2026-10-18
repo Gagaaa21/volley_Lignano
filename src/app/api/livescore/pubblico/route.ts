@@ -16,7 +16,8 @@ import type { PublicLiveScore } from "@/lib/types";
  *
  * Il punteggio dello Scout si legge dalla copia compatta che lo Scout aggiorna a
  * ogni salvataggio (publicSnapshot.ts): poche centinaia di byte, invece
- * dell'intero scout. Solo se la copia non c'è si ripiega sulla lettura completa.
+ * dell'intero scout. Se la copia non c'è, o non dice «in diretta», si ripiega
+ * sulla lettura completa: così una copia mancata non nasconde mai una partita viva.
  *
  * Il sito la rilegge ogni pochi secondi da ogni telefono aperto sulla home:
  * la rete di Vercel (CDN) tiene la risposta 3 secondi, così il database riceve
@@ -45,15 +46,23 @@ export async function GET() {
     ]);
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
-    if (compact !== undefined) {
+    if (compact) {
       fromScout = compact;
     } else {
+      // Nessuna copia viva (non c'è, dice «niente» o non si legge): si legge lo scout come si faceva prima della copia. Con
+      // nessuna partita in diretta non c'è nessuna riga da scaricare, quindi non costa niente.
       const scouted = await repo.getPublicLiveScout().catch((error: unknown) => {
         // La tabella dello scout si crea a mano su Supabase: finché manca, niente da segnalare.
         if (!isScoutTableMissing(error)) console.error("[scout] punteggio live pubblico non disponibile:", error);
         return null;
       });
-      if (scouted) fromScout = toPublicScoutScore(scouted.scout, scouted.match);
+      if (scouted) {
+        try {
+          fromScout = toPublicScoutScore(scouted.scout, scouted.match);
+        } catch (error) {
+          console.error("[scout] punteggio live pubblico non calcolabile:", error);
+        }
+      }
     }
   } catch (error) {
     console.error("[livescore] diretta pubblica non disponibile:", error);
