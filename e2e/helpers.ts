@@ -23,6 +23,17 @@ export function localDateTime(offsetMinutes = 0): string {
 }
 
 export async function login(page: Page, username: string, password: string) {
+  // I messaggi fissi in basso («Installa l'app», «Attiva le notifiche») compaiono dopo qualche secondo e coprono i pulsanti
+  // sotto cui si clicca, anche con il click forzato (su un server appena avviato la prima pagina impiega più di 2 secondi):
+  // qui risultano già mostrati, come in global-setup.
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("vl-pwa-install-prompted", "1");
+      localStorage.setItem("vl-pwa-notify-last-prompted-at", String(Date.now()));
+    } catch {
+      // localStorage non disponibile: si prosegue senza.
+    }
+  });
   await page.goto("/login");
   await page.getByLabel("Nome utente").fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
