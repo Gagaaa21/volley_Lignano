@@ -191,7 +191,7 @@ export function PwaClient() {
       try {
         const permission = await Notification.requestPermission();
         // Si attivano le notifiche della squadra di questa pagina, e solo quelle.
-        if (permission === "granted" && (await withPushDeps(pathname ?? "/", (deps) => subscribeTeam(deps, team)))) {
+        if (permission === "granted" && (await withPushDeps(pathname ?? "/", (deps) => subscribeTeam(deps, team, { chosen: true })))) {
           setSubscription({ team, has: true });
         }
       } catch {

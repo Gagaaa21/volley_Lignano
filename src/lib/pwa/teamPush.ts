@@ -39,6 +39,9 @@ const PUSH_MOVED_KEY = "vl-pwa-push-v2";
 const APP_TEAM_KEY = "vl-pwa-app-team";
 /** Fatto una volta per app Minivolley su iPhone/iPad: via l'iscrizione U14/U15 che il selettore squadra le aveva dato. */
 const IOS_CLEANED_KEY = "vl-pwa-push-ios-cleaned";
+/** Le squadre che chi usa il dispositivo ha attivato lui, con un tocco (messaggio «Attiva le notifiche» o pagina «Notifiche»):
+ * la sistemazione automatica delle iscrizioni di prima non le toglie mai. */
+const chosenKey = (team: TrainingTeam) => `vl-pwa-push-chosen:${team}`;
 
 export interface PushDeps {
   serviceWorker: {
@@ -167,8 +170,11 @@ export async function hasTeamSubscription(deps: PushDeps, team: TrainingTeam): P
   return (await existingSubscription(deps, team)) !== null;
 }
 
-/** Attiva le notifiche di una squadra su questo dispositivo, sul suo worker. true se il sito ha registrato l'iscrizione. */
-export async function subscribeTeam(deps: PushDeps, team: TrainingTeam): Promise<boolean> {
+/**
+ * Attiva le notifiche di una squadra su questo dispositivo, sul suo worker. true se il sito ha registrato l'iscrizione. Con
+ * `chosen` è una scelta di chi usa il dispositivo (un suo tocco), e come tale la sistemazione automatica non la toglie.
+ */
+export async function subscribeTeam(deps: PushDeps, team: TrainingTeam, options: { chosen?: boolean } = {}): Promise<boolean> {
   if (!deps.publicKey) return false;
   const registration = await registrationFor(deps, team, true);
   if (!registration) return false;
@@ -180,6 +186,7 @@ export async function subscribeTeam(deps: PushDeps, team: TrainingTeam): Promise
   const saved = await deps.send("POST", { endpoint: json.endpoint, keys: json.keys, team });
   if (saved) {
     remember(deps, team);
+    if (options.chosen) write(deps, chosenKey(team), "1");
     write(deps, PUSH_SYNCED_AT_KEY, String(deps.now()));
   }
   return saved;
@@ -245,9 +252,12 @@ export async function cleanIosMinivolleyApp(deps: PushDeps): Promise<void> {
   if (!root) return;
   const rootSubscription = await root.pushManager.getSubscription();
   if (rootSubscription) {
-    if (!(await subscribeTeam(deps, "minivolley"))) return;
-    await dropSubscription(deps, rootSubscription);
-    forget(deps, "u14u15");
+    // Le notifiche di U14/U15 attivate da chi usa l'app, qui dentro, sono una sua scelta: non si toccano.
+    if (read(deps, chosenKey("u14u15")) !== "1") {
+      if (!(await subscribeTeam(deps, "minivolley"))) return;
+      await dropSubscription(deps, rootSubscription);
+      forget(deps, "u14u15");
+    }
   }
   write(deps, IOS_CLEANED_KEY, "1");
 }
@@ -323,6 +333,7 @@ export async function unsubscribeTeam(deps: PushDeps, team: TrainingTeam): Promi
   const subscription = await existingSubscription(deps, team);
   if (subscription) await dropSubscription(deps, subscription);
   forget(deps, team);
+  write(deps, chosenKey(team), "0");
   return subscription !== null;
 }
 

@@ -360,6 +360,34 @@ test.describe("app di Minivolley su iPhone o iPad", () => {
     expect(w.subscriptionAt("/")).not.toBeNull();
     expect(w.storage.get("vl-pwa-push-ios-cleaned")).toBeUndefined();
   });
+
+  test("le notifiche di U14/U15 attivate da chi usa l'app con un tocco sono una sua scelta: non si tolgono", async () => {
+    const chosen = world({ iosApp: true, pathname: "/minivolley" });
+    expect(await subscribeTeam(chosen.deps, "u14u15", { chosen: true })).toBe(true);
+    const before = chosen.calls.length;
+    await cleanIosMinivolleyApp(chosen.deps);
+    expect(chosen.calls).toHaveLength(before);
+    expect(chosen.subscriptionAt("/")).not.toBeNull();
+    expect(chosen.storage.get("vl-pwa-push-ios-cleaned")).toBe("1");
+
+    // Un'iscrizione rifatta in automatico (non scelta con un tocco) non è protetta.
+    const automatic = world({ iosApp: true, pathname: "/minivolley" });
+    expect(await subscribeTeam(automatic.deps, "u14u15")).toBe(true);
+    await cleanIosMinivolleyApp(automatic.deps);
+    expect(automatic.subscriptionAt("/")).toBeNull();
+    expect(automatic.subscriptionAt("/minivolley")).not.toBeNull();
+  });
+
+  test("toglierle da qui cancella anche la scelta: la squadra torna a non essere protetta", async () => {
+    const w = world({ iosApp: true, pathname: "/minivolley" });
+    await subscribeTeam(w.deps, "u14u15", { chosen: true });
+    expect(w.storage.get("vl-pwa-push-chosen:u14u15")).toBe("1");
+    await unsubscribeTeam(w.deps, "u14u15");
+    expect(w.storage.get("vl-pwa-push-chosen:u14u15")).toBe("0");
+    // Un'attivazione senza tocco (automatica) non la segna come scelta.
+    await subscribeTeam(w.deps, "u14u15");
+    expect(w.storage.get("vl-pwa-push-chosen:u14u15")).toBe("0");
+  });
 });
 
 test.describe("ogni passo per conto suo", () => {

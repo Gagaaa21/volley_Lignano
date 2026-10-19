@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, BellOff, RotateCcw, TriangleAlert } from "lucide-react";
+import { Bell, BellOff, Info, RotateCcw, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -131,7 +131,7 @@ export function NotificationSettings({ team }: { team: TrainingTeam }) {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") return { tone: "error", text: "Senza il permesso del browser le notifiche non si possono attivare." };
       }
-      const ok = await withPushDeps(pathname, (deps) => subscribeTeam(deps, target));
+      const ok = await withPushDeps(pathname, (deps) => subscribeTeam(deps, target, { chosen: true }));
       return ok ? { tone: "ok", text: `Notifiche ${TEAM_NAMES[target]} attivate su questo dispositivo.` } : failed("Non sono riuscito ad attivarle");
     });
   }
@@ -148,7 +148,7 @@ export function NotificationSettings({ team }: { team: TrainingTeam }) {
     await run(async () => {
       const ok = await withPushDeps(pathname, async (deps) => {
         await unsubscribeTeam(deps, target);
-        return subscribeTeam(deps, target);
+        return subscribeTeam(deps, target, { chosen: true });
       });
       return ok ? { tone: "ok", text: `Notifiche ${TEAM_NAMES[target]} rimesse a posto.` } : failed("Non sono riuscito a rimetterle a posto");
     });
@@ -166,6 +166,9 @@ export function NotificationSettings({ team }: { team: TrainingTeam }) {
   const order: TrainingTeam[] = team === "minivolley" ? ["minivolley", "u14u15"] : ["u14u15", "minivolley"];
   const permission = snapshot?.permission ?? null;
   const blocked = permission === "denied" || permission === "unsupported";
+  // Su iPhone e iPad ogni app ha le sue iscrizioni e si sa di che squadra è l'app: se ha anche quelle dell'altra squadra, gli
+  // avvisi di quella arrivano anche da questa app (è il caso degli avvisi doppi).
+  const appOf = snapshot?.notes?.iosApp ? snapshot.notes.appTeam : null;
 
   return (
     <div className="space-y-4" data-notify-settings>
@@ -186,6 +189,7 @@ export function NotificationSettings({ team }: { team: TrainingTeam }) {
         const state = snapshot?.teams[target] ?? NONE[target];
         const active = state.endpoint !== null;
         const problem = problemOf(target, state);
+        const elsewhere = active && appOf !== null && appOf !== target ? appOf : null;
         return (
           <section
             key={target}
@@ -206,6 +210,15 @@ export function NotificationSettings({ team }: { team: TrainingTeam }) {
               <p className="mt-3 flex items-start gap-2 rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning" role="alert" data-notify-problem>
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <span>{problem} Tocca «Rimetti a posto».</span>
+              </p>
+            )}
+            {elsewhere && (
+              <p className="mt-3 flex items-start gap-2 rounded-xl bg-muted px-3 py-2 text-sm text-foreground/80" data-notify-foreign>
+                <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  Questa è l&apos;app di {TEAM_NAMES[elsewhere]}, e qui sono attive anche le notifiche di {TEAM_NAMES[target]}: gli
+                  avvisi di {TEAM_NAMES[target]} arrivano anche da questa app. Se non li vuoi qui, tocca «Disattiva».
+                </span>
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">

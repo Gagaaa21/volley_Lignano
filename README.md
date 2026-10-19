@@ -476,9 +476,12 @@ staff (Developer e Admin).
   `localStorage` (`vl-pwa-push-error`, letto in «Dettagli tecnici»). Nell'app di
   Minivolley su iPhone/iPad la squadra dell'app si riconosce dalla pagina da
   cui parte l'app (`appTeam`: «/minivolley» o «/»), perché lì i contenitori
-  sono separati. I componenti browser (`browserPush.ts`) e la logica
-  (`teamPush.ts`) condividono gli stessi test con un finto servizio push
-  (`e2e/fakePush.ts`).
+  sono separati; nell'app di una squadra la pagina segnala se sono attive
+  anche le notifiche dell'altra (è il caso degli avvisi doppi). Un'iscrizione
+  che chi usa il dispositivo ha attivato con un tocco (`chosen` in
+  `subscribeTeam`) non viene mai tolta dalla pulizia automatica. I componenti
+  browser (`browserPush.ts`) e la logica (`teamPush.ts`) condividono gli stessi
+  test con un finto servizio push (`e2e/fakePush.ts`).
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati

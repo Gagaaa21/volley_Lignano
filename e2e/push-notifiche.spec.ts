@@ -61,6 +61,9 @@ test("si attivano e si disattivano le squadre una per una: sul sito e nel dispos
 
   // Si toglie Minivolley: sparisce dal dispositivo e dal sito, e U14/U15 resta.
   await openSettings(page);
+  // Fuori da iPhone e iPad le app dello stesso sito condividono tutto: tutte e due attive è normale, nessun avviso.
+  await expect(section(page, "minivolley")).toHaveAttribute("data-notify-state", "active");
+  await expect(page.locator("[data-notify-foreign]")).toHaveCount(0);
   await page.locator('[data-notify-disable="minivolley"]').click();
   await expect(section(page, "minivolley")).toHaveAttribute("data-notify-state", "inactive");
   await expect(section(page, "u14u15")).toHaveAttribute("data-notify-state", "active");
@@ -131,6 +134,40 @@ test("«Togli tutte le notifiche da qui» le toglie tutte e due dal dispositivo 
   await dismissTourIfShown(page);
   await page.waitForTimeout(1500);
   expect(await fakeSubscriptions(page)).toEqual({});
+});
+
+test("nell'app di Minivolley su iPhone, se ci sono anche le notifiche di Under 14, la pagina lo dice e da lì si tolgono", async ({ page }) => {
+  test.setTimeout(180_000);
+  const stray = `https://push.example/${uniqueName("u14-nell-app-s3-")}`;
+  await loginAsDev(page);
+  const base = await counts(page);
+  // Come prima dell'aggiornamento: dentro l'app di Minivolley c'è un'iscrizione sul worker di «/», registrata come U14/U15.
+  await addRow(page, stray, "u14u15");
+  await registerWorkers(page, ["/"]);
+  await page.addInitScript(installFakePush, { "/": stray });
+  await page.addInitScript(() => {
+    try {
+      // Un'app della schermata Home di iPhone, di Minivolley; la pulizia automatica ha già fatto il suo corso: qui si prova la pagina.
+      Object.defineProperty(navigator, "standalone", { value: true, configurable: true });
+      localStorage.setItem("vl-pwa-app-team", "minivolley");
+      localStorage.setItem("vl-pwa-push-v2", "1");
+      localStorage.setItem("vl-pwa-push-ios-cleaned", "1");
+      localStorage.setItem("vl-pwa-push-teams", '["u14u15"]');
+    } catch {
+      // localStorage non disponibile: il test funziona comunque.
+    }
+  });
+
+  await openSettings(page, "/minivolley/notifiche");
+  await expect(section(page, "u14u15")).toHaveAttribute("data-notify-state", "active");
+  await expect(section(page, "u14u15").locator("[data-notify-foreign]")).toContainText("Questa è l'app di Minivolley");
+  await expect(section(page, "minivolley").locator("[data-notify-foreign]")).toHaveCount(0);
+
+  await section(page, "u14u15").locator('[data-notify-disable="u14u15"]').click();
+  await expect(section(page, "u14u15")).toHaveAttribute("data-notify-state", "inactive");
+  await expect(page.locator("[data-notify-foreign]")).toHaveCount(0);
+  expect(await fakeSubscriptions(page)).toEqual({});
+  expect(await counts(page)).toEqual(base);
 });
 
 test("dal fondo del sito pubblico si arriva alla pagina; dall'app di Minivolley la sua squadra è la prima", async ({ page }) => {

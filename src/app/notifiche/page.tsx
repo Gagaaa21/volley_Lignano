@@ -18,7 +18,8 @@ export default function NotifichePage() {
         <h1 className="font-display text-2xl font-extrabold text-foreground">Notifiche di questo dispositivo</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Le notifiche di Under 14 e Under 15 e quelle di Minivolley sono due cose distinte: le attivi e le disattivi una per volta,
-          su ogni dispositivo.
+          su ogni dispositivo. Su iPhone e iPad ogni app installata ha le sue notifiche: apri questa pagina da ognuna per
+          controllarle.
         </p>
         <div className="mt-6">
           <NotificationSettings team="u14u15" />
