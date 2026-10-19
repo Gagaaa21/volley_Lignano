@@ -457,7 +457,28 @@ staff (Developer e Admin).
   iscrizione U14/U15 che il selettore le aveva dato. Toccando una notifica si
   porta in primo piano una finestra della stessa squadra, mai quella
   dell'altra. Il Centro di controllo conta le iscrizioni per squadra (un
-  dispositivo può averne due).
+  dispositivo può averne due) e le elenca una per una («Iscrizioni alle
+  notifiche, una per una»: squadra, account, servizio, data e fine
+  dell'indirizzo), così si riconosce un dispositivo che ne ha due uguali.
+  Se a qualcuno arrivano avvisi che non dovrebbero (o doppi) c'è la pagina
+  «Notifiche di questo dispositivo» (`/notifiche`, e `/minivolley/notifiche` dall'
+  app di Minivolley; il link è in fondo al sito pubblico;
+  `src/components/pwa/NotificationSettings.tsx`). Legge dal browser le
+  iscrizioni che il dispositivo (o l'app installata, su iPhone/iPad un
+  contenitore per app) ha davvero e chiede al sito con quale squadra sono
+  registrate (`POST /api/push/status`: dato un indirizzo restituisce solo la
+  squadra, mai l'account): ogni squadra si attiva e si disattiva per conto suo,
+  un'iscrizione registrata con la squadra sbagliata (o che il sito non
+  conosce) si segnala e «Rimetti a posto» la toglie e ne fa una giusta, e
+  «Togli tutte le notifiche da qui» toglie tutto da quel dispositivo, senza che
+  niente torni da solo. La sistemazione automatica (`syncPush`) isola ogni
+  passo dagli altri e, se uno fallisce, ne lascia l'ultimo errore in
+  `localStorage` (`vl-pwa-push-error`, letto in «Dettagli tecnici»). Nell'app di
+  Minivolley su iPhone/iPad la squadra dell'app si riconosce dalla pagina da
+  cui parte l'app (`appTeam`: «/minivolley» o «/»), perché lì i contenitori
+  sono separati. I componenti browser (`browserPush.ts`) e la logica
+  (`teamPush.ts`) condividono gli stessi test con un finto servizio push
+  (`e2e/fakePush.ts`).
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati
@@ -583,6 +604,7 @@ src/
     page.tsx              Calendario pubblico
     calendario-partite.pdf/ PDF con tutte le partite (pubblico)
     login/                Login staff
+    notifiche/            «Notifiche di questo dispositivo» (minivolley/notifiche/ per l'app di Minivolley)
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti
       partite/             CRUD partite (portale/: confronto con il portale FIPAV)
@@ -593,6 +615,7 @@ src/
       guida/               Guida all'area riservata
       cambia-password/    Cambio password (obbligatorio al primo accesso)
     api/push/subscribe/    Iscrizione/cancellazione notifiche push
+    api/push/status/       Con quale squadra è registrata un'iscrizione (solo la squadra)
     api/livescore/         Tabellone live (staff) e diretta pubblica (pubblico/)
     api/scout/             Scout di una partita: lettura, salvataggio con controllo di versione, PDF, manuale d'uso (manuale/)
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
@@ -614,6 +637,7 @@ src/
 public/
   manifest.webmanifest     Manifest PWA
   sw.js                    Service worker (notifiche push)
+  sw-s3.js                 Service worker di Minivolley (portata /minivolley, importa sw.js)
   icons/                   Icone PWA
 supabase/
   schema.sql               Schema SQL da eseguire su Supabase

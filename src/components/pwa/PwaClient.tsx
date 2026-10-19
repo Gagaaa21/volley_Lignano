@@ -6,7 +6,8 @@ import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { buildOpenInChromeUrl, usePwaInstall } from "./PwaInstallContext";
 import { OVERLAY_PATH } from "@/lib/diretta/overlayEvents";
-import { hasTeamSubscription, subscribeTeam, syncPush, type PushDeps } from "@/lib/pwa/teamPush";
+import { hasTeamSubscription, subscribeTeam, syncPush } from "@/lib/pwa/teamPush";
+import { pushSupported, withPushDeps } from "./browserPush";
 import type { TrainingTeam } from "@/lib/types";
 
 const INSTALL_PROMPTED_KEY = "vl-pwa-install-prompted";
@@ -27,43 +28,6 @@ const NOTIFY_CAMPAIGN_SEEN_KEY = "vl-pwa-notify-campaign-seen";
 /** Quando l'invito ad attivare le notifiche di una squadra (permesso già dato, ma niente iscrizione per lei) è stato mostrato
  * l'ultima volta: una chiave per squadra, così chiuderlo in un sito non lo nasconde nell'altro. */
 const inviteKey = (team: TrainingTeam) => `vl-pwa-notify-invited-at:${team}`;
-
-function pushSupported(): boolean {
-  return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
-}
-
-/** Quello che le funzioni di src/lib/pwa/teamPush.ts usano del browser. */
-function browserPushDeps(pathname: string): PushDeps {
-  return {
-    serviceWorker: navigator.serviceWorker,
-    storage: localStorage,
-    send: async (method, body) => {
-      try {
-        const response = await fetch("/api/push/subscribe", {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        return response.ok;
-      } catch {
-        return false;
-      }
-    },
-    publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    now: () => Date.now(),
-    iosApp: (navigator as Navigator & { standalone?: boolean }).standalone === true,
-    pathname,
-  };
-}
-
-/** Esegue un'operazione sulle iscrizioni: se il browser non collabora (archivio bloccato, worker che non parte) non succede niente. */
-async function withPushDeps<T>(pathname: string, task: (deps: PushDeps) => Promise<T>): Promise<T | undefined> {
-  try {
-    return await task(browserPushDeps(pathname));
-  } catch {
-    return undefined;
-  }
-}
 
 function computeInitialStep(): "install" | "notify" {
   if (typeof window === "undefined") return "install";
@@ -107,11 +71,11 @@ function canAskForNotifications(): boolean {
 /**
  * Il permesso per le notifiche c'è già (dato da un'altra squadra o da un'altra app dello stesso sito) ma questa squadra non ha
  * ancora la sua iscrizione: ogni squadra si attiva per conto suo, quindi dal suo sito si invita ad attivarla (al massimo una
- * volta a settimana). Solo sulle pagine di una squadra: né nell'area riservata né in «Accedi» o «Diretta».
+ * volta a settimana). Solo sulla pagina iniziale di una squadra: né nell'area riservata, né in «Accedi», «Diretta» o «Notifiche».
  */
 function isTeamInviteDue(team: TrainingTeam, pathname: string | null, subscribed: boolean | null): boolean {
   if (subscribed !== false || !pushSupported() || Notification.permission !== "granted") return false;
-  if (pathname !== "/" && !pathname?.startsWith("/minivolley")) return false;
+  if (pathname !== "/" && pathname !== "/minivolley") return false;
   const last = Number(localStorage.getItem(inviteKey(team)) ?? "0");
   return Date.now() - last >= NOTIFY_REPROMPT_INTERVAL_MS;
 }

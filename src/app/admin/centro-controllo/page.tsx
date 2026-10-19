@@ -7,6 +7,7 @@ import { CATEGORY_SHORT } from "@/lib/category";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { endpointService, endpointTail } from "@/lib/pwa/teamPush";
 import { NotificationForm } from "./NotificationForm";
 import { NotificationPromptForm } from "./NotificationPromptForm";
 import { NOTIFY_PROMPT_SETTING } from "@/lib/notifyPrompt";
@@ -212,6 +213,56 @@ export default async function CentroControlloPage() {
               : "Nessuna richiesta inviata finora."}
           </p>
           <NotificationPromptForm />
+        </CardBody>
+      </Card>
+
+      {/* Le iscrizioni, una per una: per accorgersi di quelle doppie o con la squadra sbagliata */}
+      <Card className="mt-5">
+        <CardHeader className="flex flex-row items-start gap-3.5">
+          <span className="icon-chip shrink-0">
+            <ListChecks className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="font-display text-base font-bold text-foreground">Iscrizioni alle notifiche, una per una</h2>
+            <p className="text-sm text-muted-foreground">
+              Una riga per ogni iscrizione. Un dispositivo può averne una per squadra; due della stessa squadra sullo stesso
+              dispositivo sono doppie. Per sistemare un dispositivo apri «Notifiche di questo dispositivo» in fondo al sito
+              pubblico (dall&apos;app interessata): la fine dell&apos;indirizzo è la stessa che vedi lì, in «Dettagli tecnici».
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody className="pt-0">
+          <details data-notify-rows>
+            <summary className="cursor-pointer text-sm font-semibold text-foreground">
+              Mostra le {pushSubscriptions.length} {pushSubscriptions.length === 1 ? "iscrizione" : "iscrizioni"}
+            </summary>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[34rem] text-left text-sm">
+                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="py-1.5 pr-3 font-semibold">Squadra</th>
+                    <th className="py-1.5 pr-3 font-semibold">Account</th>
+                    <th className="py-1.5 pr-3 font-semibold">Servizio</th>
+                    <th className="py-1.5 pr-3 font-semibold">Registrata</th>
+                    <th className="py-1.5 font-semibold">Fine indirizzo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {[...pushSubscriptions]
+                    .sort((a, b) => a.team.localeCompare(b.team) || b.createdAt.localeCompare(a.createdAt))
+                    .map((sub) => (
+                      <tr key={sub.id} data-notify-row={sub.team}>
+                        <td className="py-1.5 pr-3">{sub.team === "minivolley" ? "Minivolley" : "U14/U15"}</td>
+                        <td className="py-1.5 pr-3">{byName(sub.staffId) ?? "anonimo"}</td>
+                        <td className="py-1.5 pr-3">{endpointService(sub.endpoint)}</td>
+                        <td className="py-1.5 pr-3">{formatMoment(sub.createdAt)}</td>
+                        <td className="py-1.5 font-mono text-xs">…{endpointTail(sub.endpoint)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </CardBody>
       </Card>
 

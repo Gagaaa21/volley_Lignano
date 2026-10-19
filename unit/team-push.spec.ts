@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
   cleanIosMinivolleyApp,
+  deviceSubscriptions,
+  endpointService,
+  endpointTail,
   existingSubscription,
   hasTeamSubscription,
   healTeams,
@@ -11,8 +14,10 @@ import {
   PUSH_SYNCED_AT_KEY,
   PUSH_TEAMS_KEY,
   rememberedTeams,
+  resetDevice,
   subscribeTeam,
   syncPush,
+  unsubscribeTeam,
   type PushDeps,
 } from "@/lib/pwa/teamPush";
 
@@ -43,11 +48,16 @@ function world(options: {
   publicKey?: string | null;
   /** Il sito risponde con un errore alle chiamate che passano da qui. */
   failPost?: boolean;
+  /** Pagina aperta da zero (dall'icona), non arrivando da un'altra pagina del sito. */
+  coldStart?: boolean;
+  /** Registrare questi worker non riesce (il browser lancia un errore). */
+  failRegister?: string[];
   now?: number;
 }) {
   const registrations = new Map<string, { scope: string; subscription: FakeSubscription | null }>();
   const registered: { script: string; scope: string }[] = [];
   const calls: Call[] = [];
+  const errors: { step: string; message: string }[] = [];
   const storage = new Map<string, string>(Object.entries(options.storage ?? {}));
   let counter = 0;
 
@@ -88,6 +98,7 @@ function world(options: {
   const deps: PushDeps = {
     serviceWorker: {
       register: async (script, { scope }) => {
+        if (options.failRegister?.includes(script)) throw new Error(`registrazione di ${script} non riuscita`);
         registered.push({ script, scope });
         if (!wrappers.has(scope)) wrappers.set(scope, addRegistration(scope));
         return wrappers.get(scope)!.registration;
@@ -109,11 +120,14 @@ function world(options: {
     now: () => options.now ?? 1_800_000_000_000,
     iosApp: options.iosApp ?? false,
     pathname: options.pathname ?? "/",
+    coldStart: options.coldStart ?? true,
+    report: (step, error) => void errors.push({ step, message: error instanceof Error ? error.message : String(error) }),
   };
 
   return {
     deps,
     calls,
+    errors,
     registered,
     storage,
     subscriptionAt: (scope: string) => registrations.get(scope)?.subscription ?? null,
@@ -345,5 +359,125 @@ test.describe("app di Minivolley su iPhone o iPad", () => {
     await cleanIosMinivolleyApp(w.deps);
     expect(w.subscriptionAt("/")).not.toBeNull();
     expect(w.storage.get("vl-pwa-push-ios-cleaned")).toBeUndefined();
+  });
+});
+
+test.describe("ogni passo per conto suo", () => {
+  test("se la sistemazione delle iscrizioni di prima non riesce, il resto va avanti e l'errore si annota", async () => {
+    const w = world({
+      existing: { "/": "https://push.example/vecchia" },
+      storage: { [LEGACY_PUSH_TEAM_KEY]: "minivolley" },
+      failRegister: ["/sw-s3.js"],
+    });
+    await syncPush(w.deps, { admin: true });
+
+    // Falliscono i due passi che hanno bisogno del worker di Minivolley; ognuno si annota, e l'ultimo (account) parte lo stesso.
+    expect(w.errors.map((error) => error.step)).toEqual(["iscrizioni di prima", "iscrizioni cancellate dal browser"]);
+    expect(w.errors[0].message).toContain("/sw-s3.js");
+    // L'iscrizione di prima resta com'è (non è stata tolta) e l'account dello staff si collega lo stesso.
+    expect(w.subscriptionAt("/")).not.toBeNull();
+    expect(w.calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(w.calls.some((call) => call.body.linkStaff === true)).toBe(true);
+    expect(w.storage.get("vl-pwa-push-v2")).toBeUndefined();
+  });
+
+  test("anche la pulizia dell'app di Minivolley va avanti se un altro passo ha fallito", async () => {
+    const w = world({
+      existing: { "/": "https://push.example/sbagliata" },
+      storage: { [LEGACY_PUSH_TEAM_KEY]: "u14u15" },
+      iosApp: true,
+      pathname: "/minivolley",
+    });
+    await syncPush(w.deps, { admin: false });
+    expect(w.errors).toEqual([]);
+    expect(w.subscriptionAt("/")).toBeNull();
+    expect(w.subscriptionAt("/minivolley")).not.toBeNull();
+  });
+});
+
+test.describe("di che squadra è l'app (iPhone e iPad)", () => {
+  const appRoot = { "/": "https://push.example/root" };
+
+  test("l'app aperta da zero dalla sua pagina iniziale corregge quello che si ricordava (anche se la prima volta era partita dall'altra)", async () => {
+    // Prima volta partita da «/»: ricordata come app di U14/U15, ma ora si apre da zero «/minivolley».
+    const w = world({ existing: appRoot, storage: { "vl-pwa-app-team": "u14u15", "vl-pwa-push-v2": "1" }, iosApp: true, pathname: "/minivolley", coldStart: true });
+    await cleanIosMinivolleyApp(w.deps);
+    expect(w.storage.get("vl-pwa-app-team")).toBe("minivolley");
+    expect(w.subscriptionAt("/")).toBeNull();
+    expect(w.subscriptionAt("/minivolley")).not.toBeNull();
+  });
+
+  test("arrivare a una pagina di Minivolley da un link, in un'app ricordata come U14/U15, non la cambia", async () => {
+    const w = world({ existing: appRoot, storage: { "vl-pwa-app-team": "u14u15", "vl-pwa-push-v2": "1" }, iosApp: true, pathname: "/minivolley", coldStart: false });
+    await cleanIosMinivolleyApp(w.deps);
+    expect(w.storage.get("vl-pwa-app-team")).toBe("u14u15");
+    expect(w.calls).toEqual([]);
+    expect(w.subscriptionAt("/")).not.toBeNull();
+  });
+
+  test("una pagina qualunque, aperta da zero, non dice di che squadra è l'app", async () => {
+    const w = world({ existing: appRoot, storage: { "vl-pwa-app-team": "minivolley", "vl-pwa-push-v2": "1" }, iosApp: true, pathname: "/minivolley/presenze", coldStart: true });
+    await cleanIosMinivolleyApp(w.deps);
+    // Resta quello ricordato: l'app è di Minivolley, e la pulizia fa il suo corso.
+    expect(w.storage.get("vl-pwa-app-team")).toBe("minivolley");
+    expect(w.subscriptionAt("/")).toBeNull();
+  });
+});
+
+test.describe("gestione delle notifiche di questo dispositivo", () => {
+  test("si vede cosa ha il dispositivo, squadra per squadra", async () => {
+    const w = world({ existing: { "/": "https://push.example/u14", "/minivolley": "https://push.example/s3" } });
+    const found = await deviceSubscriptions(w.deps);
+    expect(found.u14u15?.endpoint).toBe("https://push.example/u14");
+    expect(found.minivolley?.endpoint).toBe("https://push.example/s3");
+    const onlyRoot = world({ existing: { "/": "https://push.example/u14" } });
+    const partial = await deviceSubscriptions(onlyRoot.deps);
+    expect(partial.u14u15).not.toBeNull();
+    expect(partial.minivolley).toBeNull();
+  });
+
+  test("si toglie una squadra sola: iscrizione e riga sul sito, e l'altra resta", async () => {
+    const w = world({
+      existing: { "/": "https://push.example/u14", "/minivolley": "https://push.example/s3" },
+      storage: { [PUSH_TEAMS_KEY]: '["u14u15","minivolley"]' },
+    });
+    expect(await unsubscribeTeam(w.deps, "minivolley")).toBe(true);
+    expect(w.subscriptionAt("/minivolley")).toBeNull();
+    expect(w.subscriptionAt("/")).not.toBeNull();
+    expect(w.calls).toEqual([{ method: "DELETE", body: { endpoint: "https://push.example/s3" } }]);
+    expect(rememberedTeams(w.deps)).toEqual(["u14u15"]);
+    // Una squadra che non c'è: niente da togliere.
+    expect(await unsubscribeTeam(w.deps, "minivolley")).toBe(false);
+  });
+
+  test("«rimetti a posto tutto» toglie tutte e due e da lì in poi la sistemazione automatica non riporta indietro niente", async () => {
+    const w = world({
+      existing: { "/": "https://push.example/u14", "/minivolley": "https://push.example/s3" },
+      storage: { [LEGACY_PUSH_TEAM_KEY]: "minivolley" },
+      iosApp: true,
+      pathname: "/minivolley",
+    });
+    expect(await resetDevice(w.deps)).toBe(2);
+    expect(w.subscriptionAt("/")).toBeNull();
+    expect(w.subscriptionAt("/minivolley")).toBeNull();
+    expect(rememberedTeams(w.deps)).toEqual([]);
+    expect(w.calls.filter((call) => call.method === "DELETE").map((call) => call.body.endpoint).sort()).toEqual([
+      "https://push.example/s3",
+      "https://push.example/u14",
+    ]);
+    // Aprire di nuovo il sito non fa tornare niente.
+    const before = w.calls.length;
+    await syncPush(w.deps, { admin: false });
+    expect(w.calls).toHaveLength(before);
+    expect(w.subscriptionAt("/")).toBeNull();
+  });
+
+  test("il servizio e la fine dell'indirizzo si leggono a parole", () => {
+    expect(endpointService("https://web.push.apple.com/QOLb3x")).toContain("Apple");
+    expect(endpointService("https://fcm.googleapis.com/fcm/send/abc")).toContain("Google");
+    expect(endpointService("https://updates.push.services.mozilla.com/wpush/v2/x")).toContain("Mozilla");
+    expect(endpointService("https://wns2-par02p.notify.windows.com/w/?token=x")).toContain("Microsoft");
+    expect(endpointService("non è un indirizzo")).toBe("sconosciuto");
+    expect(endpointTail("https://push.example/abcdefgh")).toBe("abcdefgh".slice(-6));
   });
 });

@@ -1,4 +1,6 @@
 import Image from "next/image";
+import Link from "next/link";
+import { Bell } from "lucide-react";
 import crestU14U15 from "@/assets/lignano-crest.png";
 import crestMinivolley from "@/assets/minivolley-crest.png";
 import type { TrainingTeam } from "@/lib/types";
@@ -25,9 +27,19 @@ export function PublicFooter({
             Volley Lignano · {team === "minivolley" ? "Minivolley" : "Settore giovanile femminile"}
           </p>
         </div>
-        <p className="text-[13px] text-muted-foreground">
-          {tagline} · © {new Date().getFullYear()}
-        </p>
+        <div className="flex flex-col items-center gap-1.5 sm:items-end">
+          <Link
+            href={team === "minivolley" ? "/minivolley/notifiche" : "/notifiche"}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
+            data-footer-notifiche
+          >
+            <Bell className="h-3.5 w-3.5" aria-hidden />
+            Notifiche di questo dispositivo
+          </Link>
+          <p className="text-[13px] text-muted-foreground">
+            {tagline} · © {new Date().getFullYear()}
+          </p>
+        </div>
       </div>
     </footer>
   );

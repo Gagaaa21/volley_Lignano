@@ -54,6 +54,10 @@ export interface PushDeps {
   iosApp: boolean;
   /** Percorso della pagina aperta (senza indirizzo del sito né parametri). */
   pathname: string;
+  /** La pagina è stata aperta da zero (dall'icona dell'app, senza arrivare da un'altra pagina del sito). */
+  coldStart: boolean;
+  /** Dove si annota un passo che non è riuscito (la pagina «Notifiche» lo mostra): non deve mai bloccare gli altri. */
+  report?(step: string, error: unknown): void;
 }
 
 function read(deps: PushDeps, key: string): string | null {
@@ -210,6 +214,24 @@ export async function moveLegacySubscription(deps: PushDeps): Promise<void> {
 }
 
 /**
+ * Di che squadra è questa app (iPhone e iPad: ogni app della schermata Home ha il suo contenitore). Chi apre l'app dall'icona
+ * parte sempre dalla sua pagina iniziale («/minivolley» o «/»): ogni apertura da zero lo conferma o lo corregge. Senza
+ * un'apertura da zero (si è arrivati da un link) vale quello già ricordato o, se non c'è ancora, la pagina aperta. Con
+ * `remember: false` si legge soltanto, senza ricordare niente.
+ */
+export function appTeam(deps: PushDeps, remember = true): TrainingTeam | null {
+  const stored = read(deps, APP_TEAM_KEY);
+  const startPage: TrainingTeam | null = deps.pathname === "/minivolley" ? "minivolley" : deps.pathname === "/" ? "u14u15" : null;
+  const anyPage: TrainingTeam | null = isMinivolleyPath(deps.pathname) ? "minivolley" : startPage;
+  const fromPage = deps.coldStart ? startPage : isTeam(stored) ? null : anyPage;
+  if (fromPage) {
+    if (remember && fromPage !== stored) write(deps, APP_TEAM_KEY, fromPage);
+    return fromPage;
+  }
+  return isTeam(stored) ? stored : null;
+}
+
+/**
  * iPhone e iPad: ogni app della schermata Home ha un contenitore tutto suo, quindi si sa di che squadra è l'app (la pagina da
  * cui parte la prima volta: «/minivolley» o «/»). In un'app di Minivolley un'iscrizione U14/U15 non c'entra: ci era finita
  * perché l'area riservata dava all'iscrizione la squadra del selettore. Si toglie, una volta sola, e al suo posto c'è quella
@@ -217,11 +239,7 @@ export async function moveLegacySubscription(deps: PushDeps): Promise<void> {
  */
 export async function cleanIosMinivolleyApp(deps: PushDeps): Promise<void> {
   if (!deps.iosApp) return;
-  let identity = read(deps, APP_TEAM_KEY);
-  if (!isTeam(identity)) {
-    identity = isMinivolleyPath(deps.pathname) ? "minivolley" : deps.pathname === "/" ? "u14u15" : null;
-    if (identity) write(deps, APP_TEAM_KEY, identity);
-  }
+  const identity = appTeam(deps);
   if (identity !== "minivolley" || read(deps, IOS_CLEANED_KEY) === "1") return;
   const root = await registrationFor(deps, "u14u15", false);
   if (!root) return;
@@ -264,21 +282,81 @@ export async function linkStaff(deps: PushDeps): Promise<void> {
   }
 }
 
+/** Un passo della sistemazione: se non riesce lo si annota (vedi `report`) e gli altri passi vanno avanti lo stesso. */
+async function attempt(deps: PushDeps, step: string, task: () => Promise<void>) {
+  try {
+    await task();
+  } catch (error) {
+    deps.report?.(step, error);
+  }
+}
+
 /**
  * Cosa si fa a ogni apertura del sito da chi ha già dato il permesso per le notifiche. Mai un cambio di squadra: al più si
- * sistemano le iscrizioni vecchie (una volta) e si tengono vive quelle che ci sono.
+ * sistemano le iscrizioni vecchie (una volta) e si tengono vive quelle che ci sono. Ogni passo è indipendente dagli altri.
  */
 export async function syncPush(deps: PushDeps, options: { admin: boolean }): Promise<void> {
   if (!deps.publicKey) return;
-  await moveLegacySubscription(deps);
-  await cleanIosMinivolleyApp(deps);
+  await attempt(deps, "iscrizioni di prima", () => moveLegacySubscription(deps));
+  await attempt(deps, "app di Minivolley su iPhone/iPad", () => cleanIosMinivolleyApp(deps));
   if (options.admin) {
-    await healTeams(deps, { refresh: false });
-    await linkStaff(deps);
+    await attempt(deps, "iscrizioni cancellate dal browser", () => healTeams(deps, { refresh: false }));
+    await attempt(deps, "account dello staff", () => linkStaff(deps));
     return;
   }
   const lastSynced = Number(read(deps, PUSH_SYNCED_AT_KEY) ?? "0");
   if (deps.now() - lastSynced < PUSH_SYNC_INTERVAL_MS) return;
-  await healTeams(deps, { refresh: true });
-  write(deps, PUSH_SYNCED_AT_KEY, String(deps.now()));
+  await attempt(deps, "controllo periodico", async () => {
+    await healTeams(deps, { refresh: true });
+    write(deps, PUSH_SYNCED_AT_KEY, String(deps.now()));
+  });
+}
+
+/** Cosa ha questo dispositivo, per squadra: l'iscrizione che c'è (se c'è). */
+export async function deviceSubscriptions(deps: PushDeps): Promise<Record<TrainingTeam, PushSubscription | null>> {
+  const [u14u15, minivolley] = await Promise.all(PUSH_TEAMS.map((team) => existingSubscription(deps, team)));
+  return { u14u15, minivolley };
+}
+
+/** Toglie le notifiche di una squadra da questo dispositivo (iscrizione e riga sul sito). true se ce n'era una. */
+export async function unsubscribeTeam(deps: PushDeps, team: TrainingTeam): Promise<boolean> {
+  const subscription = await existingSubscription(deps, team);
+  if (subscription) await dropSubscription(deps, subscription);
+  forget(deps, team);
+  return subscription !== null;
+}
+
+/**
+ * Toglie le notifiche di tutte e due le squadre da questo dispositivo. È una scelta di chi lo usa: da qui in poi la
+ * sistemazione automatica delle iscrizioni di prima non riporta indietro niente, si attiva solo ciò che si sceglie.
+ */
+export async function resetDevice(deps: PushDeps): Promise<number> {
+  let removed = 0;
+  for (const team of PUSH_TEAMS) if (await unsubscribeTeam(deps, team)) removed += 1;
+  write(deps, PUSH_MOVED_KEY, "1");
+  write(deps, IOS_CLEANED_KEY, "1");
+  return removed;
+}
+
+/** Il servizio del telefono o del browser a cui appartiene un indirizzo di iscrizione, a parole. */
+export function endpointService(endpoint: string): string {
+  let host = "";
+  try {
+    host = new URL(endpoint).hostname;
+  } catch {
+    return "sconosciuto";
+  }
+  if (host.endsWith("push.apple.com")) return "Apple (iPhone, iPad, Mac)";
+  if (host.endsWith("googleapis.com") || host.endsWith("google.com")) return "Google (Android, Chrome)";
+  if (host.endsWith("mozilla.com")) return "Mozilla (Firefox)";
+  if (host.endsWith("windows.com") || host.endsWith("microsoft.com")) return "Microsoft (Edge)";
+  return host || "sconosciuto";
+}
+
+/** Gli ultimi caratteri dell'indirizzo: bastano a riconoscere un'iscrizione tra Centro di controllo e dispositivo. */
+export const endpointTail = (endpoint: string): string => endpoint.slice(-6);
+
+/** Cosa sa questo dispositivo di sé, per la pagina «Notifiche» (e per capire cosa non va). */
+export function deviceNotes(deps: PushDeps): { iosApp: boolean; appTeam: TrainingTeam | null; rememberedTeams: TrainingTeam[] } {
+  return { iosApp: deps.iosApp, appTeam: appTeam(deps, false), rememberedTeams: rememberedTeams(deps) };
 }
