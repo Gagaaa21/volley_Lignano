@@ -24,6 +24,7 @@ import type {
 } from "@/lib/types";
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
 import type { MatchScout, MatchScoutInput } from "@/lib/scout/types";
+import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
 import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
@@ -53,6 +54,8 @@ export interface MemoryStore {
   matches: Match[];
   matchLineups: MatchLineup[];
   matchScouts: MatchScout[];
+  matchTrips: MatchTrip[];
+  athleteContacts: AthleteContacts[];
   matchPredictions: MatchPrediction[];
   trainingPlans: TrainingPlan[];
   trainingOccurrencePlans: TrainingOccurrencePlan[];
@@ -75,6 +78,8 @@ export function createEmptyStore(): MemoryStore {
     matches: [],
     matchLineups: [],
     matchScouts: [],
+    matchTrips: [],
+    athleteContacts: [],
     matchPredictions: [],
     trainingPlans: [],
     trainingOccurrencePlans: [],
@@ -108,6 +113,11 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   // Un archivio sandbox salvato prima dello scout non ha questo campo.
   store.matchScouts ??= [];
   const matchScouts = store.matchScouts;
+  // Idem per le trasferte e la rubrica dei genitori.
+  store.matchTrips ??= [];
+  store.athleteContacts ??= [];
+  const matchTrips = store.matchTrips;
+  const athleteContacts = store.athleteContacts;
   const matchPredictions = store.matchPredictions;
   const trainingPlans = store.trainingPlans;
   const trainingOccurrencePlans = store.trainingOccurrencePlans;
@@ -228,6 +238,8 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (lineupIdx !== -1) matchLineups.splice(lineupIdx, 1);
       const scoutIdx = matchScouts.findIndex((s) => s.matchId === id);
       if (scoutIdx !== -1) matchScouts.splice(scoutIdx, 1);
+      const tripIdx = matchTrips.findIndex((t) => t.matchId === id);
+      if (tripIdx !== -1) matchTrips.splice(tripIdx, 1);
       for (let i = federationDecisions.length - 1; i >= 0; i--) {
         if (federationDecisions[i].matchId === id) federationDecisions.splice(i, 1);
       }
@@ -324,6 +336,54 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     async deleteMatchScout(matchId) {
       const idx = matchScouts.findIndex((s) => s.matchId === matchId);
       if (idx !== -1) matchScouts.splice(idx, 1);
+    },
+    async listMatchTrips() {
+      return structuredClone(matchTrips);
+    },
+    async getMatchTrip(matchId) {
+      const row = matchTrips.find((t) => t.matchId === matchId);
+      return row ? structuredClone(row) : null;
+    },
+    async saveMatchTrip(matchId, input, updatedBy, baseVersion) {
+      const idx = matchTrips.findIndex((t) => t.matchId === matchId);
+      const existing = idx === -1 ? null : matchTrips[idx];
+      // Chi salva dichiara la versione su cui si è basato: se è cambiata, non si scrive.
+      if (existing && existing.version !== baseVersion) return { ok: false, current: structuredClone(existing) };
+      if (!existing && baseVersion !== null) return { ok: false, current: null };
+      const row: MatchTrip = {
+        ...structuredClone(input),
+        matchId,
+        version: (existing?.version ?? 0) + 1,
+        updatedBy,
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx === -1) matchTrips.push(row);
+      else matchTrips[idx] = row;
+      return { ok: true, trip: structuredClone(row) };
+    },
+    async deleteMatchTrip(matchId) {
+      const idx = matchTrips.findIndex((t) => t.matchId === matchId);
+      if (idx !== -1) matchTrips.splice(idx, 1);
+    },
+    async listAthleteContacts() {
+      return structuredClone(athleteContacts);
+    },
+    async saveAthleteContacts(athleteId, contacts, updatedBy) {
+      const idx = athleteContacts.findIndex((c) => c.athleteId === athleteId);
+      // Nessun numero: la riga non serve più.
+      if (contacts.length === 0) {
+        if (idx !== -1) athleteContacts.splice(idx, 1);
+        return null;
+      }
+      const row: AthleteContacts = {
+        athleteId,
+        contacts: structuredClone(contacts),
+        updatedBy,
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx === -1) athleteContacts.push(row);
+      else athleteContacts[idx] = row;
+      return structuredClone(row);
     },
     async getPublicLiveScout() {
       const recent = Date.now() - LIVE_SCORE_TTL_MS;
@@ -539,6 +599,9 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       for (let i = physicalTests.length - 1; i >= 0; i--) {
         if (physicalTests[i].athleteId === id) physicalTests.splice(i, 1);
       }
+      // Come in database (on delete cascade): via anche i suoi numeri in rubrica.
+      const contactsIdx = athleteContacts.findIndex((c) => c.athleteId === id);
+      if (contactsIdx !== -1) athleteContacts.splice(contactsIdx, 1);
     },
 
     async listAttendanceSessions(filter?: TeamFilter) {
@@ -658,6 +721,8 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "matches", rows: matches },
         { table: "match_lineups", rows: matchLineups },
         { table: "match_scouts", rows: matchScouts },
+        { table: "match_trips", rows: matchTrips },
+        { table: "athlete_contacts", rows: athleteContacts },
         { table: "match_predictions", rows: matchPredictions },
         { table: "training_plans", rows: trainingPlans },
         { table: "training_occurrence_plans", rows: trainingOccurrencePlans },

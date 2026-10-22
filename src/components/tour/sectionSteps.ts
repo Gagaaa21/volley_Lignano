@@ -231,6 +231,23 @@ export const SECTION_PRONOSTICI_STEPS: BaseTourStep[] = [
   },
 ];
 
+export const SECTION_TRASFERTE_STEPS: BaseTourStep[] = [
+  {
+    id: "section-trasferte-list",
+    path: "/admin/trasferte",
+    target: "section-trasferte-list",
+    title: "Le partite fuori casa",
+    body: "Ogni partita in trasferta ha la sua scheda: tocca «Organizza» per aggiungere i mezzi (con chi guida e i posti) e dire chi viaggia con chi. Accanto alla partita vedi a che punto sei: quante convocate hanno già un passaggio.",
+  },
+  {
+    id: "section-trasferte-rubrica",
+    path: "/admin/trasferte",
+    target: "section-trasferte-rubrica",
+    title: "Rubrica dei genitori",
+    body: "I numeri di chi chiamare per ogni atleta si scrivono una volta sola, qui, e compaiono in ogni trasferta. Restano in questa sezione riservata: non si vedono altrove.",
+  },
+];
+
 export const SECTION_STAFF_STEPS: BaseTourStep[] = [
   {
     id: "section-staff-form",

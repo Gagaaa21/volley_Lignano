@@ -30,6 +30,9 @@ import type {
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
 import { normalizeSettings } from "@/lib/scout/actions";
 import type { MatchScout, SaveMatchScoutResult, ScoutData } from "@/lib/scout/types";
+import { normalizeContacts } from "@/lib/trips/contacts";
+import { normalizeTripData } from "@/lib/trips/rules";
+import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
 import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
   DEFAULT_FEDERATION_SOURCES,
@@ -285,6 +288,41 @@ function matchScoutFromRow(row: MatchScoutRow): MatchScout {
     settings: normalizeSettings(row.data.settings),
     matchId: row.match_id,
     version: row.version,
+    updatedBy: row.updated_by,
+    updatedAt: row.updated_at,
+  };
+}
+
+type MatchTripRow = {
+  match_id: string;
+  data: unknown;
+  version: number;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+function matchTripFromRow(row: MatchTripRow): MatchTrip {
+  return {
+    // Un documento rovinato o vecchio non rompe la pagina: si rilegge scartando le parti che non tornano.
+    ...normalizeTripData(row.data),
+    matchId: row.match_id,
+    version: row.version,
+    updatedBy: row.updated_by,
+    updatedAt: row.updated_at,
+  };
+}
+
+type AthleteContactsRow = {
+  athlete_id: string;
+  contacts: unknown;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+function athleteContactsFromRow(row: AthleteContactsRow): AthleteContacts {
+  return {
+    athleteId: row.athlete_id,
+    contacts: normalizeContacts(row.contacts),
     updatedBy: row.updated_by,
     updatedAt: row.updated_at,
   };
@@ -546,6 +584,13 @@ async function readMatchScout(matchId: string): Promise<MatchScout | null> {
   const { data, error } = await db.from("match_scouts").select("*").eq("match_id", matchId).maybeSingle();
   if (error) throw new Error(error.message);
   return data ? matchScoutFromRow(data as MatchScoutRow) : null;
+}
+
+async function readMatchTrip(matchId: string): Promise<MatchTrip | null> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.from("match_trips").select("*").eq("match_id", matchId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? matchTripFromRow(data as MatchTripRow) : null;
 }
 
 // Tabellone live (allenamento): un'unica riga fissa, come test_mode_store.
@@ -817,6 +862,71 @@ export const supabaseRepo: Repo = {
     const { error } = await db.from("match_scouts").delete().eq("match_id", matchId);
     if (error) throw new Error(error.message);
   },
+  async listMatchTrips() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("match_trips").select("*");
+    if (error) throw new Error(error.message);
+    return (data as MatchTripRow[]).map(matchTripFromRow);
+  },
+  async getMatchTrip(matchId) {
+    return readMatchTrip(matchId);
+  },
+  async saveMatchTrip(matchId, input, updatedBy, baseVersion) {
+    const db = getSupabaseAdmin();
+    const now = new Date().toISOString();
+    if (baseVersion === null) {
+      const { data, error } = await db
+        .from("match_trips")
+        .insert({ match_id: matchId, data: input, version: 1, updated_by: updatedBy, updated_at: now })
+        .select("*")
+        .single();
+      if (!error) return { ok: true, trip: matchTripFromRow(data as MatchTripRow) };
+      // 23505 = esiste già: qualcun altro ha creato la trasferta prima di noi.
+      if (error.code === "23505") return { ok: false, current: await readMatchTrip(matchId) };
+      throw new Error(error.message);
+    }
+
+    // Aggiorna solo se la versione è ancora quella su cui si basava chi salva.
+    const { data, error } = await db
+      .from("match_trips")
+      .update({ data: input, version: baseVersion + 1, updated_by: updatedBy, updated_at: now })
+      .eq("match_id", matchId)
+      .eq("version", baseVersion)
+      .select("*");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) return { ok: true, trip: matchTripFromRow(data[0] as MatchTripRow) };
+    return { ok: false, current: await readMatchTrip(matchId) };
+  },
+  async deleteMatchTrip(matchId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("match_trips").delete().eq("match_id", matchId);
+    if (error) throw new Error(error.message);
+  },
+  async listAthleteContacts() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("athlete_contacts").select("*");
+    if (error) throw new Error(error.message);
+    return (data as AthleteContactsRow[]).map(athleteContactsFromRow);
+  },
+  async saveAthleteContacts(athleteId, contacts, updatedBy) {
+    const db = getSupabaseAdmin();
+    // Nessun numero: la riga non serve più.
+    if (contacts.length === 0) {
+      const { error } = await db.from("athlete_contacts").delete().eq("athlete_id", athleteId);
+      if (error) throw new Error(error.message);
+      return null;
+    }
+    const result = await db
+      .from("athlete_contacts")
+      .upsert(
+        { athlete_id: athleteId, contacts, updated_by: updatedBy, updated_at: new Date().toISOString() },
+        { onConflict: "athlete_id" },
+      )
+      .select("*")
+      .single();
+    return athleteContactsFromRow(unwrap(result) as AthleteContactsRow);
+  },
+
   async getPublicLiveScout() {
     const db = getSupabaseAdmin();
     const since = new Date(Date.now() - LIVE_SCORE_TTL_MS).toISOString();

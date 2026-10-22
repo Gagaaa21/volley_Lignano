@@ -6,6 +6,7 @@ import type {
   FederationSourceInput,
 } from "@/lib/federation/types";
 import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/scout/types";
+import type { AthleteContact, AthleteContacts, MatchTrip, MatchTripData, SaveMatchTripResult } from "@/lib/trips/types";
 import type {
   AdminPage,
   Athlete,
@@ -123,12 +124,27 @@ export interface Repo {
     baseVersion: number | null,
   ): Promise<SaveMatchScoutResult>;
   deleteMatchScout(matchId: string): Promise<void>;
+
   /**
    * Lo scout con il «Punteggio live» acceso e salvato di recente (entro
    * LIVE_SCORE_TTL_MS), insieme alla sua partita: serve al sito pubblico per
    * mostrare il punteggio. Se ce ne sono più d'uno vale l'ultimo salvato.
    */
   getPublicLiveScout(): Promise<{ scout: MatchScout; match: Match } | null>;
+
+  // Trasferte (riservate allo staff con il permesso «trasferte»): un documento per partita con mezzi e passeggeri, salvato
+  // dichiarando la versione su cui ci si basa come per lo scout, e la rubrica dei genitori, una riga per atleta (vuota = nessuna riga).
+  listMatchTrips(): Promise<MatchTrip[]>;
+  getMatchTrip(matchId: string): Promise<MatchTrip | null>;
+  saveMatchTrip(
+    matchId: string,
+    input: MatchTripData,
+    updatedBy: string | null,
+    baseVersion: number | null,
+  ): Promise<SaveMatchTripResult>;
+  deleteMatchTrip(matchId: string): Promise<void>;
+  listAthleteContacts(): Promise<AthleteContacts[]>;
+  saveAthleteContacts(athleteId: string, contacts: AthleteContact[], updatedBy: string | null): Promise<AthleteContacts | null>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

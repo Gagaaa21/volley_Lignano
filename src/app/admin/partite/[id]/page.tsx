@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Binoculars, Trash2 } from "lucide-react";
+import { Binoculars, Car, Trash2 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
@@ -30,6 +30,11 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
   const canScout =
     isScoutable(match) &&
     (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("scout") ?? false));
+  // Idem per la trasferta (sezione riservata): il collegamento c'è solo per le partite fuori casa e solo a chi ha il permesso.
+  const canTrip =
+    match.team === "u14u15" &&
+    !match.isHome &&
+    (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("trasferte") ?? false));
   // Solo atlete della stessa squadra della partita.
   const [allAthletes, lineup] = await Promise.all([
     repo.listAthletes({ team: match.team }),
@@ -46,11 +51,21 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         title={matchTitle(match)}
         description={`${formatDateLong(match.matchDate.slice(0, 10))} · ${match.matchDate.slice(11, 16)} · ${match.location}`}
         actions={
-          canScout ? (
-            <LinkButton href={`/admin/scout/${match.id}`} variant="outline" data-match-scout-link>
-              <Binoculars className="h-4 w-4" />
-              Scout della partita
-            </LinkButton>
+          canScout || canTrip ? (
+            <>
+              {canTrip && (
+                <LinkButton href={`/admin/trasferte/${match.id}`} variant="outline" data-match-trip-link>
+                  <Car className="h-4 w-4" />
+                  Trasferta
+                </LinkButton>
+              )}
+              {canScout && (
+                <LinkButton href={`/admin/scout/${match.id}`} variant="outline" data-match-scout-link>
+                  <Binoculars className="h-4 w-4" />
+                  Scout della partita
+                </LinkButton>
+              )}
+            </>
           ) : undefined
         }
       />

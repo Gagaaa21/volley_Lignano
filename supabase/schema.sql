@@ -172,6 +172,44 @@ alter table match_scouts enable row level security;
 -- Nessuna policy pubblica: lo scout è riservato allo staff.
 
 -- =========================================================
+-- match_trips — trasferte: per ogni partita fuori casa i mezzi (auto,
+-- pulmino…) con autista, numero di telefono e posti, e le atlete che
+-- viaggiano su ciascuno. Una riga per partita; "data" contiene l'elenco dei
+-- mezzi e le note (vedi src/lib/trips): nessuna colonna in più, quindi
+-- nessuna migrazione. "version" cresce a ogni salvataggio: chi salva
+-- dichiara su quale versione si basa, così due dispositivi non si
+-- sovrascrivono in silenzio. Sezione «super riservata»: solo lo staff con
+-- il permesso "trasferte", nessuna policy pubblica.
+-- =========================================================
+create table if not exists match_trips (
+  match_id uuid primary key references matches(id) on delete cascade,
+  data jsonb not null,
+  version integer not null default 1,
+  updated_by uuid references staff(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+alter table match_trips enable row level security;
+-- Nessuna policy pubblica: le trasferte sono riservate allo staff con il permesso "trasferte".
+
+-- =========================================================
+-- athlete_contacts — rubrica dei genitori: nome, numero di telefono e
+-- relazione (mamma, papà…) di chi chiamare per ogni atleta, scritti una
+-- volta e ripresi in ogni trasferta. Una riga per atleta; "contacts" è un
+-- elenco di oggetti {name, phone, relation}. Dati personali di minorenni:
+-- nessuna policy pubblica, si leggono solo dalla sezione Trasferte.
+-- =========================================================
+create table if not exists athlete_contacts (
+  athlete_id uuid primary key references athletes(id) on delete cascade,
+  contacts jsonb not null default '[]'::jsonb,
+  updated_by uuid references staff(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+alter table athlete_contacts enable row level security;
+-- Nessuna policy pubblica: la rubrica è riservata allo staff con il permesso "trasferte".
+
+-- =========================================================
 -- match_predictions — pronostici sul punteggio di ogni set di una partita
 -- non ancora giocata, uno per (match, membro dello staff). Vedi
 -- src/lib/predictions.ts per come vengono giudicati una volta inseriti i
@@ -569,6 +607,12 @@ alter table training_sessions add column if not exists excluded_dates date[] not
 -- e/o luogo diversi, tutte le altre date restano come sono. Elenco di oggetti
 -- {date, startTime, endTime, location} (vedi TrainingRule.occurrenceOverrides).
 alter table training_sessions add column if not exists occurrence_overrides jsonb not null default '[]'::jsonb;
+
+-- Nuova sezione "Trasferte" (tabelle match_trips e athlete_contacts sopra,
+-- da creare una volta sola: basta incollare questi due blocchi nell'SQL
+-- Editor di Supabase e premere Run). Nessun account Admin la vede, né
+-- esistente né nuovo, finché il Developer non spunta "Trasferte" per lui dal
+-- Centro di controllo; il Developer la vede sempre.
 
 -- Nuova sezione "Test fisici" (vedi tabella physical_tests sopra, già
 -- creata da questo file): gli account Admin già esistenti e con pagine

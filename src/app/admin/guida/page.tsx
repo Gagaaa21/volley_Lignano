@@ -4,6 +4,7 @@ import { RULES_SEASON, SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET 
 import {
   Binoculars,
   CalendarClock,
+  Car,
   ClipboardCheck,
   Compass,
   FlaskConical,
@@ -189,6 +190,21 @@ const SECTIONS: Section[] = [
       "Chi si avvicina di più al risultato reale di un set vince il set: i punti totalizzati compongono la classifica.",
       "Anche le partite dei tornei si pronosticano, una gara alla volta.",
       "Ogni partita porta l'etichetta U14 o U15; il filtro \"Tutte / Under 14 / Under 15\" sopra l'elenco mostra una categoria sola (la classifica resta su tutte le partite).",
+    ],
+  },
+  {
+    page: "trasferte",
+    icon: Car,
+    title: "Trasferte",
+    intro: "Mezzi, posti e chi va con chi per le partite fuori casa. Sezione super riservata.",
+    points: [
+      "La vede solo chi ha il permesso «Trasferte»: nessun account ce l'ha di partenza, nemmeno i nuovi Admin. Il Developer la apre a un account dal Centro di controllo, tra le pagine dei permessi. Esiste solo per U14/U15.",
+      "Ogni partita fuori casa (inserita in Partite con «Trasferta») ha la sua scheda. Nell'elenco vedi a che punto sei: quanti mezzi ci sono e quante convocate hanno già un passaggio. Le convocate sono quelle scelte nella partita; se non ce ne sono, la scheda te lo dice.",
+      "Mezzi: auto, pulmino, pullman o altro. Per ognuno scrivi chi guida, il suo numero, i posti per le atlete (chi guida non conta) e, se serve, ora e luogo di partenza e una nota. Con «Modifica il mezzo» cambi i dati: i posti non possono scendere sotto le atlete già salite.",
+      "Chi va con chi: sotto «Senza passaggio» scegli il mezzo per ogni convocata e tocca «Metti»; i mezzi pieni non si offrono. «Togli» la rimette senza passaggio, ed eliminando un mezzo le atlete che c'erano sopra restano senza passaggio. Se una convocata viene tolta dalla partita dopo, resta sul mezzo con l'avviso «Non più convocata».",
+      "Numeri di telefono e rubrica dei genitori: da «Rubrica genitori» scrivi una volta sola, per ogni atleta, fino a quattro numeri (nome, chi è e numero). Compaiono accanto all'atleta in ogni trasferta, con il link che dal telefono fa partire la chiamata. Se scrivi chi guida senza il numero e quel nome è in rubrica, il numero lo mette il sito; il nome si suggerisce mentre scrivi.",
+      "Riepilogo PDF: «Riepilogo PDF» lo scarica e «Condividi PDF» apre il foglio di condivisione del telefono (WhatsApp, e-mail…). Dentro ci sono la partita e il ritrovo, i mezzi con chi guida e chi viaggia con chi, e chi è ancora senza passaggio. Non ci sono mai i numeri dei genitori né le note riservate; i numeri degli autisti solo se spunti «Con i numeri di telefono degli autisti».",
+      "Sono dati personali, di minorenni: non compaiono mai sul sito pubblico né nelle notifiche, e il PDF si scarica solo con il permesso. In modalità prova lavori su una copia, che sparisce all'uscita.",
     ],
   },
   {

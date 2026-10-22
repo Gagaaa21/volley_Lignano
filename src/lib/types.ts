@@ -15,6 +15,7 @@ export type AdminPage =
   | "livescore"
   | "scout"
   | "pronostici"
+  | "trasferte"
   | "staff"
   | "guida";
 
@@ -32,16 +33,20 @@ export const ADMIN_PAGES: AdminPage[] = [
   "livescore",
   "scout",
   "pronostici",
+  "trasferte",
   "staff",
   "guida",
 ];
 
 /** Pagine assegnate di default quando un Developer crea un nuovo account
  * Admin: uguale a ADMIN_PAGES tranne "testfisici", la cui sezione è ancora
- * in costruzione (i dati da registrare non sono definiti) — un nuovo
- * Admin parte senza, il Developer la spunta per un account specifico dalla
- * matrice permessi quando lo ritiene pronto. */
-export const DEFAULT_NEW_ADMIN_PAGES: AdminPage[] = ADMIN_PAGES.filter((page) => page !== "testfisici");
+ * in costruzione (i dati da registrare non sono definiti), e "trasferte",
+ * «super riservata» perché tiene i numeri di telefono di autisti e genitori —
+ * un nuovo Admin parte senza, il Developer le spunta per un account
+ * specifico dalla matrice permessi quando lo ritiene giusto. */
+export const DEFAULT_NEW_ADMIN_PAGES: AdminPage[] = ADMIN_PAGES.filter(
+  (page) => page !== "testfisici" && page !== "trasferte",
+);
 
 export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   allenamenti: "Allenamenti",
@@ -52,6 +57,7 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
   livescore: "Live score",
   scout: "Scout",
   pronostici: "Pronostici",
+  trasferte: "Trasferte",
   staff: "Staff",
   guida: "Guida",
 };
@@ -64,12 +70,13 @@ export const ADMIN_PAGE_LABELS: Record<AdminPage, string> = {
  * una partita) e quindi segue la stessa esclusione, come "Scout" (si segna
  * punto per punto una partita di campionato). "Test fisici" non si
  * applica a questa squadra (atlete troppo piccole per questo tipo di
- * rilevazioni). "Presenze" invece resta disponibile per entrambe le
+ * rilevazioni). "Trasferte" è solo per U14/U15 (per ordine del
+ * proprietario il Minivolley non si estende). "Presenze" invece resta disponibile per entrambe le
  * squadre, con la stessa anagrafica di U14/U15 (atlete raggruppate per CDA
  * invece che per categoria) ma un flusso di registrazione diverso per il
  * Minivolley (vedi MiniAttendanceForm): un elenco con spunte ma senza
  * assenze tracciate, solo chi era presente. */
-const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici", "testfisici", "scout"];
+const PAGES_UNAVAILABLE_FOR_MINIVOLLEY: readonly AdminPage[] = ["partite", "pronostici", "testfisici", "scout", "trasferte"];
 
 export function isPageAvailableForTeam(page: AdminPage, team: TrainingTeam): boolean {
   return team !== "minivolley" || !PAGES_UNAVAILABLE_FOR_MINIVOLLEY.includes(page);

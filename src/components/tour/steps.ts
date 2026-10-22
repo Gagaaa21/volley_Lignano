@@ -106,6 +106,14 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Pronostica il punteggio delle partite (anche dei tornei) insieme al resto dello staff: chi si avvicina di più vince il set.",
   },
   {
+    id: "nav-trasferte",
+    path: "/admin/trasferte",
+    target: "nav-trasferte",
+    page: "trasferte",
+    title: "Trasferte",
+    body: "Per le partite fuori casa: i mezzi con chi guida e i posti, chi viaggia con chi, la rubrica dei genitori e un riepilogo da mandare alle famiglie. Sezione riservata: la vede solo chi ha il permesso.",
+  },
+  {
     id: "nav-staff",
     path: "/admin/staff",
     target: "nav-staff",

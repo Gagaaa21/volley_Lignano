@@ -9,6 +9,7 @@ import {
   Binoculars,
   BookOpen,
   CalendarClock,
+  Car,
   ChevronDown,
   ClipboardCheck,
   FlaskConical,
@@ -52,6 +53,7 @@ const NAV_ITEMS: {
   { href: "/admin/livescore", label: "Live score", icon: Volleyball, exact: false, page: "livescore", tourId: "nav-livescore" },
   { href: "/admin/scout", label: "Scout", icon: Binoculars, exact: false, page: "scout", tourId: "nav-scout" },
   { href: "/admin/pronostici", label: "Pronostici", icon: Target, exact: false, page: "pronostici", tourId: "nav-pronostici" },
+  { href: "/admin/trasferte", label: "Trasferte", icon: Car, exact: false, page: "trasferte", tourId: "nav-trasferte" },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff", tourId: "nav-staff" },
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida", tourId: "nav-guida" },
 ];

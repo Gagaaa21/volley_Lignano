@@ -94,6 +94,32 @@ staff (Developer e Admin).
   o subito se il risultato è già stato inserito; pagina e azione dicono
   l'orario di chiusura. Dopo la chiusura i pronostici di tutti diventano
   visibili.
+- **Trasferte** (`/admin/trasferte`, solo U14/U15, sezione «super riservata») —
+  per ogni partita fuori casa i **mezzi** (auto, pulmino, pullman…) con
+  autista, numero di telefono, posti per le atlete e partenza, e **chi va con
+  chi**: le convocate della partita si mettono sui mezzi (i pieni non si
+  offrono, ognuna è su un mezzo solo, `src/lib/trips/rules.ts` in funzioni
+  pure con le loro prove). La **rubrica dei genitori** (`/admin/trasferte/rubrica`)
+  tiene fino a quattro numeri per atleta, scritti una volta e ripresi in ogni
+  trasferta con il link `tel:`; chi guida senza numero scritto lo prende dalla
+  rubrica se il nome c'è una volta sola. Il **riepilogo PDF**
+  (`/api/trasferte/[matchId]/pdf`, `src/lib/pdf/tripPdf.ts`, «Scarica» e
+  «Condividi PDF») dice partita, ritrovo, mezzi e chi viaggia con chi, e chi è
+  ancora senza passaggio: mai i numeri dei genitori né le note riservate, i
+  numeri degli autisti solo con `?numeri=autisti`. Dati personali di
+  minorenni, quindi: serve il permesso pagina `trasferte`, che **nessun
+  account ha di partenza** (non è tra `DEFAULT_NEW_ADMIN_PAGES`, e gli Admin già
+  esistenti non lo hanno): il Developer lo spunta account per account dal
+  Centro di controllo. Lo controllano il layout della sezione, ogni azione
+  (`requireStaffPage("trasferte")`) e il PDF (`requireTripAccess`, con 401/403 e
+  `Cache-Control: no-store`); non c'è niente sul sito pubblico né nelle
+  notifiche, e per il Minivolley la pagina non esiste
+  (`PAGES_UNAVAILABLE_FOR_MINIVOLLEY`). I dati stanno in due tabelle da creare
+  su Supabase una volta sola (blocchi `match_trips` e `athlete_contacts` di
+  `supabase/schema.sql`; finché mancano le pagine lo spiegano, come per lo
+  Scout): un documento JSON per partita con una `version` (ogni azione rilegge e
+  rifà la stessa modifica se nel frattempo un altro ha salvato) e una riga per
+  atleta con i suoi contatti. Segue la modalità prova come le altre sezioni.
 - **Live score** (`/admin/livescore`, regole in `src/lib/liveScore.ts`) —
   tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
   punteggio» senza formazione (e senza seguire chi batte); rotazione e libero
@@ -614,6 +640,7 @@ src/
       schede/              Schede allenamento (blocchi incorporati nella scheda)
       presenze/            Registro presenze, anagrafica atlete, storico
       scout/               Scout partita: elenco, inserimento punto per punto, tabellino
+      trasferte/           Trasferte: mezzi e passeggeri per partita, rubrica genitori (riservata)
       staff/               Creazione/modifica account admin
       guida/               Guida all'area riservata
       cambia-password/    Cambio password (obbligatorio al primo accesso)
@@ -621,6 +648,7 @@ src/
     api/push/status/       Con quale squadra è registrata un'iscrizione (solo la squadra)
     api/livescore/         Tabellone live (staff) e diretta pubblica (pubblico/)
     api/scout/             Scout di una partita: lettura, salvataggio con controllo di versione, PDF, manuale d'uso (manuale/)
+    api/trasferte/         Riepilogo PDF di una trasferta (solo con il permesso «trasferte»)
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
     api/federation/logo/   Loghi delle squadre in classifica (solo dal portale FIPAV)
   components/              Componenti UI, layout, calendario, form, PWA
@@ -631,6 +659,7 @@ src/
     push.ts                Invio notifiche push (web-push)
     federation/            Lettura classifiche e risultati dal portale FIPAV
     scout/                 Regole, calcolo del tabellino, salvataggio e manuale d'uso (manual.ts) dello scout
+    trips/                 Trasferte: tipi, regole dei posti e delle assegnazioni, rubrica, telefoni, accesso
     jersey.ts              Numero di maglia: lettura dei numeri nelle righe incollate, avvisi sui doppioni
     liveScore.ts           Stato e regole del tabellone live (set, cambio campo, battuta)
     volleyRules.ts         Regole dei set e delle formule di gara, comuni a Live score e Scout
