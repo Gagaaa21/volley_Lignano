@@ -95,14 +95,23 @@ staff (Developer e Admin).
   l'orario di chiusura. Dopo la chiusura i pronostici di tutti diventano
   visibili.
 - **Trasferte** (`/admin/trasferte`, solo U14/U15, sezione «super riservata») —
-  per ogni partita fuori casa i **mezzi** (auto, pulmino, pullman…) con
-  autista, numero di telefono, posti per le atlete e partenza, e **chi va con
-  chi**: le convocate della partita si mettono sui mezzi (i pieni non si
-  offrono, ognuna è su un mezzo solo, `src/lib/trips/rules.ts` in funzioni
-  pure con le loro prove). La **rubrica dei genitori** (`/admin/trasferte/rubrica`)
-  tiene fino a quattro numeri per atleta, scritti una volta e ripresi in ogni
-  trasferta con il link `tel:`; chi guida senza numero scritto lo prende dalla
-  rubrica se il nome c'è una volta sola. Il **riepilogo PDF**
+  per ogni partita fuori casa i **mezzi** (auto, pulmino, pullman…) con di chi
+  è il mezzo, autista, numero di telefono, posti per le atlete e partenza, e
+  **chi va con chi**: le convocate della partita si mettono sui mezzi (i pieni
+  non si offrono, ognuna è su un mezzo solo, `src/lib/trips/rules.ts` in
+  funzioni pure con le loro prove). La scheda è una lavagna interattiva
+  (`TripBoard`): ogni mezzo si vede dall'alto con un riquadro per posto
+  (`SeatMap`, disposizione per tipo in `seatLayout`), si cambiano da lì i posti
+  (+ e −), chi guida, di chi è, il numero e la partenza; un posto libero si
+  tocca per metterci un'atleta, uno occupato per toglierla o spostarla, e le
+  atlete si trascinano da un mezzo all'altro. Ogni cambiamento si vede subito
+  (`useOptimistic`, con le stesse regole del server) e intanto va al server;
+  se il server lo rifiuta torna com'era e lo dice. I mezzi usati in altre
+  trasferte si rimettono con un tocco (`suggestVehicles`). La **rubrica dei
+  genitori** (`/admin/trasferte/rubrica`) tiene fino a quattro numeri per
+  atleta, scritti una volta e ripresi in ogni trasferta con il link `tel:`;
+  chi guida senza numero scritto lo prende dalla rubrica se il nome c'è una
+  volta sola. Il **riepilogo PDF**
   (`/api/trasferte/[matchId]/pdf`, `src/lib/pdf/tripPdf.ts`, «Scarica» e
   «Condividi PDF») dice partita, ritrovo, mezzi e chi viaggia con chi, e chi è
   ancora senza passaggio: mai i numeri dei genitori né le note riservate, i

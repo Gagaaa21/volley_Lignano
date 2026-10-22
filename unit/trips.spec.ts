@@ -12,9 +12,15 @@ import { cleanPhone, isValidPhone, nameKey, phoneHref } from "@/lib/trips/phone"
 import {
   addVehicle,
   assignAthlete,
+  fieldsOf,
+  moveAthlete,
   normalizeTripData,
+  ownerLabel,
   removeVehicle,
+  seatLayout,
   seatsLeft,
+  setVehicleSeats,
+  suggestVehicles,
   summarizeTrip,
   tripStatus,
   unassignAthlete,
@@ -22,7 +28,14 @@ import {
   vehicleOf,
   type VehicleFields,
 } from "@/lib/trips/rules";
-import { MAX_VEHICLES, emptyTripData, type AthleteContacts, type MatchTripData } from "@/lib/trips/types";
+import {
+  MAX_SEATS,
+  MAX_VEHICLES,
+  VEHICLE_KINDS,
+  emptyTripData,
+  type AthleteContacts,
+  type MatchTripData,
+} from "@/lib/trips/types";
 
 /**
  * Le regole delle trasferte, senza database né pagina: posti, chi sta su quale mezzo, riepilogo e lettura difensiva di quanto
@@ -31,6 +44,7 @@ import { MAX_VEHICLES, emptyTripData, type AthleteContacts, type MatchTripData }
 
 const fields = (overrides: Partial<VehicleFields> = {}): VehicleFields => ({
   kind: "auto",
+  ownerName: null,
   driverName: "Mario Rossi",
   driverPhone: "333 1234567",
   seats: 3,
@@ -399,6 +413,20 @@ test.describe("riepilogo PDF della trasferta", () => {
     expect(JSON.stringify(content)).not.toContain("NOTA-RISERVATA");
   });
 
+  test("di chi è il mezzo compare accanto al tipo, solo se non è di chi guida", () => {
+    const base = sampleTrip();
+    const data: MatchTripData = {
+      ...base,
+      vehicles: [
+        { ...base.vehicles[0], ownerName: "Società" },
+        { ...base.vehicles[1], ownerName: "anna  VERDI" },
+      ],
+    };
+    const content = tripPdfContent({ match: match(), data, athletes: ATHLETES, includeDriverNumbers: true });
+    expect(content.vehicles.map((v) => v.sub)).toEqual(["Auto di Società · 333 1234567", "Auto · 340 7654321"]);
+    expect(tripPdfContent({ match: match(), data, athletes: ATHLETES, includeDriverNumbers: false }).vehicles[0].sub).toBe("Auto di Società");
+  });
+
   test("dice la partita, il ritrovo, i mezzi con chi ci sale, i posti e chi è ancora senza passaggio", () => {
     const content = tripPdfContent({ match: match(), data: sampleTrip(), athletes: ATHLETES, includeDriverNumbers: false });
     expect(content.when).toBe("21 novembre 2026 · ore 18:00 · Palestra di Udine");
@@ -446,5 +474,142 @@ test.describe("sezione riservata", () => {
     expect(isPageAvailableForTeam("trasferte", "minivolley")).toBe(false);
     // Le altre pagine di default non cambiano.
     expect(DEFAULT_NEW_ADMIN_PAGES).toContain("pronostici");
+  });
+});
+
+test.describe("di chi è il mezzo", () => {
+  test("si dice solo se non è di chi guida (la stessa persona scritta in due modi è la stessa)", () => {
+    expect(ownerLabel({ ownerName: "Società", driverName: "Mario Rossi" })).toBe("Società");
+    expect(ownerLabel({ ownerName: "mario  ROSSI", driverName: "Mario Rossi" })).toBeNull();
+    expect(ownerLabel({ ownerName: null, driverName: "Mario Rossi" })).toBeNull();
+  });
+
+  test("si rilegge dal documento salvato; un documento senza il campo (di prima) vale «non si dice»", () => {
+    const data = normalizeTripData({
+      vehicles: [
+        { id: "a", kind: "auto", ownerName: "  Famiglia Rossi ", driverName: "Mario", seats: 3, athleteIds: [] },
+        { id: "b", kind: "auto", driverName: "Luca", seats: 3, athleteIds: [] },
+      ],
+    });
+    expect(data.vehicles.map((v) => v.ownerName)).toEqual(["Famiglia Rossi", null]);
+  });
+
+  test("i campi di un mezzo si riprendono così come sono (senza id né atlete)", () => {
+    const data = assign(twoVehicles(), "anna", "a");
+    expect(fieldsOf(data.vehicles[0])).toEqual({
+      kind: "auto",
+      ownerName: null,
+      driverName: "Mario Rossi",
+      driverPhone: "333 1234567",
+      seats: 2,
+      departureTime: null,
+      departurePlace: null,
+      notes: null,
+    });
+  });
+});
+
+test.describe("posti e spostamenti dal mezzo", () => {
+  test("il contatore dei posti va da 1 al massimo, e mai sotto chi c'è già sopra", () => {
+    const data = assign(assign(twoVehicles(), "anna", "b"), "bea", "b");
+    const more = setVehicleSeats(data, "b", 4);
+    expect(more.ok && more.data.vehicles[1].seats).toBe(4);
+    expect(setVehicleSeats(data, "b", 2).ok).toBe(true);
+    expect(setVehicleSeats(data, "b", 1)).toEqual({
+      ok: false,
+      error: "Su questo mezzo ci sono già 2 atlete: togline qualcuna prima di ridurre i posti.",
+    });
+    for (const seats of [0, -1, MAX_SEATS + 1, 2.5, Number.NaN]) {
+      expect(setVehicleSeats(data, "b", seats), String(seats)).toEqual({ ok: false, error: `I posti vanno da 1 a ${MAX_SEATS}.` });
+    }
+    expect(setVehicleSeats(data, "zzz", 3)).toEqual({ ok: false, error: "Questo mezzo non c'è più." });
+  });
+
+  test("cambiare i posti non tocca gli altri campi né chi c'è sopra", () => {
+    const data = assign(twoVehicles(), "anna", "b");
+    const changed = setVehicleSeats(data, "b", 5);
+    if (!changed.ok) throw new Error(changed.error);
+    expect(changed.data.vehicles[1]).toEqual({ ...data.vehicles[1], seats: 5 });
+  });
+
+  test("spostare su un mezzo la mette lì (togliendola dall'altro); senza mezzo la toglie dal suo", () => {
+    let data = assign(twoVehicles(), "anna", "a");
+    const moved = moveAthlete(data, "anna", "b");
+    if (!moved.ok) throw new Error(moved.error);
+    expect(moved.data.vehicles.map((v) => v.athleteIds)).toEqual([[], ["anna"]]);
+    data = moved.data;
+    const removed = moveAthlete(data, "anna", null);
+    if (!removed.ok) throw new Error(removed.error);
+    expect(vehicleOf(removed.data, "anna")).toBeUndefined();
+    expect(moveAthlete(data, "bea", "zzz").ok).toBe(false);
+  });
+});
+
+test.describe("disposizione dei posti nel mezzo", () => {
+  test("ogni posto compare una volta sola, nell'ordine, per ogni tipo e numero di posti", () => {
+    for (const kind of VEHICLE_KINDS) {
+      for (const seats of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 50, MAX_SEATS]) {
+        const layout = seatLayout(kind, seats);
+        expect([...layout.front, ...layout.rows.flat()], `${kind} ${seats}`).toEqual(Array.from({ length: seats }, (_, i) => i));
+      }
+    }
+  });
+
+  test("un'auto ha un posto davanti e le file dietro da tre; il pulmino due davanti; il pullman file da quattro con il corridoio", () => {
+    expect(seatLayout("auto", 4)).toEqual({ front: [0], rows: [[1, 2, 3]], aisleAfter: null });
+    expect(seatLayout("auto", 6).rows).toEqual([[1, 2, 3], [4, 5]]);
+    expect(seatLayout("auto", 1)).toEqual({ front: [0], rows: [], aisleAfter: null });
+    expect(seatLayout("pulmino", 8)).toEqual({ front: [0, 1], rows: [[2, 3, 4], [5, 6, 7]], aisleAfter: null });
+    expect(seatLayout("pullman", 9)).toEqual({ front: [0], rows: [[1, 2, 3, 4], [5, 6, 7, 8]], aisleAfter: 2 });
+    expect(seatLayout("altro", 3)).toEqual({ front: [0], rows: [[1, 2]], aisleAfter: null });
+  });
+});
+
+test.describe("mezzi già usati altre volte", () => {
+  const trip = (...vehicles: Array<Partial<VehicleFields> & { driverName: string }>): MatchTripData => {
+    let data = emptyTripData();
+    vehicles.forEach((vehicle, index) => {
+      const result = addVehicle(data, fields(vehicle), `v${index}`);
+      if (!result.ok) throw new Error(result.error);
+      data = result.data;
+    });
+    return data;
+  };
+
+  test("i più usati per primi, uno per tipo, proprietario e autista, con i posti e il numero dell'ultima volta", () => {
+    const suggestions = suggestVehicles(
+      [
+        trip({ driverName: "Mario Rossi", seats: 4, driverPhone: "333 0000001" }, { driverName: "Anna Verdi", seats: 3 }),
+        trip({ driverName: "Anna Verdi", seats: 3 }, { driverName: "mario  ROSSI", seats: 5, driverPhone: "333 0000002" }),
+        trip({ driverName: "Luca Neri", kind: "pulmino", ownerName: "Società", seats: 8 }),
+      ],
+      emptyTripData(),
+    );
+    // Mario e Anna due volte ciascuno (Mario prima: compare per primo), poi il pulmino.
+    expect(suggestions.map((s) => `${s.kind}:${s.driverName}`)).toEqual(["auto:Mario Rossi", "auto:Anna Verdi", "pulmino:Luca Neri"]);
+    // Con i dati della prima volta in cui compare nell'elenco (il più recente).
+    expect(suggestions[0]).toMatchObject({ seats: 4, driverPhone: "333 0000001", ownerName: null });
+    expect(suggestions[2]).toMatchObject({ ownerName: "Società", seats: 8 });
+  });
+
+  test("quelli già presenti in questa trasferta non si riproppongono, nemmeno con i posti cambiati", () => {
+    const current = trip({ driverName: "Mario Rossi", seats: 6 });
+    const suggestions = suggestVehicles([trip({ driverName: "Mario Rossi", seats: 4 }, { driverName: "Anna Verdi" })], current);
+    expect(suggestions.map((s) => s.driverName)).toEqual(["Anna Verdi"]);
+  });
+
+  test("lo stesso autista con un altro proprietario o un altro mezzo è un mezzo diverso; il limite si rispetta", () => {
+    const many = trip(
+      { driverName: "A", ownerName: "Società" },
+      { driverName: "A", ownerName: "Famiglia" },
+      { driverName: "A", kind: "pulmino" },
+      { driverName: "B" },
+      { driverName: "C" },
+      { driverName: "D" },
+      { driverName: "E" },
+    );
+    expect(suggestVehicles([many], emptyTripData())).toHaveLength(6);
+    expect(suggestVehicles([many], emptyTripData(), 3)).toHaveLength(3);
+    expect(suggestVehicles([], emptyTripData())).toEqual([]);
   });
 });

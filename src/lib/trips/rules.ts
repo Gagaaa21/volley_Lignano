@@ -1,3 +1,4 @@
+import { nameKey } from "./phone";
 import {
   MAX_SEATS,
   MAX_VEHICLES,
@@ -89,6 +90,104 @@ export function removeVehicle(data: MatchTripData, id: string): MatchTripData {
   return { ...data, vehicles: data.vehicles.filter((vehicle) => vehicle.id !== id) };
 }
 
+/** I campi scritti a mano di un mezzo, così come sono. */
+export function fieldsOf(vehicle: TripVehicle): VehicleFields {
+  return {
+    kind: vehicle.kind,
+    ownerName: vehicle.ownerName,
+    driverName: vehicle.driverName,
+    driverPhone: vehicle.driverPhone,
+    seats: vehicle.seats,
+    departureTime: vehicle.departureTime,
+    departurePlace: vehicle.departurePlace,
+    notes: vehicle.notes,
+  };
+}
+
+/** Cambia solo i posti di un mezzo (il contatore + e −): da 1 al massimo, e mai meno di chi c'è già sopra. */
+export function setVehicleSeats(data: MatchTripData, id: string, seats: number): TripChange {
+  if (!Number.isInteger(seats) || seats < 1 || seats > MAX_SEATS) return fail(`I posti vanno da 1 a ${MAX_SEATS}.`);
+  const current = data.vehicles.find((vehicle) => vehicle.id === id);
+  if (!current) return fail("Questo mezzo non c'è più.");
+  return updateVehicle(data, id, { ...fieldsOf(current), seats });
+}
+
+/** Sposta un'atleta su un mezzo (anche da un altro) o, senza mezzo, la toglie dal suo: resta senza passaggio. */
+export function moveAthlete(data: MatchTripData, athleteId: string, vehicleId: string | null): TripChange {
+  return vehicleId === null ? { ok: true, data: unassignAthlete(data, athleteId) } : assignAthlete(data, athleteId, vehicleId);
+}
+
+/** Di chi è il mezzo, se si dice e non è di chi guida (la stessa persona scritta in due modi conta una volta). */
+export function ownerLabel(vehicle: Pick<TripVehicle, "ownerName" | "driverName">): string | null {
+  if (!vehicle.ownerName) return null;
+  return nameKey(vehicle.ownerName) === nameKey(vehicle.driverName) ? null : vehicle.ownerName;
+}
+
+/**
+ * Come si dispongono i posti di un mezzo visto dall'alto: davanti, accanto a chi guida, e poi le file dietro. Gli indici sono
+ * quelli dei posti per le atlete (da 0, chi guida non conta) e compaiono tutti una volta sola, nell'ordine in cui si riempiono.
+ */
+export interface SeatLayout {
+  /** I posti davanti, accanto a chi guida. */
+  front: number[];
+  /** Le file dietro, da quella più vicina a chi guida. */
+  rows: number[][];
+  /** Dopo quanti posti di una fila sta il corridoio (solo il pullman). */
+  aisleAfter: number | null;
+}
+
+export function seatLayout(kind: VehicleKind, seats: number): SeatLayout {
+  const total = Math.max(0, Math.floor(seats));
+  const frontCount = Math.min(total, kind === "pulmino" ? 2 : 1);
+  const rowSize = kind === "pullman" ? 4 : 3;
+  const front = Array.from({ length: frontCount }, (_, index) => index);
+  const rows: number[][] = [];
+  for (let start = frontCount; start < total; start += rowSize) {
+    rows.push(Array.from({ length: Math.min(rowSize, total - start) }, (_, index) => start + index));
+  }
+  return { front, rows, aisleAfter: kind === "pullman" ? 2 : null };
+}
+
+/** Un mezzo che si è già usato in altre trasferte: si può rimettere con un tocco. */
+export type VehicleSuggestion = Pick<TripVehicle, "kind" | "ownerName" | "driverName" | "driverPhone" | "seats">;
+
+const sameVehicleKey = (vehicle: Pick<TripVehicle, "kind" | "ownerName" | "driverName">) =>
+  [vehicle.kind, nameKey(vehicle.ownerName ?? ""), nameKey(vehicle.driverName)].join("|");
+
+/**
+ * I mezzi usati nelle altre trasferte, per rimetterli senza riscriverli: quelli più usati per primi (a parità, i più recenti),
+ * uno per tipo, proprietario e autista, con i posti e il numero dell'ultima volta. `trips` va dalla trasferta più recente alla
+ * più vecchia, senza quella in corso; i mezzi già presenti in questa trasferta non si riproppongono.
+ */
+export function suggestVehicles(trips: readonly MatchTripData[], current: MatchTripData, limit = 6): VehicleSuggestion[] {
+  const already = new Set(current.vehicles.map(sameVehicleKey));
+  const found = new Map<string, { suggestion: VehicleSuggestion; uses: number }>();
+  for (const trip of trips) {
+    for (const vehicle of trip.vehicles) {
+      const key = sameVehicleKey(vehicle);
+      if (already.has(key)) continue;
+      const known = found.get(key);
+      if (known) known.uses += 1;
+      else
+        found.set(key, {
+          uses: 1,
+          suggestion: {
+            kind: vehicle.kind,
+            ownerName: vehicle.ownerName,
+            driverName: vehicle.driverName,
+            driverPhone: vehicle.driverPhone,
+            seats: vehicle.seats,
+          },
+        });
+    }
+  }
+  // Array.prototype.sort è stabile: a parità di usi restano nell'ordine in cui sono comparsi (i più recenti per primi).
+  return [...found.values()]
+    .sort((a, b) => b.uses - a.uses)
+    .slice(0, limit)
+    .map((entry) => entry.suggestion);
+}
+
 export interface TripSummary {
   vehicles: number;
   seats: number;
@@ -147,6 +246,7 @@ function normalizeVehicle(raw: unknown): TripVehicle | null {
   return {
     id,
     kind,
+    ownerName: text(value.ownerName, 80),
     driverName,
     driverPhone: text(value.driverPhone, 40),
     seats,

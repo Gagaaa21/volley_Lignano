@@ -1,7 +1,7 @@
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
-import { seatsLeft, summarizeTrip } from "@/lib/trips/rules";
+import { ownerLabel, seatsLeft, summarizeTrip } from "@/lib/trips/rules";
 import { VEHICLE_KIND_LABELS, type MatchTripData } from "@/lib/trips/types";
 import type { Athlete, Match } from "@/lib/types";
 import { PdfReport, type PdfCellInput, type PdfColumn } from "@/lib/pdf/report";
@@ -26,7 +26,7 @@ export interface TripPdfInput {
 
 export interface TripPdfVehicle {
   driver: string;
-  /** Il tipo di mezzo e, se richiesto, il numero dell'autista. */
+  /** Il tipo di mezzo, di chi è se si dice e, se richiesto, il numero dell'autista. */
   sub: string;
   departure: string | null;
   passengers: string[];
@@ -62,7 +62,10 @@ export function tripPdfContent(input: Omit<TripPdfInput, "generatedAt">): TripPd
     totals: `${plural(summary.vehicles, "mezzo", "mezzi")} · ${plural(summary.seats, "posto", "posti")}`,
     vehicles: data.vehicles.map((vehicle) => ({
       driver: vehicle.driverName,
-      sub: [VEHICLE_KIND_LABELS[vehicle.kind], includeDriverNumbers && vehicle.driverPhone ? vehicle.driverPhone : null]
+      sub: [
+        ownerLabel(vehicle) ? `${VEHICLE_KIND_LABELS[vehicle.kind]} di ${ownerLabel(vehicle)}` : VEHICLE_KIND_LABELS[vehicle.kind],
+        includeDriverNumbers && vehicle.driverPhone ? vehicle.driverPhone : null,
+      ]
         .filter(Boolean)
         .join(" · "),
       departure:

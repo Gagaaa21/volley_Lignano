@@ -41,7 +41,7 @@ const athleteInput: AthleteInput = {
 function withVehicle(driver: string): MatchTripData {
   const result = addVehicle(
     emptyTripData(),
-    { kind: "auto", driverName: driver, driverPhone: null, seats: 3, departureTime: null, departurePlace: null, notes: null },
+    { kind: "auto", ownerName: null, driverName: driver, driverPhone: null, seats: 3, departureTime: null, departurePlace: null, notes: null },
     "v1",
   );
   if (!result.ok) throw new Error(result.error);

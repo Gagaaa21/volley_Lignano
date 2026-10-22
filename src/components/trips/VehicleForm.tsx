@@ -21,27 +21,37 @@ function SubmitButton({ editing }: { editing: boolean }) {
 }
 
 /**
- * Un mezzo della trasferta: tipo, chi guida (con il suo numero), posti per le atlete, partenza e note. Serve sia per
- * aggiungerne uno sia per cambiarne uno già inserito (`vehicle`). Chi guida si suggerisce dalla rubrica dei genitori, e se il
- * numero resta vuoto lo mette il sito, quando quel nome è in rubrica una volta sola.
+ * Un mezzo della trasferta: tipo, di chi è, chi guida (con il suo numero), posti per le atlete, partenza e note. Serve sia
+ * per aggiungerne uno sia per cambiarne uno già inserito (`vehicle`). Chi guida e di chi è si suggeriscono dalla rubrica dei
+ * genitori, e se il numero resta vuoto lo mette il sito, quando quel nome è in rubrica una volta sola.
  */
 export function VehicleForm({
   matchId,
   vehicle,
   driverNames,
+  ownerNames,
   idPrefix,
   narrow = false,
+  onSaved,
 }: {
   matchId: string;
   vehicle?: TripVehicle;
   /** Nomi in rubrica, per i suggerimenti mentre si scrive il nome di chi guida. */
   driverNames: string[];
+  /** Per i suggerimenti mentre si scrive di chi è il mezzo («Società» e chi ha già prestato un mezzo o è in rubrica). */
+  ownerNames: string[];
   /** Per distinguere gli id dei campi quando nella pagina ci sono più moduli. */
   idPrefix: string;
   /** Il modulo sta in una colonna stretta (accanto all'elenco): i campi si impilano invece di affiancarsi. */
   narrow?: boolean;
+  /** Chiamata quando il mezzo è salvato (per chiudere il riquadro in cui sta il modulo). */
+  onSaved?: () => void;
 }) {
-  const [state, formAction] = useActionState(saveVehicleAction, initialState);
+  const [state, formAction] = useActionState(async (previous: VehicleFormState, formData: FormData) => {
+    const next = await saveVehicleAction(previous, formData);
+    if (next.savedAt) onSaved?.();
+    return next;
+  }, initialState);
   // Dopo un errore i campi tornano com'erano stati scritti (React altrimenti li riporterebbe ai valori salvati).
   const values = state.values;
   const editing = Boolean(vehicle);
@@ -59,6 +69,24 @@ export function VehicleForm({
           defaultValue={(values?.kind || vehicle?.kind || "auto") as (typeof VEHICLE_KINDS)[number]}
           options={VEHICLE_KINDS.map((kind) => ({ value: kind, label: kind === "altro" ? "Altro" : VEHICLE_KIND_LABELS[kind] }))}
         />
+      </div>
+
+      <div>
+        <Label htmlFor={`${idPrefix}-proprietario`}>Di chi è il mezzo</Label>
+        <Input
+          id={`${idPrefix}-proprietario`}
+          name="ownerName"
+          list={`${idPrefix}-proprietari`}
+          autoComplete="off"
+          defaultValue={values?.ownerName ?? vehicle?.ownerName ?? ""}
+          placeholder="Es. Famiglia Rossi, Società"
+        />
+        <datalist id={`${idPrefix}-proprietari`}>
+          {ownerNames.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        <FieldHint>Se è di chi guida, lascia vuoto.</FieldHint>
       </div>
 
       <div className={narrow ? "grid gap-4" : "grid gap-4 sm:grid-cols-2"}>

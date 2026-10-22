@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AlertTriangle, Car, Clock, MapPin, Phone, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaffPage } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
@@ -8,42 +8,25 @@ import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { contactNames } from "@/lib/trips/contacts";
 import { isTripTableMissing } from "@/lib/trips/missing";
-import { phoneHref } from "@/lib/trips/phone";
-import { seatsLeft, summarizeTrip } from "@/lib/trips/rules";
-import {
-  VEHICLE_KIND_LABELS,
-  emptyTripData,
-  type AthleteContact,
-  type AthleteContacts,
-  type MatchTrip,
-  type TripVehicle,
-} from "@/lib/trips/types";
+import { suggestVehicles } from "@/lib/trips/rules";
+import { emptyTripData, type AthleteContacts, type MatchTrip } from "@/lib/trips/types";
 import type { Athlete } from "@/lib/types";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
-import { ContactLinks } from "@/components/trips/ContactLinks";
+import { SectionTour } from "@/components/tour/SectionTour";
+import { getTripTourSteps } from "@/components/tour/sectionSteps";
+import { TripBoard } from "@/components/trips/TripBoard";
 import { TripPdfButtons } from "@/components/trips/TripPdfButtons";
 import { TripsSetupNeeded } from "@/components/trips/TripsSetupNeeded";
-import { VehicleForm } from "@/components/trips/VehicleForm";
-import { Badge } from "@/components/ui/Badge";
+import type { BoardPerson } from "@/components/trips/boardTypes";
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { CategoryTag } from "@/components/ui/CategoryTag";
-import { Label, Select, Textarea } from "@/components/ui/Field";
+import { Label, Textarea } from "@/components/ui/Field";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader, SectionHeading } from "@/components/ui/PageHeader";
-import { StatTile } from "@/components/ui/StatTile";
-import {
-  assignAthleteAction,
-  removeVehicleAction,
-  saveTripNotesAction,
-  unassignAthleteAction,
-} from "../actions";
+import { saveTripNotesAction } from "../actions";
 
 export const metadata: Metadata = {
   title: "Trasferta",
 };
-
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export default async function TripPage({
   params,
@@ -61,11 +44,13 @@ export default async function TripPage({
   if (!match || match.team !== "u14u15") notFound();
 
   let trip: MatchTrip | null;
+  let trips: MatchTrip[];
   let rubrica: AthleteContacts[];
   let athletes: Athlete[];
   try {
-    [trip, rubrica, athletes] = await Promise.all([
+    [trip, trips, rubrica, athletes] = await Promise.all([
       repo.getMatchTrip(matchId),
+      repo.listMatchTrips(),
       repo.listAthleteContacts(),
       repo.listAthletes({ team: "u14u15" }),
     ]);
@@ -80,18 +65,25 @@ export default async function TripPage({
   }
 
   const data = trip ?? emptyTripData();
-  const athleteById = new Map<string, Athlete>(athletes.map((a) => [a.id, a]));
-  const contactsByAthlete = new Map<string, AthleteContact[]>(rubrica.map((entry) => [entry.athleteId, entry.contacts]));
-  const summary = summarizeTrip(data, match.calledUpAthleteIds);
-  const notCalledUp = new Set(summary.notCalledUp);
-  const vehiclesWithSeats = data.vehicles.filter((v) => seatsLeft(v) > 0);
+  const athleteById = new Map<string, Athlete>(athletes.map((a) => [a.id, a] as const));
+  const contactsByAthlete = new Map(rubrica.map((entry) => [entry.athleteId, entry.contacts] as const));
+
+  // Chi serve alla lavagna: le convocate e chi è già su un mezzo (anche se non è più convocata).
+  const people: Record<string, BoardPerson> = {};
+  for (const athleteId of new Set([...match.calledUpAthleteIds, ...data.vehicles.flatMap((vehicle) => vehicle.athleteIds)])) {
+    const athlete = athleteById.get(athleteId);
+    if (athlete) people[athleteId] = { name: athlete.fullName, contacts: contactsByAthlete.get(athleteId) ?? [] };
+  }
+
+  // I mezzi usati nelle altre trasferte (dalla più recente), per rimetterli con un tocco; e i nomi da suggerire mentre si scrive.
+  const otherTrips = trips.filter((other) => other.matchId !== matchId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const suggestions = suggestVehicles(otherTrips, data);
   const driverNames = contactNames(rubrica);
+  const usedOwners = trips.flatMap((other) => other.vehicles.flatMap((vehicle) => (vehicle.ownerName ? [vehicle.ownerName] : [])));
+  const ownerNames = [...new Set(["Società", ...driverNames, ...usedOwners])].sort((a, b) => a.localeCompare(b, "it"));
 
   const canOpenMatch = session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("partite") ?? false);
-  const nameOf = (athleteId: string) => athleteById.get(athleteId)?.fullName ?? "Atleta non più in elenco";
-
   const meeting = [match.meetingTime ? `ore ${match.meetingTime}` : null, match.meetingLocation].filter(Boolean).join(" · ");
-  const kindLabel = (vehicle: TripVehicle) => VEHICLE_KIND_LABELS[vehicle.kind];
 
   return (
     <div>
@@ -100,6 +92,7 @@ export default async function TripPage({
         eyebrow={match.category ? <CategoryTag category={match.category} size="md" long /> : MATCH_NO_CATEGORY_LABEL}
         title={matchTitle(match)}
         description={`${formatDateLong(match.matchDate.slice(0, 10))} · ${match.matchDate.slice(11, 16)} · ${match.location}`}
+        help={<SectionTour steps={getTripTourSteps(match.id)} />}
         actions={
           <>
             {canOpenMatch && (
@@ -130,22 +123,7 @@ export default async function TripPage({
         )}
       </p>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div data-trip-stat="called">
-          <StatTile label="Convocate" value={summary.calledUp} tone="primary" />
-        </div>
-        <div data-trip-stat="placed">
-          <StatTile label="Con un passaggio" value={summary.placed} tone="success" />
-        </div>
-        <div data-trip-stat="unplaced">
-          <StatTile label="Senza passaggio" value={summary.unplaced.length} tone={summary.unplaced.length > 0 ? "warning" : "success"} />
-        </div>
-        <div data-trip-stat="free">
-          <StatTile label="Posti liberi" value={summary.seatsFree} tone="gold" />
-        </div>
-      </div>
-
-      {summary.calledUp === 0 && (
+      {match.calledUpAthleteIds.length === 0 && (
         <p className="mb-8 rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning" data-trip-no-called-up>
           Per questa partita non ci sono ancora convocate, quindi non c&apos;è nessuno da mettere sui mezzi.{" "}
           {canOpenMatch ? (
@@ -158,200 +136,15 @@ export default async function TripPage({
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
-        <div className="min-w-0 space-y-8">
-          <section data-tour="section-trasferta-vehicles">
-            <SectionHeading title="Mezzi" description={data.vehicles.length === 0 ? "Aggiungi chi guida e quanti posti ha il mezzo." : undefined} />
-            {data.vehicles.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-10 text-center text-sm text-muted-foreground" data-trip-no-vehicles>
-                Nessun mezzo ancora. Aggiungine uno qui accanto: poi potrai dire chi ci sale.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {data.vehicles.map((vehicle) => {
-                  const left = seatsLeft(vehicle);
-                  const href = vehicle.driverPhone ? phoneHref(vehicle.driverPhone) : null;
-                  const departure = [vehicle.departureTime ? `ore ${vehicle.departureTime}` : null, vehicle.departurePlace]
-                    .filter(Boolean)
-                    .join(" · ");
-                  return (
-                    <Card key={vehicle.id} data-vehicle={vehicle.id}>
-                      <CardHeader className="pb-3">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-foreground">
-                              <Car className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                              <span data-vehicle-title>
-                                {kindLabel(vehicle)} · {vehicle.driverName}
-                              </span>
-                            </p>
-                            <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
-                              {vehicle.driverPhone &&
-                                (href ? (
-                                  <a href={href} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline" data-vehicle-phone>
-                                    <Phone className="h-3 w-3" aria-hidden />
-                                    {vehicle.driverPhone}
-                                  </a>
-                                ) : (
-                                  <span data-vehicle-phone>{vehicle.driverPhone}</span>
-                                ))}
-                              {departure && (
-                                <span className="inline-flex items-center gap-1" data-vehicle-departure>
-                                  <MapPin className="h-3 w-3" aria-hidden />
-                                  Partenza {departure}
-                                </span>
-                              )}
-                            </p>
-                            {vehicle.notes && <p className="mt-1 text-[13px] text-muted-foreground">{vehicle.notes}</p>}
-                          </div>
-                          <Badge tone={left === 0 ? "neutral" : "success"} data-vehicle-seats>
-                            {vehicle.athleteIds.length}/{vehicle.seats} posti
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardBody className="space-y-4">
-                        {vehicle.athleteIds.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">Nessuna atleta su questo mezzo.</p>
-                        ) : (
-                          <ul className="divide-y divide-border rounded-xl border border-border">
-                            {vehicle.athleteIds.map((athleteId) => (
-                              <li key={athleteId} className="flex items-start justify-between gap-3 px-3.5 py-2.5" data-passenger={athleteId}>
-                                <div className="min-w-0">
-                                  <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">
-                                    {nameOf(athleteId)}
-                                    {notCalledUp.has(athleteId) && <Badge tone="warning">Non più convocata</Badge>}
-                                  </p>
-                                  <ContactLinks contacts={contactsByAthlete.get(athleteId) ?? []} />
-                                </div>
-                                <form action={unassignAthleteAction}>
-                                  <input type="hidden" name="matchId" value={match.id} />
-                                  <input type="hidden" name="athleteId" value={athleteId} />
-                                  <Button type="submit" size="sm" variant="outline" data-unassign={athleteId}>
-                                    <UserMinus className="h-3.5 w-3.5" />
-                                    Togli
-                                  </Button>
-                                </form>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          {/* Salvato un cambio la versione sale e il riquadro si rimonta richiuso, con i valori nuovi. */}
-                          <details
-                            key={`${vehicle.id}-${trip?.version ?? 0}`}
-                            className="min-w-0 flex-1 rounded-xl border border-border bg-surface px-4 py-3"
-                            data-vehicle-edit={vehicle.id}
-                          >
-                            <summary className="cursor-pointer text-sm font-semibold text-foreground">Modifica il mezzo</summary>
-                            <div className="mt-4">
-                              <VehicleForm
-                                matchId={match.id}
-                                vehicle={vehicle}
-                                driverNames={driverNames}
-                                idPrefix={`v-${vehicle.id}`}
-                              />
-                            </div>
-                          </details>
-                          <form action={removeVehicleAction}>
-                            <input type="hidden" name="matchId" value={match.id} />
-                            <input type="hidden" name="vehicleId" value={vehicle.id} />
-                            <ConfirmSubmitButton
-                              confirmMessage={
-                                vehicle.athleteIds.length > 0
-                                  ? `Eliminare il mezzo di ${vehicle.driverName}? Le ${vehicle.athleteIds.length} atlete sopra resteranno senza passaggio.`
-                                  : `Eliminare il mezzo di ${vehicle.driverName}?`
-                              }
-                              variant="outline"
-                              size="sm"
-                              data-vehicle-delete={vehicle.id}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Elimina il mezzo
-                            </ConfirmSubmitButton>
-                          </form>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section data-tour="section-trasferta-unplaced">
-            <SectionHeading title="Senza passaggio" description="Le convocate che non sono ancora su nessun mezzo." />
-            {summary.calledUp === 0 ? (
-              <p className="text-sm text-muted-foreground">Nessuna convocata.</p>
-            ) : summary.unplaced.length === 0 ? (
-              <p className="rounded-xl bg-success-soft px-4 py-3 text-sm font-semibold text-success" data-trip-all-placed>
-                Tutte le convocate hanno un passaggio.
-              </p>
-            ) : (
-              <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-                {summary.unplaced.map((athleteId) => (
-                  <form
-                    key={athleteId}
-                    action={assignAthleteAction}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                    data-unplaced={athleteId}
-                  >
-                    <input type="hidden" name="matchId" value={match.id} />
-                    <input type="hidden" name="athleteId" value={athleteId} />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground">{nameOf(athleteId)}</p>
-                      <ContactLinks contacts={contactsByAthlete.get(athleteId) ?? []} />
-                    </div>
-                    {vehiclesWithSeats.length > 0 ? (
-                      <div className="flex shrink-0 items-center gap-2">
-                        <div className="min-w-0 sm:w-64">
-                          <Label htmlFor={`assign-${athleteId}`} className="sr-only">
-                            Mezzo per {nameOf(athleteId)}
-                          </Label>
-                          <Select id={`assign-${athleteId}`} name="vehicleId" defaultValue="" required>
-                            <option value="" disabled>
-                              Scegli il mezzo
-                            </option>
-                            {vehiclesWithSeats.map((vehicle) => (
-                              <option key={vehicle.id} value={vehicle.id}>
-                                {kindLabel(vehicle)} di {vehicle.driverName} · {plural(seatsLeft(vehicle), "posto libero", "posti liberi")}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                        <Button type="submit" size="sm" data-assign={athleteId}>
-                          <UserPlus className="h-3.5 w-3.5" />
-                          Metti
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {data.vehicles.length === 0 ? "Aggiungi prima un mezzo." : "Nessun mezzo ha posti liberi: aggiungine uno."}
-                      </p>
-                    )}
-                  </form>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <aside className="min-w-0 space-y-8">
-          <section data-tour="section-trasferta-add">
-            <SectionHeading title="Aggiungi un mezzo" />
-            <Card>
-              <CardBody className="pt-5">
-                <VehicleForm
-                  key={`new-${trip?.version ?? 0}`}
-                  matchId={match.id}
-                  driverNames={driverNames}
-                  idPrefix="v-new"
-                  narrow
-                />
-              </CardBody>
-            </Card>
-          </section>
-
+      <TripBoard
+        matchId={match.id}
+        vehicles={data.vehicles}
+        people={people}
+        calledUpIds={match.calledUpAthleteIds}
+        suggestions={suggestions}
+        driverNames={driverNames}
+        ownerNames={ownerNames}
+        notes={
           <section data-tour="section-trasferta-notes">
             <SectionHeading title="Note riservate" description="Pranzo, costi, rientro… restano qui." />
             <form action={saveTripNotesAction} className="space-y-3" data-trip-notes-form>
@@ -367,8 +160,8 @@ export default async function TripPage({
               </div>
             </form>
           </section>
-        </aside>
-      </div>
+        }
+      />
     </div>
   );
 }

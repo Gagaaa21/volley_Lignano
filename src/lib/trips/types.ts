@@ -18,6 +18,8 @@ export const VEHICLE_KIND_LABELS: Record<VehicleKind, string> = {
 export interface TripVehicle {
   id: string;
   kind: VehicleKind;
+  /** Di chi è il mezzo (una famiglia, «Società»…), se non è di chi guida; vuoto = non si dice. */
+  ownerName: string | null;
   /** Chi guida (spesso un genitore), nome e cognome. */
   driverName: string;
   /** Il numero dell'autista, come è stato scritto (si ripulisce solo per il link di chiamata). */

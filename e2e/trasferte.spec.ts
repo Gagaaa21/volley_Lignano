@@ -88,10 +88,11 @@ const newVehicleForm = (page: Page) => page.locator('form[data-vehicle-form="new
 /** Compila e invia il modulo «Aggiungi un mezzo». */
 async function addVehicle(
   page: Page,
-  fields: { kind?: string; driver: string; phone?: string; seats: string; time?: string; place?: string; notes?: string },
+  fields: { kind?: string; owner?: string; driver: string; phone?: string; seats: string; time?: string; place?: string; notes?: string },
 ) {
   const form = newVehicleForm(page);
   if (fields.kind) await form.getByRole("radio", { name: fields.kind }).check({ force: true });
+  await form.getByLabel("Di chi è il mezzo").fill(fields.owner ?? "");
   await form.getByLabel("Chi guida", { exact: true }).fill(fields.driver);
   await form.getByLabel("Numero di chi guida").fill(fields.phone ?? "");
   await form.getByLabel("Posti per le atlete").fill(fields.seats);
@@ -99,6 +100,8 @@ async function addVehicle(
   await form.getByLabel("Partenza, luogo").fill(fields.place ?? "");
   await form.getByLabel("Note sul mezzo").fill(fields.notes ?? "");
   await form.locator("[data-vehicle-submit]").click();
+  // Il mezzo è arrivato (il modulo si rimonta vuoto): solo allora si può compilare il prossimo.
+  await expect(vehicleCard(page, fields.driver.replace(/\s+/g, " "))).toBeVisible();
 }
 
 /** Sceglie nel menù di una riga «Senza passaggio» il mezzo il cui testo contiene `vehicleText`. */
@@ -113,6 +116,17 @@ async function openTrip(page: Page, matchId: string) {
   await page.waitForLoadState("networkidle");
   await expect(page.locator("[data-trip-stat]").first()).toBeVisible();
 }
+
+/** Una partita fuori casa con tutte queste convocate: ne restituisce l'id. */
+async function setupTrip(page: Page, names: string[], label: string): Promise<string> {
+  const matchId = await createAwayMatch(page, uniqueName(label));
+  await callUp(page, matchId, names);
+  return matchId;
+}
+
+const seatsOf = (card: Locator, state: "taken" | "add" | "free") => card.locator(`[data-seat-state="${state}"]`);
+/** Il salvataggio di quello che si è appena cambiato è arrivato al server (lo schermo si aggiorna prima, in anticipo). */
+const settled = (page: Page) => expect(page.locator("[data-trip-board]")).toHaveAttribute("data-saving", "false");
 
 test("una trasferta: mezzi con i loro posti, chi va con chi, le note e l'elenco che segue", async ({ page }) => {
   test.setTimeout(300_000);
@@ -163,10 +177,12 @@ test("una trasferta: mezzi con i loro posti, chi va con chi, le note e l'elenco 
     await expect(form.locator("[data-vehicle-error]")).toContainText("L'ora di partenza non è valida");
     await form.getByLabel("Partenza, ora").fill("");
 
-    // Due mezzi: un'auto da 2 posti (si salva con Invio nel modulo già compilato) e un pulmino da 3 con partenza.
+    // Due mezzi: un'auto da 2 posti (di una famiglia, nel modulo già compilato) e un pulmino da 3 con partenza.
+    await form.getByLabel("Di chi è il mezzo").fill("Famiglia Rossi");
     await form.locator("[data-vehicle-submit]").click();
     await expect(vehicleCard(page, "Solo Nome")).toBeVisible();
     await expect(vehicleCard(page, "Solo Nome").locator("[data-vehicle-title]")).toHaveText("Auto · Solo Nome");
+    await expect(vehicleCard(page, "Solo Nome").locator("[data-vehicle-owner]")).toHaveText("di Famiglia Rossi");
     await expect(vehicleCard(page, "Solo Nome").locator("[data-vehicle-phone]")).toHaveAttribute("href", "tel:3331234567");
     await expect(vehicleCard(page, "Solo Nome").locator("[data-vehicle-seats]")).toHaveText("0/2 posti");
     await expect(stat(page, "free")).toHaveText("2");
@@ -211,16 +227,20 @@ test("una trasferta: mezzi con i loro posti, chi va con chi, le note e l'elenco 
 
     // Un mezzo non può avere meno posti di chi c'è già sopra; con i posti giusti il cambio vale e il riquadro si richiude.
     const pulmino = vehicleCard(page, "Anna Verdi");
-    await pulmino.locator("summary", { hasText: "Modifica il mezzo" }).click();
+    await pulmino.locator("[data-vehicle-edit-button]").click();
     const edit = pulmino.locator('form[data-vehicle-form="edit"]');
+    await expect(edit.getByLabel("Chi guida", { exact: true })).toHaveValue("Anna Verdi");
     await edit.getByLabel("Posti per le atlete").fill("1");
     await edit.locator("[data-vehicle-submit]").click();
     await expect(edit.locator("[data-vehicle-error]")).toContainText("Su questo mezzo ci sono già 2 atlete");
+    await expect(edit.getByLabel("Posti per le atlete")).toHaveValue("1");
     await edit.getByLabel("Posti per le atlete").fill("6");
     await edit.getByLabel("Chi guida", { exact: true }).fill("Anna Verdi Rossi");
+    await edit.getByLabel("Di chi è il mezzo").fill("Società");
     await edit.locator("[data-vehicle-submit]").click();
     await expect(vehicleCard(page, "Anna Verdi Rossi").locator("[data-vehicle-seats]")).toHaveText("2/6 posti");
-    await expect(vehicleCard(page, "Anna Verdi Rossi").locator("details[open]")).toHaveCount(0);
+    await expect(vehicleCard(page, "Anna Verdi Rossi").locator("[data-vehicle-owner]")).toHaveText("di Società");
+    await expect(vehicleCard(page, "Anna Verdi Rossi").locator('[data-panel="edit"]')).toHaveCount(0);
 
     // Togliere un mezzo lascia senza passaggio chi c'era sopra (con la conferma).
     page.once("dialog", (dialog) => dialog.accept());
@@ -249,6 +269,201 @@ test("una trasferta: mezzi con i loro posti, chi va con chi, le note e l'elenco 
   }
 });
 
+test("i mezzi si toccano: un posto libero mette un'atleta, uno occupato la toglie o la sposta, + e − cambiano i posti, il volante chi guida", async ({ page }) => {
+  test.setTimeout(300_000);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+  const tag = lettersTag();
+  const names = ["Anna", "Bea", "Carla", "Dora"].map((first) => `${first} ${tag}`);
+  await addAthletes(page, names);
+  const matchId = await setupTrip(page, names, "Posti ");
+  try {
+    await openTrip(page, matchId);
+    await addVehicle(page, { owner: "Famiglia Rossi", driver: "Mario Rossi", seats: "2" });
+    await addVehicle(page, { kind: "Pulmino", owner: "Società", driver: "Luca Neri", seats: "3" });
+    const auto = vehicleCard(page, "Mario Rossi");
+    const van = vehicleCard(page, "Luca Neri");
+
+    // Il mezzo visto dall'alto: chi guida, un «+» sul primo posto libero e la sagoma degli altri.
+    await expect(auto.locator("[data-seat-driver]")).toContainText("Mario");
+    await expect(seatsOf(auto, "add")).toHaveCount(1);
+    await expect(seatsOf(auto, "free")).toHaveCount(1);
+    await expect(seatsOf(van, "add")).toHaveCount(1);
+    await expect(seatsOf(van, "free")).toHaveCount(2);
+    await expect(auto.locator("[data-vehicle-owner]")).toHaveText("di Famiglia Rossi");
+    await expect(van.locator("[data-vehicle-owner]")).toHaveText("di Società");
+
+    // Tocco sul «+»: scelgo chi sale. Il riquadro resta per la seconda e si chiude a mezzo pieno.
+    await seatsOf(auto, "add").click();
+    const picks = auto.locator('[data-panel="add"] [data-pick-athlete]');
+    await expect(picks).toHaveCount(4);
+    await picks.filter({ hasText: names[0] }).click();
+    await expect(seatsOf(auto, "taken")).toHaveCount(1);
+    await expect(seatsOf(auto, "taken").first()).toContainText("Anna");
+    await expect(picks).toHaveCount(3);
+    await picks.filter({ hasText: names[1] }).click();
+    await expect(seatsOf(auto, "taken")).toHaveCount(2);
+    await expect(seatsOf(auto, "add")).toHaveCount(0);
+    await expect(seatsOf(auto, "free")).toHaveCount(0);
+    await expect(auto.locator('[data-panel="add"]')).toHaveCount(0);
+    await expect(auto.locator("[data-vehicle-seats]")).toHaveText("2/2 posti");
+    await expect(stat(page, "placed")).toHaveText("2");
+    await expect(stat(page, "unplaced")).toHaveText("2");
+    await expect(stat(page, "free")).toHaveText("3");
+
+    // Tocco su un posto occupato: sposto Anna sul pulmino.
+    await seatsOf(auto, "taken").filter({ hasText: "Anna" }).click();
+    await expect(auto.locator('[data-panel="seat"]')).toContainText(names[0]);
+    await auto.locator("[data-seat-move-to]").click();
+    await expect(seatsOf(van, "taken")).toHaveCount(1);
+    await expect(seatsOf(van, "taken").first()).toContainText("Anna");
+    await expect(seatsOf(auto, "taken")).toHaveCount(1);
+    await expect(auto.locator('[data-panel="seat"]')).toHaveCount(0);
+
+    // E tolgo Bea dal suo mezzo: torna tra quelle senza passaggio.
+    await seatsOf(auto, "taken").filter({ hasText: "Bea" }).click();
+    await auto.locator("[data-seat-remove]").click();
+    await expect(seatsOf(auto, "taken")).toHaveCount(0);
+    await expect(unplacedRow(page, names[1])).toBeVisible();
+    await expect(stat(page, "unplaced")).toHaveText("3");
+    await expect(stat(page, "placed")).toHaveText("1");
+
+    // + e −: i posti del pulmino (3 → 4 → 1); il − si ferma a chi c'è già sopra.
+    await van.locator("[data-seats-plus]").click();
+    await expect(van.locator("[data-vehicle-seats]")).toHaveText("1/4 posti");
+    await expect(seatsOf(van, "free")).toHaveCount(2);
+    await van.locator("[data-seats-minus]").click();
+    await expect(van.locator("[data-vehicle-seats]")).toHaveText("1/3 posti");
+    await van.locator("[data-seats-minus]").click();
+    await expect(van.locator("[data-vehicle-seats]")).toHaveText("1/2 posti");
+    await van.locator("[data-seats-minus]").click();
+    await expect(van.locator("[data-vehicle-seats]")).toHaveText("1/1 posti");
+    await expect(van.locator("[data-seats-minus]")).toBeDisabled();
+    await expect(seatsOf(van, "add")).toHaveCount(0);
+    await expect(stat(page, "free")).toHaveText("2");
+
+    // Il volante: chi guida e di chi è si cambiano dal mezzo stesso, con il modulo già compilato.
+    await auto.locator("[data-seat-driver]").click();
+    const edit = auto.locator('form[data-vehicle-form="edit"]');
+    await expect(edit.getByLabel("Chi guida", { exact: true })).toHaveValue("Mario Rossi");
+    await expect(edit.getByLabel("Di chi è il mezzo")).toHaveValue("Famiglia Rossi");
+    await edit.getByLabel("Di chi è il mezzo").fill("Famiglia Bianchi");
+    await edit.getByLabel("Chi guida", { exact: true }).fill("Paolo Bianchi");
+    await edit.locator("[data-vehicle-submit]").click();
+    const changed = vehicleCard(page, "Paolo Bianchi");
+    await expect(changed.locator("[data-vehicle-title]")).toHaveText("Auto · Paolo Bianchi");
+    await expect(changed.locator("[data-vehicle-owner]")).toHaveText("di Famiglia Bianchi");
+    await expect(changed.locator("[data-seat-driver]")).toContainText("Paolo");
+    await expect(changed.locator('[data-panel="edit"]')).toHaveCount(0);
+    // Se il mezzo è di chi guida, «di chi è» non si ripete.
+    await changed.locator("[data-vehicle-edit-button]").click();
+    await changed.locator('form[data-vehicle-form="edit"]').getByLabel("Di chi è il mezzo").fill("paolo  BIANCHI");
+    await changed.locator('form[data-vehicle-form="edit"] [data-vehicle-submit]').click();
+    await expect(changed.locator('[data-panel="edit"]')).toHaveCount(0);
+    await expect(changed.locator("[data-vehicle-owner]")).toHaveCount(0);
+
+    // Tutto è arrivato al server: riaprendo la pagina è com'era.
+    await settled(page);
+    await openTrip(page, matchId);
+    await expect(vehicleCard(page, "Luca Neri").locator("[data-vehicle-seats]")).toHaveText("1/1 posti");
+    await expect(seatsOf(vehicleCard(page, "Luca Neri"), "taken")).toContainText("Anna");
+    await expect(vehicleCard(page, "Paolo Bianchi").locator("[data-seat-driver]")).toContainText("Paolo");
+    await expect(unplacedRow(page, names[1])).toBeVisible();
+  } finally {
+    await deleteMatchById(page, matchId).catch(() => {});
+    await deleteAthletes(page, names);
+  }
+});
+
+test("le atlete si trascinano da un mezzo all'altro, i mezzi già usati si rimettono con un tocco, un cambio rifiutato dal server torna com'era", async ({ page, context }) => {
+  test.setTimeout(420_000);
+  // Il browser di prova non scorre la pagina a metà trascinamento (e se scorre il trascinamento salta): partenza e arrivo
+  // devono vedersi insieme, quindi lo schermo è alto abbastanza da contenere i mezzi e l'elenco sotto.
+  await page.setViewportSize({ width: 1280, height: 1900 });
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+  const tag = lettersTag();
+  const names = ["Elena", "Fede", "Giada", "Hilda"].map((first) => `${first} ${tag}`);
+  // Chi guida ha un nome solo di questa prova: i mezzi «già usati» arrivano da tutte le altre trasferte, anche di prove precedenti.
+  const mario = `Mario ${tag}`;
+  const luca = `Luca ${tag}`;
+  await addAthletes(page, names);
+  const first = await setupTrip(page, names, "Trascina ");
+  const second = await setupTrip(page, names, "Riuso ");
+  const other = await context.newPage();
+  try {
+    await openTrip(page, first);
+    await addVehicle(page, { owner: "Famiglia Rossi", driver: mario, phone: "333 1234567", seats: "2" });
+    await addVehicle(page, { kind: "Pulmino", owner: "Società", driver: luca, seats: "3" });
+    const auto = vehicleCard(page, mario);
+    const van = vehicleCard(page, luca);
+
+    // Dalle «senza passaggio» alla scheda di un mezzo; da un mezzo all'altro; dal mezzo di nuovo alle «senza passaggio».
+    await unplacedRow(page, names[0]).locator("[data-unplaced-handle]").dragTo(auto);
+    await expect(unplacedRow(page, names[0])).toHaveCount(0);
+    await expect(seatsOf(auto, "taken").filter({ hasText: "Elena" })).toHaveCount(1);
+    await seatsOf(auto, "taken").filter({ hasText: "Elena" }).dragTo(van);
+    await expect(seatsOf(van, "taken").filter({ hasText: "Elena" })).toHaveCount(1);
+    await expect(seatsOf(auto, "taken")).toHaveCount(0);
+    await seatsOf(van, "taken").filter({ hasText: "Elena" }).dragTo(page.locator("[data-unplaced-zone]"));
+    await expect(unplacedRow(page, names[0])).toBeVisible();
+    await expect(seatsOf(van, "taken")).toHaveCount(0);
+
+    // Un mezzo pieno non accetta altre atlete: si riempie l'auto (2 posti) e la terza non entra.
+    await unplacedRow(page, names[1]).locator("[data-unplaced-handle]").dragTo(auto);
+    await expect(seatsOf(auto, "taken")).toHaveCount(1);
+    await unplacedRow(page, names[2]).locator("[data-unplaced-handle]").dragTo(auto);
+    await expect(seatsOf(auto, "taken")).toHaveCount(2);
+    await unplacedRow(page, names[3]).locator("[data-unplaced-handle]").dragTo(auto);
+    await expect(seatsOf(auto, "taken")).toHaveCount(2);
+    await expect(unplacedRow(page, names[3])).toBeVisible();
+    await expect(stat(page, "placed")).toHaveText("2");
+
+    // Le atlete dell'auto tornano libere per la prova dei mezzi già usati.
+    await settled(page);
+
+    // Nell'altra trasferta i mezzi di questa si rimettono con un tocco, con di chi sono, i posti e il numero.
+    await openTrip(page, second);
+    const suggestions = page.locator("[data-suggestions] [data-suggestion]").filter({ hasText: tag });
+    await expect(suggestions).toHaveCount(2);
+    await expect(suggestions.first()).toContainText(`Auto · ${mario} · di Famiglia Rossi · 2 posti`);
+    await expect(suggestions.last()).toContainText(`Pulmino · ${luca} · di Società · 3 posti`);
+    await page.locator(`[data-suggestion="${luca}"]`).click();
+    const vanHere = vehicleCard(page, luca);
+    await expect(vanHere).toBeVisible();
+    await expect(vanHere.locator("[data-vehicle-owner]")).toHaveText("di Società");
+    await expect(vanHere.locator("[data-vehicle-seats]")).toHaveText("0/3 posti");
+    await expect(page.locator(`[data-suggestion="${luca}"]`)).toHaveCount(0);
+    await page.locator(`[data-suggestion="${mario}"]`).click();
+    const autoHere = vehicleCard(page, mario);
+    await expect(autoHere.locator("[data-vehicle-phone]")).toHaveAttribute("href", "tel:3331234567");
+    await expect(page.locator("[data-suggestions] [data-suggestion]").filter({ hasText: tag })).toHaveCount(0);
+    await settled(page);
+
+    // Due persone sulla stessa trasferta: la seconda ha davanti uno stato vecchio (l'auto ancora vuota).
+    await openTrip(other, second);
+    const autoOther = vehicleCard(other, mario);
+    await expect(seatsOf(autoOther, "add")).toHaveCount(1);
+    // La prima riempie l'auto...
+    await seatsOf(autoHere, "add").click();
+    await autoHere.locator('[data-panel="add"] [data-pick-athlete]').filter({ hasText: names[0] }).click();
+    await autoHere.locator('[data-panel="add"] [data-pick-athlete]').filter({ hasText: names[1] }).click();
+    await expect(seatsOf(autoHere, "taken")).toHaveCount(2);
+    await settled(page);
+    // ...la seconda ne mette una terza: il server dice di no, e sullo schermo torna com'era con il motivo.
+    await seatsOf(autoOther, "add").click();
+    await autoOther.locator('[data-panel="add"] [data-pick-athlete]').filter({ hasText: names[2] }).click();
+    await expect(other.locator("[data-trip-board-error]")).toContainText("Il mezzo è pieno: non ci sono più posti.");
+    await expect(seatsOf(autoOther, "taken")).toHaveCount(0);
+    await expect(unplacedRow(other, names[2])).toBeVisible();
+  } finally {
+    await other.close().catch(() => {});
+    await deleteMatchById(page, first).catch(() => {});
+    await deleteMatchById(page, second).catch(() => {});
+    await deleteAthletes(page, names);
+  }
+});
+
 test("la rubrica dei genitori: numeri per atleta, controllati, con il link per chiamare, e in aiuto nella trasferta", async ({ page }) => {
   test.setTimeout(300_000);
   await loginAsDev(page);
@@ -266,6 +481,9 @@ test("la rubrica dei genitori: numeri per atleta, controllati, con il link per c
     const athleteRow = (name: string) => page.locator("[data-rubrica-athlete]").filter({ hasText: name });
     const edit = (name: string) => athleteRow(name).locator("[data-rubrica-edit]");
     await expect(athleteRow(names[0])).toContainText("Nessun numero");
+    // Quante atlete hanno già un numero (altre prove nello stesso database possono averne): dopo il salvataggio una in più.
+    const withNumbers = async () => Number((await page.locator("[data-rubrica-count]").textContent())?.match(/^(\d+) su /)?.[1]);
+    const before = await withNumbers();
 
     // Un numero senza nome, o un nome senza numero, o un numero che non lo è: si dice cosa correggere e non si salva niente.
     await edit(names[0]).locator("summary").click();
@@ -291,7 +509,7 @@ test("la rubrica dei genitori: numeri per atleta, controllati, con il link per c
     await expect(athleteRow(names[0]).locator("[data-contact-phone]").last()).toHaveAttribute("href", "tel:+393407654321");
     await expect(athleteRow(names[0])).toContainText("mamma · Giulia Bianchi");
     await expect(athleteRow(names[0])).not.toContainText("Nessun numero");
-    await expect(page.locator("[data-rubrica-count]")).toContainText("1 su ");
+    await expect(page.locator("[data-rubrica-count]")).toContainText(`${before + 1} su `);
 
     // Riaprendo la pagina i numeri sono lì.
     await page.goto("/admin/trasferte/rubrica");

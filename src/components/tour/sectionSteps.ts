@@ -248,6 +248,42 @@ export const SECTION_TRASFERTE_STEPS: BaseTourStep[] = [
   },
 ];
 
+/** La guida della scheda di una trasferta: il percorso contiene l'id della partita, quindi i passi si costruiscono per ognuna. */
+export function getTripTourSteps(matchId: string): BaseTourStep[] {
+  const path = `/admin/trasferte/${matchId}`;
+  return [
+    {
+      id: "section-trasferta-vehicles",
+      path,
+      target: "section-trasferta-vehicles",
+      title: "I mezzi, con i loro posti",
+      body: "Ogni mezzo si vede dall'alto, con un riquadro per ogni posto. Tocca un posto libero («Aggiungi») per metterci un'atleta, un posto occupato per toglierla o spostarla su un altro mezzo; oppure trascinala da un mezzo all'altro. Con + e − cambi quanti posti ha, con la matita (o toccando il volante) chi guida, di chi è il mezzo, il numero e la partenza.",
+      tip: "«Di chi è il mezzo» serve quando non è di chi guida: la famiglia che lo presta, o la società.",
+    },
+    {
+      id: "section-trasferta-unplaced",
+      path,
+      target: "section-trasferta-unplaced",
+      title: "Senza passaggio",
+      body: "Le convocate che non sono ancora su nessun mezzo. Trascinale su un mezzo, oppure scegli il mezzo dal menù e tocca «Metti». Per toglierne una da un mezzo, trascinala qui.",
+    },
+    {
+      id: "section-trasferta-add",
+      path,
+      target: "section-trasferta-add",
+      title: "Aggiungi un mezzo",
+      body: "Scrivi chi guida e quanti posti ha, e il mezzo compare. I mezzi usati in altre trasferte stanno sopra il modulo, in «Già usati altre volte»: con un tocco li rimetti in questa, senza riscriverli.",
+    },
+    {
+      id: "section-trasferta-notes",
+      path,
+      target: "section-trasferta-notes",
+      title: "Note riservate",
+      body: "Pranzo, costi, rientro… restano qui, e non compaiono nel riepilogo PDF per le famiglie.",
+    },
+  ];
+}
+
 export const SECTION_STAFF_STEPS: BaseTourStep[] = [
   {
     id: "section-staff-form",
