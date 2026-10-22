@@ -592,7 +592,7 @@ test.describe("mezzi già usati altre volte", () => {
     expect(suggestions[2]).toMatchObject({ ownerName: "Società", seats: 8 });
   });
 
-  test("quelli già presenti in questa trasferta non si riproppongono, nemmeno con i posti cambiati", () => {
+  test("quelli già presenti in questa trasferta non si ripropongono, nemmeno con i posti cambiati", () => {
     const current = trip({ driverName: "Mario Rossi", seats: 6 });
     const suggestions = suggestVehicles([trip({ driverName: "Mario Rossi", seats: 4 }, { driverName: "Anna Verdi" })], current);
     expect(suggestions.map((s) => s.driverName)).toEqual(["Anna Verdi"]);

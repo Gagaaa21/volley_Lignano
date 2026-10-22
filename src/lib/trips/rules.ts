@@ -157,7 +157,7 @@ const sameVehicleKey = (vehicle: Pick<TripVehicle, "kind" | "ownerName" | "drive
 /**
  * I mezzi usati nelle altre trasferte, per rimetterli senza riscriverli: quelli più usati per primi (a parità, i più recenti),
  * uno per tipo, proprietario e autista, con i posti e il numero dell'ultima volta. `trips` va dalla trasferta più recente alla
- * più vecchia, senza quella in corso; i mezzi già presenti in questa trasferta non si riproppongono.
+ * più vecchia, senza quella in corso; i mezzi già presenti in questa trasferta non si ripropongono.
  */
 export function suggestVehicles(trips: readonly MatchTripData[], current: MatchTripData, limit = 6): VehicleSuggestion[] {
   const already = new Set(current.vehicles.map(sameVehicleKey));
