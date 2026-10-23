@@ -6,6 +6,19 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/scout/manuale": ["src/assets/pdf/**/*", "src/assets/fonts/**/*"],
   },
+  async headers() {
+    return [
+      {
+        // La pagina del genitore ha il codice segreto nell'indirizzo: non deve finire nei motori di ricerca né nell'«indirizzo di
+        // provenienza» che il browser manda ad altri siti (vedi anche i metadati della pagina).
+        source: "/disponibilita/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Download, ShieldHalf } from "lucide-react";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { CallUpsAndLineupsDialog } from "./CallUpsAndLineupsDialog";
 import type { UnavailableFlag } from "./CallUpsSection";
 import type { Athlete, MatchLineup } from "@/lib/types";
@@ -35,43 +35,77 @@ export function MatchWorkspace({
 
   return (
     <>
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3.5">
-          <span className="icon-chip h-11 w-11">
-            <ShieldHalf className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="font-display text-base font-bold text-foreground">Convocazioni e formazioni</p>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              <span className="tabular font-semibold text-foreground">{calledUpCount}</span> su {allAthletes.length}{" "}
-              convocate · formazioni per set ed esportazione PDF
-            </p>
-            {calledUpButUnavailable > 0 && (
-              <p className="mt-1 text-sm font-semibold text-destructive" data-called-up-unavailable>
-                {calledUpButUnavailable === 1 ? "1 convocata è segnalata non disponibile" : `${calledUpButUnavailable} convocate sono segnalate non disponibili`}
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
+            <span className="icon-chip h-11 w-11">
+              <ShieldHalf className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-display text-base font-bold text-foreground">Convocazioni e formazioni</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                <span className="tabular font-semibold text-foreground">{calledUpCount}</span> su {allAthletes.length}{" "}
+                convocate · formazioni per set ed esportazione PDF
               </p>
-            )}
-            {calledUpButUnavailable === 0 && unavailableCount > 0 && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {unavailableCount === 1 ? "1 atleta non disponibile, non convocata" : `${unavailableCount} atlete non disponibili, non convocate`}
-              </p>
-            )}
+              {calledUpButUnavailable > 0 && (
+                <p className="mt-1 text-sm font-semibold text-destructive" data-called-up-unavailable>
+                  {calledUpButUnavailable === 1 ? "1 convocata è segnalata non disponibile" : `${calledUpButUnavailable} convocate sono segnalate non disponibili`}
+                </p>
+              )}
+              {calledUpButUnavailable === 0 && unavailableCount > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {unavailableCount === 1 ? "1 atleta non disponibile, non convocata" : `${unavailableCount} atlete non disponibili, non convocate`}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {/* Le formazioni in PDF si prendono anche da qui, senza aprire la finestra (sono quelle salvate). */}
-          <LinkButton href={`/api/partite/${matchId}/formazioni/pdf`} variant="outline" target="_blank" data-lineups-pdf>
-            <Download className="h-4 w-4" />
-            Formazioni PDF
-          </LinkButton>
-          <SharePdfButton
-            href={`/api/partite/${matchId}/formazioni/pdf`}
-            title={`Formazioni ${title}`}
-            data-share-pdf="formazioni-partita"
-          />
-          <Button type="button" onClick={() => setOpen(true)}>
+          <Button type="button" onClick={() => setOpen(true)} className="shrink-0">
             Apri
           </Button>
+        </div>
+
+        {/* I due PDF si prendono anche da qui, senza aprire la finestra (sono quelli salvati): le convocazioni da sole, e le formazioni. */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border pt-4" data-match-pdfs>
+          <div role="group" aria-label="Convocazioni in PDF" className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold text-muted-foreground">Convocazioni</span>
+            <a
+              href={`/api/partite/${matchId}/convocazioni/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              data-convocations-pdf
+            >
+              <Download className="h-4 w-4" />
+              PDF
+            </a>
+            <SharePdfButton
+              href={`/api/partite/${matchId}/convocazioni/pdf`}
+              title={`Convocazioni ${title}`}
+              label="Condividi"
+              size="sm"
+              data-share-pdf="convocazioni-partita"
+            />
+          </div>
+          <div role="group" aria-label="Formazioni in PDF" className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold text-muted-foreground">Formazioni</span>
+            <a
+              href={`/api/partite/${matchId}/formazioni/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              data-lineups-pdf
+            >
+              <Download className="h-4 w-4" />
+              PDF
+            </a>
+            <SharePdfButton
+              href={`/api/partite/${matchId}/formazioni/pdf`}
+              title={`Formazioni ${title}`}
+              label="Condividi"
+              size="sm"
+              data-share-pdf="formazioni-partita"
+            />
+          </div>
         </div>
       </div>
 

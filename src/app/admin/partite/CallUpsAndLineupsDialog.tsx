@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Download, Save, X } from "lucide-react";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
-import { LinkButton } from "@/components/ui/LinkButton";
 import { Button } from "@/components/ui/Button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { FieldError } from "@/components/ui/Field";
 import { CallUpsSection, type UnavailableFlag } from "./CallUpsSection";
 import { LineupEditor } from "./LineupEditor";
@@ -51,19 +51,27 @@ export function CallUpsAndLineupsDialog({
   const [calledUp, setCalledUp] = useState<Set<string>>(() => new Set(initialCalledUpIds));
   const [sets, setSets] = useState<SetLineup[]>(() => initialLineup?.sets ?? emptyMatchLineupSets());
   const [activeSet, setActiveSet] = useState(0);
+  const snapshot = snapshotOf(calledUp, sets);
+  // Quello che la finestra mostra in questo momento: al salvataggio si prende quello dell'istante dell'invio, così un
+  // cambiamento fatto mentre il salvataggio è in corso resta «non salvato».
+  const latestSnapshot = useRef(snapshot);
+  useEffect(() => {
+    latestSnapshot.current = snapshot;
+  });
   const [savedSnapshot, setSavedSnapshot] = useState(() =>
     snapshotOf(initialCalledUpIds, initialLineup?.sets ?? emptyMatchLineupSets()),
   );
   const [state, formAction] = useActionState(async (previous: CallUpsAndLineupFormState, formData: FormData) => {
+    const submitted = latestSnapshot.current;
     const next = await saveCallUpsAndLineupAction(previous, formData);
-    // Salvato: da qui le modifiche si contano da quello che è stato appena salvato.
-    if (next.success) {
-      setSavedSnapshot(snapshotOf(formData.getAll("calledUpAthleteIds").map(String), JSON.parse(String(formData.get("sets"))) as SetLineup[]));
-    }
+    if (next.success) setSavedSnapshot(submitted);
     return next;
   }, initialState);
-  // Il PDF si prepara dalle formazioni salvate: con modifiche non salvate riporterebbe la versione di prima.
-  const dirty = snapshotOf(calledUp, sets) !== savedSnapshot;
+  // Il PDF delle formazioni si prepara da quelle salvate: con modifiche non salvate riporterebbe la versione di prima.
+  const dirty = snapshot !== savedSnapshot;
+  // Il PDF delle convocazioni, invece, segue quello che si vede: la selezione di adesso viaggia nell'indirizzo.
+  const convocationsHref = `/api/partite/${matchId}/convocazioni/pdf?ids=${[...calledUp].join(",")}`;
+  const lineupsHref = `/api/partite/${matchId}/formazioni/pdf`;
 
   function toggleCalledUp(athleteId: string) {
     setCalledUp((prev) => {
@@ -124,10 +132,25 @@ export function CallUpsAndLineupsDialog({
 
           <div className="flex-1 space-y-8 overflow-y-auto px-5 py-5 sm:px-6">
             <section>
-              <h3 className="font-display text-base font-bold text-foreground">Convocazioni</h3>
-              <p className="mt-0.5 mb-3 text-sm text-muted-foreground">
-                Chi convochi qui diventa selezionabile nelle formazioni per set, qui sotto.
-              </p>
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <div>
+                  <h3 className="font-display text-base font-bold text-foreground">Convocazioni</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Chi convochi qui diventa selezionabile nelle formazioni per set, qui sotto.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={convocationsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                    data-convocations-pdf-dialog
+                  >
+                    <Download className="h-4 w-4" />
+                    Convocazioni PDF
+                  </a>
+                  <SharePdfButton href={convocationsHref} title={`Convocazioni ${title}`} size="sm" data-share-pdf="convocazioni" />
+                </div>
+              </div>
               <CallUpsSection
                 athletes={allAthletes}
                 calledUp={calledUp}
@@ -139,10 +162,30 @@ export function CallUpsAndLineupsDialog({
             </section>
 
             <section className="border-t border-border pt-6">
-              <h3 className="font-display text-base font-bold text-foreground">Formazioni per set</h3>
-              <p className="mt-0.5 mb-3 text-sm text-muted-foreground">
-                Visibili solo allo staff dell&apos;area tecnici: mai sul sito pubblico.
-              </p>
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <div>
+                  <h3 className="font-display text-base font-bold text-foreground">Formazioni per set</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Visibili solo allo staff dell&apos;area tecnici: mai sul sito pubblico.</p>
+                  {dirty && (
+                    <p className="mt-1 text-[13px] font-semibold text-warning" data-lineups-stale>
+                      Il PDF delle formazioni riporta l&apos;ultima versione salvata.
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={lineupsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                    data-lineups-pdf-dialog
+                  >
+                    <Download className="h-4 w-4" />
+                    Formazioni PDF
+                  </a>
+                  <SharePdfButton href={lineupsHref} title={`Formazioni ${title}`} size="sm" data-share-pdf="formazioni" />
+                </div>
+              </div>
               {calledUpAthletes.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-foreground/50">
                   Convoca prima almeno un&apos;atleta qui sopra per poter costruire le formazioni.
@@ -161,16 +204,11 @@ export function CallUpsAndLineupsDialog({
 
           <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-surface-muted px-5 py-3.5 sm:px-6">
             <SubmitButton />
-            <LinkButton href={`/api/partite/${matchId}/formazioni/pdf`} variant="outline" target="_blank">
-              <Download className="h-4 w-4" />
-              Esporta PDF
-            </LinkButton>
-            <SharePdfButton href={`/api/partite/${matchId}/formazioni/pdf`} title={`Formazioni ${title}`} data-share-pdf="formazioni" />
             {state.error && <FieldError>{state.error}</FieldError>}
             {state.success && !dirty && <span className="text-sm font-semibold text-success">Salvato.</span>}
             {dirty && (
               <span className="text-[13px] font-semibold text-warning" data-unsaved-hint>
-                Modifiche non salvate: il PDF riporta l&apos;ultima versione salvata.
+                Modifiche non salvate.
               </span>
             )}
           </div>

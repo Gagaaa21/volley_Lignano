@@ -124,7 +124,11 @@ test("il link nominale: lo staff lo crea, il genitore segna che non c'è senza a
     await expect(familyRow(page, anna).locator("[data-family-whatsapp]").first()).toHaveAttribute("href", new RegExp(encodeURIComponent(annaPath)));
 
     // Il genitore apre il link: vede solo la sua atleta e le partite, niente di altre atlete.
-    await parent.goto(annaPath);
+    const response = await parent.goto(annaPath);
+    // Mai nei motori di ricerca, mai in cache, e l'indirizzo (che contiene il codice) non va ad altri siti.
+    expect(response?.headers()["x-robots-tag"]).toMatch(/noindex/);
+    expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(response?.headers()["cache-control"]).toMatch(/no-store|no-cache/);
     await expect(parent.locator("[data-family-athlete]")).toContainText(anna);
     const card = matchCard(parent, opponent);
     await expect(card).toBeVisible();

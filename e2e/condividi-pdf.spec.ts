@@ -171,13 +171,24 @@ test("area tecnici, dal telefono: partite, formazioni e scout hanno il loro «Co
     // Formazioni di gara (dalla finestra Convocazioni e formazioni): il nome ha categoria, avversaria e data.
     await page.goto(`/admin/partite/${matchId}`);
     await page.waitForLoadState("networkidle");
-    // Le formazioni in PDF si prendono anche dalla pagina della partita, senza aprire la finestra.
+    // Convocazioni e formazioni in PDF si prendono anche dalla pagina della partita, senza aprire la finestra.
+    await expect(page.locator("[data-convocations-pdf]")).toHaveAttribute("href", `/api/partite/${matchId}/convocazioni/pdf`);
+    await shareWithTwoTaps(page, shareButton(page, "convocazioni-partita"), {
+      name: new RegExp(`^convocazioni-u14-${opponent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${date}\\.pdf$`),
+      title: /Convocazioni/,
+    });
     await expect(page.locator("[data-lineups-pdf]")).toHaveAttribute("href", `/api/partite/${matchId}/formazioni/pdf`);
     await shareWithTwoTaps(page, shareButton(page, "formazioni-partita"), {
       name: new RegExp(`^formazioni-u14-${opponent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${date}\\.pdf$`),
       title: /Formazioni/,
     });
     await page.getByRole("button", { name: "Apri", exact: true }).click();
+    // Nella finestra le convocazioni hanno il loro PDF (con la selezione di quel momento: qui ancora nessuna convocata).
+    await expect(page.locator("[data-convocations-pdf-dialog]")).toHaveAttribute("href", `/api/partite/${matchId}/convocazioni/pdf?ids=`);
+    await shareWithTwoTaps(page, shareButton(page, "convocazioni"), {
+      name: new RegExp(`^convocazioni-u14-${opponent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${date}\\.pdf$`),
+      title: /Convocazioni/,
+    });
     await shareWithTwoTaps(page, shareButton(page, "formazioni"), {
       name: new RegExp(`^formazioni-u14-${opponent.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${date}\\.pdf$`),
       title: /Formazioni/,

@@ -82,13 +82,18 @@ staff (Developer e Admin).
   il riepilogo presenze (`/api/presenze/riepilogo/pdf`) e il riepilogo test
   fisici (`/api/test-fisici/riepilogo/pdf`). Elenco atlete e storico presenze
   restano solo in CSV (sono dati da elaborare, non da stampare). Ogni PDF del
-  sito (anche il tabellino e il manuale dello Scout, le formazioni di gara) ha
+  sito (anche il tabellino e il manuale dello Scout, le formazioni di gara e le convocazioni) ha
   «Scarica» e «Condividi PDF» (`src/components/pdf/SharePdfButton.tsx`): dal
   telefono apre il foglio di condivisione con il file già allegato, altrove
   scarica; il file si prepara in anticipo (`prefetch`) o al primo tocco.
   Il calendario partite ha nel PDF una colonna con «U14»/«U15» su riquadro
   pieno e una barra del colore della categoria sulla riga; i nomi dei file di
-  tabellino e formazioni portano la categoria.
+  tabellino, formazioni e convocazioni portano la categoria. Le **convocazioni**
+  (`/api/partite/[id]/convocazioni/pdf`, `src/lib/pdf/convocationPdf.ts`) sono
+  un foglio da mandare a famiglie e atlete: la partita, il ritrovo e le
+  convocate con il numero di maglia, mai formazioni, note né segnalazioni di
+  non disponibilità; serve il permesso «Partite», e con `?ids=` segue la
+  selezione della finestra delle convocazioni anche se non è ancora salvata.
 - **Pronostici** (`src/lib/predictions.ts`) — si aprono il giorno della
   partita e si chiudono **un'ora dopo l'inizio** (`PREDICTION_GRACE_MINUTES`),
   o subito se il risultato è già stato inserito; pagina e azione dicono
