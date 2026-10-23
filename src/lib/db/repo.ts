@@ -6,6 +6,7 @@ import type {
   FederationSourceInput,
 } from "@/lib/federation/types";
 import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/scout/types";
+import type { AthleteFamilyLink, MatchUnavailability, MatchUnavailabilityInput } from "@/lib/availability/types";
 import type { AthleteContact, AthleteContacts, MatchTrip, MatchTripData, SaveMatchTripResult } from "@/lib/trips/types";
 import type {
   AdminPage,
@@ -145,6 +146,20 @@ export interface Repo {
   deleteMatchTrip(matchId: string): Promise<void>;
   listAthleteContacts(): Promise<AthleteContacts[]>;
   saveAthleteContacts(athleteId: string, contacts: AthleteContact[], updatedBy: string | null): Promise<AthleteContacts | null>;
+
+  // Disponibilità delle atlete: il link personale e segreto di ognuna (i genitori non hanno un account) e le partite a cui non ci
+  // sono. Dati riservati: il sito pubblico non li legge mai. La pagina del genitore usa sempre il repo reale (vedi getRepo()).
+  listAthleteFamilyLinks(): Promise<AthleteFamilyLink[]>;
+  /** L'atleta a cui appartiene il codice di un link, o null se il codice non esiste (non si cerca mai per nome). */
+  findAthleteByFamilyToken(token: string): Promise<Athlete | null>;
+  /** Crea il link dell'atleta se non ce l'ha ancora; se ce l'ha, restituisce quello che c'è (il codice proposto si ignora). */
+  ensureAthleteFamilyLink(athleteId: string, token: string): Promise<AthleteFamilyLink>;
+  /** Sostituisce il codice del link: il vecchio smette di funzionare subito. */
+  rotateAthleteFamilyLink(athleteId: string, token: string): Promise<AthleteFamilyLink>;
+  listMatchUnavailability(filter?: { matchIds?: string[]; athleteId?: string }): Promise<MatchUnavailability[]>;
+  /** Segna (o aggiorna) l'atleta come non disponibile per la partita: una riga per partita e atleta. */
+  setMatchUnavailability(input: MatchUnavailabilityInput): Promise<MatchUnavailability>;
+  clearMatchUnavailability(matchId: string, athleteId: string): Promise<void>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

@@ -164,9 +164,11 @@ export function PwaClient() {
     return () => clearTimeout(timeout);
   }, [step, canInstall]);
 
-  const showInstallBanner = mounted && step === "install" && canInstall && !isStandalone;
+  // Chi apre il link personale di un'atleta (/disponibilita/…) è lì per una cosa sola: niente avvisi sopra i suoi pulsanti.
+  const quiet = pathname?.startsWith("/disponibilita") ?? false;
+  const showInstallBanner = mounted && !quiet && step === "install" && canInstall && !isStandalone;
   const showNotifyBanner =
-    mounted && step === "notify" && (isNotifyEligible(promptCampaign) || isTeamInviteDue(team, pathname, teamSubscribed));
+    mounted && !quiet && step === "notify" && (isNotifyEligible(promptCampaign) || isTeamInviteDue(team, pathname, teamSubscribed));
 
   async function handleInstall(accept: boolean) {
     localStorage.setItem(INSTALL_PROMPTED_KEY, "1");

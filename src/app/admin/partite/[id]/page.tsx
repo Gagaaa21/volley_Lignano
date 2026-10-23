@@ -4,6 +4,9 @@ import { Binoculars, Car, Trash2 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
+import { isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { describeUnavailability } from "@/lib/availability/rules";
+import type { MatchUnavailability } from "@/lib/availability/types";
 import { matchTitle } from "@/lib/calendar";
 import { Card, CardBody } from "@/components/ui/Card";
 import { CategoryTag } from "@/components/ui/CategoryTag";
@@ -13,6 +16,8 @@ import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { deleteMatchAction } from "../actions";
+import type { UnavailableFlag } from "../CallUpsSection";
+import { MatchAvailability } from "../MatchAvailability";
 import { MatchForm } from "../MatchForm";
 import { MatchWorkspace } from "../MatchWorkspace";
 
@@ -43,6 +48,21 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
 
   const activeAthletes = allAthletes.filter((a) => a.isActive);
 
+  // Chi non può esserci (solo U14/U15): le segnalazioni dei genitori e dello staff. Finché le tabelle non ci sono, niente.
+  let unavailability: MatchUnavailability[] = [];
+  let availabilityReady = match.team === "u14u15";
+  if (availabilityReady) {
+    try {
+      unavailability = await repo.listMatchUnavailability({ matchIds: [id] });
+    } catch (error) {
+      if (!isAvailabilityTableMissing(error)) throw error;
+      availabilityReady = false;
+    }
+  }
+  const unavailableFlags: Record<string, UnavailableFlag> = Object.fromEntries(
+    unavailability.map((row) => [row.athleteId, { text: describeUnavailability(row), byStaff: row.reportedBy === "staff" }] as const),
+  );
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
@@ -70,12 +90,15 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         }
       />
 
+      {availabilityReady && <MatchAvailability match={match} rows={unavailability} athletes={activeAthletes} />}
+
       <MatchWorkspace
         matchId={id}
         title={matchTitle(match)}
         allAthletes={activeAthletes}
         initialCalledUpIds={match.calledUpAthleteIds}
         initialLineup={lineup}
+        unavailable={unavailableFlags}
       />
 
       <Card className="mt-6">

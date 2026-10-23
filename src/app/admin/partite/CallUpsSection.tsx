@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { CalendarX2, Check, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { categoryBadgeClass, categoryLabel } from "@/lib/category";
 import type { Athlete } from "@/lib/types";
@@ -34,20 +34,30 @@ function ToggleButton({
   );
 }
 
+/** Un'atleta segnalata non disponibile per la partita: motivo e nota in una riga, e se l'ha scritto lo staff o il genitore. */
+export interface UnavailableFlag {
+  text: string;
+  byStaff: boolean;
+}
+
 /** Elenco convocazioni nello stesso stile della pagina Presenze: righe con
- * nome, categoria e un toggle Convocata/Non convocata. */
+ * nome, categoria e un toggle Convocata/Non convocata. Chi è segnalata non
+ * disponibile ha un avviso sotto il nome (più forte se è convocata): non la
+ * toglie da sola, decide lo staff. */
 export function CallUpsSection({
   athletes,
   calledUp,
   onToggle,
   onSelectAll,
   onSelectNone,
+  unavailable = {},
 }: {
   athletes: Athlete[];
   calledUp: Set<string>;
   onToggle: (athleteId: string) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
+  unavailable?: Record<string, UnavailableFlag>;
 }) {
   return (
     <div>
@@ -74,6 +84,7 @@ export function CallUpsSection({
         <div className="space-y-2.5">
           {athletes.map((athlete) => {
             const isCalledUp = calledUp.has(athlete.id);
+            const flag = unavailable[athlete.id];
             return (
               <div key={athlete.id} className="rounded-xl border border-border-subtle bg-surface px-4 py-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -103,6 +114,20 @@ export function CallUpsSection({
                     </ToggleButton>
                   </div>
                 </div>
+                {flag && (
+                  <p
+                    className={cn(
+                      "mt-2 flex items-start gap-1.5 text-[13px] font-semibold",
+                      isCalledUp ? "text-destructive" : "text-warning",
+                    )}
+                    data-unavailable-flag={athlete.id}
+                  >
+                    <CalendarX2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span>
+                      Non disponibile{isCalledUp ? ", ma è convocata" : ""}: {flag.text} · {flag.byStaff ? "scritto dallo staff" : "segnalato dal genitore"}
+                    </span>
+                  </p>
+                )}
               </div>
             );
           })}

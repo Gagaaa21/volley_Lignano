@@ -37,7 +37,7 @@ function ResultBlock({ match, isPast }: { match: Match; isPast: boolean }) {
   return null;
 }
 
-function MatchRow({ match, isPast }: { match: Match; isPast: boolean }) {
+function MatchRow({ match, isPast, unavailableCount = 0 }: { match: Match; isPast: boolean; unavailableCount?: number }) {
   const date = parseISO(match.matchDate.slice(0, 10));
   const setScores = match.isTournament
     ? null
@@ -76,6 +76,11 @@ function MatchRow({ match, isPast }: { match: Match; isPast: boolean }) {
               Torneo
             </Badge>
           )}
+          {unavailableCount > 0 && (
+            <Badge tone="warning" className="py-0 text-[11px]" data-match-unavailable={unavailableCount}>
+              {unavailableCount === 1 ? "1 non disponibile" : `${unavailableCount} non disponibili`}
+            </Badge>
+          )}
         </span>
         <span className="mt-0.5 block truncate font-semibold text-foreground group-hover:text-primary">
           {matchTitle(match)}
@@ -96,7 +101,7 @@ function MatchRow({ match, isPast }: { match: Match; isPast: boolean }) {
 /** Elenco partite diviso in "In programma" (dalla più vicina) e "Giocate"
  * (dalla più recente), con ricerca su avversario e luogo oltre 5 partite.
  * Ogni riga apre la partita, dove si trova anche l'eliminazione. */
-export function MatchList({ matches }: { matches: Match[] }) {
+export function MatchList({ matches, unavailable = {} }: { matches: Match[]; unavailable?: Record<string, number> }) {
   const [query, setQuery] = useState("");
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
@@ -135,7 +140,7 @@ export function MatchList({ matches }: { matches: Match[] }) {
               <SectionHeading title="In programma" action={<span className="text-[13px] text-muted-foreground">{upcoming.length}</span>} />
               <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
                 {upcoming.map((match) => (
-                  <MatchRow key={match.id} match={match} isPast={false} />
+                  <MatchRow key={match.id} match={match} isPast={false} unavailableCount={unavailable[match.id] ?? 0} />
                 ))}
               </div>
             </section>

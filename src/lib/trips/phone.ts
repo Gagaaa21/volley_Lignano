@@ -35,6 +35,20 @@ export function phoneHref(raw: string): string | null {
   return `tel:${digits}`;
 }
 
+/**
+ * Il numero come lo vuole WhatsApp per aprire una chat (`wa.me`): solo cifre, con il prefisso del paese. Senza prefisso si
+ * intende un numero italiano (39); un numero di 11 cifre o più che comincia già con 39 è già completo. Null se non è un numero.
+ */
+export function whatsappPhone(raw: string): string | null {
+  if (!isValidPhone(raw)) return null;
+  const value = cleanPhone(raw);
+  const digits = digitsOf(value);
+  if (value.startsWith("+")) return digits;
+  if (digits.startsWith("00")) return digits.slice(2);
+  if (digits.startsWith("39") && digits.length >= 11) return digits;
+  return `39${digits}`;
+}
+
 /** Il nome per riconoscere la stessa persona anche con maiuscole, accenti e spazi diversi. */
 export function nameKey(name: string): string {
   return name

@@ -33,6 +33,13 @@ import type { MatchScout, SaveMatchScoutResult, ScoutData } from "@/lib/scout/ty
 import { normalizeContacts } from "@/lib/trips/contacts";
 import { normalizeTripData } from "@/lib/trips/rules";
 import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
+import {
+  UNAVAILABILITY_REASONS,
+  type AthleteFamilyLink,
+  type MatchUnavailability,
+  type ReportedBy,
+  type UnavailabilityReason,
+} from "@/lib/availability/types";
 import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
   DEFAULT_FEDERATION_SOURCES,
@@ -328,6 +335,40 @@ function athleteContactsFromRow(row: AthleteContactsRow): AthleteContacts {
   };
 }
 
+type AthleteFamilyLinkRow = {
+  athlete_id: string;
+  token: string;
+  created_at: string;
+  rotated_at: string | null;
+};
+
+function athleteFamilyLinkFromRow(row: AthleteFamilyLinkRow): AthleteFamilyLink {
+  return { athleteId: row.athlete_id, token: row.token, createdAt: row.created_at, rotatedAt: row.rotated_at };
+}
+
+type MatchUnavailabilityRow = {
+  match_id: string;
+  athlete_id: string;
+  reason: string | null;
+  note: string | null;
+  reported_by: string;
+  updated_by: string | null;
+  reported_at: string;
+};
+
+function matchUnavailabilityFromRow(row: MatchUnavailabilityRow): MatchUnavailability {
+  return {
+    matchId: row.match_id,
+    athleteId: row.athlete_id,
+    // Un motivo che non è tra quelli previsti vale «nessun motivo»; chi non è «staff» è il genitore.
+    reason: (UNAVAILABILITY_REASONS as readonly string[]).includes(row.reason ?? "") ? (row.reason as UnavailabilityReason) : null,
+    note: row.note,
+    reportedBy: (row.reported_by === "staff" ? "staff" : "parent") satisfies ReportedBy,
+    updatedBy: row.updated_by,
+    reportedAt: row.reported_at,
+  };
+}
+
 type MatchPredictionRow = {
   id: string;
   match_id: string;
@@ -584,6 +625,13 @@ async function readMatchScout(matchId: string): Promise<MatchScout | null> {
   const { data, error } = await db.from("match_scouts").select("*").eq("match_id", matchId).maybeSingle();
   if (error) throw new Error(error.message);
   return data ? matchScoutFromRow(data as MatchScoutRow) : null;
+}
+
+async function readFamilyLink(athleteId: string): Promise<AthleteFamilyLink | null> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.from("athlete_family_links").select("*").eq("athlete_id", athleteId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? athleteFamilyLinkFromRow(data as AthleteFamilyLinkRow) : null;
 }
 
 async function readMatchTrip(matchId: string): Promise<MatchTrip | null> {
@@ -925,6 +973,80 @@ export const supabaseRepo: Repo = {
       .select("*")
       .single();
     return athleteContactsFromRow(unwrap(result) as AthleteContactsRow);
+  },
+
+  async listAthleteFamilyLinks() {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("athlete_family_links").select("*");
+    if (error) throw new Error(error.message);
+    return (data as AthleteFamilyLinkRow[]).map(athleteFamilyLinkFromRow);
+  },
+  async findAthleteByFamilyToken(token) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("athlete_family_links").select("athlete_id").eq("token", token).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    return supabaseRepo.getAthlete((data as { athlete_id: string }).athlete_id);
+  },
+  async ensureAthleteFamilyLink(athleteId, token) {
+    const db = getSupabaseAdmin();
+    const existing = await readFamilyLink(athleteId);
+    if (existing) return existing;
+    const { data, error } = await db.from("athlete_family_links").insert({ athlete_id: athleteId, token }).select("*").single();
+    if (!error) return athleteFamilyLinkFromRow(data as AthleteFamilyLinkRow);
+    // 23505 = esiste già: un altro dispositivo l'ha creato un attimo prima.
+    if (error.code === "23505") {
+      const again = await readFamilyLink(athleteId);
+      if (again) return again;
+    }
+    throw new Error(error.message);
+  },
+  async rotateAthleteFamilyLink(athleteId, token) {
+    const db = getSupabaseAdmin();
+    const existing = await readFamilyLink(athleteId);
+    if (!existing) return supabaseRepo.ensureAthleteFamilyLink(athleteId, token);
+    const result = await db
+      .from("athlete_family_links")
+      .update({ token, rotated_at: new Date().toISOString() })
+      .eq("athlete_id", athleteId)
+      .select("*")
+      .single();
+    return athleteFamilyLinkFromRow(unwrap(result) as AthleteFamilyLinkRow);
+  },
+  async listMatchUnavailability(filter) {
+    if (filter?.matchIds && filter.matchIds.length === 0) return [];
+    const db = getSupabaseAdmin();
+    let query = db.from("match_unavailability").select("*");
+    if (filter?.matchIds) query = query.in("match_id", filter.matchIds);
+    if (filter?.athleteId) query = query.eq("athlete_id", filter.athleteId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data as MatchUnavailabilityRow[]).map(matchUnavailabilityFromRow);
+  },
+  async setMatchUnavailability(input) {
+    const db = getSupabaseAdmin();
+    const result = await db
+      .from("match_unavailability")
+      .upsert(
+        {
+          match_id: input.matchId,
+          athlete_id: input.athleteId,
+          reason: input.reason,
+          note: input.note,
+          reported_by: input.reportedBy,
+          updated_by: input.updatedBy,
+          reported_at: new Date().toISOString(),
+        },
+        { onConflict: "match_id,athlete_id" },
+      )
+      .select("*")
+      .single();
+    return matchUnavailabilityFromRow(unwrap(result) as MatchUnavailabilityRow);
+  },
+  async clearMatchUnavailability(matchId, athleteId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("match_unavailability").delete().eq("match_id", matchId).eq("athlete_id", athleteId);
+    if (error) throw new Error(error.message);
   },
 
   async getPublicLiveScout() {

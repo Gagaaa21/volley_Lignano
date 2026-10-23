@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
+import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { expandTrainings, matchTitle, matchesToEvents, sortEvents } from "@/lib/calendar";
 import { categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -82,12 +83,19 @@ export default async function AdminDashboardPage({
   const showOfficial = team === "u14u15" && showMatches && allowedPages.includes("partite");
   if (showOfficial) scheduleFederationRefresh();
   const matchesPromise = showMatches ? repo.listMatches({ team }) : Promise.resolve([]);
-  const [trainings, matches, athletes, attendanceSessions, officialData] = await Promise.all([
+  const [trainings, matches, athletes, attendanceSessions, officialData, unavailability] = await Promise.all([
     repo.listTrainings({ team }),
     matchesPromise,
     repo.listAthletes({ team }),
     showPresenze ? repo.listAttendanceSessions({ team }) : Promise.resolve([]),
     showOfficial ? loadOfficialResults(repo, matchesPromise) : Promise.resolve([]),
+    // Le non disponibilità segnalate (solo U14/U15 e solo per chi vede le Partite): finché le tabelle non ci sono, niente.
+    team === "u14u15" && showMatches
+      ? repo.listMatchUnavailability().catch((error: unknown) => {
+          if (isAvailabilityTableMissing(error)) return [];
+          throw error;
+        })
+      : Promise.resolve([]),
   ]);
   const portalTodo = officialTodoCount(officialData);
 
@@ -113,6 +121,11 @@ export default async function AdminDashboardPage({
   const upcomingMatchEvents = matchesToEvents(matches).filter((e) => e.date >= todayStr);
   const upcomingEvents = sortEvents([...upcomingTrainingEvents, ...upcomingMatchEvents]).slice(0, 6);
   const nextMatch = upcomingMatchEvents.length > 0 ? sortEvents(upcomingMatchEvents)[0] : null;
+  // Quante atlete sono segnalate non disponibili per la prossima partita.
+  const nextMatchRow = matches
+    .filter((match) => match.matchDate.slice(0, 10) >= todayStr)
+    .sort((a, b) => a.matchDate.localeCompare(b.matchDate))[0];
+  const nextMatchUnavailable = nextMatchRow ? unavailability.filter((row) => row.matchId === nextMatchRow.id).length : 0;
 
   const summary = showPresenze
     ? pendingOccurrences.length === 0
@@ -167,7 +180,13 @@ export default async function AdminDashboardPage({
             value={matches.length}
             icon={Swords}
             tone="u15"
-            hint={nextMatch ? `Prossima: ${format(parseISO(nextMatch.date), "EEE d MMM", { locale: it })}` : undefined}
+            hint={
+              nextMatch
+                ? `Prossima: ${format(parseISO(nextMatch.date), "EEE d MMM", { locale: it })}${
+                    nextMatchUnavailable > 0 ? ` · ${nextMatchUnavailable} non disponibil${nextMatchUnavailable === 1 ? "e" : "i"}` : ""
+                  }`
+                : undefined
+            }
           />
         )}
         {showPresenze && (

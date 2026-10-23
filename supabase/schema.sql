@@ -210,6 +210,47 @@ alter table athlete_contacts enable row level security;
 -- Nessuna policy pubblica: la rubrica è riservata allo staff con il permesso "trasferte".
 
 -- =========================================================
+-- athlete_family_links — il link personale e segreto di ogni atleta: i
+-- genitori non hanno un account, aprono questo link (/disponibilita/<token>)
+-- per segnalare che la figlia non c'è a una partita. Una riga per atleta;
+-- "token" è un codice casuale di 32 caratteri (vedi
+-- src/lib/availability/token.ts), unico: chi lo ha può segnare le non
+-- disponibilità di quella sola atleta. Rigenerarlo (token nuovo) fa smettere
+-- di funzionare il vecchio. Nessuna policy pubblica: si legge solo dal server.
+-- =========================================================
+create table if not exists athlete_family_links (
+  athlete_id uuid primary key references athletes(id) on delete cascade,
+  token text not null unique,
+  created_at timestamptz not null default now(),
+  rotated_at timestamptz
+);
+
+alter table athlete_family_links enable row level security;
+-- Nessuna policy pubblica: i codici dei link sono segreti.
+
+-- =========================================================
+-- match_unavailability — le partite a cui un'atleta non c'è, segnalate dal
+-- genitore (dal suo link) o dallo staff. Una riga per partita e atleta;
+-- "reason" è uno tra malata, famiglia, altro (o vuoto), "note" una nota
+-- breve; "reported_by" dice se l'ha scritta il genitore ("parent") o lo
+-- staff ("staff", con "updated_by"). Riservata allo staff: mai sul sito
+-- pubblico.
+-- =========================================================
+create table if not exists match_unavailability (
+  match_id uuid not null references matches(id) on delete cascade,
+  athlete_id uuid not null references athletes(id) on delete cascade,
+  reason text,
+  note text,
+  reported_by text not null default 'parent',
+  updated_by uuid references staff(id) on delete set null,
+  reported_at timestamptz not null default now(),
+  primary key (match_id, athlete_id)
+);
+
+alter table match_unavailability enable row level security;
+-- Nessuna policy pubblica: le segnalazioni sono riservate allo staff.
+
+-- =========================================================
 -- match_predictions — pronostici sul punteggio di ogni set di una partita
 -- non ancora giocata, uno per (match, membro dello staff). Vedi
 -- src/lib/predictions.ts per come vengono giudicati una volta inseriti i
@@ -613,6 +654,12 @@ alter table training_sessions add column if not exists occurrence_overrides json
 -- Editor di Supabase e premere Run). Nessun account Admin la vede, né
 -- esistente né nuovo, finché il Developer non spunta "Trasferte" per lui dal
 -- Centro di controllo; il Developer la vede sempre.
+
+-- Nuova funzione "Disponibilità" (link personali per i genitori, tabelle
+-- athlete_family_links e match_unavailability sopra, da creare una volta
+-- sola: basta incollare questi due blocchi nell'SQL Editor di Supabase e
+-- premere Run). Nessun permesso nuovo: i link si gestiscono dalle Atlete
+-- (permesso Presenze) e le segnalazioni si vedono nelle Partite.
 
 -- Nuova sezione "Test fisici" (vedi tabella physical_tests sopra, già
 -- creata da questo file): gli account Admin già esistenti e con pagine

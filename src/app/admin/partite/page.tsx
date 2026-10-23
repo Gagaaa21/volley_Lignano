@@ -11,10 +11,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedLinks } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
+import { isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { countByMatch } from "@/lib/availability/rules";
 import { loadOfficialResults, officialToAddCount, officialTodoCount, officialTodoParts } from "@/lib/federation/load";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
 import type { Category } from "@/lib/types";
+import { todayIso } from "@/lib/today";
 import { MatchList } from "./MatchList";
 
 export const metadata: Metadata = {
@@ -47,6 +50,18 @@ export default async function MatchesListPage({
   const official = allOfficial.filter(
     (entry) => entry.source.enabled && entry.source.url && (activeCategory === "all" || entry.source.category === activeCategory),
   );
+
+  // Quante atlete sono segnalate non disponibili, partita per partita (solo quelle in programma; finché le tabelle non ci sono, niente).
+  const today = todayIso();
+  const upcomingIds = matches.filter((match) => match.matchDate.slice(0, 10) >= today).map((match) => match.id);
+  const unavailable: Record<string, number> = {};
+  if (isU14U15 && upcomingIds.length > 0) {
+    try {
+      for (const [matchId, count] of countByMatch(await repo.listMatchUnavailability({ matchIds: upcomingIds }))) unavailable[matchId] = count;
+    } catch (error) {
+      if (!isAvailabilityTableMissing(error)) throw error;
+    }
+  }
 
   // Il riquadro del portale compare solo se almeno una categoria è collegata.
   const showPortal = official.length > 0;
@@ -160,7 +175,7 @@ export default async function MatchesListPage({
             }
           />
         ) : (
-          <MatchList matches={matches} />
+          <MatchList matches={matches} unavailable={unavailable} />
         )}
       </section>
 

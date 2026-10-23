@@ -3,6 +3,7 @@ import { Archivo, Baloo_2, Inter } from "next/font/google";
 import { PwaClient } from "@/components/pwa/PwaClient";
 import { PwaInstallProvider } from "@/components/pwa/PwaInstallContext";
 import { ThemeSync } from "@/components/theme/ThemeSwitcher";
+import { SITE_URL } from "@/lib/siteUrl";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -29,7 +30,6 @@ const displayMinivolley = Baloo_2({
   weight: ["600", "700", "800"],
 });
 
-const SITE_URL = "https://volley-lignano.vercel.app";
 const SITE_TITLE = "Volley Lignano";
 const SITE_DESCRIPTION =
   "Calendario ufficiale di allenamenti e partite delle squadre femminili Under 14 e Under 15 di Volley Lignano.";

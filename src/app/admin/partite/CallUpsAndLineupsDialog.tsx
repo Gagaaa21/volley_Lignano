@@ -7,13 +7,16 @@ import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Button } from "@/components/ui/Button";
 import { FieldError } from "@/components/ui/Field";
-import { CallUpsSection } from "./CallUpsSection";
+import { CallUpsSection, type UnavailableFlag } from "./CallUpsSection";
 import { LineupEditor } from "./LineupEditor";
 import { saveCallUpsAndLineupAction, type CallUpsAndLineupFormState } from "./actions";
 import { emptyMatchLineupSets } from "@/lib/types";
 import type { Athlete, MatchLineup, SetLineup } from "@/lib/types";
 
 const initialState: CallUpsAndLineupFormState = {};
+
+/** Quello che il modulo manda al salvataggio (convocate e formazioni), per capire se dopo l'ultimo salvataggio c'è altro da salvare. */
+const snapshotOf = (calledUp: Iterable<string>, sets: SetLineup[]) => JSON.stringify({ calledUp: [...calledUp].sort(), sets });
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -34,6 +37,7 @@ export function CallUpsAndLineupsDialog({
   allAthletes,
   initialCalledUpIds,
   initialLineup,
+  unavailable,
   onClose,
 }: {
   matchId: string;
@@ -41,12 +45,25 @@ export function CallUpsAndLineupsDialog({
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
+  unavailable?: Record<string, UnavailableFlag>;
   onClose: () => void;
 }) {
   const [calledUp, setCalledUp] = useState<Set<string>>(() => new Set(initialCalledUpIds));
   const [sets, setSets] = useState<SetLineup[]>(() => initialLineup?.sets ?? emptyMatchLineupSets());
   const [activeSet, setActiveSet] = useState(0);
-  const [state, formAction] = useActionState(saveCallUpsAndLineupAction, initialState);
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    snapshotOf(initialCalledUpIds, initialLineup?.sets ?? emptyMatchLineupSets()),
+  );
+  const [state, formAction] = useActionState(async (previous: CallUpsAndLineupFormState, formData: FormData) => {
+    const next = await saveCallUpsAndLineupAction(previous, formData);
+    // Salvato: da qui le modifiche si contano da quello che è stato appena salvato.
+    if (next.success) {
+      setSavedSnapshot(snapshotOf(formData.getAll("calledUpAthleteIds").map(String), JSON.parse(String(formData.get("sets"))) as SetLineup[]));
+    }
+    return next;
+  }, initialState);
+  // Il PDF si prepara dalle formazioni salvate: con modifiche non salvate riporterebbe la versione di prima.
+  const dirty = snapshotOf(calledUp, sets) !== savedSnapshot;
 
   function toggleCalledUp(athleteId: string) {
     setCalledUp((prev) => {
@@ -117,6 +134,7 @@ export function CallUpsAndLineupsDialog({
                 onToggle={toggleCalledUp}
                 onSelectAll={() => setCalledUp(new Set(allAthletes.map((a) => a.id)))}
                 onSelectNone={() => setCalledUp(new Set())}
+                unavailable={unavailable}
               />
             </section>
 
@@ -149,7 +167,12 @@ export function CallUpsAndLineupsDialog({
             </LinkButton>
             <SharePdfButton href={`/api/partite/${matchId}/formazioni/pdf`} title={`Formazioni ${title}`} data-share-pdf="formazioni" />
             {state.error && <FieldError>{state.error}</FieldError>}
-            {state.success && <span className="text-sm font-semibold text-success">Salvato.</span>}
+            {state.success && !dirty && <span className="text-sm font-semibold text-success">Salvato.</span>}
+            {dirty && (
+              <span className="text-[13px] font-semibold text-warning" data-unsaved-hint>
+                Modifiche non salvate: il PDF riporta l&apos;ultima versione salvata.
+              </span>
+            )}
           </div>
         </form>
       </div>

@@ -25,6 +25,7 @@ import type {
 import type { MatchFilter, NewStaffInput, Repo, TeamFilter, TrainingFilter } from "@/lib/db/repo";
 import type { MatchScout, MatchScoutInput } from "@/lib/scout/types";
 import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
+import type { AthleteFamilyLink, MatchUnavailability } from "@/lib/availability/types";
 import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
@@ -56,6 +57,8 @@ export interface MemoryStore {
   matchScouts: MatchScout[];
   matchTrips: MatchTrip[];
   athleteContacts: AthleteContacts[];
+  athleteFamilyLinks: AthleteFamilyLink[];
+  matchUnavailability: MatchUnavailability[];
   matchPredictions: MatchPrediction[];
   trainingPlans: TrainingPlan[];
   trainingOccurrencePlans: TrainingOccurrencePlan[];
@@ -80,6 +83,8 @@ export function createEmptyStore(): MemoryStore {
     matchScouts: [],
     matchTrips: [],
     athleteContacts: [],
+    athleteFamilyLinks: [],
+    matchUnavailability: [],
     matchPredictions: [],
     trainingPlans: [],
     trainingOccurrencePlans: [],
@@ -118,6 +123,11 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   store.athleteContacts ??= [];
   const matchTrips = store.matchTrips;
   const athleteContacts = store.athleteContacts;
+  // Idem per i link dei genitori e le non disponibilità.
+  store.athleteFamilyLinks ??= [];
+  store.matchUnavailability ??= [];
+  const athleteFamilyLinks = store.athleteFamilyLinks;
+  const matchUnavailability = store.matchUnavailability;
   const matchPredictions = store.matchPredictions;
   const trainingPlans = store.trainingPlans;
   const trainingOccurrencePlans = store.trainingOccurrencePlans;
@@ -240,6 +250,10 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (scoutIdx !== -1) matchScouts.splice(scoutIdx, 1);
       const tripIdx = matchTrips.findIndex((t) => t.matchId === id);
       if (tripIdx !== -1) matchTrips.splice(tripIdx, 1);
+      // Come in database (on delete cascade): via anche le non disponibilità segnalate per la partita.
+      for (let i = matchUnavailability.length - 1; i >= 0; i--) {
+        if (matchUnavailability[i].matchId === id) matchUnavailability.splice(i, 1);
+      }
       for (let i = federationDecisions.length - 1; i >= 0; i--) {
         if (federationDecisions[i].matchId === id) federationDecisions.splice(i, 1);
       }
@@ -384,6 +398,58 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       if (idx === -1) athleteContacts.push(row);
       else athleteContacts[idx] = row;
       return structuredClone(row);
+    },
+
+    async listAthleteFamilyLinks() {
+      return structuredClone(athleteFamilyLinks);
+    },
+    async findAthleteByFamilyToken(token) {
+      const link = athleteFamilyLinks.find((l) => l.token === token);
+      const athlete = link ? athletes.find((a) => a.id === link.athleteId) : undefined;
+      return athlete ? structuredClone(athlete) : null;
+    },
+    async ensureAthleteFamilyLink(athleteId, token) {
+      const existing = athleteFamilyLinks.find((l) => l.athleteId === athleteId);
+      if (existing) return structuredClone(existing);
+      // Come in database (chiave esterna): senza l'atleta non c'è un link da creare.
+      if (!athletes.some((a) => a.id === athleteId)) throw new Error("Atleta non trovata.");
+      const row: AthleteFamilyLink = { athleteId, token, createdAt: new Date().toISOString(), rotatedAt: null };
+      athleteFamilyLinks.push(row);
+      return structuredClone(row);
+    },
+    async rotateAthleteFamilyLink(athleteId, token) {
+      const existing = athleteFamilyLinks.find((l) => l.athleteId === athleteId);
+      if (!existing) {
+        if (!athletes.some((a) => a.id === athleteId)) throw new Error("Atleta non trovata.");
+        const row: AthleteFamilyLink = { athleteId, token, createdAt: new Date().toISOString(), rotatedAt: null };
+        athleteFamilyLinks.push(row);
+        return structuredClone(row);
+      }
+      existing.token = token;
+      existing.rotatedAt = new Date().toISOString();
+      return structuredClone(existing);
+    },
+    async listMatchUnavailability(filter) {
+      const matchIds = filter?.matchIds ? new Set(filter.matchIds) : null;
+      return structuredClone(
+        matchUnavailability.filter(
+          (row) => (!matchIds || matchIds.has(row.matchId)) && (!filter?.athleteId || row.athleteId === filter.athleteId),
+        ),
+      );
+    },
+    async setMatchUnavailability(input) {
+      // Come in database (chiavi esterne): servono la partita e l'atleta.
+      if (!matches.some((m) => m.id === input.matchId)) throw new Error("Partita non trovata.");
+      if (!athletes.some((a) => a.id === input.athleteId)) throw new Error("Atleta non trovata.");
+      const row: MatchUnavailability = { ...structuredClone(input), reportedAt: new Date().toISOString() };
+      const idx = matchUnavailability.findIndex((u) => u.matchId === input.matchId && u.athleteId === input.athleteId);
+      if (idx === -1) matchUnavailability.push(row);
+      else matchUnavailability[idx] = row;
+      return structuredClone(row);
+    },
+    async clearMatchUnavailability(matchId, athleteId) {
+      const idx = matchUnavailability.findIndex((u) => u.matchId === matchId && u.athleteId === athleteId);
+      if (idx !== -1) matchUnavailability.splice(idx, 1);
     },
     async getPublicLiveScout() {
       const recent = Date.now() - LIVE_SCORE_TTL_MS;
@@ -602,6 +668,12 @@ export function createMemoryRepo(store: MemoryStore): Repo {
       // Come in database (on delete cascade): via anche i suoi numeri in rubrica.
       const contactsIdx = athleteContacts.findIndex((c) => c.athleteId === id);
       if (contactsIdx !== -1) athleteContacts.splice(contactsIdx, 1);
+      // Idem il suo link per i genitori e le sue non disponibilità.
+      const linkIdx = athleteFamilyLinks.findIndex((l) => l.athleteId === id);
+      if (linkIdx !== -1) athleteFamilyLinks.splice(linkIdx, 1);
+      for (let i = matchUnavailability.length - 1; i >= 0; i--) {
+        if (matchUnavailability[i].athleteId === id) matchUnavailability.splice(i, 1);
+      }
     },
 
     async listAttendanceSessions(filter?: TeamFilter) {
@@ -723,6 +795,8 @@ export function createMemoryRepo(store: MemoryStore): Repo {
         { table: "match_scouts", rows: matchScouts },
         { table: "match_trips", rows: matchTrips },
         { table: "athlete_contacts", rows: athleteContacts },
+        { table: "athlete_family_links", rows: athleteFamilyLinks },
+        { table: "match_unavailability", rows: matchUnavailability },
         { table: "match_predictions", rows: matchPredictions },
         { table: "training_plans", rows: trainingPlans },
         { table: "training_occurrence_plans", rows: trainingOccurrencePlans },
