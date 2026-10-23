@@ -46,14 +46,17 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
           <Video className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-display text-base font-bold text-foreground">Diretta video</span>
-          <span className="block text-sm text-muted-foreground">
+          {/* Lo stato sta accanto al titolo (e va a capo sul telefono): così la descrizione usa tutta la larghezza. */}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-display text-base font-bold text-foreground">Diretta video</span>
+            <Badge tone={count > 0 ? "success" : "neutral"} data-diretta-status={count > 0 ? "attiva" : "vuota"}>
+              {count > 0 ? `Attiva · ${count === 1 ? "1 camera" : `${count} camere`}` : "Nessuna diretta"}
+            </Badge>
+          </span>
+          <span className="mt-0.5 block text-sm text-muted-foreground">
             Incolla i link delle dirette YouTube: i genitori le guardano da <b className="font-semibold">/diretta</b>, con il punteggio sopra.
           </span>
         </span>
-        <Badge tone={count > 0 ? "success" : "neutral"} data-diretta-status={count > 0 ? "attiva" : "vuota"}>
-          {count > 0 ? `Attiva · ${count === 1 ? "1 camera" : `${count} camere`}` : "Nessuna diretta"}
-        </Badge>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
 

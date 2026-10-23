@@ -76,11 +76,14 @@ const SYNC_META: Record<SyncStatus, { text: string; tone: BadgeTone }> = {
 function SyncBadge({ status }: { status: SyncStatus }) {
   const meta = SYNC_META[status];
   const Icon = status === "saved" ? Check : status === "saving" ? Loader2 : status === "offline" ? CloudOff : TriangleAlert;
+  // Sul telefono «Salvato» e «Salvataggio…» sono solo l'icona (verde, o la rotellina): la riga resta della stessa larghezza
+  // mentre si segna e non esce dallo schermo. I problemi hanno sempre la scritta (e l'avviso sotto).
+  const quiet = status === "saved" || status === "saving";
   return (
     <div className="flex items-center gap-1.5" data-scout-sync={status} data-tour="scout-sync" aria-live="polite">
-      <Badge tone={meta.tone} className="px-2.5 py-1">
+      <Badge tone={meta.tone} className={cn("px-2.5 py-1", quiet && "max-sm:px-1.5")} title={meta.text}>
         <Icon className={cn("h-3.5 w-3.5", status === "saving" && "animate-spin")} />
-        {meta.text}
+        <span className={cn(quiet && "max-sm:sr-only")}>{meta.text}</span>
       </Badge>
     </div>
   );
@@ -414,7 +417,7 @@ export function ScoutClient({
               {data.settings.publicLive && (
                 <Badge tone="danger" className="px-2.5 py-1" title="Il punteggio è visibile a tutti sul sito" data-scout-live-badge>
                   <Radio className="h-3.5 w-3.5" />
-                  Live sul sito
+                  Live<span className="max-sm:sr-only"> sul sito</span>
                 </Badge>
               )}
               <SyncBadge status={status} />
@@ -540,6 +543,14 @@ export function ScoutClient({
                       // La formazione scritta (o quella preparata in Partite) e non ancora confermata si applica da sola: niente da rifare.
                       lineupCommit.current?.();
                       setSetupOpen(false);
+                      // La preparazione è lunga e si comincia dal fondo: si torna in cima, al tabellone e ai pulsanti dei punti.
+                      // (A schermo intero scorrono le colonne, non la pagina.)
+                      requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0 });
+                        stageRef.current?.querySelectorAll<HTMLElement>("[data-scout-columns], [data-scout-main-scroll]").forEach((el) => {
+                          el.scrollTop = 0;
+                        });
+                      });
                     }}
                     data-scout-start
                     data-tour="scout-start"
@@ -608,7 +619,7 @@ export function ScoutClient({
                     ) : lastEvent?.type === "rotate" ? (
                       <p className="text-muted-foreground">Ultimo: rotazione {lastEvent.side === "us" ? "nostra" : "loro"} corretta</p>
                     ) : lastEvent ? (
-                      <p className="text-muted-foreground">Ultimo: fine del set</p>
+                      <p className="text-muted-foreground">{view.decided ? "Ultimo: fine della partita" : "Ultimo: fine del set"}</p>
                     ) : (
                       <p className="text-muted-foreground">Nessun punto ancora.</p>
                     )}

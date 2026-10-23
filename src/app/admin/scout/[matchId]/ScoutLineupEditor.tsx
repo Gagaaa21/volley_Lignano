@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type MutableRefObject } from "react";
+import { useEffect, useState, type MutableRefObject, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { DualLiveScoreCourt } from "@/app/admin/livescore/LiveScoreCourt";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +14,8 @@ import { shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import type { ScoutData, ScoutPlayer, ScoutSide } from "@/lib/scout/types";
 import type { CourtPosition, VolleyRole } from "@/lib/types";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { CourtNet, CourtThreeMeterLine } from "./ScoutCourtPicker";
 import { Sheet } from "./ScoutSheet";
 import type { ScoutAthlete } from "./ScoutSetup";
 
@@ -38,6 +40,50 @@ const emptyDraft = (): Draft => ({ positions: ["", "", "", "", "", ""], libero: 
 
 const FIELD =
   "w-full rounded-full bg-white/95 px-2 py-2 text-center text-[13px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700";
+
+/** Sul telefono ogni squadra ha la sua metà campo, vista dalla sua parte con la rete in alto (davanti 4-3-2, dietro 5-6-1), come
+ * nella finestra «chi?»: il campo intero in orizzontale lì è troppo stretto per leggere chi sta a rete. */
+const PHONE_SPOTS: Record<CourtPosition, { row: number; column: number }> = {
+  1: { row: 3, column: 3 },
+  2: { row: 1, column: 3 },
+  3: { row: 1, column: 2 },
+  4: { row: 1, column: 1 },
+  5: { row: 3, column: 1 },
+  6: { row: 3, column: 2 },
+};
+
+function PhoneLineupHalf({ side, renderCell }: { side: ScoutSide; renderCell: (position: CourtPosition) => ReactNode }) {
+  const ours = side === "us";
+  return (
+    <div
+      className={cn("rounded-2xl border p-2.5", ours ? "border-primary/25 bg-primary-soft/60" : "border-sand-400/50 bg-accent/50")}
+      data-scout-lineup-half={side}
+    >
+      <p className={cn("mb-2 text-[13px] font-bold", ours ? "text-primary" : "text-accent-foreground")}>{ours ? "Noi" : "Loro"}</p>
+      <CourtNet />
+      {/* Nel DOM le posizioni vanno in ordine (1, 2, 3…): con Invio si scrive la formazione di seguito, dalla battitrice in poi. */}
+      <div className="grid grid-cols-3 gap-x-2 gap-y-2">
+        <div className="col-span-3" style={{ gridRow: 2 }}>
+          <CourtThreeMeterLine />
+        </div>
+        {([1, 2, 3, 4, 5, 6] as const).map((position) => (
+          <div
+            key={position}
+            data-court-position={position}
+            className="relative min-w-0 rounded-xl border border-border-subtle bg-sand-500 px-1.5 pb-1.5 pt-5"
+            style={{ gridRow: PHONE_SPOTS[position].row, gridColumn: PHONE_SPOTS[position].column }}
+          >
+            <span className="absolute left-2 top-1 text-[10px] font-bold leading-4 text-white">
+              {position}
+              {position === 1 ? " · batte" : ""}
+            </span>
+            {renderCell(position)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Invio in un numero: passa al campo dopo, nell'ordine delle posizioni (le due squadre una di seguito all'altra). */
 function focusNextOnEnter(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -255,6 +301,37 @@ export function ScoutLineupEditor({
   }
 
   const oppOnCourt = opp.positions.filter((n) => cleanNumber(n));
+  // Il campo intero in orizzontale da 640 px in su; sotto, le due metà campo una sopra l'altra.
+  const wideCourt = useMediaQuery("(min-width: 640px)");
+  const usCell = (position: CourtPosition) => (
+    <select
+      value={us.positions[position - 1] ?? ""}
+      onChange={(e) => setUsPosition(position - 1, e.target.value)}
+      aria-label={`Noi, posizione ${position}`}
+      data-scout-lineup-cell={`us-${position}`}
+      className={FIELD}
+    >
+      <option value="">—</option>
+      {usPlayers.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.number ? `${p.number} · ${shortName(p, roster)}` : p.name}
+        </option>
+      ))}
+    </select>
+  );
+  const oppCell = (position: CourtPosition) => (
+    <input
+      value={opp.positions[position - 1] ?? ""}
+      onChange={(e) => setOppPosition(position - 1, e.target.value)}
+      onKeyDown={focusNextOnEnter}
+      inputMode="numeric"
+      enterKeyHint="next"
+      placeholder="N."
+      aria-label={`Loro, posizione ${position}`}
+      data-scout-lineup-cell={`opp-${position}`}
+      className={FIELD}
+    />
+  );
 
   const note =
     cur && source === "saved"
@@ -282,40 +359,14 @@ export function ScoutLineupEditor({
         )}
       </div>
 
-      <DualLiveScoreCourt
-        players={6}
-        labelA="Noi"
-        labelB="Loro"
-        renderCellA={(position: CourtPosition) => (
-          <select
-            value={us.positions[position - 1] ?? ""}
-            onChange={(e) => setUsPosition(position - 1, e.target.value)}
-            aria-label={`Noi, posizione ${position}`}
-            data-scout-lineup-cell={`us-${position}`}
-            className={FIELD}
-          >
-            <option value="">—</option>
-            {usPlayers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.number ? `${p.number} · ${shortName(p, roster)}` : p.name}
-              </option>
-            ))}
-          </select>
-        )}
-        renderCellB={(position: CourtPosition) => (
-          <input
-            value={opp.positions[position - 1] ?? ""}
-            onChange={(e) => setOppPosition(position - 1, e.target.value)}
-            onKeyDown={focusNextOnEnter}
-            inputMode="numeric"
-            enterKeyHint="next"
-            placeholder="N."
-            aria-label={`Loro, posizione ${position}`}
-            data-scout-lineup-cell={`opp-${position}`}
-            className={FIELD}
-          />
-        )}
-      />
+      {wideCourt ? (
+        <DualLiveScoreCourt players={6} labelA="Noi" labelB="Loro" renderCellA={usCell} renderCellB={oppCell} />
+      ) : (
+        <div className="space-y-3" data-scout-lineup-phone>
+          <PhoneLineupHalf side="us" renderCell={usCell} />
+          <PhoneLineupHalf side="opp" renderCell={oppCell} />
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-3">

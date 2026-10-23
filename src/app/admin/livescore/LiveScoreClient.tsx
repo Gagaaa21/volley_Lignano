@@ -1861,6 +1861,8 @@ export function LiveScoreClient({
               <SetupOption label="Formula">
                 <SegmentedButtons
                   ariaLabel="Formula"
+                  // Con «Libera» sono quattro: sui telefoni più stretti vanno a capo invece di uscire dallo schermo.
+                  className="flex-wrap"
                   value={match.rules.format}
                   onChange={(value) => dispatch({ type: "setRules", rules: { format: value } })}
                   items={[
