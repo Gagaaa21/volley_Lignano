@@ -34,11 +34,11 @@ import { normalizeContacts } from "@/lib/trips/contacts";
 import { normalizeTripData } from "@/lib/trips/rules";
 import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
 import {
-  UNAVAILABILITY_REASONS,
+  ABSENCE_REASONS,
+  type AbsenceReason,
+  type AnsweredBy,
   type AthleteFamilyLink,
-  type MatchUnavailability,
-  type ReportedBy,
-  type UnavailabilityReason,
+  type MatchAvailability,
 } from "@/lib/availability/types";
 import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
@@ -346,26 +346,29 @@ function athleteFamilyLinkFromRow(row: AthleteFamilyLinkRow): AthleteFamilyLink 
   return { athleteId: row.athlete_id, token: row.token, createdAt: row.created_at, rotatedAt: row.rotated_at };
 }
 
-type MatchUnavailabilityRow = {
+type MatchAvailabilityRow = {
   match_id: string;
   athlete_id: string;
+  status: string;
   reason: string | null;
   note: string | null;
-  reported_by: string;
+  answered_by: string;
   updated_by: string | null;
-  reported_at: string;
+  updated_at: string;
 };
 
-function matchUnavailabilityFromRow(row: MatchUnavailabilityRow): MatchUnavailability {
+function matchAvailabilityFromRow(row: MatchAvailabilityRow): MatchAvailability {
   return {
     matchId: row.match_id,
     athleteId: row.athlete_id,
+    // Il database ammette solo queste due risposte; qualunque altra cosa valga come assenza è meglio che non mostrarla.
+    status: row.status === "present" ? "present" : "absent",
     // Un motivo che non è tra quelli previsti vale «nessun motivo»; chi non è «staff» è il genitore.
-    reason: (UNAVAILABILITY_REASONS as readonly string[]).includes(row.reason ?? "") ? (row.reason as UnavailabilityReason) : null,
+    reason: (ABSENCE_REASONS as readonly string[]).includes(row.reason ?? "") ? (row.reason as AbsenceReason) : null,
     note: row.note,
-    reportedBy: (row.reported_by === "staff" ? "staff" : "parent") satisfies ReportedBy,
+    answeredBy: (row.answered_by === "staff" ? "staff" : "parent") satisfies AnsweredBy,
     updatedBy: row.updated_by,
-    reportedAt: row.reported_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -1013,39 +1016,40 @@ export const supabaseRepo: Repo = {
       .single();
     return athleteFamilyLinkFromRow(unwrap(result) as AthleteFamilyLinkRow);
   },
-  async listMatchUnavailability(filter) {
+  async listMatchAvailability(filter) {
     if (filter?.matchIds && filter.matchIds.length === 0) return [];
     const db = getSupabaseAdmin();
-    let query = db.from("match_unavailability").select("*");
+    let query = db.from("match_availability").select("*");
     if (filter?.matchIds) query = query.in("match_id", filter.matchIds);
     if (filter?.athleteId) query = query.eq("athlete_id", filter.athleteId);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return (data as MatchUnavailabilityRow[]).map(matchUnavailabilityFromRow);
+    return (data as MatchAvailabilityRow[]).map(matchAvailabilityFromRow);
   },
-  async setMatchUnavailability(input) {
+  async setMatchAvailability(input) {
     const db = getSupabaseAdmin();
     const result = await db
-      .from("match_unavailability")
+      .from("match_availability")
       .upsert(
         {
           match_id: input.matchId,
           athlete_id: input.athleteId,
+          status: input.status,
           reason: input.reason,
           note: input.note,
-          reported_by: input.reportedBy,
+          answered_by: input.answeredBy,
           updated_by: input.updatedBy,
-          reported_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
         { onConflict: "match_id,athlete_id" },
       )
       .select("*")
       .single();
-    return matchUnavailabilityFromRow(unwrap(result) as MatchUnavailabilityRow);
+    return matchAvailabilityFromRow(unwrap(result) as MatchAvailabilityRow);
   },
-  async clearMatchUnavailability(matchId, athleteId) {
+  async clearMatchAvailability(matchId, athleteId) {
     const db = getSupabaseAdmin();
-    const { error } = await db.from("match_unavailability").delete().eq("match_id", matchId).eq("athlete_id", athleteId);
+    const { error } = await db.from("match_availability").delete().eq("match_id", matchId).eq("athlete_id", athleteId);
     if (error) throw new Error(error.message);
   },
 

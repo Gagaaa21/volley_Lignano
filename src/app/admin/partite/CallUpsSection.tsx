@@ -1,8 +1,9 @@
 "use client";
 
-import { CalendarX2, Check, X } from "lucide-react";
+import { CalendarX2, Check, CircleHelp, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { categoryBadgeClass, categoryLabel } from "@/lib/category";
+import type { AnswerStatus } from "@/lib/availability/types";
 import type { Athlete } from "@/lib/types";
 
 function ToggleButton({
@@ -34,30 +35,31 @@ function ToggleButton({
   );
 }
 
-/** Un'atleta segnalata non disponibile per la partita: motivo e nota in una riga, e se l'ha scritto lo staff o il genitore. */
-export interface UnavailableFlag {
+/** La risposta di un'atleta per la partita («Ci sarà», oppure «Non ci sarà · motivo · nota»); senza risposta non c'è. */
+export interface AnswerFlag {
+  status: AnswerStatus;
   text: string;
-  byStaff: boolean;
 }
 
 /** Elenco convocazioni nello stesso stile della pagina Presenze: righe con
- * nome, categoria e un toggle Convocata/Non convocata. Chi è segnalata non
- * disponibile ha un avviso sotto il nome (più forte se è convocata): non la
- * toglie da sola, decide lo staff. */
+ * nome, categoria e un toggle Convocata/Non convocata. Sotto il nome c'è la
+ * risposta dell'atleta (ci sarà, non ci sarà, o ancora nessuna), più forte se è
+ * convocata e non c'è: non la toglie da sola, decide lo staff. Senza `answers`
+ * (la presenza non è attiva per questa partita) non c'è nessuna riga di risposta. */
 export function CallUpsSection({
   athletes,
   calledUp,
   onToggle,
   onSelectAll,
   onSelectNone,
-  unavailable = {},
+  answers,
 }: {
   athletes: Athlete[];
   calledUp: Set<string>;
   onToggle: (athleteId: string) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
-  unavailable?: Record<string, UnavailableFlag>;
+  answers?: Record<string, AnswerFlag>;
 }) {
   return (
     <div>
@@ -84,9 +86,9 @@ export function CallUpsSection({
         <div className="space-y-2.5">
           {athletes.map((athlete) => {
             const isCalledUp = calledUp.has(athlete.id);
-            const flag = unavailable[athlete.id];
+            const flag = answers?.[athlete.id];
             return (
-              <div key={athlete.id} className="rounded-xl border border-border-subtle bg-surface px-4 py-3.5">
+              <div key={athlete.id} className="rounded-xl border border-border-subtle bg-surface px-4 py-3.5" data-call-up-row={athlete.id}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate font-medium text-foreground">{athlete.fullName}</p>
@@ -114,18 +116,27 @@ export function CallUpsSection({
                     </ToggleButton>
                   </div>
                 </div>
-                {flag && (
+                {!answers ? null : flag?.status === "absent" ? (
                   <p
-                    className={cn(
-                      "mt-2 flex items-start gap-1.5 text-[13px] font-semibold",
-                      isCalledUp ? "text-destructive" : "text-warning",
-                    )}
-                    data-unavailable-flag={athlete.id}
+                    className={cn("mt-2 flex items-start gap-1.5 text-[13px] font-semibold", isCalledUp ? "text-destructive" : "text-warning")}
+                    data-answer-flag={athlete.id}
+                    data-answer-status="absent"
                   >
                     <CalendarX2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                     <span>
-                      Non disponibile{isCalledUp ? ", ma è convocata" : ""}: {flag.text} · {flag.byStaff ? "scritto dallo staff" : "segnalato dal genitore"}
+                      {flag.text}
+                      {isCalledUp ? " · ma è convocata" : ""}
                     </span>
+                  </p>
+                ) : flag?.status === "present" ? (
+                  <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-success" data-answer-flag={athlete.id} data-answer-status="present">
+                    <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {flag.text}
+                  </p>
+                ) : (
+                  <p className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground" data-answer-flag={athlete.id} data-answer-status="none">
+                    <CircleHelp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Nessuna risposta
                   </p>
                 )}
               </div>

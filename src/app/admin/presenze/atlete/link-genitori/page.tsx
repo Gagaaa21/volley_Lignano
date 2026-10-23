@@ -155,7 +155,7 @@ export default async function FamilyLinksPage() {
       <PageHeader
         back={{ href: "/admin/presenze/atlete", label: "Atlete" }}
         title="Link per i genitori"
-        description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì segna le partite a cui la figlia non può esserci. Niente account, niente elenco di nomi sul sito."
+        description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì risponde «Ci sarà» o «Non ci sarà» a ogni partita. Niente account, niente elenco di nomi sul sito."
         actions={
           <>
             <Badge tone={missing === 0 && active.length > 0 ? "success" : "neutral"} data-family-count>
@@ -184,7 +184,7 @@ export default async function FamilyLinksPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
         <span>
           Il link è solo di quella famiglia: se finisce dove non deve (per esempio in un gruppo), tocca <b>Rigenera</b> e il vecchio smette di funzionare. Le
-          segnalazioni le vedi nella scheda di ogni partita e nelle convocazioni; non compaiono mai sul sito pubblico.
+          risposte le vedi nella scheda di ogni partita («Chi viene») e nelle convocazioni, e le puoi cambiare anche tu; non compaiono mai sul sito pubblico.
         </span>
       </p>
 

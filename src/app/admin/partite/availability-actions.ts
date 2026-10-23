@@ -4,55 +4,57 @@ import { revalidatePath } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { appliesToAthlete, normalizeNote, parseReason } from "@/lib/availability/rules";
+import { appliesToAthlete, normalizeAnswer, parseStatus } from "@/lib/availability/rules";
 
 /**
- * Le non disponibilità di una partita, dalla sua pagina: lo staff può aggiungerne una (per esempio quando il genitore scrive in
- * chat) o toglierne una, anche se l'ha segnata il genitore. Ogni azione ricontrolla il permesso «Partite» e lavora solo su una
- * partita di U14/U15 e su un'atleta che la riguarda.
+ * La risposta di un'atleta per una partita, dalla scheda della partita: l'allenatore scrive «Ci sarà» o «Non ci sarà» (con motivo
+ * e nota) o la toglie (l'atleta torna «senza risposta»), sempre, a ogni ora e a partita finita, anche se l'aveva scritta il
+ * genitore. Ricontrolla il permesso «Partite» e lavora solo su una partita di U14/U15 e su un'atleta attiva che la riguarda.
  */
 
-const idOf = (formData: FormData, name: string) => formData.get(name)?.toString().trim().slice(0, 100) ?? "";
+export type StaffAnswerResult = { ok: true } | { ok: false; error: string };
 
-function refresh(matchId: string) {
-  revalidatePath(`/admin/partite/${matchId}`);
-  revalidatePath("/admin/partite");
-}
+const plainId = (value: unknown) => (typeof value === "string" ? value.trim().slice(0, 100) : "");
 
-/** Segna un'atleta non disponibile per la partita, a nome dello staff. */
-export async function setStaffUnavailabilityAction(formData: FormData) {
+/** `status` nullo toglie la risposta. */
+export async function setStaffAnswerAction(
+  matchId: string,
+  athleteId: string,
+  status: string | null,
+  reason: string | null,
+  note: string,
+): Promise<StaffAnswerResult> {
   const session = await requireStaffPage("partite");
-  const matchId = idOf(formData, "matchId");
-  const athleteId = idOf(formData, "athleteId");
-  const repo = await getActiveRepo();
-  const [match, athlete] = await Promise.all([repo.getMatch(matchId), repo.getAthlete(athleteId)]);
-  if (match && athlete && match.team === "u14u15" && athlete.isActive && appliesToAthlete(match, athlete)) {
-    try {
-      await repo.setMatchUnavailability({
-        matchId,
-        athleteId,
-        reason: parseReason(formData.get("reason")),
-        note: normalizeNote(formData.get("note")),
-        reportedBy: "staff",
-        updatedBy: session.sub,
-      });
-    } catch (error) {
-      if (!isAvailabilityTableMissing(error)) throw error;
-    }
-  }
-  refresh(matchId);
-}
+  const match = plainId(matchId);
+  const athlete = plainId(athleteId);
+  const parsed = status === null ? null : parseStatus(status);
+  if (status !== null && !parsed) return { ok: false, error: "Risposta non valida." };
 
-/** Toglie la segnalazione (l'atleta torna disponibile). */
-export async function clearStaffUnavailabilityAction(formData: FormData) {
-  await requireStaffPage("partite");
-  const matchId = idOf(formData, "matchId");
-  const athleteId = idOf(formData, "athleteId");
   const repo = await getActiveRepo();
   try {
-    await repo.clearMatchUnavailability(matchId, athleteId);
+    const [matchRow, athleteRow] = await Promise.all([repo.getMatch(match), repo.getAthlete(athlete)]);
+    if (!matchRow || matchRow.team !== "u14u15") return { ok: false, error: "Partita non trovata." };
+    if (!athleteRow || !athleteRow.isActive || !appliesToAthlete(matchRow, athleteRow)) {
+      return { ok: false, error: "Questa atleta non riguarda la partita." };
+    }
+    if (parsed === null) await repo.clearMatchAvailability(match, athlete);
+    else {
+      await repo.setMatchAvailability({
+        matchId: match,
+        athleteId: athlete,
+        ...normalizeAnswer({ status: parsed, reason, note }),
+        answeredBy: "staff",
+        updatedBy: session.sub,
+      });
+    }
   } catch (error) {
-    if (!isAvailabilityTableMissing(error)) throw error;
+    if (isAvailabilityTableMissing(error)) {
+      return { ok: false, error: "Mancano le tabelle della presenza nel database: va eseguito l'aggiornamento (vedi supabase/schema.sql)." };
+    }
+    throw error;
   }
-  refresh(matchId);
+  revalidatePath(`/admin/partite/${match}`);
+  revalidatePath("/admin/partite");
+  revalidatePath("/admin");
+  return { ok: true };
 }

@@ -70,7 +70,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
     matchScouts,
     matchTrips,
     athleteContacts,
-    matchUnavailability,
+    matchAvailability,
     matchPredictions,
     trainingPlans,
     trainingOccurrencePlans,
@@ -86,9 +86,9 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
     // Idem le trasferte e la rubrica dei genitori: due tabelle da creare su Supabase.
     realRepo.listMatchTrips().catch(() => []),
     realRepo.listAthleteContacts().catch(() => []),
-    // Le non disponibilità segnalate si copiano (per provare con dati veri); i link dei genitori no: sono segreti, e quelli
+    // Le risposte di presenza si copiano (per provare con dati veri); i link dei genitori no: sono segreti, e quelli
     // creati nella prova non funzionano comunque per i genitori, che aprono sempre il database reale.
-    realRepo.listMatchUnavailability().catch(() => []),
+    realRepo.listMatchAvailability().catch(() => []),
     realRepo.listPredictions(),
     realRepo.listTrainingPlans(),
     realRepo.listTrainingOccurrencePlans(),
@@ -104,7 +104,7 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
   store.matchScouts = cloneAll(matchScouts);
   store.matchTrips = cloneAll(matchTrips);
   store.athleteContacts = cloneAll(athleteContacts);
-  store.matchUnavailability = cloneAll(matchUnavailability);
+  store.matchAvailability = cloneAll(matchAvailability);
   store.matchPredictions = cloneAll(matchPredictions);
   store.trainingPlans = cloneAll(trainingPlans);
   store.trainingOccurrencePlans = cloneAll(trainingOccurrencePlans);
@@ -139,8 +139,8 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "saveAthleteContacts",
   "ensureAthleteFamilyLink",
   "rotateAthleteFamilyLink",
-  "setMatchUnavailability",
-  "clearMatchUnavailability",
+  "setMatchAvailability",
+  "clearMatchAvailability",
   "upsertPrediction",
   "createTrainingPlan",
   "updateTrainingPlan",

@@ -6,7 +6,7 @@ import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CallUpsAndLineupsDialog } from "./CallUpsAndLineupsDialog";
-import type { UnavailableFlag } from "./CallUpsSection";
+import type { AnswerFlag } from "./CallUpsSection";
 import type { Athlete, MatchLineup } from "@/lib/types";
 
 /** Tasto in fondo alla pagina partita che apre la finestra unica per
@@ -18,20 +18,19 @@ export function MatchWorkspace({
   allAthletes,
   initialCalledUpIds,
   initialLineup,
-  unavailable = {},
+  answers,
 }: {
   matchId: string;
   title: string;
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
-  /** Le atlete segnalate non disponibili per questa partita (motivo e chi l'ha segnalato), per atleta. */
-  unavailable?: Record<string, UnavailableFlag>;
+  /** La risposta di ogni atleta che ha risposto, per atleta (chi non ha risposto non ha nessuna voce). Senza, la presenza non è attiva. */
+  answers?: Record<string, AnswerFlag>;
 }) {
   const [open, setOpen] = useState(false);
   const calledUpCount = initialCalledUpIds.length;
-  const unavailableCount = Object.keys(unavailable).length;
-  const calledUpButUnavailable = initialCalledUpIds.filter((id) => unavailable[id]).length;
+  const calledUpButAbsent = initialCalledUpIds.filter((id) => answers?.[id]?.status === "absent").length;
 
   return (
     <>
@@ -47,14 +46,9 @@ export function MatchWorkspace({
                 <span className="tabular font-semibold text-foreground">{calledUpCount}</span> su {allAthletes.length}{" "}
                 convocate · formazioni per set ed esportazione PDF
               </p>
-              {calledUpButUnavailable > 0 && (
-                <p className="mt-1 text-sm font-semibold text-destructive" data-called-up-unavailable>
-                  {calledUpButUnavailable === 1 ? "1 convocata è segnalata non disponibile" : `${calledUpButUnavailable} convocate sono segnalate non disponibili`}
-                </p>
-              )}
-              {calledUpButUnavailable === 0 && unavailableCount > 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {unavailableCount === 1 ? "1 atleta non disponibile, non convocata" : `${unavailableCount} atlete non disponibili, non convocate`}
+              {calledUpButAbsent > 0 && (
+                <p className="mt-1 text-sm font-semibold text-destructive" data-called-up-absent>
+                  {calledUpButAbsent === 1 ? "1 convocata ha risposto «Non ci sarà»" : `${calledUpButAbsent} convocate hanno risposto «Non ci sarà»`}
                 </p>
               )}
             </div>
@@ -116,7 +110,7 @@ export function MatchWorkspace({
           allAthletes={allAthletes}
           initialCalledUpIds={initialCalledUpIds}
           initialLineup={initialLineup}
-          unavailable={unavailable}
+          answers={answers}
           onClose={() => setOpen(false)}
         />
       )}

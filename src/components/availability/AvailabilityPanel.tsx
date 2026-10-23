@@ -1,30 +1,33 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { CalendarX2, Clock, MapPin, Pencil, Undo2 } from "lucide-react";
-import { clearUnavailableAction, reportUnavailableAction } from "@/app/disponibilita/[codice]/actions";
+import { CalendarX2, Check, Clock, MapPin, X } from "lucide-react";
+import { answerAction } from "@/app/disponibilita/[codice]/actions";
 import { cn } from "@/lib/cn";
-import { describeUnavailability } from "@/lib/availability/rules";
 import {
+  ABSENCE_REASONS,
+  ABSENCE_REASON_LABELS,
   MAX_NOTE_LENGTH,
-  UNAVAILABILITY_REASONS,
-  UNAVAILABILITY_REASON_LABELS,
-  type ReportedBy,
-  type UnavailabilityReason,
+  type AbsenceReason,
+  type AnsweredBy,
+  type AnswerStatus,
 } from "@/lib/availability/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input, Label } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Field";
 
-/** Cosa sa la pagina di una partita: solo quello che serve a mostrarla (mai chi è convocata né altro). */
-export interface FamilyReport {
-  reason: UnavailabilityReason | null;
+/** La risposta di una partita, com'è scritta adesso: cosa, chi l'ha scritta e quando (già in italiano, «23 ott, 10:02» o «adesso»). */
+export interface FamilyAnswer {
+  status: AnswerStatus;
+  reason: AbsenceReason | null;
   note: string | null;
-  reportedBy: ReportedBy;
+  by: AnsweredBy;
+  when: string;
 }
 
+/** Cosa sa la pagina di una partita: solo quello che serve a mostrarla (mai chi è convocata né altro). */
 export interface FamilyMatchItem {
   matchId: string;
   title: string;
@@ -35,35 +38,44 @@ export interface FamilyMatchItem {
   /** «Amichevole» o «Torneo», se non è una partita di campionato. */
   kind: string | null;
   meeting: string | null;
-  /** Il genitore può ancora cambiare (fino all'inizio della partita). */
+  /** Il genitore può ancora rispondere (fino all'inizio della partita). */
   open: boolean;
-  report: FamilyReport | null;
+  /** Nessuna risposta ancora = null. */
+  answer: FamilyAnswer | null;
 }
 
-type Change = { type: "set"; matchId: string; report: FamilyReport } | { type: "clear"; matchId: string };
+type Change = { matchId: string; answer: FamilyAnswer };
 
 function applyChange(items: FamilyMatchItem[], change: Change): FamilyMatchItem[] {
-  return items.map((item) =>
-    item.matchId !== change.matchId ? item : { ...item, report: change.type === "set" ? change.report : null },
-  );
+  return items.map((item) => (item.matchId === change.matchId ? { ...item, answer: change.answer } : item));
 }
 
 /**
- * Le partite in programma di un'atleta con, per ognuna, «Non ci sarà»: un tocco, il motivo a scelta e una nota breve se si
- * vuole; poi si può modificare o togliere. Cambia subito sullo schermo e intanto va al server; se il server rifiuta torna
- * com'era e lo dice. Chi ha il link può cambiare ogni partita finché non comincia, anche una segnalazione scritta dallo staff.
+ * Le partite in programma di un'atleta, ognuna con due pulsanti: «Ci sarà» e «Non ci sarà». Si tocca e basta, senza conferme: la
+ * risposta cambia subito sullo schermo e intanto va al server (se il server rifiuta torna com'era e lo dice). Con «Non ci sarà»
+ * si può dire anche perché e scrivere una nota. Si cambia risposta quando si vuole, anche se l'aveva scritta l'allenatore, finché
+ * la partita non comincia.
  */
 export function AvailabilityPanel({ token, items }: { token: string; items: FamilyMatchItem[] }) {
   const [optimistic, applyOptimistic] = useOptimistic(items, applyChange);
   const [saving, startTransition] = useTransition();
   const [error, setError] = useState<{ matchId: string; message: string } | null>(null);
 
-  function run(matchId: string, change: Change, call: () => Promise<{ ok: true } | { ok: false; error: string }>) {
+  function answer(matchId: string, status: AnswerStatus, reason: AbsenceReason | null, note: string) {
     setError(null);
     startTransition(async () => {
-      applyOptimistic(change);
+      applyOptimistic({
+        matchId,
+        answer: {
+          status,
+          reason: status === "absent" ? reason : null,
+          note: status === "absent" ? note.trim() || null : null,
+          by: "parent",
+          when: "adesso",
+        },
+      });
       try {
-        const result = await call();
+        const result = await answerAction(token, matchId, status, reason, note);
         if (!result.ok) setError({ matchId, message: result.error });
       } catch {
         setError({ matchId, message: "Non sono riuscito a salvare: controlla la connessione e riprova." });
@@ -88,13 +100,7 @@ export function AvailabilityPanel({ token, items }: { token: string; items: Fami
           key={item.matchId}
           item={item}
           error={error?.matchId === item.matchId ? error.message : null}
-          saving={saving}
-          onReport={(reason, note) =>
-            run(item.matchId, { type: "set", matchId: item.matchId, report: { reason, note: note.trim() || null, reportedBy: "parent" } }, () =>
-              reportUnavailableAction(token, item.matchId, reason, note),
-            )
-          }
-          onClear={() => run(item.matchId, { type: "clear", matchId: item.matchId }, () => clearUnavailableAction(token, item.matchId))}
+          onAnswer={(status, reason, note) => answer(item.matchId, status, reason, note)}
         />
       ))}
     </ul>
@@ -104,37 +110,18 @@ export function AvailabilityPanel({ token, items }: { token: string; items: Fami
 function MatchCard({
   item,
   error,
-  saving,
-  onReport,
-  onClear,
+  onAnswer,
 }: {
   item: FamilyMatchItem;
   error: string | null;
-  saving: boolean;
-  onReport: (reason: UnavailabilityReason | null, note: string) => void;
-  onClear: () => void;
+  onAnswer: (status: AnswerStatus, reason: AbsenceReason | null, note: string) => void;
 }) {
-  const [asking, setAsking] = useState(false);
-  const [reason, setReason] = useState<UnavailabilityReason | null>(null);
-  const [note, setNote] = useState("");
-  const report = item.report;
-  const byStaff = report?.reportedBy === "staff";
-
-  /** Apre il modulo: vuoto per una segnalazione nuova, con quello che c'è già per modificarla. */
-  function startAsking() {
-    setReason(report?.reason ?? null);
-    setNote(report?.note ?? "");
-    setAsking(true);
-  }
-
-  function confirm() {
-    onReport(reason, note);
-    setAsking(false);
-  }
+  const answer = item.answer;
+  const status = answer?.status ?? null;
 
   return (
-    <li data-availability-match={item.matchId} data-availability-state={report ? "unavailable" : "available"}>
-      <Card className={cn("px-4 py-4 sm:px-5", report && "border-destructive/30")}>
+    <li data-availability-match={item.matchId} data-availability-state={status ?? "none"}>
+      <Card className={cn("px-4 py-4 sm:px-5", status === "present" && "border-success/40", status === "absent" && "border-destructive/40")}>
         <p className="font-display text-base font-bold leading-snug text-foreground">
           {item.dateLabel} · {item.timeLabel}
         </p>
@@ -154,92 +141,59 @@ function MatchCard({
           </p>
         )}
 
-        {report && (
-          <div className="mt-3 rounded-xl bg-destructive/10 px-3.5 py-3 text-sm" data-availability-report>
-            <p className="flex items-center gap-2 font-bold text-destructive">
-              <CalendarX2 className="h-4 w-4 shrink-0" aria-hidden />
-              Non ci sarà
-            </p>
-            <p className="mt-0.5 text-foreground/75">{describeUnavailability(report)}</p>
-            {byStaff && <p className="mt-1 text-[13px] text-muted-foreground">Inserita dall&apos;allenatore{item.open ? ": puoi cambiarla tu." : "."}</p>}
-          </div>
-        )}
-
-        {report && item.open && !asking && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={startAsking} data-availability-edit>
-              <Pencil className="h-4 w-4" />
-              Modifica
-            </Button>
-            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={onClear} data-availability-clear>
-              <Undo2 className="h-4 w-4" />
-              Torna disponibile
-            </Button>
-          </div>
-        )}
-
-        {!report && item.open && !asking && (
-          <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={startAsking} data-availability-open>
-            <CalendarX2 className="h-4 w-4" />
+        <div role="group" aria-label="Ci sarà o non ci sarà" className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            aria-pressed={status === "present"}
+            disabled={!item.open}
+            onClick={() => status !== "present" && onAnswer("present", null, "")}
+            className={cn(
+              "inline-flex h-12 items-center justify-center gap-2 rounded-xl border text-[15px] font-bold transition disabled:cursor-not-allowed disabled:opacity-60",
+              status === "present"
+                ? "border-success bg-success text-white shadow-xs"
+                : "border-border-strong/80 bg-surface text-foreground hover:bg-surface-muted",
+            )}
+            data-answer="present"
+          >
+            <Check className="h-5 w-5" aria-hidden />
+            Ci sarà
+          </button>
+          <button
+            type="button"
+            aria-pressed={status === "absent"}
+            disabled={!item.open}
+            onClick={() => status !== "absent" && onAnswer("absent", null, "")}
+            className={cn(
+              "inline-flex h-12 items-center justify-center gap-2 rounded-xl border text-[15px] font-bold transition disabled:cursor-not-allowed disabled:opacity-60",
+              status === "absent"
+                ? "border-destructive bg-destructive text-white shadow-xs"
+                : "border-border-strong/80 bg-surface text-foreground hover:bg-surface-muted",
+            )}
+            data-answer="absent"
+          >
+            <X className="h-5 w-5" aria-hidden />
             Non ci sarà
-          </Button>
-        )}
+          </button>
+        </div>
 
-        {!item.open && (
-          <p className="mt-3 text-[13px] text-muted-foreground" data-availability-closed>
-            La partita è già cominciata: da qui non si può più cambiare.
+        <p className="mt-2 text-[13px] text-muted-foreground" data-availability-status>
+          {answer ? `${answer.by === "parent" ? "La tua risposta" : "Risposta dell'allenatore"} · ${answer.when}` : "Non hai ancora risposto."}
+        </p>
+
+        {answer?.status === "absent" && item.open && (
+          // Il campo della nota riparte da quella salvata quando cambia (per esempio se la cambia l'allenatore).
+          <AbsenceDetails key={answer.note ?? ""} answer={answer} onChange={(reason, note) => onAnswer("absent", reason, note)} />
+        )}
+        {answer?.status === "absent" && !item.open && (answer.reason || answer.note) && (
+          <p className="mt-2 text-sm text-foreground/75" data-availability-details-readonly>
+            {[answer.reason ? ABSENCE_REASON_LABELS[answer.reason] : null, answer.note].filter(Boolean).join(" · ")}
           </p>
         )}
 
-        {asking && (
-          <div className="mt-3 space-y-3 rounded-xl bg-surface-muted px-3.5 py-3.5" data-availability-form>
-            <fieldset>
-              <legend className="mb-2 text-[13px] font-semibold text-foreground/80">Il motivo (se vuoi dirlo)</legend>
-              <div className="flex flex-wrap gap-2">
-                {UNAVAILABILITY_REASONS.map((key) => (
-                  <label
-                    key={key}
-                    className={cn(
-                      "cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-semibold transition focus-within:ring-2 focus-within:ring-ring/50",
-                      reason === key
-                        ? "border-primary bg-primary-soft text-primary"
-                        : "border-border-strong/80 bg-surface text-foreground hover:bg-surface-muted",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name={`reason-${item.matchId}`}
-                      className="sr-only"
-                      checked={reason === key}
-                      onChange={() => setReason(key)}
-                      data-reason={key}
-                    />
-                    {UNAVAILABILITY_REASON_LABELS[key]}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div>
-              <Label htmlFor={`note-${item.matchId}`}>Una nota per l&apos;allenatore (facoltativa)</Label>
-              <Input
-                id={`note-${item.matchId}`}
-                value={note}
-                maxLength={MAX_NOTE_LENGTH}
-                autoComplete="off"
-                placeholder="Es. torna domenica sera"
-                onChange={(event) => setNote(event.target.value)}
-                data-availability-note
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={confirm} disabled={saving} data-availability-confirm>
-                {report ? "Salva le modifiche" : "Conferma: non ci sarà"}
-              </Button>
-              <Button type="button" variant="quiet" onClick={() => setAsking(false)}>
-                Annulla
-              </Button>
-            </div>
-          </div>
+        {!item.open && (
+          <p className="mt-2 text-[13px] text-muted-foreground" data-availability-closed>
+            La partita è già cominciata: da qui non si può più cambiare.
+          </p>
         )}
 
         {error && (
@@ -249,5 +203,60 @@ function MatchCard({
         )}
       </Card>
     </li>
+  );
+}
+
+/** Con «Non ci sarà»: perché (a scelta, si toglie toccando ancora) e una nota breve, tutto facoltativo. */
+function AbsenceDetails({ answer, onChange }: { answer: FamilyAnswer; onChange: (reason: AbsenceReason | null, note: string) => void }) {
+  const [draft, setDraft] = useState(answer.note ?? "");
+  const changed = draft.trim() !== (answer.note ?? "");
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl bg-surface-muted px-3.5 py-3.5" data-availability-details>
+      <fieldset>
+        <legend className="mb-2 text-[13px] font-semibold text-foreground/80">Se vuoi dirlo, perché?</legend>
+        <div className="flex flex-wrap gap-2">
+          {ABSENCE_REASONS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={answer.reason === key}
+              onClick={() => onChange(answer.reason === key ? null : key, draft)}
+              className={cn(
+                "rounded-xl border px-3.5 py-2 text-sm font-semibold transition",
+                answer.reason === key
+                  ? "border-primary bg-primary-soft text-primary"
+                  : "border-border-strong/80 bg-surface text-foreground hover:bg-surface-muted",
+              )}
+              data-availability-reason={key}
+            >
+              {ABSENCE_REASON_LABELS[key]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          maxLength={MAX_NOTE_LENGTH}
+          autoComplete="off"
+          aria-label="Una nota per l'allenatore"
+          placeholder="Una nota per l'allenatore (facoltativa)"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && changed) {
+              event.preventDefault();
+              onChange(answer.reason, draft);
+            }
+          }}
+          data-availability-note
+        />
+        {changed && (
+          <Button type="button" className="shrink-0" onClick={() => onChange(answer.reason, draft)} data-availability-note-save>
+            Salva
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

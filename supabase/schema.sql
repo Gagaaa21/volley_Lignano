@@ -229,26 +229,40 @@ alter table athlete_family_links enable row level security;
 -- Nessuna policy pubblica: i codici dei link sono segreti.
 
 -- =========================================================
--- match_unavailability — le partite a cui un'atleta non c'è, segnalate dal
--- genitore (dal suo link) o dallo staff. Una riga per partita e atleta;
--- "reason" è uno tra malata, famiglia, altro (o vuoto), "note" una nota
--- breve; "reported_by" dice se l'ha scritta il genitore ("parent") o lo
--- staff ("staff", con "updated_by"). Riservata allo staff: mai sul sito
--- pubblico.
+-- match_availability — la risposta di ogni atleta per ogni partita: «Ci sarà»
+-- ("present") o «Non ci sarà» ("absent"), scritta dal genitore (dal suo link)
+-- o dall'allenatore. Chi non ha risposto non ha nessuna riga. Una riga per
+-- partita e atleta; per un'assenza "reason" è uno tra malata, famiglia, altro
+-- (o vuoto) e "note" una nota breve; "answered_by" dice chi ha scritto l'ultima
+-- risposta ("parent" o "staff", con "updated_by") e "updated_at" quando.
+-- Riservata allo staff: mai sul sito pubblico.
 -- =========================================================
-create table if not exists match_unavailability (
+create table if not exists match_availability (
   match_id uuid not null references matches(id) on delete cascade,
   athlete_id uuid not null references athletes(id) on delete cascade,
+  status text not null check (status in ('present', 'absent')),
   reason text,
   note text,
-  reported_by text not null default 'parent',
+  answered_by text not null default 'parent',
   updated_by uuid references staff(id) on delete set null,
-  reported_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   primary key (match_id, athlete_id)
 );
 
-alter table match_unavailability enable row level security;
--- Nessuna policy pubblica: le segnalazioni sono riservate allo staff.
+alter table match_availability enable row level security;
+-- Nessuna policy pubblica: le risposte sono riservate allo staff.
+
+-- Chi aveva già creato la prima versione (la tabella «match_unavailability», solo con le assenze): le sue segnalazioni passano
+-- qui come «Non ci sarà» e la vecchia tabella non serve più. Chi non l'ha mai creata non ha niente da fare.
+do $$ begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'match_unavailability') then
+    insert into match_availability (match_id, athlete_id, status, reason, note, answered_by, updated_by, updated_at)
+      select match_id, athlete_id, 'absent', reason, note, reported_by, updated_by, reported_at
+      from match_unavailability
+      on conflict (match_id, athlete_id) do nothing;
+    drop table match_unavailability;
+  end if;
+end $$;
 
 -- =========================================================
 -- match_predictions — pronostici sul punteggio di ogni set di una partita
@@ -655,11 +669,13 @@ alter table training_sessions add column if not exists occurrence_overrides json
 -- esistente né nuovo, finché il Developer non spunta "Trasferte" per lui dal
 -- Centro di controllo; il Developer la vede sempre.
 
--- Nuova funzione "Disponibilità" (link personali per i genitori, tabelle
--- athlete_family_links e match_unavailability sopra, da creare una volta
--- sola: basta incollare questi due blocchi nell'SQL Editor di Supabase e
--- premere Run). Nessun permesso nuovo: i link si gestiscono dalle Atlete
--- (permesso Presenze) e le segnalazioni si vedono nelle Partite.
+-- Nuova funzione "Presenza alle partite" (link personali per i genitori,
+-- tabelle athlete_family_links e match_availability sopra, da creare una
+-- volta sola: basta incollare questi blocchi nell'SQL Editor di Supabase e
+-- premere Run; chi aveva la prima versione, match_unavailability, ritrova le
+-- sue segnalazioni nella tabella nuova). Nessun permesso nuovo: i link si
+-- gestiscono dalle Atlete (permesso Presenze) e le risposte si vedono e si
+-- cambiano nelle Partite.
 
 -- Nuova sezione "Test fisici" (vedi tabella physical_tests sopra, già
 -- creata da questo file): gli account Admin già esistenti e con pagine

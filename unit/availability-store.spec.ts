@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
 import { newFamilyToken } from "@/lib/availability/token";
+import type { MatchAvailabilityInput } from "@/lib/availability/types";
 import type { AthleteInput, MatchInput } from "@/lib/types";
 
 /**
- * L'archivio dei link per i genitori e delle non disponibilità (lo stesso che usa la modalità prova). Con Supabase il
+ * L'archivio dei link per i genitori e delle risposte di presenza (lo stesso che usa la modalità prova). Con Supabase il
  * comportamento è lo stesso (vedi schema.sql).
  */
 
@@ -100,36 +101,37 @@ test.describe("link dei genitori nell'archivio", () => {
   });
 });
 
-test.describe("non disponibilità nell'archivio", () => {
-  test("una riga per partita e atleta: segnarla di nuovo la aggiorna, non la duplica", async () => {
+test.describe("risposte di presenza nell'archivio", () => {
+  const answer = (matchId: string, athleteId: string, overrides: Partial<MatchAvailabilityInput> = {}): MatchAvailabilityInput => ({
+    matchId,
+    athleteId,
+    status: "present",
+    reason: null,
+    note: null,
+    answeredBy: "parent",
+    updatedBy: null,
+    ...overrides,
+  });
+
+  test("una sola risposta per partita e atleta: scriverne un'altra la sostituisce, non la duplica", async () => {
     const repo = createMemoryRepo(createEmptyStore());
     const match = await repo.createMatch(matchInput, null);
     const anna = await repo.createAthlete(athleteInput("Anna Bianchi"), null);
 
-    const first = await repo.setMatchUnavailability({
-      matchId: match.id,
-      athleteId: anna.id,
-      reason: "malata",
-      note: null,
-      reportedBy: "parent",
-      updatedBy: null,
-    });
-    expect(first.reason).toBe("malata");
-    expect(first.reportedAt).toBeTruthy();
+    const first = await repo.setMatchAvailability(answer(match.id, anna.id, { status: "absent", reason: "malata" }));
+    expect(first).toMatchObject({ status: "absent", reason: "malata", answeredBy: "parent" });
+    expect(first.updatedAt).toBeTruthy();
 
-    const second = await repo.setMatchUnavailability({
-      matchId: match.id,
-      athleteId: anna.id,
-      reason: "famiglia",
-      note: "matrimonio",
-      reportedBy: "staff",
-      updatedBy: "staff-1",
-    });
-    expect(second.reportedBy).toBe("staff");
+    // L'allenatore la cambia in «Ci sarà» (per esempio dopo un messaggio in chat): vale l'ultima, e si vede chi l'ha scritta.
+    const second = await repo.setMatchAvailability(answer(match.id, anna.id, { status: "present", answeredBy: "staff", updatedBy: "staff-1" }));
+    expect(second).toMatchObject({ status: "present", reason: null, answeredBy: "staff", updatedBy: "staff-1" });
 
-    const all = await repo.listMatchUnavailability();
+    // E il genitore la rimette a «Non ci sarà», con motivo e nota.
+    await repo.setMatchAvailability(answer(match.id, anna.id, { status: "absent", reason: "famiglia", note: "matrimonio" }));
+
+    const all = await repo.listMatchAvailability();
     expect(all).toHaveLength(1);
-    expect(all[0]).toMatchObject({ reason: "famiglia", note: "matrimonio", reportedBy: "staff", updatedBy: "staff-1" });
+    expect(all[0]).toMatchObject({ status: "absent", reason: "famiglia", note: "matrimonio", answeredBy: "parent", updatedBy: null });
   });
 
   test("si filtra per partite o per atleta; un elenco di partite vuoto non dà niente", async () => {
@@ -138,60 +140,65 @@ test.describe("non disponibilità nell'archivio", () => {
     const m2 = await repo.createMatch({ ...matchInput, opponent: "Cividale" }, null);
     const anna = await repo.createAthlete(athleteInput("Anna Bianchi"), null);
     const bea = await repo.createAthlete(athleteInput("Bea Rossi"), null);
-    const mark = (matchId: string, athleteId: string) =>
-      repo.setMatchUnavailability({ matchId, athleteId, reason: null, note: null, reportedBy: "parent", updatedBy: null });
-    await mark(m1.id, anna.id);
-    await mark(m1.id, bea.id);
-    await mark(m2.id, anna.id);
+    await repo.setMatchAvailability(answer(m1.id, anna.id, { status: "absent" }));
+    await repo.setMatchAvailability(answer(m1.id, bea.id));
+    await repo.setMatchAvailability(answer(m2.id, anna.id));
 
-    expect(await repo.listMatchUnavailability()).toHaveLength(3);
-    expect(await repo.listMatchUnavailability({ matchIds: [m1.id] })).toHaveLength(2);
-    expect(await repo.listMatchUnavailability({ matchIds: [m1.id, m2.id] })).toHaveLength(3);
-    expect(await repo.listMatchUnavailability({ athleteId: anna.id })).toHaveLength(2);
-    expect(await repo.listMatchUnavailability({ matchIds: [m2.id], athleteId: bea.id })).toHaveLength(0);
-    expect(await repo.listMatchUnavailability({ matchIds: [] })).toEqual([]);
+    expect(await repo.listMatchAvailability()).toHaveLength(3);
+    expect(await repo.listMatchAvailability({ matchIds: [m1.id] })).toHaveLength(2);
+    expect(await repo.listMatchAvailability({ matchIds: [m1.id, m2.id] })).toHaveLength(3);
+    expect(await repo.listMatchAvailability({ athleteId: anna.id })).toHaveLength(2);
+    expect(await repo.listMatchAvailability({ matchIds: [m2.id], athleteId: bea.id })).toHaveLength(0);
+    expect(await repo.listMatchAvailability({ matchIds: [] })).toEqual([]);
   });
 
-  test("si toglie con clear; toglierne una che non c'è non fa niente", async () => {
+  test("si toglie con clear (l'atleta torna «senza risposta»); toglierne una che non c'è non fa niente", async () => {
     const repo = createMemoryRepo(createEmptyStore());
     const match = await repo.createMatch(matchInput, null);
     const anna = await repo.createAthlete(athleteInput("Anna Bianchi"), null);
-    await repo.setMatchUnavailability({ matchId: match.id, athleteId: anna.id, reason: null, note: null, reportedBy: "parent", updatedBy: null });
-    await repo.clearMatchUnavailability(match.id, anna.id);
-    expect(await repo.listMatchUnavailability()).toEqual([]);
-    await repo.clearMatchUnavailability(match.id, anna.id);
+    await repo.setMatchAvailability(answer(match.id, anna.id));
+    await repo.clearMatchAvailability(match.id, anna.id);
+    expect(await repo.listMatchAvailability()).toEqual([]);
+    await repo.clearMatchAvailability(match.id, anna.id);
   });
 
   test("servono la partita e l'atleta: come in database, senza una delle due non si scrive", async () => {
     const repo = createMemoryRepo(createEmptyStore());
     const match = await repo.createMatch(matchInput, null);
     const anna = await repo.createAthlete(athleteInput("Anna Bianchi"), null);
-    const base = { reason: null, note: null, reportedBy: "parent", updatedBy: null } as const;
-    await expect(repo.setMatchUnavailability({ ...base, matchId: "non-esiste", athleteId: anna.id })).rejects.toThrow(/Partita non trovata/);
-    await expect(repo.setMatchUnavailability({ ...base, matchId: match.id, athleteId: "non-esiste" })).rejects.toThrow(/Atleta non trovata/);
+    await expect(repo.setMatchAvailability(answer("non-esiste", anna.id))).rejects.toThrow(/Partita non trovata/);
+    await expect(repo.setMatchAvailability(answer(match.id, "non-esiste"))).rejects.toThrow(/Atleta non trovata/);
   });
 
-  test("a cascata: eliminata la partita vanno via le sue segnalazioni, eliminata l'atleta il link e le sue segnalazioni", async () => {
+  test("quello che si riceve è una copia: cambiarla non cambia l'archivio", async () => {
+    const repo = createMemoryRepo(createEmptyStore());
+    const match = await repo.createMatch(matchInput, null);
+    const anna = await repo.createAthlete(athleteInput("Anna Bianchi"), null);
+    const saved = await repo.setMatchAvailability(answer(match.id, anna.id));
+    saved.status = "absent";
+    (await repo.listMatchAvailability())[0].note = "manomessa";
+    expect((await repo.listMatchAvailability())[0]).toMatchObject({ status: "present", note: null });
+  });
+
+  test("a cascata: eliminata la partita vanno via le sue risposte, eliminata l'atleta il link e le sue risposte", async () => {
     const repo = createMemoryRepo(createEmptyStore());
     const m1 = await repo.createMatch(matchInput, null);
     const m2 = await repo.createMatch({ ...matchInput, opponent: "Cividale" }, null);
     const anna = await repo.createAthlete(athleteInput("Anna Bianchi"), null);
     const bea = await repo.createAthlete(athleteInput("Bea Rossi"), null);
-    const mark = (matchId: string, athleteId: string) =>
-      repo.setMatchUnavailability({ matchId, athleteId, reason: null, note: null, reportedBy: "parent", updatedBy: null });
-    await mark(m1.id, anna.id);
-    await mark(m2.id, anna.id);
-    await mark(m2.id, bea.id);
+    await repo.setMatchAvailability(answer(m1.id, anna.id, { status: "absent" }));
+    await repo.setMatchAvailability(answer(m2.id, anna.id));
+    await repo.setMatchAvailability(answer(m2.id, bea.id, { status: "absent" }));
     const annaLink = await repo.ensureAthleteFamilyLink(anna.id, newFamilyToken());
     await repo.ensureAthleteFamilyLink(bea.id, newFamilyToken());
 
     await repo.deleteMatch(m1.id);
-    expect((await repo.listMatchUnavailability()).map((row) => `${row.matchId}/${row.athleteId}`).sort()).toEqual(
+    expect((await repo.listMatchAvailability()).map((row) => `${row.matchId}/${row.athleteId}`).sort()).toEqual(
       [`${m2.id}/${anna.id}`, `${m2.id}/${bea.id}`].sort(),
     );
 
     await repo.deleteAthlete(anna.id);
-    expect((await repo.listMatchUnavailability()).map((row) => row.athleteId)).toEqual([bea.id]);
+    expect((await repo.listMatchAvailability()).map((row) => row.athleteId)).toEqual([bea.id]);
     expect((await repo.listAthleteFamilyLinks()).map((link) => link.athleteId)).toEqual([bea.id]);
     expect(await repo.findAthleteByFamilyToken(annaLink.token)).toBeNull();
   });
@@ -199,9 +206,9 @@ test.describe("non disponibilità nell'archivio", () => {
   test("un archivio salvato prima di questa funzione (senza i due elenchi) si legge lo stesso", async () => {
     const store = createEmptyStore() as unknown as Record<string, unknown>;
     delete store.athleteFamilyLinks;
-    delete store.matchUnavailability;
+    delete store.matchAvailability;
     const repo = createMemoryRepo(store as unknown as ReturnType<typeof createEmptyStore>);
     expect(await repo.listAthleteFamilyLinks()).toEqual([]);
-    expect(await repo.listMatchUnavailability()).toEqual([]);
+    expect(await repo.listMatchAvailability()).toEqual([]);
   });
 });

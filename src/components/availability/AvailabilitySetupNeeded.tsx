@@ -12,7 +12,7 @@ export function AvailabilitySetupNeeded({ isDev }: { isDev: boolean }) {
           <>
             Per usare i link dei genitori servono due tabelle nel database, da creare una volta sola: apri Supabase → <b>SQL Editor</b>, incolla i blocchi{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 text-[13px]">athlete_family_links</code> e{" "}
-            <code className="rounded bg-muted px-1.5 py-0.5 text-[13px]">match_unavailability</code> di{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-[13px]">match_availability</code> di{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 text-[13px]">supabase/schema.sql</code> e premi <b>Run</b>. Poi ricarica questa pagina.
           </>
         ) : (

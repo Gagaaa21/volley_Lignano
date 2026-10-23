@@ -6,7 +6,7 @@ import type {
   FederationSourceInput,
 } from "@/lib/federation/types";
 import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/scout/types";
-import type { AthleteFamilyLink, MatchUnavailability, MatchUnavailabilityInput } from "@/lib/availability/types";
+import type { AthleteFamilyLink, MatchAvailability, MatchAvailabilityInput } from "@/lib/availability/types";
 import type { AthleteContact, AthleteContacts, MatchTrip, MatchTripData, SaveMatchTripResult } from "@/lib/trips/types";
 import type {
   AdminPage,
@@ -156,10 +156,11 @@ export interface Repo {
   ensureAthleteFamilyLink(athleteId: string, token: string): Promise<AthleteFamilyLink>;
   /** Sostituisce il codice del link: il vecchio smette di funzionare subito. */
   rotateAthleteFamilyLink(athleteId: string, token: string): Promise<AthleteFamilyLink>;
-  listMatchUnavailability(filter?: { matchIds?: string[]; athleteId?: string }): Promise<MatchUnavailability[]>;
-  /** Segna (o aggiorna) l'atleta come non disponibile per la partita: una riga per partita e atleta. */
-  setMatchUnavailability(input: MatchUnavailabilityInput): Promise<MatchUnavailability>;
-  clearMatchUnavailability(matchId: string, athleteId: string): Promise<void>;
+  listMatchAvailability(filter?: { matchIds?: string[]; athleteId?: string }): Promise<MatchAvailability[]>;
+  /** Scrive (o sostituisce) la risposta dell'atleta per la partita, «Ci sarà» o «Non ci sarà»: una riga per partita e atleta. */
+  setMatchAvailability(input: MatchAvailabilityInput): Promise<MatchAvailability>;
+  /** Toglie la risposta: l'atleta torna «senza risposta». */
+  clearMatchAvailability(matchId: string, athleteId: string): Promise<void>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

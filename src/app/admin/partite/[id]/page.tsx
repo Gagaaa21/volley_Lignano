@@ -5,8 +5,8 @@ import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { describeUnavailability } from "@/lib/availability/rules";
-import type { MatchUnavailability } from "@/lib/availability/types";
+import { describeAnswer } from "@/lib/availability/rules";
+import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import { matchTitle } from "@/lib/calendar";
 import { Card, CardBody } from "@/components/ui/Card";
 import { CategoryTag } from "@/components/ui/CategoryTag";
@@ -16,7 +16,7 @@ import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { deleteMatchAction } from "../actions";
-import type { UnavailableFlag } from "../CallUpsSection";
+import type { AnswerFlag } from "../CallUpsSection";
 import { MatchAvailability } from "../MatchAvailability";
 import { MatchForm } from "../MatchForm";
 import { MatchWorkspace } from "../MatchWorkspace";
@@ -48,20 +48,24 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
 
   const activeAthletes = allAthletes.filter((a) => a.isActive);
 
-  // Chi non può esserci (solo U14/U15): le segnalazioni dei genitori e dello staff. Finché le tabelle non ci sono, niente.
-  let unavailability: MatchUnavailability[] = [];
+  // Chi viene (solo U14/U15): le risposte dei genitori e dell'allenatore. Finché le tabelle non ci sono, niente.
+  let answerRows: MatchAvailabilityRow[] = [];
   let availabilityReady = match.team === "u14u15";
   if (availabilityReady) {
     try {
-      unavailability = await repo.listMatchUnavailability({ matchIds: [id] });
+      answerRows = await repo.listMatchAvailability({ matchIds: [id] });
     } catch (error) {
       if (!isAvailabilityTableMissing(error)) throw error;
       availabilityReady = false;
     }
   }
-  const unavailableFlags: Record<string, UnavailableFlag> = Object.fromEntries(
-    unavailability.map((row) => [row.athleteId, { text: describeUnavailability(row), byStaff: row.reportedBy === "staff" }] as const),
+  const answerFlags: Record<string, AnswerFlag> = Object.fromEntries(
+    answerRows.map((row) => [row.athleteId, { status: row.status, text: describeAnswer(row) }] as const),
   );
+  // Il collegamento ai link per i genitori solo a chi può gestirli (permesso Presenze).
+  const canFamilyLinks =
+    match.team === "u14u15" &&
+    (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("presenze") ?? false));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -90,7 +94,14 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         }
       />
 
-      {availabilityReady && <MatchAvailability match={match} rows={unavailability} athletes={activeAthletes} />}
+      {availabilityReady && (
+        <MatchAvailability
+          match={match}
+          rows={answerRows}
+          athletes={activeAthletes}
+          familyLinksHref={canFamilyLinks ? "/admin/presenze/atlete/link-genitori" : null}
+        />
+      )}
 
       <MatchWorkspace
         matchId={id}
@@ -98,7 +109,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         allAthletes={activeAthletes}
         initialCalledUpIds={match.calledUpAthleteIds}
         initialLineup={lineup}
-        unavailable={unavailableFlags}
+        answers={availabilityReady ? answerFlags : undefined}
       />
 
       <Card className="mt-6">

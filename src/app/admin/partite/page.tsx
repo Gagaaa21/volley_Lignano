@@ -12,7 +12,7 @@ import { SegmentedLinks } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { countByMatch } from "@/lib/availability/rules";
+import { absentByMatch } from "@/lib/availability/rules";
 import { loadOfficialResults, officialToAddCount, officialTodoCount, officialTodoParts } from "@/lib/federation/load";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { SECTION_PARTITE_STEPS } from "@/components/tour/sectionSteps";
@@ -51,13 +51,13 @@ export default async function MatchesListPage({
     (entry) => entry.source.enabled && entry.source.url && (activeCategory === "all" || entry.source.category === activeCategory),
   );
 
-  // Quante atlete sono segnalate non disponibili, partita per partita (solo quelle in programma; finché le tabelle non ci sono, niente).
+  // Quante atlete hanno risposto «Non ci sarà», partita per partita (solo quelle in programma; finché le tabelle non ci sono, niente).
   const today = todayIso();
   const upcomingIds = matches.filter((match) => match.matchDate.slice(0, 10) >= today).map((match) => match.id);
-  const unavailable: Record<string, number> = {};
+  const absent: Record<string, number> = {};
   if (isU14U15 && upcomingIds.length > 0) {
     try {
-      for (const [matchId, count] of countByMatch(await repo.listMatchUnavailability({ matchIds: upcomingIds }))) unavailable[matchId] = count;
+      for (const [matchId, count] of absentByMatch(await repo.listMatchAvailability({ matchIds: upcomingIds }))) absent[matchId] = count;
     } catch (error) {
       if (!isAvailabilityTableMissing(error)) throw error;
     }
@@ -175,7 +175,7 @@ export default async function MatchesListPage({
             }
           />
         ) : (
-          <MatchList matches={matches} unavailable={unavailable} />
+          <MatchList matches={matches} absent={absent} />
         )}
       </section>
 

@@ -91,8 +91,8 @@ staff (Developer e Admin).
   tabellino, formazioni e convocazioni portano la categoria. Le **convocazioni**
   (`/api/partite/[id]/convocazioni/pdf`, `src/lib/pdf/convocationPdf.ts`) sono
   un foglio da mandare a famiglie e atlete: la partita, il ritrovo e le
-  convocate con il numero di maglia, mai formazioni, note né segnalazioni di
-  non disponibilità; serve il permesso «Partite», e con `?ids=` segue la
+  convocate con il numero di maglia, mai formazioni, note né risposte di
+  presenza; serve il permesso «Partite», e con `?ids=` segue la
   selezione della finestra delle convocazioni anche se non è ancora salvata.
 - **Pronostici** (`src/lib/predictions.ts`) — si aprono il giorno della
   partita e si chiudono **un'ora dopo l'inizio** (`PREDICTION_GRACE_MINUTES`),
@@ -134,37 +134,43 @@ staff (Developer e Admin).
   Scout): un documento JSON per partita con una `version` (ogni azione rilegge e
   rifà la stessa modifica se nel frattempo un altro ha salvato) e una riga per
   atleta con i suoi contatti. Segue la modalità prova come le altre sezioni.
-- **Disponibilità e link per i genitori** (`/disponibilita/[codice]`, pagina pubblica; gestione in
-  `/admin/presenze/atlete/link-genitori`, solo U14/U15) — i genitori non hanno
-  un account: ogni atleta ha un **link personale e segreto** (32 caratteri
-  casuali, 192 bit, `src/lib/availability/token.ts`) che lo staff manda su
-  WhatsApp (o copia). Da lì il genitore vede solo la sua atleta e le prossime
-  partite della sua categoria e tocca «Non ci sarà» (motivo a scelta e nota
-  breve, `src/lib/availability/rules.ts` in funzioni pure con le loro prove);
-  poi la modifica o la toglie quando vuole, anche la mattina della partita,
+- **Presenza alle partite e link per i genitori** (`/disponibilita/[codice]`, pagina pubblica; gestione in
+  `/admin/presenze/atlete/link-genitori`, solo U14/U15) — per ogni partita e
+  atleta c'è **una sola risposta**: «Ci sarà», «Non ci sarà» (con un motivo a
+  scelta e una nota breve) o nessuna. I genitori non hanno un account: ogni
+  atleta ha un **link personale e segreto** (32 caratteri casuali, 192 bit,
+  `src/lib/availability/token.ts`) che lo staff manda su WhatsApp (o copia). Da
+  lì il genitore vede solo la sua atleta e le prossime partite della sua
+  categoria e, per ognuna, tocca due pulsanti grandi: la risposta si salva
+  subito, senza conferme (`useOptimistic`; se il server la rifiuta torna com'era
+  e lo dice). Può cambiarla quando vuole, anche la mattina della partita,
   finché la partita non comincia (`isReportingOpen`, data e ora), anche se
-  l'aveva scritta lo staff: l'ultima modifica vale e si vede di chi è. Lo staff
-  modifica o toglie sempre, a ogni ora e a partita finita. Il nome non è mai la
-  chiave (i nomi sono già pubblici in convocate e presenze): conta solo il
-  codice, ricontrollato da ogni azione (`reportUnavailableAction`,
-  `clearUnavailableAction`); un codice sbagliato mostra sempre la stessa pagina,
-  senza dire niente. La pagina non va sui motori di ricerca, non è mai in cache,
-  non passa il suo indirizzo ad altri siti (`referrer: no-referrer`), ha
-  titolo e descrizione uguali per tutti (l'anteprima di WhatsApp non mostra
-  nomi) e non mostra gli avvisi di installazione e notifiche. Legge sempre il
-  database reale (`getRepo()`), mai la modalità prova. Lo staff, dalle Atlete
-  (permesso «Presenze»): «Crea i link mancanti», «Copia link», «WhatsApp»
-  (con il permesso Trasferte si apre già sul numero della rubrica, `whatsappPhone`)
-  e «Rigenera» (il codice vecchio smette subito). Le segnalazioni stanno in
-  `match_unavailability` (una riga per partita e atleta, dal genitore o dallo
-  staff) e si vedono nella scheda della partita («Disponibilità», dove lo staff
-  può aggiungerne, modificarle o toglierle), nell'elenco partite, nella dashboard e
-  come avviso rosso nelle convocazioni: non tolgono nessuna dalle convocate da
-  sole. Mai sul sito pubblico. Due tabelle da creare su Supabase una volta sola
-  (blocchi `athlete_family_links` e `match_unavailability` di
-  `supabase/schema.sql`; finché mancano le pagine lo spiegano). In modalità prova
-  si copiano le segnalazioni ma non i link (sono segreti, e quelli creati in
-  prova non funzionano per i genitori).
+  l'aveva scritta lo staff: l'ultima modifica vale e sotto ogni risposta si
+  vede di chi è e quando. Lo staff, nel riquadro «Chi viene» della scheda
+  partita (`AvailabilityBoard`), vede tutte le atlete divise in «Non ci sono»,
+  «Senza risposta» e «Ci sono», con i contatori, e cambia la risposta di
+  ognuna con un tocco (anche a partita finita); la stessa risposta compare come
+  riga nelle convocazioni, e l'elenco partite e la dashboard dicono «N non ci
+  sono». Le regole stanno in `src/lib/availability/rules.ts`, in funzioni pure
+  con le loro prove. Il nome non è mai la chiave (i nomi sono già pubblici in
+  convocate e presenze): conta solo il codice, ricontrollato da ogni azione
+  (`answerAction` per il genitore, `setStaffAnswerAction` per lo staff, che
+  ricontrolla il permesso «Partite»); un codice sbagliato mostra sempre la
+  stessa pagina, senza dire niente. La pagina non va sui motori di ricerca,
+  non è mai in cache, non passa il suo indirizzo ad altri siti
+  (`referrer: no-referrer`), ha titolo e descrizione uguali per tutti
+  (l'anteprima di WhatsApp non mostra nomi) e non mostra gli avvisi di
+  installazione e notifiche. Legge sempre il database reale (`getRepo()`), mai
+  la modalità prova. Lo staff, dalle Atlete (permesso «Presenze»): «Crea i link
+  mancanti», «Copia link», «WhatsApp» (con il permesso Trasferte si apre già sul
+  numero della rubrica, `whatsappPhone`) e «Rigenera» (il codice vecchio smette
+  subito). Le risposte non tolgono nessuna dalle convocate da sole. Mai sul
+  sito pubblico. Due tabelle da creare su Supabase una volta sola (blocchi
+  `athlete_family_links` e `match_availability` di `supabase/schema.sql`, che
+  porta con sé anche le righe della vecchia tabella `match_unavailability`, se
+  c'era; finché mancano le pagine lo spiegano). In modalità prova si copiano le
+  risposte ma non i link (sono segreti, e quelli creati in prova non funzionano
+  per i genitori).
 - **Live score** (`/admin/livescore`, regole in `src/lib/liveScore.ts`) —
   tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
   punteggio» senza formazione (e senza seguire chi batte); rotazione e libero
@@ -679,7 +685,7 @@ src/
     calendario-partite.pdf/ PDF con tutte le partite (pubblico)
     login/                Login staff
     notifiche/            «Notifiche di questo dispositivo» (minivolley/notifiche/ per l'app di Minivolley)
-    disponibilita/[codice]/ Pagina del genitore: «Non ci sarà» dal link personale (senza account)
+    disponibilita/[codice]/ Pagina del genitore: «Ci sarà» / «Non ci sarà» dal link personale (senza account)
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti
       partite/             CRUD partite (portale/: confronto con il portale FIPAV)
@@ -706,7 +712,7 @@ src/
     federation/            Lettura classifiche e risultati dal portale FIPAV
     scout/                 Regole, calcolo del tabellino, salvataggio e manuale d'uso (manual.ts) dello scout
     trips/                 Trasferte: tipi, regole dei posti e delle assegnazioni, rubrica, telefoni, accesso
-    availability/          Link dei genitori e non disponibilità: codice, regole (quali partite, fino a quando), messaggi WhatsApp
+    availability/          Link dei genitori e presenza alle partite: codice, regole (quali partite, fino a quando, come si contano le risposte), messaggi WhatsApp
     jersey.ts              Numero di maglia: lettura dei numeri nelle righe incollate, avvisi sui doppioni
     liveScore.ts           Stato e regole del tabellone live (set, cambio campo, battuta)
     volleyRules.ts         Regole dei set e delle formule di gara, comuni a Live score e Scout

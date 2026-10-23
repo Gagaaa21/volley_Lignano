@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { ChevronRight, Home, MapPin, Plane } from "lucide-react";
+import { absentLabel } from "@/lib/availability/rules";
 import { matchTitle } from "@/lib/calendar";
 import { categoryDotClass, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { cn } from "@/lib/cn";
@@ -37,7 +38,7 @@ function ResultBlock({ match, isPast }: { match: Match; isPast: boolean }) {
   return null;
 }
 
-function MatchRow({ match, isPast, unavailableCount = 0 }: { match: Match; isPast: boolean; unavailableCount?: number }) {
+function MatchRow({ match, isPast, absentCount = 0 }: { match: Match; isPast: boolean; absentCount?: number }) {
   const date = parseISO(match.matchDate.slice(0, 10));
   const setScores = match.isTournament
     ? null
@@ -76,9 +77,9 @@ function MatchRow({ match, isPast, unavailableCount = 0 }: { match: Match; isPas
               Torneo
             </Badge>
           )}
-          {unavailableCount > 0 && (
-            <Badge tone="warning" className="py-0 text-[11px]" data-match-unavailable={unavailableCount}>
-              {unavailableCount === 1 ? "1 non disponibile" : `${unavailableCount} non disponibili`}
+          {absentCount > 0 && (
+            <Badge tone="warning" className="py-0 text-[11px]" data-match-absent={absentCount}>
+              {absentLabel(absentCount)}
             </Badge>
           )}
         </span>
@@ -101,7 +102,7 @@ function MatchRow({ match, isPast, unavailableCount = 0 }: { match: Match; isPas
 /** Elenco partite diviso in "In programma" (dalla più vicina) e "Giocate"
  * (dalla più recente), con ricerca su avversario e luogo oltre 5 partite.
  * Ogni riga apre la partita, dove si trova anche l'eliminazione. */
-export function MatchList({ matches, unavailable = {} }: { matches: Match[]; unavailable?: Record<string, number> }) {
+export function MatchList({ matches, absent = {} }: { matches: Match[]; absent?: Record<string, number> }) {
   const [query, setQuery] = useState("");
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
@@ -140,7 +141,7 @@ export function MatchList({ matches, unavailable = {} }: { matches: Match[]; una
               <SectionHeading title="In programma" action={<span className="text-[13px] text-muted-foreground">{upcoming.length}</span>} />
               <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
                 {upcoming.map((match) => (
-                  <MatchRow key={match.id} match={match} isPast={false} unavailableCount={unavailable[match.id] ?? 0} />
+                  <MatchRow key={match.id} match={match} isPast={false} absentCount={absent[match.id] ?? 0} />
                 ))}
               </div>
             </section>

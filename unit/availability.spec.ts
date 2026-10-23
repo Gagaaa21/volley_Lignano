@@ -1,15 +1,20 @@
 import { expect, test } from "@playwright/test";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import {
+  absentByMatch,
+  absentLabel,
+  answerOrder,
   appliesToAthlete,
   canParentChange,
   canUseFamilyLink,
-  countByMatch,
-  describeUnavailability,
+  countAnswers,
+  describeAnswer,
   isReportingOpen,
   matchesForAthlete,
+  normalizeAnswer,
   normalizeNote,
   parseReason,
+  parseStatus,
 } from "@/lib/availability/rules";
 import { familyLinkMessage, whatsappShareUrl } from "@/lib/availability/share";
 import { FAMILY_TOKEN_LENGTH, familyLinkPath, isFamilyToken, newFamilyToken } from "@/lib/availability/token";
@@ -18,8 +23,9 @@ import { whatsappPhone } from "@/lib/trips/phone";
 import type { Match } from "@/lib/types";
 
 /**
- * Link personali dei genitori e non disponibilità: il codice (lungo, casuale, mai indovinabile), quali partite si vedono, fino
- * a quando si può cambiare, cosa può toccare il genitore e cosa no, e i messaggi per WhatsApp.
+ * Link personali dei genitori e presenza alle partite: il codice (lungo, casuale, mai indovinabile), quali partite si vedono,
+ * fino a quando si può cambiare, come si scrive e si legge la risposta («Ci sarà» / «Non ci sarà»), come si contano le risposte
+ * e i messaggi per WhatsApp.
  */
 
 function match(overrides: Partial<Match> = {}): Match {
@@ -79,7 +85,13 @@ test.describe("il codice del link", () => {
   });
 });
 
-test.describe("motivo e nota", () => {
+test.describe("la risposta, il motivo e la nota", () => {
+  test("la risposta è solo «Ci sarà» o «Non ci sarà»: tutto il resto si scarta", () => {
+    expect(parseStatus("present")).toBe("present");
+    expect(parseStatus("absent")).toBe("absent");
+    for (const wrong of ["Present", "", " absent", "maybe", "none", "__proto__", undefined, null, 1, {}]) expect(parseStatus(wrong)).toBeNull();
+  });
+
   test("il motivo è solo uno di quelli previsti", () => {
     expect(parseReason("malata")).toBe("malata");
     expect(parseReason("famiglia")).toBe("famiglia");
@@ -98,11 +110,25 @@ test.describe("motivo e nota", () => {
     expect(normalizeNote(42)).toBeNull();
   });
 
-  test("lo staff legge motivo e nota in una riga", () => {
-    expect(describeUnavailability({ reason: "malata", note: "mal di gola" })).toBe("Malata o infortunata · mal di gola");
-    expect(describeUnavailability({ reason: "famiglia", note: null })).toBe("Impegno di famiglia");
-    expect(describeUnavailability({ reason: null, note: "torniamo domenica" })).toBe("torniamo domenica");
-    expect(describeUnavailability({ reason: null, note: null })).toBe("Nessun motivo indicato");
+  test("chi ci sarà non ha niente da spiegare: motivo e nota si scrivono solo per un'assenza", () => {
+    expect(normalizeAnswer({ status: "present", reason: "malata", note: "mal di gola" })).toEqual({ status: "present", reason: null, note: null });
+    expect(normalizeAnswer({ status: "absent", reason: "malata", note: "  mal   di gola " })).toEqual({
+      status: "absent",
+      reason: "malata",
+      note: "mal di gola",
+    });
+    // Un motivo inventato o una nota vuota non passano: resta «Non ci sarà» e basta.
+    expect(normalizeAnswer({ status: "absent", reason: "scuola", note: "   " })).toEqual({ status: "absent", reason: null, note: null });
+    expect(normalizeAnswer({ status: "absent" })).toEqual({ status: "absent", reason: null, note: null });
+    expect(normalizeAnswer({ status: "absent", note: "x".repeat(500) }).note).toHaveLength(MAX_NOTE_LENGTH);
+  });
+
+  test("lo staff legge la risposta in una riga", () => {
+    expect(describeAnswer({ status: "present", reason: null, note: null })).toBe("Ci sarà");
+    expect(describeAnswer({ status: "absent", reason: null, note: null })).toBe("Non ci sarà");
+    expect(describeAnswer({ status: "absent", reason: "malata", note: "mal di gola" })).toBe("Non ci sarà · Malata o infortunata · mal di gola");
+    expect(describeAnswer({ status: "absent", reason: "famiglia", note: null })).toBe("Non ci sarà · Impegno di famiglia");
+    expect(describeAnswer({ status: "absent", reason: null, note: "torniamo domenica" })).toBe("Non ci sarà · torniamo domenica");
   });
 });
 
@@ -121,7 +147,7 @@ test.describe("quando il genitore può cambiare", () => {
     expect(isReportingOpen(saturday, "2026-11-22T09:00")).toBe(false);
   });
 
-  test("il genitore cambia anche una segnalazione dello staff: conta solo che la partita non sia cominciata", () => {
+  test("il genitore cambia la risposta anche se l'ha scritta l'allenatore: conta solo che la partita non sia cominciata", () => {
     expect(canParentChange(saturday, "2026-11-20T12:00")).toEqual({ ok: true });
     expect(canParentChange(saturday, "2026-11-21T09:15")).toEqual({ ok: true });
 
@@ -180,11 +206,47 @@ test.describe("le partite che vede il genitore", () => {
   });
 });
 
-test("le segnalazioni si contano partita per partita", () => {
-  const counts = countByMatch([{ matchId: "a" }, { matchId: "b" }, { matchId: "a" }]);
-  expect(counts.get("a")).toBe(2);
-  expect(counts.get("b")).toBe(1);
-  expect(counts.get("c")).toBeUndefined();
+test.describe("contare le risposte", () => {
+  test("le assenti si contano partita per partita; chi ci sarà non conta", () => {
+    const counts = absentByMatch([
+      { matchId: "a", status: "absent" },
+      { matchId: "b", status: "absent" },
+      { matchId: "a", status: "absent" },
+      { matchId: "a", status: "present" },
+      { matchId: "c", status: "present" },
+    ]);
+    expect(counts.get("a")).toBe(2);
+    expect(counts.get("b")).toBe(1);
+    expect(counts.get("c")).toBeUndefined();
+    expect(absentByMatch([]).size).toBe(0);
+  });
+
+  test("per una partita: quante ci sono, quante no e quante non hanno risposto (solo tra le atlete indicate)", () => {
+    const rows = [
+      { athleteId: "anna", status: "present" },
+      { athleteId: "bea", status: "absent" },
+      { athleteId: "chiara", status: "absent" },
+      // Una che non è tra le atlete indicate (per esempio non più attiva): la sua risposta non conta.
+      { athleteId: "ex", status: "absent" },
+    ] as const;
+    expect(countAnswers(["anna", "bea", "chiara", "dora", "elisa"], rows)).toEqual({ present: 1, absent: 2, none: 2 });
+    expect(countAnswers([], rows)).toEqual({ present: 0, absent: 0, none: 0 });
+    expect(countAnswers(["dora"], [])).toEqual({ present: 0, absent: 0, none: 1 });
+    // Una stessa atleta nominata due volte conta una volta sola.
+    expect(countAnswers(["anna", "anna"], rows)).toEqual({ present: 1, absent: 0, none: 0 });
+  });
+
+  test("l'elenco dello staff mette prima chi non c'è, poi chi non ha risposto, poi chi c'è", () => {
+    const statuses = ["present", null, "absent", "present", null, "absent"] as const;
+    const sorted = [...statuses].sort((a, b) => answerOrder(a) - answerOrder(b));
+    expect(sorted).toEqual(["absent", "absent", null, null, "present", "present"]);
+  });
+
+  test("la scritta per l'elenco partite e la dashboard", () => {
+    expect(absentLabel(1)).toBe("1 non c'è");
+    expect(absentLabel(2)).toBe("2 non ci sono");
+    expect(absentLabel(11)).toBe("11 non ci sono");
+  });
 });
 
 test.describe("WhatsApp", () => {
@@ -217,8 +279,8 @@ test.describe("WhatsApp", () => {
 
 test("tabelle mancanti: si riconosce l'errore di Postgres e di Supabase, non altri", () => {
   expect(isAvailabilityTableMissing(new Error('relation "public.athlete_family_links" does not exist'))).toBe(true);
-  expect(isAvailabilityTableMissing(new Error("Could not find the table 'public.match_unavailability' in the schema cache"))).toBe(true);
-  expect(isAvailabilityTableMissing("42P01: match_unavailability")).toBe(true);
+  expect(isAvailabilityTableMissing(new Error("Could not find the table 'public.match_availability' in the schema cache"))).toBe(true);
+  expect(isAvailabilityTableMissing("42P01: match_availability")).toBe(true);
   expect(isAvailabilityTableMissing(new Error('relation "public.match_trips" does not exist'))).toBe(false);
   expect(isAvailabilityTableMissing(new Error("duplicate key value violates unique constraint athlete_family_links_token_key"))).toBe(false);
   expect(isAvailabilityTableMissing(undefined)).toBe(false);
