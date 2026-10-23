@@ -140,7 +140,9 @@ export function RadioSegment<T extends string>({
       {options.map((opt) => (
         <label
           key={opt.value}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
+          // «relative»: il pallino nascosto (sr-only) resta dentro il suo pulsante, e non in un punto qualunque della pagina
+          // (lì riceverebbe il tocco e il fuoco sbagliati).
+          className="relative flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:bg-surface has-[:checked]:text-foreground has-[:checked]:shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
         >
           <input
             type="radio"

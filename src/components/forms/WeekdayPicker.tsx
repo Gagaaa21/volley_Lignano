@@ -10,7 +10,7 @@ export function WeekdayPicker({ selected = [] }: { selected?: number[] }) {
       {DISPLAY_ORDER.map((day) => (
         <label
           key={day}
-          className="flex h-10 min-w-0 cursor-pointer items-center justify-center rounded-xl border border-input bg-surface px-1 text-sm sm:min-w-12 sm:px-2 font-semibold text-muted-foreground shadow-xs transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
+          className="relative flex h-10 min-w-0 cursor-pointer items-center justify-center rounded-xl border border-input bg-surface px-1 text-sm sm:min-w-12 sm:px-2 font-semibold text-muted-foreground shadow-xs transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
         >
           <input
             type="checkbox"

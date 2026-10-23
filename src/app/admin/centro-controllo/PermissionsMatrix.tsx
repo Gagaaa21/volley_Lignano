@@ -31,7 +31,7 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
         {ADMIN_PAGES.map((page) => (
           <label
             key={page}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-input bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
+            className="relative inline-flex cursor-pointer items-center gap-1 rounded-lg border border-input bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
           >
             <input
               type="checkbox"
@@ -50,7 +50,7 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
         {TEAMS.map((team) => (
           <label
             key={team}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-input bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
+            className="relative inline-flex cursor-pointer items-center gap-1 rounded-lg border border-input bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40"
           >
             <input
               type="checkbox"

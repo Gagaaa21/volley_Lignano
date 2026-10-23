@@ -75,7 +75,7 @@ export function TrainingForm({
             {TRAINING_COLORS.map((c) => (
               <label
                 key={c}
-                className="cursor-pointer rounded-full p-0.5 ring-offset-2 ring-offset-card transition-shadow has-[:checked]:ring-2 has-[:checked]:ring-foreground/70 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                className="relative cursor-pointer rounded-full p-0.5 ring-offset-2 ring-offset-card transition-shadow has-[:checked]:ring-2 has-[:checked]:ring-foreground/70 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
               >
                 <input
                   type="radio"

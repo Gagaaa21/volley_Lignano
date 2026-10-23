@@ -36,10 +36,12 @@ export function PageHeader({
         </Link>
       )}
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-6">
-        <div className="min-w-0 flex-1">
+        {/* Il titolo tiene almeno 20rem: con tante azioni (per esempio su iPad in verticale) sono le azioni ad andare a capo,
+         * sotto, invece di schiacciare titolo e descrizione in una colonna stretta. */}
+        <div className="min-w-0 flex-1 sm:min-w-[20rem]">
           {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
           <div className="flex items-center gap-2">
-            <h1 className="display-wide min-w-0 text-[1.75rem] leading-[1.1] text-foreground sm:text-[2.125rem]">
+            <h1 className="display-wide min-w-0 break-words text-[1.75rem] leading-[1.1] text-foreground sm:text-[2.125rem]">
               {title}
             </h1>
             {help}

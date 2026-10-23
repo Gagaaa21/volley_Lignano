@@ -146,14 +146,17 @@ export function AttendanceForm({
                     tone="warning"
                     onClick={() => setStatus(athlete.id, "excused")}
                   >
-                    Assenza giustificata
+                    {/* Sul telefono basta «Giustificata»: si è già scelto «Assente», e le due scritte intere non ci stanno. */}
+                    <span className="sm:hidden">Giustificata</span>
+                    <span className="hidden sm:inline">Assenza giustificata</span>
                   </SegmentButton>
                   <SegmentButton
                     active={status === "unexcused"}
                     tone="danger"
                     onClick={() => setStatus(athlete.id, "unexcused")}
                   >
-                    Assenza non giustificata
+                    <span className="sm:hidden">Non giustificata</span>
+                    <span className="hidden sm:inline">Assenza non giustificata</span>
                   </SegmentButton>
                 </div>
               )}
