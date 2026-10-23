@@ -141,8 +141,10 @@ staff (Developer e Admin).
   WhatsApp (o copia). Da lì il genitore vede solo la sua atleta e le prossime
   partite della sua categoria e tocca «Non ci sarà» (motivo a scelta e nota
   breve, `src/lib/availability/rules.ts` in funzioni pure con le loro prove);
-  può cambiare fino alla fine del giorno prima, poi «sentite l'allenatore», e
-  non può toccare una segnalazione scritta dallo staff. Il nome non è mai la
+  poi la modifica o la toglie quando vuole, anche la mattina della partita,
+  finché la partita non comincia (`isReportingOpen`, data e ora), anche se
+  l'aveva scritta lo staff: l'ultima modifica vale e si vede di chi è. Lo staff
+  modifica o toglie sempre, a ogni ora e a partita finita. Il nome non è mai la
   chiave (i nomi sono già pubblici in convocate e presenze): conta solo il
   codice, ricontrollato da ogni azione (`reportUnavailableAction`,
   `clearUnavailableAction`); un codice sbagliato mostra sempre la stessa pagina,
@@ -156,7 +158,7 @@ staff (Developer e Admin).
   e «Rigenera» (il codice vecchio smette subito). Le segnalazioni stanno in
   `match_unavailability` (una riga per partita e atleta, dal genitore o dallo
   staff) e si vedono nella scheda della partita («Disponibilità», dove lo staff
-  può anche aggiungerne o toglierne), nell'elenco partite, nella dashboard e
+  può aggiungerne, modificarle o toglierle), nell'elenco partite, nella dashboard e
   come avviso rosso nelle convocazioni: non tolgono nessuna dalle convocate da
   sole. Mai sul sito pubblico. Due tabelle da creare su Supabase una volta sola
   (blocchi `athlete_family_links` e `match_unavailability` di

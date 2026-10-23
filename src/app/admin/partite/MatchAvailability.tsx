@@ -1,4 +1,4 @@
-import { CalendarX2, UserMinus } from "lucide-react";
+import { CalendarX2 } from "lucide-react";
 import { describeUnavailability, appliesToAthlete } from "@/lib/availability/rules";
 import {
   UNAVAILABILITY_REASONS,
@@ -12,11 +12,13 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input, Label, Select } from "@/components/ui/Field";
-import { clearStaffUnavailabilityAction, setStaffUnavailabilityAction } from "./availability-actions";
+import { AvailabilityRow } from "./AvailabilityRow";
+import { setStaffUnavailabilityAction } from "./availability-actions";
 
 /**
- * Chi non può esserci a questa partita: le segnalazioni dei genitori (dal link personale) e quelle inserite dallo staff. Non
- * tolgono nessuna dalle convocate da sole: se è già convocata lo dice, e decide lo staff. Solo area tecnici, mai sul sito pubblico.
+ * Chi non può esserci a questa partita: le segnalazioni dei genitori (dal link personale) e quelle inserite dallo staff. Ognuna si
+ * modifica o si toglie (anche se l'ha scritta il genitore: vale l'ultima modifica, e si vede di chi è). Non tolgono nessuna dalle
+ * convocate da sole: se è già convocata lo dice, e decide lo staff. Solo area tecnici, mai sul sito pubblico.
  */
 export function MatchAvailability({
   match,
@@ -42,7 +44,9 @@ export function MatchAvailability({
           </span>
           <div>
             <CardTitle>Disponibilità</CardTitle>
-            <p className="mt-0.5 text-sm text-muted-foreground">Chi non può esserci: lo segnalano i genitori dal loro link, o lo scrivi tu.</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Chi non può esserci: lo segnalano i genitori dal loro link, o lo scrivi tu. Puoi modificare o togliere ogni segnalazione.
+            </p>
           </div>
         </div>
         <Badge tone={rows.length > 0 ? "warning" : "neutral"} data-availability-count>
@@ -52,31 +56,20 @@ export function MatchAvailability({
       <CardBody className="space-y-5">
         {sorted.length > 0 && (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border" data-availability-list>
-            {sorted.map((row) => {
-              const calledUp = match.calledUpAthleteIds.includes(row.athleteId);
-              return (
-                <li key={row.athleteId} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3" data-availability-row={row.athleteId}>
-                  <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">
-                      {nameOf(row.athleteId)}
-                      {calledUp && <Badge tone="danger">Convocata</Badge>}
-                    </p>
-                    <p className="text-sm text-foreground/75">{describeUnavailability(row)}</p>
-                    <p className="text-[12px] text-muted-foreground">
-                      {row.reportedBy === "parent" ? "Segnalata dal genitore" : "Inserita dallo staff"} · {formatDateTime(row.reportedAt)}
-                    </p>
-                  </div>
-                  <form action={clearStaffUnavailabilityAction}>
-                    <input type="hidden" name="matchId" value={match.id} />
-                    <input type="hidden" name="athleteId" value={row.athleteId} />
-                    <Button type="submit" size="sm" variant="outline" data-availability-clear>
-                      <UserMinus className="h-4 w-4" />
-                      Torna disponibile
-                    </Button>
-                  </form>
-                </li>
-              );
-            })}
+            {sorted.map((row) => (
+              <AvailabilityRow
+                // Dopo ogni modifica la riga riparte chiusa e con i valori nuovi.
+                key={`${row.athleteId}-${row.reportedAt}`}
+                matchId={match.id}
+                athleteId={row.athleteId}
+                name={nameOf(row.athleteId)}
+                calledUp={match.calledUpAthleteIds.includes(row.athleteId)}
+                description={describeUnavailability(row)}
+                attribution={`Ultima modifica ${row.reportedBy === "parent" ? "del genitore" : "dello staff"} · ${formatDateTime(row.reportedAt)}`}
+                reason={row.reason}
+                note={row.note}
+              />
+            ))}
           </ul>
         )}
 

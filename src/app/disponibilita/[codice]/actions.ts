@@ -6,14 +6,13 @@ import type { Repo } from "@/lib/db/repo";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { appliesToAthlete, canParentChange, canUseFamilyLink, normalizeNote, parseReason } from "@/lib/availability/rules";
 import { familyLinkPath, isFamilyToken } from "@/lib/availability/token";
-import { todayIso } from "@/lib/today";
+import { nowLocalIso } from "@/lib/today";
 import type { Athlete, Match } from "@/lib/types";
 
 /**
  * Le azioni della pagina del genitore. Sono raggiungibili da chiunque, quindi ognuna ricontrolla tutto da sola: il codice del
- * link (è l'unica chiave: dice di quale atleta si parla), che la partita sia della sua squadra e categoria, che si possa
- * ancora cambiare e che non sia una segnalazione dello staff. Tutto quello che arriva dal browser si considera non fidato; le
- * risposte non dicono mai altro che se è andata bene.
+ * link (è l'unica chiave: dice di quale atleta si parla), che la partita sia della sua squadra e categoria e che non sia già
+ * cominciata. Tutto quello che arriva dal browser si considera non fidato; le risposte non dicono mai altro che se è andata bene.
  */
 
 export type AvailabilityActionResult = { ok: true } | { ok: false; error: string };
@@ -24,7 +23,7 @@ const NOT_READY = "Il servizio non è ancora attivo: riprova più tardi o sentit
 
 type Target = { ok: true; repo: Repo; athlete: Athlete; match: Match } | { ok: false; error: string };
 
-/** Dal codice e dalla partita all'atleta e alla partita giusti, se il genitore può davvero cambiare quella segnalazione. */
+/** Dal codice e dalla partita all'atleta e alla partita giusti, se il genitore può ancora cambiare quella partita. */
 async function resolveTarget(token: unknown, matchId: unknown): Promise<Target> {
   if (!isFamilyToken(token) || typeof matchId !== "string" || matchId.length === 0 || matchId.length > 100) {
     return { ok: false, error: INVALID_LINK };
@@ -37,8 +36,7 @@ async function resolveTarget(token: unknown, matchId: unknown): Promise<Target> 
   const match = await repo.getMatch(matchId);
   if (!match || !appliesToAthlete(match, athlete)) return { ok: false, error: "Questa partita non c'è più." };
 
-  const [existing] = await repo.listMatchUnavailability({ matchIds: [match.id], athleteId: athlete.id });
-  const allowed = canParentChange(match, existing, todayIso());
+  const allowed = canParentChange(match, nowLocalIso());
   if (!allowed.ok) return allowed;
   return { ok: true, repo, athlete, match };
 }
@@ -50,7 +48,10 @@ function failure(error: unknown): AvailabilityActionResult {
   return { ok: false, error: GENERIC };
 }
 
-/** «Non ci sarà»: segna l'atleta non disponibile per la partita, con un motivo (uno di quelli previsti) e una nota breve. */
+/**
+ * «Non ci sarà»: segna l'atleta non disponibile per la partita, con un motivo (uno di quelli previsti) e una nota breve. Se c'è già
+ * una segnalazione (anche dello staff) la sostituisce: è così che si modifica.
+ */
 export async function reportUnavailableAction(
   token: string,
   matchId: string,
@@ -75,7 +76,7 @@ export async function reportUnavailableAction(
   }
 }
 
-/** «Torna disponibile»: toglie la segnalazione (solo se l'ha fatta il genitore). */
+/** «Torna disponibile»: toglie la segnalazione, di chiunque sia. */
 export async function clearUnavailableAction(token: string, matchId: string): Promise<AvailabilityActionResult> {
   try {
     const target = await resolveTarget(token, matchId);

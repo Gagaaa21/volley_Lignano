@@ -7,7 +7,7 @@ import { matchTitle } from "@/lib/calendar";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { canUseFamilyLink, matchesForAthlete } from "@/lib/availability/rules";
 import { isFamilyToken } from "@/lib/availability/token";
-import { todayIso } from "@/lib/today";
+import { nowLocalIso } from "@/lib/today";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityPanel, type FamilyMatchItem } from "@/components/availability/AvailabilityPanel";
 import { FamilyShell } from "@/components/availability/FamilyShell";
@@ -68,8 +68,8 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
   }
   if (!athlete || !canUseFamilyLink(athlete)) return <InvalidLink />;
 
-  const today = todayIso();
-  const options = matchesForAthlete(athlete, await repo.listMatches({ team: athlete.team, from: today }), today);
+  const now = nowLocalIso();
+  const options = matchesForAthlete(athlete, await repo.listMatches({ team: athlete.team, from: now.slice(0, 10) }), now);
   const reports = await repo.listMatchUnavailability({ athleteId: athlete.id, matchIds: options.map(({ match }) => match.id) });
   const reportByMatch = new Map(reports.map((report) => [report.matchId, report] as const));
 
@@ -100,7 +100,7 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Tocca <b className="font-semibold text-foreground/80">Non ci sarà</b> sulle partite a cui non può esserci: l&apos;allenatore lo vede subito. Se non
-        dici niente, conta su di lei. Puoi cambiare idea fino alla sera prima.
+        dici niente, conta su di lei. Puoi modificare o togliere la segnalazione quando vuoi, fino all&apos;inizio della partita.
       </p>
 
       <div className="mt-6">

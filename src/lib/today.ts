@@ -7,3 +7,8 @@ import { format } from "date-fns";
 export function todayIso(now: Date = new Date()): string {
   return format(now, "yyyy-MM-dd");
 }
+
+/** Data e ora di adesso, "YYYY-MM-DDTHH:mm", scritte come quelle delle partite (ora locale, senza fuso): si confrontano come testo. */
+export function nowLocalIso(now: Date = new Date()): string {
+  return format(now, "yyyy-MM-dd'T'HH:mm");
+}

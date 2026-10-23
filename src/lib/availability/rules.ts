@@ -33,9 +33,12 @@ export function parseReason(raw: unknown): UnavailabilityReason | null {
 /** Il giorno della partita, «AAAA-MM-GG» (la data è scritta nell'ora italiana, senza fuso). */
 const matchDay = (match: Pick<Match, "matchDate">) => match.matchDate.slice(0, 10);
 
-/** Il genitore può cambiare fino alla fine del giorno prima della partita: dal giorno stesso si sente l'allenatore. */
-export function isReportingOpen(match: Pick<Match, "matchDate">, today: string): boolean {
-  return today < matchDay(match);
+/**
+ * Il genitore può cambiare fino all'inizio della partita: anche la mattina stessa, se la figlia sta male. `now` è data e ora di
+ * adesso scritte come quelle della partita («AAAA-MM-GGTHH:mm», ora italiana). Lo staff non ha limiti.
+ */
+export function isReportingOpen(match: Pick<Match, "matchDate">, now: string): boolean {
+  return now < match.matchDate.slice(0, 16);
 }
 
 /** Il link di un'atleta funziona solo finché è in squadra attiva e solo per U14/U15 (il Minivolley non ha partite né link). */
@@ -51,42 +54,39 @@ export function appliesToAthlete(match: Pick<Match, "team" | "category">, athlet
 
 export interface AvailabilityMatch {
   match: Match;
-  /** Il genitore può ancora cambiare (fino alla sera prima). */
+  /** Il genitore può ancora cambiare (fino all'inizio della partita). */
   open: boolean;
 }
 
 /**
  * Le partite su cui il genitore può dire qualcosa: della squadra e della categoria dell'atleta, da oggi in poi e non ancora
- * giocate, dalla più vicina. Quelle di oggi si vedono ma sono chiuse.
+ * giocate, dalla più vicina. Quelle già cominciate si vedono ma sono chiuse.
  */
 export function matchesForAthlete(
   athlete: Pick<Athlete, "team" | "category">,
   matches: readonly Match[],
-  today: string,
+  now: string,
   limit = 12,
 ): AvailabilityMatch[] {
+  const today = now.slice(0, 10);
   return matches
     .filter((match) => appliesToAthlete(match, athlete))
     .filter((match) => matchDay(match) >= today)
     .filter((match) => match.setScores === null && match.resultSetsWon === null)
     .sort((a, b) => a.matchDate.localeCompare(b.matchDate))
     .slice(0, limit)
-    .map((match) => ({ match, open: isReportingOpen(match, today) }));
+    .map((match) => ({ match, open: isReportingOpen(match, now) }));
 }
 
 export type ParentChange = { ok: true } | { ok: false; error: string };
 
-/** Il genitore non può più cambiare una partita chiusa, né una segnalazione inserita dallo staff. */
-export function canParentChange(
-  match: Pick<Match, "matchDate">,
-  existing: Pick<MatchUnavailability, "reportedBy"> | null | undefined,
-  today: string,
-): ParentChange {
-  if (!isReportingOpen(match, today)) {
-    return { ok: false, error: "Per questa partita non si può più cambiare da qui: sentite l'allenatore." };
-  }
-  if (existing?.reportedBy === "staff") {
-    return { ok: false, error: "Questa segnalazione l'ha inserita lo staff: per cambiarla sentite l'allenatore." };
+/**
+ * Il genitore cambia la segnalazione (anche una scritta dallo staff: l'ultima modifica vale, e si vede chi l'ha fatta) finché la
+ * partita non comincia; dopo, non da qui.
+ */
+export function canParentChange(match: Pick<Match, "matchDate">, now: string): ParentChange {
+  if (!isReportingOpen(match, now)) {
+    return { ok: false, error: "La partita è già cominciata: da qui non si può più cambiare." };
   }
   return { ok: true };
 }

@@ -51,15 +51,17 @@ async function deleteAthletes(page: Page, names: string[]) {
   }
 }
 
-/** Una partita in casa fra `days` giorni (0 = oggi: per il genitore è già chiusa), con ritrovo. */
-async function createMatch(page: Page, opponent: string, days: number): Promise<string> {
+/** Una partita in casa fra `days` giorni (0 = oggi), all'ora indicata e, di norma, con ritrovo. Il genitore la cambia finché non comincia. */
+async function createMatch(page: Page, opponent: string, days: number, time = "21:30"): Promise<string> {
   await page.goto("/admin/partite/nuovo");
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Squadra avversaria").fill(opponent);
   await page.getByLabel("Luogo della partita").fill("Palestra disponibilità e2e");
-  await page.getByLabel("Data e ora").fill(`${localDate(days)}T21:30`);
-  await page.getByLabel("Ora ritrovo").fill("2045");
-  await page.getByLabel("Luogo ritrovo").fill("Piazzale e2e");
+  await page.getByLabel("Data e ora").fill(`${localDate(days)}T${time}`);
+  if (time === "21:30") {
+    await page.getByLabel("Ora ritrovo").fill("2045");
+    await page.getByLabel("Luogo ritrovo").fill("Piazzale e2e");
+  }
   await page.getByRole("button", { name: /salva partita/i }).click();
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
   const href = await page.locator('a[href^="/admin/partite/"]', { hasText: opponent }).first().getAttribute("href");
@@ -160,8 +162,37 @@ test("il link nominale: lo staff lo crea, il genitore segna che non c'è senza a
     await expect(availability.locator("[data-availability-count]")).toHaveText("1 non disponibile");
     const annaRow = availability.locator("[data-availability-row]").filter({ hasText: anna });
     await expect(annaRow).toContainText("Malata o infortunata · mal di gola");
-    await expect(annaRow).toContainText("Segnalata dal genitore");
+    await expect(annaRow).toContainText("Ultima modifica del genitore");
     await expect(availability.locator("[data-availability-row]").filter({ hasText: bea })).toHaveCount(0);
+
+    // Lo staff modifica motivo e nota (senza toglierla e rimetterla), e dopo l'ultima modifica è sua.
+    await annaRow.locator("[data-availability-edit]").click();
+    const staffEdit = annaRow.locator("[data-availability-edit-form]");
+    await expect(staffEdit.getByLabel("Motivo")).toHaveValue("malata");
+    await expect(staffEdit.getByLabel("Nota (facoltativa)")).toHaveValue("mal di gola");
+    await staffEdit.getByLabel("Motivo").selectOption("famiglia");
+    await staffEdit.getByLabel("Nota (facoltativa)").fill("torna domenica");
+    await staffEdit.locator("[data-availability-save]").click();
+    await expect(annaRow).toContainText("Impegno di famiglia · torna domenica");
+    await expect(annaRow).toContainText("Ultima modifica dello staff");
+    await expect(annaRow.locator("[data-availability-edit-form]")).toHaveCount(0);
+
+    // Il genitore vede la modifica dell'allenatore e può cambiarla a sua volta (motivo e nota), senza toglierla.
+    await parent.reload();
+    const reported = matchCard(parent, opponent);
+    await expect(reported.locator("[data-availability-report]")).toContainText("Impegno di famiglia · torna domenica");
+    await expect(reported.locator("[data-availability-report]")).toContainText("Inserita dall'allenatore: puoi cambiarla tu.");
+    await reported.locator("[data-availability-edit]").click();
+    await expect(reported.locator('[data-reason="famiglia"]')).toBeChecked();
+    await expect(reported.locator("[data-availability-note]")).toHaveValue("torna domenica");
+    await reported.locator('[data-reason="malata"]').check({ force: true });
+    await reported.locator("[data-availability-note]").fill("mal di gola");
+    await reported.locator("[data-availability-confirm]").click();
+    await expect(reported.locator("[data-availability-report]")).toContainText("Malata o infortunata · mal di gola");
+    await settled(parent);
+    await page.goto(`/admin/partite/${matchId}`);
+    await expect(annaRow).toContainText("Malata o infortunata · mal di gola");
+    await expect(annaRow).toContainText("Ultima modifica del genitore");
     await page.goto("/admin/partite");
     await expect(page.locator(`a[href="/admin/partite/${matchId}"] [data-match-unavailable]`)).toHaveText("1 non disponibile");
 
@@ -184,7 +215,7 @@ test("il link nominale: lo staff lo crea, il genitore segna che non c'è senza a
     await expect(page.locator("[data-match-availability] [data-availability-count]")).toHaveText("Nessuna segnalazione");
     await expect(page.locator("[data-called-up-unavailable]")).toHaveCount(0);
 
-    // Lo staff segna Bea (per esempio dopo un messaggio in chat): la famiglia la vede ma non può toglierla.
+    // Lo staff segna Bea (per esempio dopo un messaggio in chat): la famiglia la vede e può cambiarla o toglierla.
     const add = page.locator("[data-availability-add]");
     await add.getByLabel("Atleta").selectOption({ label: bea });
     await add.getByLabel("Motivo").selectOption("famiglia");
@@ -192,15 +223,27 @@ test("il link nominale: lo staff lo crea, il genitore segna che non c'è senza a
     await add.locator("[data-availability-submit]").click();
     const beaRow = page.locator("[data-availability-row]").filter({ hasText: bea });
     await expect(beaRow).toContainText("Impegno di famiglia · ha avvisato in chat");
-    await expect(beaRow).toContainText("Inserita dallo staff");
+    await expect(beaRow).toContainText("Ultima modifica dello staff");
     await parent.goto(beaPath);
     const beaCard = matchCard(parent, opponent);
-    await expect(beaCard.locator("[data-availability-report]")).toContainText("Segnalata dallo staff");
-    await expect(beaCard.locator("[data-availability-clear]")).toHaveCount(0);
+    await expect(beaCard.locator("[data-availability-report]")).toContainText("Inserita dall'allenatore");
+    await expect(beaCard.locator("[data-availability-edit]")).toBeVisible();
+    await expect(beaCard.locator("[data-availability-clear]")).toBeVisible();
     await expect(beaCard.locator("[data-availability-open]")).toHaveCount(0);
+    // Il genitore la toglie: Bea torna disponibile anche se l'aveva segnata l'allenatore.
+    await beaCard.locator("[data-availability-clear]").click();
+    await expect(beaCard).toHaveAttribute("data-availability-state", "available");
+    await settled(parent);
+    await page.goto(`/admin/partite/${matchId}`);
+    await expect(page.locator("[data-availability-row]")).toHaveCount(0);
 
-    // Lo staff la toglie.
-    await beaRow.locator("[data-availability-clear]").click();
+    // E lo staff può segnarla di nuovo e poi toglierla.
+    const again = page.locator("[data-availability-add]");
+    await again.getByLabel("Atleta").selectOption({ label: bea });
+    await again.locator("[data-availability-submit]").click();
+    const beaAgain = page.locator("[data-availability-row]").filter({ hasText: bea });
+    await expect(beaAgain).toContainText("Nessun motivo indicato");
+    await beaAgain.locator("[data-availability-clear]").click();
     await expect(page.locator("[data-availability-row]")).toHaveCount(0);
   } finally {
     await parentContext.close().catch(() => {});
@@ -209,7 +252,7 @@ test("il link nominale: lo staff lo crea, il genitore segna che non c'è senza a
   }
 });
 
-test("rigenerare il link rende inutile il vecchio; un codice inventato non mostra niente; una partita di oggi è chiusa", async ({ page, browser }) => {
+test("rigenerare il link rende inutile il vecchio; un codice inventato non mostra niente; una partita già cominciata è chiusa, una di stasera no", async ({ page, browser }) => {
   test.setTimeout(420_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
@@ -219,20 +262,25 @@ test("rigenerare il link rende inutile il vecchio; un codice inventato non mostr
   await addAthletes(page, [carla]);
   const laterOpponent = uniqueName("Domani ");
   const later = await createMatch(page, laterOpponent, 3);
-  const today = await createMatch(page, uniqueName("Oggi "), 0);
+  // Oggi: una cominciata da un pezzo (mezzanotte), una che comincia a fine giornata. La seconda il genitore la cambia ancora.
+  const startedOpponent = uniqueName("Iniziata ");
+  const started = await createMatch(page, startedOpponent, 0, "00:00");
+  const tonightOpponent = uniqueName("Stasera ");
+  const tonight = await createMatch(page, tonightOpponent, 0, "23:59");
   const parentContext = await browser.newContext({ baseURL: "http://localhost:3000", timezoneId: "Europe/Rome" });
   const parent = await parentContext.newPage();
   try {
     const oldPath = await createLink(page, carla);
 
-    // Il link vale: l'atleta e le due partite, quella di oggi chiusa.
+    // Il link vale: l'atleta e le partite. Quella già cominciata è chiusa; quella di stasera e quella di un'altra volta si cambiano.
     await parent.goto(oldPath);
     await expect(parent.locator("[data-family-athlete]")).toContainText(carla);
     await expect(matchCard(parent, laterOpponent).locator("[data-availability-open]")).toBeVisible();
-    const todayCard = parent.locator("[data-availability-match]").filter({ has: parent.locator("[data-availability-closed]") }).first();
-    await expect(todayCard).toBeVisible();
-    await expect(todayCard.locator("[data-availability-open]")).toHaveCount(0);
-    await expect(todayCard).toContainText("sentite l'allenatore");
+    await expect(matchCard(parent, tonightOpponent).locator("[data-availability-open]")).toBeVisible();
+    const startedCard = matchCard(parent, startedOpponent);
+    await expect(startedCard).toBeVisible();
+    await expect(startedCard.locator("[data-availability-open]")).toHaveCount(0);
+    await expect(startedCard.locator("[data-availability-closed]")).toContainText("La partita è già cominciata");
 
     // Rigenerato: il vecchio non funziona più e non dice niente di chi era; il nuovo sì.
     await page.goto("/admin/presenze/atlete/link-genitori");
@@ -258,7 +306,8 @@ test("rigenerare il link rende inutile il vecchio; un codice inventato non mostr
   } finally {
     await parentContext.close().catch(() => {});
     await deleteMatchById(page, later).catch(() => {});
-    await deleteMatchById(page, today).catch(() => {});
+    await deleteMatchById(page, started).catch(() => {});
+    await deleteMatchById(page, tonight).catch(() => {});
     await deleteAthletes(page, [carla]);
   }
 });

@@ -107,28 +107,27 @@ test.describe("motivo e nota", () => {
 });
 
 test.describe("quando il genitore può cambiare", () => {
-  test("fino alla fine del giorno prima della partita; dal giorno stesso si sente l'allenatore", () => {
-    const saturday = match({ matchDate: "2026-11-21T18:00" });
-    expect(isReportingOpen(saturday, "2026-11-14")).toBe(true);
-    expect(isReportingOpen(saturday, "2026-11-20")).toBe(true);
-    expect(isReportingOpen(saturday, "2026-11-21")).toBe(false);
-    expect(isReportingOpen(saturday, "2026-11-22")).toBe(false);
-    // Anche una partita al mattino presto: conta il giorno, non l'ora.
-    expect(isReportingOpen(match({ matchDate: "2026-11-21T08:30" }), "2026-11-20")).toBe(true);
+  const saturday = match({ matchDate: "2026-11-21T18:00" });
+
+  test("fino all'inizio della partita: anche il giorno stesso, la mattina, se la figlia sta male", () => {
+    expect(isReportingOpen(saturday, "2026-11-14T10:00")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-20T23:59")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-21T00:00")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-21T08:30")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-21T17:59")).toBe(true);
+    // Dall'ora della partita in poi non più.
+    expect(isReportingOpen(saturday, "2026-11-21T18:00")).toBe(false);
+    expect(isReportingOpen(saturday, "2026-11-21T20:00")).toBe(false);
+    expect(isReportingOpen(saturday, "2026-11-22T09:00")).toBe(false);
   });
 
-  test("il genitore non cambia una partita chiusa né una segnalazione dello staff", () => {
-    const saturday = match({ matchDate: "2026-11-21T18:00" });
-    expect(canParentChange(saturday, null, "2026-11-20")).toEqual({ ok: true });
-    expect(canParentChange(saturday, { reportedBy: "parent" }, "2026-11-20")).toEqual({ ok: true });
+  test("il genitore cambia anche una segnalazione dello staff: conta solo che la partita non sia cominciata", () => {
+    expect(canParentChange(saturday, "2026-11-20T12:00")).toEqual({ ok: true });
+    expect(canParentChange(saturday, "2026-11-21T09:15")).toEqual({ ok: true });
 
-    const closed = canParentChange(saturday, null, "2026-11-21");
-    expect(closed.ok).toBe(false);
-    if (!closed.ok) expect(closed.error).toMatch(/sentite l'allenatore/);
-
-    const byStaff = canParentChange(saturday, { reportedBy: "staff" }, "2026-11-20");
-    expect(byStaff.ok).toBe(false);
-    if (!byStaff.ok) expect(byStaff.error).toMatch(/lo staff/);
+    const started = canParentChange(saturday, "2026-11-21T18:00");
+    expect(started.ok).toBe(false);
+    if (!started.ok) expect(started.error).toMatch(/già cominciata/);
   });
 
   test("il link funziona solo per un'atleta attiva di U14/U15", () => {
@@ -149,33 +148,35 @@ test.describe("le partite che vede il genitore", () => {
     expect(appliesToAthlete(match({ team: "minivolley", category: null }), athlete)).toBe(false);
   });
 
-  test("da oggi in poi, non giocate, della sua categoria, dalla più vicina; quelle di oggi si vedono ma sono chiuse", () => {
-    const today = "2026-11-10";
+  test("da oggi in poi, non giocate, della sua categoria, dalla più vicina; quelle già cominciate si vedono ma sono chiuse", () => {
+    const now = "2026-11-10T15:00";
     const list = matchesForAthlete(
       athlete,
       [
         match({ id: "later", matchDate: "2026-11-28T16:00" }),
         match({ id: "past", matchDate: "2026-11-09T18:00" }),
-        match({ id: "today", matchDate: "2026-11-10T20:00" }),
+        match({ id: "started", matchDate: "2026-11-10T11:00" }),
+        match({ id: "tonight", matchDate: "2026-11-10T20:00" }),
         match({ id: "other-category", category: "U15", matchDate: "2026-11-15T16:00" }),
         match({ id: "played", matchDate: "2026-11-12T16:00", setScores: [{ us: 25, them: 20 }], resultSetsWon: 3, resultSetsLost: 0 }),
         match({ id: "no-category", category: null, matchDate: "2026-11-14T10:00" }),
         match({ id: "soon", matchDate: "2026-11-11T18:00" }),
       ],
-      today,
+      now,
     );
-    expect(list.map((entry) => entry.match.id)).toEqual(["today", "soon", "no-category", "later"]);
-    expect(list.map((entry) => entry.open)).toEqual([false, true, true, true]);
+    expect(list.map((entry) => entry.match.id)).toEqual(["started", "tonight", "soon", "no-category", "later"]);
+    // Quella di stasera, non ancora cominciata, si può ancora cambiare; quella delle 11 no.
+    expect(list.map((entry) => entry.open)).toEqual([false, true, true, true, true]);
   });
 
   test("al massimo le prime dodici", () => {
     const many = Array.from({ length: 20 }, (_, i) => match({ id: `m${i}`, matchDate: `2026-12-${String(i + 1).padStart(2, "0")}T18:00` }));
-    expect(matchesForAthlete(athlete, many, "2026-11-01")).toHaveLength(12);
-    expect(matchesForAthlete(athlete, many, "2026-11-01", 3).map((entry) => entry.match.id)).toEqual(["m0", "m1", "m2"]);
+    expect(matchesForAthlete(athlete, many, "2026-11-01T09:00")).toHaveLength(12);
+    expect(matchesForAthlete(athlete, many, "2026-11-01T09:00", 3).map((entry) => entry.match.id)).toEqual(["m0", "m1", "m2"]);
   });
 
   test("senza partite non c'è niente da mostrare", () => {
-    expect(matchesForAthlete(athlete, [], "2026-11-01")).toEqual([]);
+    expect(matchesForAthlete(athlete, [], "2026-11-01T09:00")).toEqual([]);
   });
 });
 

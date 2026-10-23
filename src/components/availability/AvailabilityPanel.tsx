@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { CalendarX2, Clock, MapPin, Undo2 } from "lucide-react";
+import { CalendarX2, Clock, MapPin, Pencil, Undo2 } from "lucide-react";
 import { clearUnavailableAction, reportUnavailableAction } from "@/app/disponibilita/[codice]/actions";
 import { cn } from "@/lib/cn";
 import { describeUnavailability } from "@/lib/availability/rules";
@@ -35,7 +35,7 @@ export interface FamilyMatchItem {
   /** «Amichevole» o «Torneo», se non è una partita di campionato. */
   kind: string | null;
   meeting: string | null;
-  /** Il genitore può ancora cambiare (fino alla sera prima). */
+  /** Il genitore può ancora cambiare (fino all'inizio della partita). */
   open: boolean;
   report: FamilyReport | null;
 }
@@ -50,8 +50,8 @@ function applyChange(items: FamilyMatchItem[], change: Change): FamilyMatchItem[
 
 /**
  * Le partite in programma di un'atleta con, per ognuna, «Non ci sarà»: un tocco, il motivo a scelta e una nota breve se si
- * vuole. Cambia subito sullo schermo e intanto va al server; se il server rifiuta torna com'era e lo dice. Chi ha il link può
- * toccare solo le partite aperte (fino alla sera prima) e solo le segnalazioni fatte dal genitore, non quelle dello staff.
+ * vuole; poi si può modificare o togliere. Cambia subito sullo schermo e intanto va al server; se il server rifiuta torna
+ * com'era e lo dice. Chi ha il link può cambiare ogni partita finché non comincia, anche una segnalazione scritta dallo staff.
  */
 export function AvailabilityPanel({ token, items }: { token: string; items: FamilyMatchItem[] }) {
   const [optimistic, applyOptimistic] = useOptimistic(items, applyChange);
@@ -120,11 +120,16 @@ function MatchCard({
   const report = item.report;
   const byStaff = report?.reportedBy === "staff";
 
+  /** Apre il modulo: vuoto per una segnalazione nuova, con quello che c'è già per modificarla. */
+  function startAsking() {
+    setReason(report?.reason ?? null);
+    setNote(report?.note ?? "");
+    setAsking(true);
+  }
+
   function confirm() {
     onReport(reason, note);
     setAsking(false);
-    setReason(null);
-    setNote("");
   }
 
   return (
@@ -156,27 +161,33 @@ function MatchCard({
               Non ci sarà
             </p>
             <p className="mt-0.5 text-foreground/75">{describeUnavailability(report)}</p>
-            {byStaff && <p className="mt-1 text-[13px] text-muted-foreground">Segnalata dallo staff: per cambiarla sentite l&apos;allenatore.</p>}
+            {byStaff && <p className="mt-1 text-[13px] text-muted-foreground">Inserita dall&apos;allenatore{item.open ? ": puoi cambiarla tu." : "."}</p>}
           </div>
         )}
 
-        {report && !byStaff && item.open && (
-          <Button type="button" variant="outline" size="sm" className="mt-3" disabled={saving} onClick={onClear} data-availability-clear>
-            <Undo2 className="h-4 w-4" />
-            Torna disponibile
-          </Button>
+        {report && item.open && !asking && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={startAsking} data-availability-edit>
+              <Pencil className="h-4 w-4" />
+              Modifica
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={onClear} data-availability-clear>
+              <Undo2 className="h-4 w-4" />
+              Torna disponibile
+            </Button>
+          </div>
         )}
 
         {!report && item.open && !asking && (
-          <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={() => setAsking(true)} data-availability-open>
+          <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={startAsking} data-availability-open>
             <CalendarX2 className="h-4 w-4" />
             Non ci sarà
           </Button>
         )}
 
-        {!item.open && !report && (
+        {!item.open && (
           <p className="mt-3 text-[13px] text-muted-foreground" data-availability-closed>
-            Da oggi non si può più cambiare da qui: per questa partita sentite l&apos;allenatore.
+            La partita è già cominciata: da qui non si può più cambiare.
           </p>
         )}
 
@@ -222,7 +233,7 @@ function MatchCard({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={confirm} disabled={saving} data-availability-confirm>
-                Conferma: non ci sarà
+                {report ? "Salva le modifiche" : "Conferma: non ci sarà"}
               </Button>
               <Button type="button" variant="quiet" onClick={() => setAsking(false)}>
                 Annulla
