@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type MutableRefObject, type ReactNode } from "react";
 import { Check } from "lucide-react";
-import { DualLiveScoreCourt } from "@/app/admin/livescore/LiveScoreCourt";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { FieldHint, Label, Select } from "@/components/ui/Field";
@@ -14,7 +13,6 @@ import { shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import type { ScoutData, ScoutPlayer, ScoutSide } from "@/lib/scout/types";
 import type { CourtPosition, VolleyRole } from "@/lib/types";
-import { useMediaQuery } from "@/lib/useMediaQuery";
 import { CourtNet, CourtThreeMeterLine } from "./ScoutCourtPicker";
 import { Sheet } from "./ScoutSheet";
 import type { ScoutAthlete } from "./ScoutSetup";
@@ -41,9 +39,12 @@ const emptyDraft = (): Draft => ({ positions: ["", "", "", "", "", ""], libero: 
 const FIELD =
   "w-full rounded-full bg-white/95 px-2 py-2 text-center text-[13px] font-bold text-sea-950 shadow-sm outline-none placeholder:text-sea-950/35 focus:ring-2 focus:ring-sea-700";
 
-/** Sul telefono ogni squadra ha la sua metà campo, vista dalla sua parte con la rete in alto (davanti 4-3-2, dietro 5-6-1), come
- * nella finestra «chi?»: il campo intero in orizzontale lì è troppo stretto per leggere chi sta a rete. */
-const PHONE_SPOTS: Record<CourtPosition, { row: number; column: number }> = {
+/**
+ * Ogni squadra ha la sua metà campo, vista dalla sua parte con la rete in alto (davanti 4-3-2, dietro 5-6-1), come nella finestra
+ * «chi?», e le due metà stanno una sopra l'altra: le sei caselle sono larghe uguali e chi sta a rete si legge. Nel campo intero in
+ * orizzontale la fila a rete è larga un terzo (come le misure vere) e, anche su un tablet, i nomi non ci stavano.
+ */
+const SPOTS: Record<CourtPosition, { row: number; column: number }> = {
   1: { row: 3, column: 3 },
   2: { row: 1, column: 3 },
   3: { row: 1, column: 2 },
@@ -52,7 +53,7 @@ const PHONE_SPOTS: Record<CourtPosition, { row: number; column: number }> = {
   6: { row: 3, column: 2 },
 };
 
-function PhoneLineupHalf({ side, renderCell }: { side: ScoutSide; renderCell: (position: CourtPosition) => ReactNode }) {
+function LineupHalf({ side, renderCell }: { side: ScoutSide; renderCell: (position: CourtPosition) => ReactNode }) {
   const ours = side === "us";
   return (
     <div
@@ -71,7 +72,7 @@ function PhoneLineupHalf({ side, renderCell }: { side: ScoutSide; renderCell: (p
             key={position}
             data-court-position={position}
             className="relative min-w-0 rounded-xl border border-border-subtle bg-sand-500 px-1.5 pb-1.5 pt-5"
-            style={{ gridRow: PHONE_SPOTS[position].row, gridColumn: PHONE_SPOTS[position].column }}
+            style={{ gridRow: SPOTS[position].row, gridColumn: SPOTS[position].column }}
           >
             <span className="absolute left-2 top-1 text-[10px] font-bold leading-4 text-white">
               {position}
@@ -301,8 +302,6 @@ export function ScoutLineupEditor({
   }
 
   const oppOnCourt = opp.positions.filter((n) => cleanNumber(n));
-  // Il campo intero in orizzontale da 640 px in su; sotto, le due metà campo una sopra l'altra.
-  const wideCourt = useMediaQuery("(min-width: 640px)");
   const usCell = (position: CourtPosition) => (
     <select
       value={us.positions[position - 1] ?? ""}
@@ -359,14 +358,10 @@ export function ScoutLineupEditor({
         )}
       </div>
 
-      {wideCourt ? (
-        <DualLiveScoreCourt players={6} labelA="Noi" labelB="Loro" renderCellA={usCell} renderCellB={oppCell} />
-      ) : (
-        <div className="space-y-3" data-scout-lineup-phone>
-          <PhoneLineupHalf side="us" renderCell={usCell} />
-          <PhoneLineupHalf side="opp" renderCell={oppCell} />
-        </div>
-      )}
+      <div className="space-y-3" data-scout-lineup-halves>
+        <LineupHalf side="us" renderCell={usCell} />
+        <LineupHalf side="opp" renderCell={oppCell} />
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface p-3">
@@ -449,11 +444,13 @@ export function ScoutLineupEditor({
         entra al suo posto quando la squadra torna a ricevere. Esce quando la centrale ruota a rete.
       </FieldHint>
 
-      {/* Nella finestra il pulsante per confermare resta in fondo, in vista, anche scorrendo i campi. */}
+      {/* Nella finestra il pulsante per confermare resta in fondo, in vista, anche scorrendo i campi. Il «sticky» si ferma dove
+       * comincia il margine interno della finestra: con -bottom pari a quel margine sta proprio sul bordo, e i campi non
+       * scorrono più sotto di lui. */}
       <div
         className={cn(
           "flex flex-wrap items-center gap-2",
-          variant === "sheet" && "sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border-subtle bg-surface px-4 py-3 sm:-mx-5 sm:-mb-5 sm:px-5",
+          variant === "sheet" && "sticky -bottom-4 z-10 -mx-4 -mb-4 border-t border-border-subtle bg-surface px-4 py-3 sm:-bottom-5 sm:-mx-5 sm:-mb-5 sm:px-5",
         )}
       >
         <Button onClick={confirm} data-scout-lineup-confirm>

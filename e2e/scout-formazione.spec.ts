@@ -107,6 +107,11 @@ async function prepare(page: Page, matchId: string, level: Level) {
   await chooseNumber(card.locator("#scout-lineup-us-libero"), "1");
   await chooseNumber(card.locator("#scout-lineup-us-host1"), "5");
   await chooseNumber(card.locator("#scout-lineup-us-host2"), "14");
+  // Anche su schermo largo le sei caselle sono larghe uguali (la fila a rete non è più stretta): i nomi si leggono.
+  const front = await card.locator('[data-scout-lineup-cell="us-3"]').boundingBox();
+  const back = await card.locator('[data-scout-lineup-cell="us-6"]').boundingBox();
+  expect(Math.abs(front!.width - back!.width)).toBeLessThan(2);
+  expect(front!.width).toBeGreaterThan(150);
   await card.locator("[data-scout-lineup-confirm]").click();
   await expect(card.locator("[data-scout-lineup-done]")).toBeVisible();
 

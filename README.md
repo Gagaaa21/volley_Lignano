@@ -318,10 +318,11 @@ staff (Developer e Admin).
     quella preparata in Partita per quel set, altrimenti da quella del set
     prima: «Comincia» (`commitRef`) applica da sola quella scritta e non
     ancora confermata, quindi non va riscritta due volte. Chi gioca nelle sei
-    posizioni, la libero e le due centrali che sostituisce. Sul telefono (sotto i 640 px) ogni
+    posizioni, la libero e le due centrali che sostituisce. Ogni
     squadra ha la sua metà campo, con la rete in alto (davanti 4-3-2, dietro 5-6-1) come nel «chi?»
-    (`PhoneLineupHalf`): il campo intero in orizzontale lì è troppo stretto per leggere chi sta a
-    rete; da 640 px resta il campo intero. Sempre dal telefono l'intestazione dello Scout sta in una
+    (`LineupHalf`), e le due metà stanno una sopra l'altra con sei caselle larghe uguali: nel campo
+    intero in orizzontale la fila a rete era larga un terzo e i nomi non si leggevano, nemmeno su
+    iPad. Dal telefono l'intestazione dello Scout sta in una
     riga («Live» e, quando va tutto bene, solo l'icona del salvataggio), «Comincia a segnare i punti»
     riporta in cima al tabellone e niente scorre di lato (`e2e/scout-telefono.spec.ts`). Due eventi in più nello scout,
     `lineup` e `sub` (`types.ts`, `schema.ts`, `actions.ts`): `derive.ts` li

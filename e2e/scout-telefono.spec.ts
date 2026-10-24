@@ -75,21 +75,27 @@ test("dal telefono: niente scorre di lato, la formazione si legge su due metà c
 
     // Sul telefono la formazione ha due metà campo, una per squadra: la prima linea (4-3-2) in alto, sotto la rete.
     const card = page.locator("[data-scout-lineup]");
-    await expect(card.locator("[data-scout-lineup-phone]")).toBeVisible();
+    await expect(card.locator("[data-scout-lineup-halves]")).toBeVisible();
     const ours = card.locator('[data-scout-lineup-half="us"]');
     await expect(ours.locator("[data-scout-lineup-cell]")).toHaveCount(6);
     await expect(card.locator('[data-scout-lineup-half="opp"] [data-scout-lineup-cell]')).toHaveCount(6);
     for (const [index, number] of ["9", "2", "5", "7", "11", "14"].entries()) await chooseNumber(card.locator(`[data-scout-lineup-cell="us-${index + 1}"]`), number);
+    // Le posizioni si misurano tutte insieme: tra una misura e l'altra la pagina può ancora scorrere (dopo l'ultima scelta).
+    const spots = Object.fromEntries(
+      await card.locator("[data-scout-lineup-cell^='us-']").evaluateAll((elements) =>
+        elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          return [element.getAttribute("data-scout-lineup-cell")!, { x: box.x, y: box.y, width: box.width }] as const;
+        }),
+      ),
+    );
     // Chi sta a rete si legge: le caselle della prima linea sono larghe quanto quelle dietro.
-    const front = await card.locator('[data-scout-lineup-cell="us-3"]').boundingBox();
-    const back = await card.locator('[data-scout-lineup-cell="us-6"]').boundingBox();
-    expect(front!.width).toBeGreaterThan(60);
-    expect(Math.abs(front!.width - back!.width)).toBeLessThan(2);
+    expect(spots["us-3"].width).toBeGreaterThan(60);
+    expect(Math.abs(spots["us-3"].width - spots["us-6"].width)).toBeLessThan(2);
     // La 4 sta sopra la 5, la 2 sopra la 1: come la vede la squadra dalla sua parte.
-    const four = await card.locator('[data-scout-lineup-cell="us-4"]').boundingBox();
-    const five = await card.locator('[data-scout-lineup-cell="us-5"]').boundingBox();
-    expect(four!.y).toBeLessThan(five!.y);
-    expect(Math.abs(four!.x - five!.x)).toBeLessThan(2);
+    expect(spots["us-4"].y).toBeLessThan(spots["us-5"].y);
+    expect(Math.abs(spots["us-4"].x - spots["us-5"].x)).toBeLessThan(2);
+    expect(spots["us-2"].y).toBeLessThan(spots["us-1"].y);
     // I numeri dell'avversaria si scrivono di seguito: Invio passa alla posizione dopo.
     await card.locator('[data-scout-lineup-cell="opp-1"]').fill("21");
     await card.locator('[data-scout-lineup-cell="opp-1"]').press("Enter");

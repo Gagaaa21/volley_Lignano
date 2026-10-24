@@ -96,9 +96,19 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             </div>
           );
         })}
-        <div className="max-w-[16rem]">
+        {/* Il campo è stretto (bastano due cifre), la spiegazione sotto no: in una colonna da 16rem andava a capo a ogni parola. */}
+        <div>
           <Label htmlFor="diretta-delay">Ritardo del punteggio (secondi)</Label>
-          <Input id="diretta-delay" name="delay" type="number" inputMode="numeric" min={0} max={MAX_DELAY_SECONDS} defaultValue={initial?.delaySeconds ?? DEFAULT_DELAY_SECONDS} />
+          <Input
+            id="diretta-delay"
+            name="delay"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={MAX_DELAY_SECONDS}
+            defaultValue={initial?.delaySeconds ?? DEFAULT_DELAY_SECONDS}
+            className="max-w-[10rem]"
+          />
           <FieldHint>
             YouTube mostra il video con 10–20 secondi di ritardo: il punteggio compare dopo altrettanto. Se arriva prima della palla a terra, aumentalo (i genitori
             possono anche regolarlo da soli).
