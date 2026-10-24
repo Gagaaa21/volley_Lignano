@@ -1,10 +1,14 @@
 /**
- * Presenza alle partite. I genitori non hanno un account: ogni atleta ha un link personale e segreto (`AthleteFamilyLink`) con
- * cui il genitore risponde, per ogni partita, «Ci sarà» o «Non ci sarà» (`MatchAvailability`). Anche l'allenatore può scrivere
- * o cambiare la risposta di ogni atleta. Chi non ha risposto non ha nessuna riga. Le risposte le vede solo lo staff: non
- * compaiono mai sul sito pubblico.
+ * Assenze alle partite. I genitori non hanno un account: ogni atleta ha un link personale e segreto (`AthleteFamilyLink`) con
+ * cui il genitore segnala che la figlia **non ci sarà** a una partita (`MatchAvailability` con stato «absent»), con un motivo e una
+ * nota se vuole; si chiede solo questo: chi non segnala niente ci sarà. Il genitore può farlo fino a 5 giorni prima della partita
+ * (`REPORT_CLOSES_DAYS_BEFORE`); l'allenatore sempre. Le assenze le vede solo lo staff: non compaiono mai sul sito pubblico.
  */
 
+/** Il genitore segnala un'assenza (o la toglie) fino a tanti giorni prima dell'inizio della partita; poi solo l'allenatore. */
+export const REPORT_CLOSES_DAYS_BEFORE = 5;
+
+/** Si scrive solo «absent»: le righe «present» sono di una versione di prova (ottobre 2026) e non contano più. */
 export const ANSWER_STATUSES = ["present", "absent"] as const;
 export type AnswerStatus = (typeof ANSWER_STATUSES)[number];
 
@@ -26,13 +30,13 @@ export const ABSENCE_REASON_LABELS: Record<AbsenceReason, string> = {
 /** Lunghezza massima della nota facoltativa. */
 export const MAX_NOTE_LENGTH = 120;
 
-/** Chi ha scritto l'ultima risposta: il genitore dal suo link, o l'allenatore (per esempio dopo un messaggio in chat). */
+/** Chi ha scritto l'assenza (l'ultima modifica): il genitore dal suo link, o l'allenatore (per esempio dopo un messaggio in chat). */
 export type AnsweredBy = "parent" | "staff";
 
-/** «Risposta del genitore» / «Risposta dell'allenatore». */
+/** «Segnalata dal genitore» / «Segnalata dall'allenatore». */
 export const ANSWERED_BY_PHRASES: Record<AnsweredBy, string> = {
-  parent: "del genitore",
-  staff: "dell'allenatore",
+  parent: "dal genitore",
+  staff: "dall'allenatore",
 };
 
 export interface AthleteFamilyLink {
@@ -44,7 +48,7 @@ export interface AthleteFamilyLink {
   rotatedAt: string | null;
 }
 
-/** La risposta di un'atleta per una partita. Motivo e nota hanno senso solo per un'assenza. */
+/** L'assenza di un'atleta da una partita (una riga per partita e atleta; nessuna riga = ci sarà). */
 export interface MatchAvailability {
   matchId: string;
   athleteId: string;

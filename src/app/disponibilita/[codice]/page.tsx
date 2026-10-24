@@ -5,10 +5,10 @@ import { Link2Off, Wrench } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { canUseFamilyLink, matchesForAthlete } from "@/lib/availability/rules";
-import { answerWhen } from "@/lib/availability/format";
+import { canUseFamilyLink, isAbsence, matchesForAthlete, reportingDeadline } from "@/lib/availability/rules";
+import { answerWhen, deadlineLabel } from "@/lib/availability/format";
 import { isFamilyToken } from "@/lib/availability/token";
-import type { MatchAvailability } from "@/lib/availability/types";
+import { REPORT_CLOSES_DAYS_BEFORE, type MatchAvailability } from "@/lib/availability/types";
 import { nowLocalIso } from "@/lib/today";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityPanel, type FamilyMatchItem } from "@/components/availability/AvailabilityPanel";
@@ -19,8 +19,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 // Un titolo e una descrizione uguali per tutti: l'anteprima di WhatsApp non deve mai mostrare il nome di un'atleta. La pagina
 // non va sui motori di ricerca e non passa il suo indirizzo (che contiene il codice) ai siti verso cui porta.
 export const metadata: Metadata = {
-  title: "Presenza alle partite",
-  description: "Ci sarà o non ci sarà: rispondi per le prossime partite.",
+  title: "Assenze alle partite",
+  description: "Segnala le partite a cui non ci sarà.",
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };
@@ -72,7 +72,7 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
 
   const now = nowLocalIso();
   const options = matchesForAthlete(athlete, await repo.listMatches({ team: athlete.team, from: now.slice(0, 10) }), now);
-  // Chi aveva già un link ma non ha ancora creato la tabella delle risposte: niente pagina d'errore, si spiega che non è pronto.
+  // Chi aveva già un link ma non ha ancora creato la tabella delle assenze: niente pagina d'errore, si spiega che non è pronto.
   let answers: MatchAvailability[];
   try {
     answers = await repo.listMatchAvailability({ athleteId: athlete.id, matchIds: options.map(({ match }) => match.id) });
@@ -80,11 +80,11 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
     if (!isAvailabilityTableMissing(error)) throw error;
     return <NotReady />;
   }
-  const answerByMatch = new Map(answers.map((row) => [row.matchId, row] as const));
+  const absenceByMatch = new Map(answers.filter(isAbsence).map((row) => [row.matchId, row] as const));
 
   // Solo quello che serve a mostrare le partite: mai chi è convocata né altri dati.
   const items: FamilyMatchItem[] = options.map(({ match, open }) => {
-    const row = answerByMatch.get(match.id);
+    const row = absenceByMatch.get(match.id);
     const meeting = [match.meetingTime ? `ore ${match.meetingTime}` : null, match.meetingLocation].filter(Boolean).join(" · ");
     return {
       matchId: match.id,
@@ -96,28 +96,22 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
       kind: match.isTournament ? "Torneo" : match.isFriendly ? "Amichevole" : null,
       meeting: meeting || null,
       open,
-      answer: row
-        ? {
-            status: row.status,
-            reason: row.reason,
-            note: row.note,
-            by: row.answeredBy,
-            when: answerWhen(row.updatedAt),
-          }
-        : null,
+      deadline: deadlineLabel(reportingDeadline(match)),
+      absence: row ? { reason: row.reason, note: row.note, by: row.answeredBy, when: answerWhen(row.updatedAt) } : null,
     };
   });
 
   return (
     <FamilyShell>
-      <p className="eyebrow">Presenza alle partite</p>
+      <p className="eyebrow">Assenze alle partite</p>
       <h1 className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-display text-2xl font-extrabold text-foreground sm:text-3xl" data-family-athlete>
         {athlete.fullName}
         <CategoryTag category={athlete.category} size="md" long />
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Per ogni partita tocca <b className="font-semibold text-foreground/80">Ci sarà</b> oppure <b className="font-semibold text-foreground/80">Non ci sarà</b>:
-        l&apos;allenatore lo vede subito. Puoi cambiare risposta quando vuoi, fino all&apos;inizio della partita.
+        Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground/80">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
+        sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino a {REPORT_CLOSES_DAYS_BEFORE} giorni prima della partita; dopo, scrivi
+        all&apos;allenatore.
       </p>
 
       <div className="mt-6">

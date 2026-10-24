@@ -1,9 +1,10 @@
 import { whatsappPhone } from "@/lib/trips/phone";
+import { REPORT_CLOSES_DAYS_BEFORE } from "./types";
 
 /** Il messaggio che lo staff manda al genitore con il link personale. */
 export function familyLinkMessage(athleteName: string, url: string): string {
   return [
-    `Ciao! Questo è il link personale di ${athleteName} per dirci, partita per partita, se ci sarà:`,
+    `Ciao! Questo è il link personale di ${athleteName} per avvisarci se non può esserci a una partita (fino a ${REPORT_CLOSES_DAYS_BEFORE} giorni prima):`,
     url,
     "È solo per voi: non condividerlo con altri.",
   ].join("\n");

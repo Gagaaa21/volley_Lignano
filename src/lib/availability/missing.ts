@@ -1,5 +1,5 @@
 /**
- * I link dei genitori e le risposte di presenza vivono in due tabelle a parte (`athlete_family_links` e `match_availability`,
+ * I link dei genitori e le assenze alle partite vivono in due tabelle a parte (`athlete_family_links` e `match_availability`,
  * vedi supabase/schema.sql) da creare su Supabase una volta sola. Il sito si aggiorna da solo a ogni pubblicazione, le tabelle
  * no: nel frattempo, invece di una pagina d'errore generica, si spiega cosa manca. Riconosce l'errore «tabella inesistente» di
  * Postgres e di Supabase (PostgREST).

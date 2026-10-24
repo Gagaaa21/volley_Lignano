@@ -3,29 +3,27 @@ import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import {
   absentByMatch,
   absentLabel,
-  answerOrder,
   appliesToAthlete,
   canParentChange,
   canUseFamilyLink,
-  countAnswers,
-  describeAnswer,
+  describeAbsence,
+  isAbsence,
   isReportingOpen,
   matchesForAthlete,
-  normalizeAnswer,
+  normalizeAbsence,
   normalizeNote,
   parseReason,
-  parseStatus,
+  reportingDeadline,
 } from "@/lib/availability/rules";
 import { familyLinkMessage, whatsappShareUrl } from "@/lib/availability/share";
 import { FAMILY_TOKEN_LENGTH, familyLinkPath, isFamilyToken, newFamilyToken } from "@/lib/availability/token";
-import { MAX_NOTE_LENGTH } from "@/lib/availability/types";
+import { MAX_NOTE_LENGTH, REPORT_CLOSES_DAYS_BEFORE } from "@/lib/availability/types";
 import { whatsappPhone } from "@/lib/trips/phone";
 import type { Match } from "@/lib/types";
 
 /**
- * Link personali dei genitori e presenza alle partite: il codice (lungo, casuale, mai indovinabile), quali partite si vedono,
- * fino a quando si può cambiare, come si scrive e si legge la risposta («Ci sarà» / «Non ci sarà»), come si contano le risposte
- * e i messaggi per WhatsApp.
+ * Link personali dei genitori e assenze alle partite: il codice (lungo, casuale, mai indovinabile), quali partite si vedono,
+ * fino a quando si può segnalare (5 giorni prima), come si scrive e si legge un'assenza, come si contano e i messaggi per WhatsApp.
  */
 
 function match(overrides: Partial<Match> = {}): Match {
@@ -85,13 +83,7 @@ test.describe("il codice del link", () => {
   });
 });
 
-test.describe("la risposta, il motivo e la nota", () => {
-  test("la risposta è solo «Ci sarà» o «Non ci sarà»: tutto il resto si scarta", () => {
-    expect(parseStatus("present")).toBe("present");
-    expect(parseStatus("absent")).toBe("absent");
-    for (const wrong of ["Present", "", " absent", "maybe", "none", "__proto__", undefined, null, 1, {}]) expect(parseStatus(wrong)).toBeNull();
-  });
-
+test.describe("l'assenza: motivo e nota", () => {
   test("il motivo è solo uno di quelli previsti", () => {
     expect(parseReason("malata")).toBe("malata");
     expect(parseReason("famiglia")).toBe("famiglia");
@@ -110,50 +102,69 @@ test.describe("la risposta, il motivo e la nota", () => {
     expect(normalizeNote(42)).toBeNull();
   });
 
-  test("chi ci sarà non ha niente da spiegare: motivo e nota si scrivono solo per un'assenza", () => {
-    expect(normalizeAnswer({ status: "present", reason: "malata", note: "mal di gola" })).toEqual({ status: "present", reason: null, note: null });
-    expect(normalizeAnswer({ status: "absent", reason: "malata", note: "  mal   di gola " })).toEqual({
-      status: "absent",
-      reason: "malata",
-      note: "mal di gola",
-    });
+  test("si scrive sempre e solo un'assenza: motivo previsto o nessuno, nota ripulita", () => {
+    expect(normalizeAbsence({ reason: "malata", note: "  mal   di gola " })).toEqual({ status: "absent", reason: "malata", note: "mal di gola" });
     // Un motivo inventato o una nota vuota non passano: resta «Non ci sarà» e basta.
-    expect(normalizeAnswer({ status: "absent", reason: "scuola", note: "   " })).toEqual({ status: "absent", reason: null, note: null });
-    expect(normalizeAnswer({ status: "absent" })).toEqual({ status: "absent", reason: null, note: null });
-    expect(normalizeAnswer({ status: "absent", note: "x".repeat(500) }).note).toHaveLength(MAX_NOTE_LENGTH);
+    expect(normalizeAbsence({ reason: "scuola", note: "   " })).toEqual({ status: "absent", reason: null, note: null });
+    expect(normalizeAbsence({})).toEqual({ status: "absent", reason: null, note: null });
+    expect(normalizeAbsence({ note: "x".repeat(500) }).note).toHaveLength(MAX_NOTE_LENGTH);
   });
 
-  test("lo staff legge la risposta in una riga", () => {
-    expect(describeAnswer({ status: "present", reason: null, note: null })).toBe("Ci sarà");
-    expect(describeAnswer({ status: "absent", reason: null, note: null })).toBe("Non ci sarà");
-    expect(describeAnswer({ status: "absent", reason: "malata", note: "mal di gola" })).toBe("Non ci sarà · Malata o infortunata · mal di gola");
-    expect(describeAnswer({ status: "absent", reason: "famiglia", note: null })).toBe("Non ci sarà · Impegno di famiglia");
-    expect(describeAnswer({ status: "absent", reason: null, note: "torniamo domenica" })).toBe("Non ci sarà · torniamo domenica");
+  test("contano solo le assenze: le righe «present» di una versione di prova no", () => {
+    expect(isAbsence({ status: "absent" })).toBe(true);
+    expect(isAbsence({ status: "present" })).toBe(false);
+  });
+
+  test("lo staff legge l'assenza in una riga", () => {
+    expect(describeAbsence({ reason: null, note: null })).toBe("Non ci sarà");
+    expect(describeAbsence({ reason: "malata", note: "mal di gola" })).toBe("Non ci sarà · Malata o infortunata · mal di gola");
+    expect(describeAbsence({ reason: "famiglia", note: null })).toBe("Non ci sarà · Impegno di famiglia");
+    expect(describeAbsence({ reason: null, note: "torniamo domenica" })).toBe("Non ci sarà · torniamo domenica");
   });
 });
 
-test.describe("quando il genitore può cambiare", () => {
+test.describe("fino a quando il genitore può segnalare", () => {
   const saturday = match({ matchDate: "2026-11-21T18:00" });
 
-  test("fino all'inizio della partita: anche il giorno stesso, la mattina, se la figlia sta male", () => {
-    expect(isReportingOpen(saturday, "2026-11-14T10:00")).toBe(true);
-    expect(isReportingOpen(saturday, "2026-11-20T23:59")).toBe(true);
-    expect(isReportingOpen(saturday, "2026-11-21T00:00")).toBe(true);
-    expect(isReportingOpen(saturday, "2026-11-21T08:30")).toBe(true);
-    expect(isReportingOpen(saturday, "2026-11-21T17:59")).toBe(true);
-    // Dall'ora della partita in poi non più.
-    expect(isReportingOpen(saturday, "2026-11-21T18:00")).toBe(false);
-    expect(isReportingOpen(saturday, "2026-11-21T20:00")).toBe(false);
+  test("5 giorni prima della partita, alla stessa ora: partita sabato alle 18 → fino a lunedì alle 18", () => {
+    expect(REPORT_CLOSES_DAYS_BEFORE).toBe(5);
+    expect(reportingDeadline(saturday)).toBe("2026-11-16T18:00");
+    expect(reportingDeadline(match({ matchDate: "2026-11-22T09:30" }))).toBe("2026-11-17T09:30");
+  });
+
+  test("si conta sul calendario: cambio di mese, d'anno, anni bisestili e ora legale non spostano niente", () => {
+    expect(reportingDeadline(match({ matchDate: "2026-12-03T18:00" }))).toBe("2026-11-28T18:00");
+    expect(reportingDeadline(match({ matchDate: "2027-01-02T10:00" }))).toBe("2026-12-28T10:00");
+    expect(reportingDeadline(match({ matchDate: "2028-03-03T17:00" }))).toBe("2028-02-27T17:00");
+    expect(reportingDeadline(match({ matchDate: "2027-03-03T17:00" }))).toBe("2027-02-26T17:00");
+    // Il 29 marzo 2026 si passa all'ora legale, il 25 ottobre 2026 si torna a quella solare: l'ora resta la stessa.
+    expect(reportingDeadline(match({ matchDate: "2026-03-31T18:00" }))).toBe("2026-03-26T18:00");
+    expect(reportingDeadline(match({ matchDate: "2026-10-28T20:30" }))).toBe("2026-10-23T20:30");
+    // Senza ora (non dovrebbe succedere) si chiude a mezzanotte.
+    expect(reportingDeadline(match({ matchDate: "2026-11-21" }))).toBe("2026-11-16T00:00");
+  });
+
+  test("aperte fino a un minuto prima della scadenza, chiuse da lì in poi (anche il giorno della partita)", () => {
+    expect(isReportingOpen(saturday, "2026-11-01T10:00")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-16T00:00")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-16T17:59")).toBe(true);
+    expect(isReportingOpen(saturday, "2026-11-16T18:00")).toBe(false);
+    expect(isReportingOpen(saturday, "2026-11-17T09:00")).toBe(false);
+    expect(isReportingOpen(saturday, "2026-11-21T08:30")).toBe(false);
     expect(isReportingOpen(saturday, "2026-11-22T09:00")).toBe(false);
   });
 
-  test("il genitore cambia la risposta anche se l'ha scritta l'allenatore: conta solo che la partita non sia cominciata", () => {
-    expect(canParentChange(saturday, "2026-11-20T12:00")).toEqual({ ok: true });
-    expect(canParentChange(saturday, "2026-11-21T09:15")).toEqual({ ok: true });
+  test("il genitore segnala o toglie un'assenza (anche se l'ha scritta l'allenatore) solo finché sono aperte", () => {
+    expect(canParentChange(saturday, "2026-11-10T12:00")).toEqual({ ok: true });
+    expect(canParentChange(saturday, "2026-11-16T17:59")).toEqual({ ok: true });
 
-    const started = canParentChange(saturday, "2026-11-21T18:00");
-    expect(started.ok).toBe(false);
-    if (!started.ok) expect(started.error).toMatch(/già cominciata/);
+    const closed = canParentChange(saturday, "2026-11-16T18:00");
+    expect(closed.ok).toBe(false);
+    if (!closed.ok) {
+      expect(closed.error).toMatch(/chiuse/);
+      expect(closed.error).toMatch(/5 giorni prima/);
+      expect(closed.error).toMatch(/scrivi all'allenatore/);
+    }
   });
 
   test("il link funziona solo per un'atleta attiva di U14/U15", () => {
@@ -174,7 +185,7 @@ test.describe("le partite che vede il genitore", () => {
     expect(appliesToAthlete(match({ team: "minivolley", category: null }), athlete)).toBe(false);
   });
 
-  test("da oggi in poi, non giocate, della sua categoria, dalla più vicina; quelle già cominciate si vedono ma sono chiuse", () => {
+  test("da oggi in poi, non giocate, della sua categoria, dalla più vicina; quelle a meno di 5 giorni si vedono ma sono chiuse", () => {
     const now = "2026-11-10T15:00";
     const list = matchesForAthlete(
       athlete,
@@ -187,12 +198,14 @@ test.describe("le partite che vede il genitore", () => {
         match({ id: "played", matchDate: "2026-11-12T16:00", setScores: [{ us: 25, them: 20 }], resultSetsWon: 3, resultSetsLost: 0 }),
         match({ id: "no-category", category: null, matchDate: "2026-11-14T10:00" }),
         match({ id: "soon", matchDate: "2026-11-11T18:00" }),
+        // Fra 5 giorni esatti chiude adesso; un'ora dopo è ancora aperta.
+        match({ id: "edge-closed", matchDate: "2026-11-15T15:00" }),
+        match({ id: "edge-open", matchDate: "2026-11-15T16:00" }),
       ],
       now,
     );
-    expect(list.map((entry) => entry.match.id)).toEqual(["started", "tonight", "soon", "no-category", "later"]);
-    // Quella di stasera, non ancora cominciata, si può ancora cambiare; quella delle 11 no.
-    expect(list.map((entry) => entry.open)).toEqual([false, true, true, true, true]);
+    expect(list.map((entry) => entry.match.id)).toEqual(["started", "tonight", "soon", "no-category", "edge-closed", "edge-open", "later"]);
+    expect(list.map((entry) => entry.open)).toEqual([false, false, false, false, false, true, true]);
   });
 
   test("al massimo le prime dodici", () => {
@@ -206,8 +219,8 @@ test.describe("le partite che vede il genitore", () => {
   });
 });
 
-test.describe("contare le risposte", () => {
-  test("le assenti si contano partita per partita; chi ci sarà non conta", () => {
+test.describe("contare le assenze", () => {
+  test("le assenti si contano partita per partita; le vecchie righe «present» non contano", () => {
     const counts = absentByMatch([
       { matchId: "a", status: "absent" },
       { matchId: "b", status: "absent" },
@@ -219,27 +232,6 @@ test.describe("contare le risposte", () => {
     expect(counts.get("b")).toBe(1);
     expect(counts.get("c")).toBeUndefined();
     expect(absentByMatch([]).size).toBe(0);
-  });
-
-  test("per una partita: quante ci sono, quante no e quante non hanno risposto (solo tra le atlete indicate)", () => {
-    const rows = [
-      { athleteId: "anna", status: "present" },
-      { athleteId: "bea", status: "absent" },
-      { athleteId: "chiara", status: "absent" },
-      // Una che non è tra le atlete indicate (per esempio non più attiva): la sua risposta non conta.
-      { athleteId: "ex", status: "absent" },
-    ] as const;
-    expect(countAnswers(["anna", "bea", "chiara", "dora", "elisa"], rows)).toEqual({ present: 1, absent: 2, none: 2 });
-    expect(countAnswers([], rows)).toEqual({ present: 0, absent: 0, none: 0 });
-    expect(countAnswers(["dora"], [])).toEqual({ present: 0, absent: 0, none: 1 });
-    // Una stessa atleta nominata due volte conta una volta sola.
-    expect(countAnswers(["anna", "anna"], rows)).toEqual({ present: 1, absent: 0, none: 0 });
-  });
-
-  test("l'elenco dello staff mette prima chi non c'è, poi chi non ha risposto, poi chi c'è", () => {
-    const statuses = ["present", null, "absent", "present", null, "absent"] as const;
-    const sorted = [...statuses].sort((a, b) => answerOrder(a) - answerOrder(b));
-    expect(sorted).toEqual(["absent", "absent", null, null, "present", "present"]);
   });
 
   test("la scritta per l'elenco partite e la dashboard", () => {
@@ -262,9 +254,11 @@ test.describe("WhatsApp", () => {
     expect(whatsappPhone("123")).toBeNull();
   });
 
-  test("il messaggio contiene il nome, il link e l'invito a non condividerlo", () => {
+  test("il messaggio contiene il nome, il link, fino a quando si può avvisare e l'invito a non condividerlo", () => {
     const text = familyLinkMessage("Anna Bianchi", "https://esempio.it/disponibilita/abc");
     expect(text).toContain("Anna Bianchi");
+    expect(text).toMatch(/non può esserci/);
+    expect(text).toMatch(/5 giorni prima/);
     expect(text).toContain("https://esempio.it/disponibilita/abc");
     expect(text).toMatch(/non condividerlo/);
   });

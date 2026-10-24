@@ -6,7 +6,6 @@ import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CallUpsAndLineupsDialog } from "./CallUpsAndLineupsDialog";
-import type { AnswerFlag } from "./CallUpsSection";
 import type { Athlete, MatchLineup } from "@/lib/types";
 
 /** Tasto in fondo alla pagina partita che apre la finestra unica per
@@ -18,19 +17,19 @@ export function MatchWorkspace({
   allAthletes,
   initialCalledUpIds,
   initialLineup,
-  answers,
+  absences = {},
 }: {
   matchId: string;
   title: string;
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
-  /** La risposta di ogni atleta che ha risposto, per atleta (chi non ha risposto non ha nessuna voce). Senza, la presenza non è attiva. */
-  answers?: Record<string, AnswerFlag>;
+  /** Le assenze, per atleta: la riga già scritta («Non ci sarà · motivo · nota»). */
+  absences?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const calledUpCount = initialCalledUpIds.length;
-  const calledUpButAbsent = initialCalledUpIds.filter((id) => answers?.[id]?.status === "absent").length;
+  const calledUpButAbsent = initialCalledUpIds.filter((id) => absences[id]).length;
 
   return (
     <>
@@ -48,7 +47,7 @@ export function MatchWorkspace({
               </p>
               {calledUpButAbsent > 0 && (
                 <p className="mt-1 text-sm font-semibold text-destructive" data-called-up-absent>
-                  {calledUpButAbsent === 1 ? "1 convocata ha risposto «Non ci sarà»" : `${calledUpButAbsent} convocate hanno risposto «Non ci sarà»`}
+                  {calledUpButAbsent === 1 ? "1 convocata non ci sarà" : `${calledUpButAbsent} convocate non ci saranno`}
                 </p>
               )}
             </div>
@@ -110,7 +109,7 @@ export function MatchWorkspace({
           allAthletes={allAthletes}
           initialCalledUpIds={initialCalledUpIds}
           initialLineup={initialLineup}
-          answers={answers}
+          absences={absences}
           onClose={() => setOpen(false)}
         />
       )}

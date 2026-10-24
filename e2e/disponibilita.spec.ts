@@ -2,10 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "./helpers";
 
 /**
- * Presenza alle partite. Lo staff crea il link di un'atleta; il genitore lo apre senza account e per ogni partita tocca «Ci sarà»
- * o «Non ci sarà» (si salva subito, senza conferme); lo staff vede tutte le atlete in «Chi viene», cambia la risposta di ognuna con
- * un tocco e la ritrova nelle convocazioni e nell'elenco partite. Un link rigenerato rende inutile il vecchio; un codice inventato
- * non mostra niente; il genitore non vede altre atlete e non cambia una partita già cominciata, mentre lo staff sì.
+ * Assenze alle partite. Lo staff crea il link di un'atleta; il genitore lo apre senza account e per ogni partita può dire solo «Non ci
+ * sarà» (si salva subito; poi, se vuole, il perché e una nota, oppure «Annulla»), fino a 5 giorni prima della partita. Lo staff vede le
+ * assenze nella scheda della partita, le segna e le toglie con un tocco, sempre, e le ritrova nelle convocazioni e nell'elenco partite.
+ * Un link rigenerato rende inutile il vecchio; un codice inventato non mostra niente; il genitore non vede altre atlete.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -52,12 +52,15 @@ async function deleteAthletes(page: Page, names: string[]) {
   }
 }
 
-/** Una partita in casa fra `days` giorni (0 = oggi), all'ora indicata e, di norma, con ritrovo. Il genitore la cambia finché non comincia. */
+/**
+ * Una partita in casa fra `days` giorni (0 = oggi), all'ora indicata e, di norma, con ritrovo. Il genitore segnala un'assenza fino a
+ * 5 giorni prima, alla stessa ora: fra 7 giorni è aperta, fra 5 alle 00:00 è appena chiusa, fra 5 alle 23:59 chiude stasera.
+ */
 async function createMatch(page: Page, opponent: string, days: number, time = "21:30"): Promise<string> {
   await page.goto("/admin/partite/nuovo");
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Squadra avversaria").fill(opponent);
-  await page.getByLabel("Luogo della partita").fill("Palestra presenza e2e");
+  await page.getByLabel("Luogo della partita").fill("Palestra assenze e2e");
   await page.getByLabel("Data e ora").fill(`${localDate(days)}T${time}`);
   if (time === "21:30") {
     await page.getByLabel("Ora ritrovo").fill("2045");
@@ -91,16 +94,18 @@ const familyRow = (page: Page, name: string) => page.locator("[data-family-row]"
 const matchCard = (page: Page, opponent: string) => page.locator("[data-availability-match]").filter({ hasText: opponent });
 /** Il salvataggio è arrivato al server (lo schermo si aggiorna prima, in anticipo). */
 const settled = (page: Page) => expect(page.locator("[data-availability-board]")).toHaveAttribute("data-saving", "false");
+/** «lunedì 19 ottobre, ore 18:00»: come la pagina del genitore scrive la scadenza. */
+function deadlineText(date: string, time: string): string {
+  const day = new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00`));
+  return `${day}, ore ${time}`;
+}
 
-// «Chi viene», nella scheda della partita.
+// Il riquadro «Assenze», nella scheda della partita.
 const board = (page: Page) => page.locator("[data-match-availability]");
 const boardSettled = (page: Page) => expect(board(page)).toHaveAttribute("data-saving", "false");
-const boardRow = (page: Page, name: string) => board(page).locator("[data-availability-row]").filter({ hasText: name });
-const group = (page: Page, status: "present" | "absent" | "none") => board(page).locator(`[data-availability-group="${status}"]`);
-async function counts(page: Page) {
-  const read = async (key: "present" | "absent" | "none") => Number(await board(page).locator(`[data-count-${key}]`).getAttribute(`data-count-${key}`));
-  return { present: await read("present"), absent: await read("absent"), none: await read("none") };
-}
+const absentRow = (page: Page, name: string) => board(page).locator("[data-availability-row]").filter({ hasText: name });
+const markButton = (page: Page, name: string) => board(page).locator("[data-absence-mark]").filter({ hasText: name });
+const absentCount = (page: Page) => board(page).locator("[data-count-absent]");
 
 /** Crea il link dell'atleta dalla pagina dello staff e restituisce il percorso da aprire come farebbe il genitore. */
 async function createLink(page: Page, name: string): Promise<string> {
@@ -111,7 +116,7 @@ async function createLink(page: Page, name: string): Promise<string> {
   return (await row.getAttribute("data-family-path"))!;
 }
 
-test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi viene» e cambia ogni risposta con un tocco", async ({ page, browser }) => {
+test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le assenze, le segna e le toglie con un tocco", async ({ page, browser }) => {
   test.setTimeout(480_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
@@ -119,8 +124,8 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
   const tag = lettersTag();
   const [anna, bea] = ["Anna", "Bea"].map((first) => `${first} ${tag}`);
   await addAthletes(page, [anna, bea]);
-  const opponent = uniqueName("Presenza ");
-  const matchId = await createMatch(page, opponent, 4);
+  const opponent = uniqueName("Assenza ");
+  const matchId = await createMatch(page, opponent, 7);
   // Il genitore non ha un account: un contesto del browser pulito, senza cookie né sessione.
   const parentContext = await browser.newContext({ baseURL: "http://localhost:3000", timezoneId: "Europe/Rome" });
   const parent = await parentContext.newPage();
@@ -135,8 +140,11 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
     const beaPath = await createLink(page, bea);
     expect(annaPath).not.toBe(beaPath);
     await expect(familyRow(page, anna).locator("[data-copy-family-link]")).toBeVisible();
-    await expect(familyRow(page, anna).locator("[data-family-whatsapp]").first()).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
-    await expect(familyRow(page, anna).locator("[data-family-whatsapp]").first()).toHaveAttribute("href", new RegExp(encodeURIComponent(annaPath)));
+    const whatsapp = familyRow(page, anna).locator("[data-family-whatsapp]").first();
+    await expect(whatsapp).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
+    await expect(whatsapp).toHaveAttribute("href", new RegExp(encodeURIComponent(annaPath)));
+    // Il messaggio dice a cosa serve il link e fino a quando.
+    await expect(whatsapp).toHaveAttribute("href", new RegExp(encodeURIComponent("se non può esserci a una partita (fino a 5 giorni prima)").replace(/[()]/g, "\\$&")));
 
     // Il genitore apre il link: vede solo la sua atleta e le partite, niente di altre atlete.
     const response = await parent.goto(annaPath);
@@ -149,14 +157,14 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
     await expect(card).toBeVisible();
     await expect(card).toContainText("Casa");
     await expect(card).toContainText("Ritrovo ore 20:45 · Piazzale e2e");
-    // Due pulsanti e basta: nessuno premuto, nessun modulo da compilare.
+    // Si chiede una cosa sola: un pulsante «Non ci sarà», niente «Ci sarà», nessun modulo da compilare.
     await expect(card).toHaveAttribute("data-availability-state", "none");
-    await expect(card.locator("[data-availability-status]")).toHaveText("Non hai ancora risposto.");
-    await expect(card.locator('[data-answer="present"]')).toHaveText("Ci sarà");
-    await expect(card.locator('[data-answer="absent"]')).toHaveText("Non ci sarà");
-    await expect(card.locator('[data-answer="present"]')).toHaveAttribute("aria-pressed", "false");
-    await expect(card.locator('[data-answer="absent"]')).toHaveAttribute("aria-pressed", "false");
+    await expect(card.locator("[data-absence-report]")).toHaveText("Non ci sarà");
+    await expect(card.getByRole("button", { name: "Ci sarà", exact: true })).toHaveCount(0);
+    await expect(card.locator("[data-availability-status]")).toHaveText("Se ci sarà non devi fare niente.");
     await expect(card.locator("[data-availability-details]")).toHaveCount(0);
+    // Fino a quando: 5 giorni prima, alla stessa ora della partita.
+    await expect(card.locator("[data-availability-deadline]")).toHaveText(`Puoi segnalarlo fino a ${deadlineText(localDate(2), "21:30")}.`);
     const html = await parent.content();
     expect(html).not.toContain(bea);
     expect(html).not.toContain(beaPath.split("/").pop()!);
@@ -165,23 +173,19 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
     // Nessun avviso di installazione o di notifiche sopra i pulsanti.
     await expect(parent.getByText("Attiva le notifiche")).toHaveCount(0);
 
-    // Lo staff, prima che qualcuno risponda: tutte le atlete sono «senza risposta».
+    // Lo staff, prima che qualcuno segnali: nessuna assenza, e tutte le atlete da segnare con un tocco.
     await page.goto(`/admin/partite/${matchId}`);
     await expect(board(page)).toBeVisible();
-    const start = await counts(page);
-    expect(start.present).toBe(0);
-    expect(start.absent).toBe(0);
-    expect(start.none).toBeGreaterThanOrEqual(2);
-    await expect(group(page, "none")).toContainText(anna);
-    await expect(group(page, "none")).toContainText(bea);
-    await expect(boardRow(page, anna).locator('[data-answer="none"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(absentCount(page)).toHaveAttribute("data-count-absent", "0");
+    await expect(absentCount(page)).toHaveText("Nessuna assenza");
+    await expect(board(page).locator('[data-availability-group="absent"]')).toHaveCount(0);
+    await expect(markButton(page, anna)).toBeVisible();
+    await expect(markButton(page, bea)).toBeVisible();
 
     // «Non ci sarà»: un tocco e si salva subito, poi (se vuole) il perché e una nota.
-    await card.locator('[data-answer="absent"]').click();
+    await card.locator("[data-absence-report]").click();
     await expect(card).toHaveAttribute("data-availability-state", "absent");
-    await expect(card.locator('[data-answer="absent"]')).toHaveAttribute("aria-pressed", "true");
-    await expect(card.locator('[data-answer="present"]')).toHaveAttribute("aria-pressed", "false");
-    await expect(card.locator("[data-availability-status]")).toContainText("La tua risposta");
+    await expect(card.locator("[data-availability-status]")).toContainText("Segnalata da te");
     await settled(parent);
     await card.locator('[data-availability-reason="malata"]').click();
     await expect(card.locator('[data-availability-reason="malata"]')).toHaveAttribute("aria-pressed", "true");
@@ -195,44 +199,32 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
     await expect(saved.locator('[data-availability-reason="malata"]')).toHaveAttribute("aria-pressed", "true");
     await expect(saved.locator("[data-availability-note]")).toHaveValue("mal di gola");
 
-    // Lo staff la vede subito in «Chi viene»: Anna tra chi non c'è, con motivo, nota e di chi è la risposta; Bea ancora senza risposta.
+    // Lo staff la vede subito: Anna non c'è, con motivo, nota e chi l'ha segnalata; Bea si può ancora segnare.
     await page.goto(`/admin/partite/${matchId}`);
     await expect(board(page)).toBeVisible();
-    await expect.poll(() => counts(page)).toEqual({ present: 0, absent: 1, none: start.none - 1 });
-    const annaRow = boardRow(page, anna);
-    await expect(group(page, "absent")).toContainText(anna);
+    await expect(absentCount(page)).toHaveText("1 non c'è");
+    const annaRow = absentRow(page, anna);
+    await expect(board(page).locator('[data-availability-group="absent"]')).toContainText(anna);
     await expect(annaRow.locator("[data-availability-details]")).toContainText("Malata o infortunata · mal di gola");
-    await expect(annaRow.locator("[data-availability-by]")).toContainText("Risposta del genitore");
-    await expect(boardRow(page, bea)).toHaveAttribute("data-availability-state", "none");
+    await expect(annaRow.locator("[data-availability-by]")).toContainText("Segnalata dal genitore");
+    await expect(markButton(page, bea)).toBeVisible();
 
-    // L'allenatore la cambia con un tocco («Ci sarà»): niente motivo né nota, e la risposta diventa sua.
-    await annaRow.locator('[data-answer="present"]').click();
-    await expect(annaRow).toHaveAttribute("data-availability-state", "present");
-    await expect(group(page, "present")).toContainText(anna);
-    await expect(annaRow.locator("[data-availability-by]")).toContainText("Risposta dell'allenatore");
-    await expect(annaRow.locator("[data-availability-details]")).toHaveCount(0);
-    await boardSettled(page);
-    await expect.poll(() => counts(page)).toEqual({ present: 1, absent: 0, none: start.none - 1 });
-
-    // Il genitore vede il cambiamento, e di chi è.
-    await parent.reload();
-    const byStaff = matchCard(parent, opponent);
-    await expect(byStaff).toHaveAttribute("data-availability-state", "present");
-    await expect(byStaff.locator('[data-answer="present"]')).toHaveAttribute("aria-pressed", "true");
-    await expect(byStaff.locator("[data-availability-status]")).toContainText("Risposta dell'allenatore");
-    await expect(byStaff.locator("[data-availability-details]")).toHaveCount(0);
-
-    // Il genitore cambia idea: vale l'ultima, e adesso è sua.
-    await byStaff.locator('[data-answer="absent"]').click();
-    await expect(byStaff).toHaveAttribute("data-availability-state", "absent");
+    // Il genitore ci ripensa: «Annulla» e Anna ci sarà; poi la segnala di nuovo, senza motivo.
+    await saved.locator("[data-absence-clear]").click();
+    await expect(saved).toHaveAttribute("data-availability-state", "none");
     await settled(parent);
-    await expect(byStaff.locator("[data-availability-status]")).toContainText("La tua risposta");
-    await page.goto(`/admin/partite/${matchId}`);
-    await expect(annaRow).toHaveAttribute("data-availability-state", "absent");
-    await expect(annaRow.locator("[data-availability-by]")).toContainText("Risposta del genitore");
+    await parent.reload();
+    await expect(matchCard(parent, opponent)).toHaveAttribute("data-availability-state", "none");
+    await page.reload();
+    await expect(absentCount(page)).toHaveAttribute("data-count-absent", "0");
+    await expect(markButton(page, anna)).toBeVisible();
+    await matchCard(parent, opponent).locator("[data-absence-report]").click();
+    await settled(parent);
+    await page.reload();
+    await expect(absentCount(page)).toHaveText("1 non c'è");
     await expect(annaRow.locator("[data-availability-details]")).toContainText("Nessun motivo indicato");
 
-    // Lo staff aggiunge il motivo e la nota (senza rifare la risposta).
+    // Lo staff aggiunge il motivo e la nota (per esempio dopo un messaggio in chat).
     await annaRow.locator("[data-availability-edit]").click();
     const editor = annaRow.locator("[data-availability-editor]");
     await editor.locator('[data-availability-reason="famiglia"]').click();
@@ -240,63 +232,52 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
     await editor.locator("[data-availability-save]").click();
     await expect(annaRow.locator("[data-availability-details]")).toContainText("Impegno di famiglia · torna domenica");
     await expect(annaRow.locator("[data-availability-editor]")).toHaveCount(0);
-    await expect(annaRow.locator("[data-availability-by]")).toContainText("Risposta dell'allenatore");
+    await expect(annaRow.locator("[data-availability-by]")).toContainText("Segnalata dall'allenatore");
     await boardSettled(page);
 
-    // Il genitore la trova già compilata e la può correggere.
+    // Il genitore la trova già compilata (e la può ancora correggere).
     await parent.reload();
     const edited = matchCard(parent, opponent);
-    await expect(edited.locator("[data-availability-status]")).toContainText("Risposta dell'allenatore");
+    await expect(edited.locator("[data-availability-status]")).toContainText("Segnata dall'allenatore");
     await expect(edited.locator('[data-availability-reason="famiglia"]')).toHaveAttribute("aria-pressed", "true");
     await expect(edited.locator("[data-availability-note]")).toHaveValue("torna domenica");
+    await expect(edited.locator("[data-absence-clear]")).toBeVisible();
 
-    // Bea non ha risposto: l'allenatore scrive «Non ci sarà» al suo posto (per esempio dopo un messaggio in chat); la famiglia lo vede.
-    const beaRow = boardRow(page, bea);
-    await beaRow.locator('[data-answer="absent"]').click();
-    await expect(beaRow).toHaveAttribute("data-availability-state", "absent");
+    // Bea non ha segnalato niente: l'allenatore la segna con un tocco e la famiglia lo vede; poi la toglie.
+    await markButton(page, bea).click();
+    await expect(absentRow(page, bea)).toHaveAttribute("data-availability-state", "absent");
+    await expect(absentCount(page)).toHaveText("2 non ci sono");
     await boardSettled(page);
     await parent.goto(beaPath);
     const beaCard = matchCard(parent, opponent);
     await expect(beaCard).toHaveAttribute("data-availability-state", "absent");
-    await expect(beaCard.locator('[data-answer="absent"]')).toHaveAttribute("aria-pressed", "true");
-    await expect(beaCard.locator("[data-availability-status]")).toContainText("Risposta dell'allenatore");
-    // L'allenatore la toglie: Bea torna senza risposta, anche per la famiglia.
-    await beaRow.locator('[data-answer="none"]').click();
-    await expect(beaRow).toHaveAttribute("data-availability-state", "none");
+    await expect(beaCard.locator("[data-availability-status]")).toContainText("Segnata dall'allenatore");
+    await absentRow(page, bea).locator("[data-absence-clear]").click();
+    await expect(absentRow(page, bea)).toHaveCount(0);
+    await expect(markButton(page, bea)).toBeVisible();
     await boardSettled(page);
-    await expect.poll(() => counts(page)).toEqual({ present: 0, absent: 1, none: start.none - 1 });
+    await expect(absentCount(page)).toHaveText("1 non c'è");
     await parent.reload();
     await expect(matchCard(parent, opponent)).toHaveAttribute("data-availability-state", "none");
-    await expect(matchCard(parent, opponent).locator("[data-availability-status]")).toHaveText("Non hai ancora risposto.");
 
     // L'elenco partite dice quante non ci sono: una sola.
     await page.goto("/admin/partite");
     await expect(page.locator(`a[href="/admin/partite/${matchId}"] [data-match-absent]`)).toHaveText("1 non c'è");
 
-    // Nelle convocazioni ogni atleta ha la sua risposta, e una convocata che non c'è si nota (ma non viene tolta da sola).
+    // Nelle convocazioni l'assenza si nota (in rosso se è convocata), ma non viene tolta da sola; chi ci sarà non ha avvisi.
     await callUp(page, matchId, [anna, bea]);
     await page.goto(`/admin/partite/${matchId}`);
-    await expect(page.locator("[data-called-up-absent]")).toHaveText("1 convocata ha risposto «Non ci sarà»");
-    await expect(boardRow(page, anna)).toContainText("Convocata");
-    await expect(boardRow(page, anna).locator("[data-availability-called-up]")).toBeVisible();
-    await expect(boardRow(page, bea).locator("[data-availability-called-up]")).toHaveCount(0);
+    await expect(page.locator("[data-called-up-absent]")).toHaveText("1 convocata non ci sarà");
+    await expect(absentRow(page, anna)).toContainText("Convocata");
+    await expect(absentRow(page, anna).locator("[data-availability-called-up]")).toBeVisible();
+    await expect(markButton(page, bea)).toContainText("convocata");
     await page.getByRole("button", { name: "Apri", exact: true }).click();
     const dialog = page.locator('[aria-label="Convocazioni e formazioni"]');
     const dialogRow = (name: string) => dialog.locator("[data-call-up-row]").filter({ hasText: name });
     await expect(dialogRow(anna).locator("[data-answer-flag]")).toHaveAttribute("data-answer-status", "absent");
-    await expect(dialogRow(anna).locator("[data-answer-flag]")).toContainText("Non ci sarà · Impegno di famiglia · torna domenica · ma è convocata");
-    await expect(dialogRow(bea).locator("[data-answer-flag]")).toHaveAttribute("data-answer-status", "none");
-    await expect(dialogRow(bea).locator("[data-answer-flag]")).toHaveText("Nessuna risposta");
-
-    // Bea risponde «Ci sarà» dal suo link: nelle convocazioni compare con la sua risposta, e l'avviso resta uno solo.
-    await parent.goto(beaPath);
-    await matchCard(parent, opponent).locator('[data-answer="present"]').click();
-    await settled(parent);
-    await page.goto(`/admin/partite/${matchId}`);
-    await expect(page.locator("[data-called-up-absent]")).toHaveText("1 convocata ha risposto «Non ci sarà»");
-    await page.getByRole("button", { name: "Apri", exact: true }).click();
-    await expect(dialogRow(bea).locator("[data-answer-flag]")).toHaveAttribute("data-answer-status", "present");
-    await expect(dialogRow(bea).locator("[data-answer-flag]")).toHaveText("Ci sarà");
+    await expect(dialogRow(anna).locator("[data-answer-flag]")).toHaveText("Non ci sarà · Impegno di famiglia · torna domenica · ma è convocata");
+    await expect(dialogRow(bea)).toBeVisible();
+    await expect(dialogRow(bea).locator("[data-answer-flag]")).toHaveCount(0);
   } finally {
     await parentContext.close().catch(() => {});
     await deleteMatchById(page, matchId).catch(() => {});
@@ -304,7 +285,7 @@ test("il genitore risponde con due pulsanti dal suo link, lo staff vede «Chi vi
   }
 });
 
-test("rigenerare il link rende inutile il vecchio; un codice inventato non mostra niente; una partita già cominciata è chiusa per il genitore ma non per lo staff", async ({ page, browser }) => {
+test("le segnalazioni chiudono 5 giorni prima (lo staff segna sempre); rigenerare il link rende inutile il vecchio; un codice inventato non mostra niente", async ({ page, browser }) => {
   test.setTimeout(420_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
@@ -312,35 +293,39 @@ test("rigenerare il link rende inutile il vecchio; un codice inventato non mostr
   const tag = lettersTag();
   const [carla] = [`Carla ${tag}`];
   await addAthletes(page, [carla]);
-  const laterOpponent = uniqueName("Domani ");
-  const later = await createMatch(page, laterOpponent, 3);
-  // Oggi: una cominciata da un pezzo (mezzanotte), una che comincia a fine giornata. La seconda il genitore la cambia ancora.
-  const startedOpponent = uniqueName("Iniziata ");
-  const started = await createMatch(page, startedOpponent, 0, "00:00");
-  const tonightOpponent = uniqueName("Stasera ");
-  const tonight = await createMatch(page, tonightOpponent, 0, "23:59");
+  // Fra 5 giorni alle 23:59: chiude stasera alle 23:59, quindi è ancora aperta. Fra 5 giorni a mezzanotte: chiusa da stanotte.
+  const lastDayOpponent = uniqueName("Ultimo giorno ");
+  const lastDay = await createMatch(page, lastDayOpponent, 5, "23:59");
+  const closedOpponent = uniqueName("Chiusa ");
+  const closedMatch = await createMatch(page, closedOpponent, 5, "00:00");
+  const soonOpponent = uniqueName("Fra due giorni ");
+  const soon = await createMatch(page, soonOpponent, 2);
   const parentContext = await browser.newContext({ baseURL: "http://localhost:3000", timezoneId: "Europe/Rome" });
   const parent = await parentContext.newPage();
   try {
     const oldPath = await createLink(page, carla);
 
-    // Il link vale: l'atleta e le partite. Quella già cominciata è chiusa; quella di stasera e quella di un'altra volta si cambiano.
+    // Il link vale: l'atleta e le partite. Quella che chiude stasera si segnala ancora, e la pagina dice fino a quando.
     await parent.goto(oldPath);
     await expect(parent.locator("[data-family-athlete]")).toContainText(carla);
-    for (const open of [laterOpponent, tonightOpponent]) {
-      await expect(matchCard(parent, open).locator('[data-answer="present"]')).toBeEnabled();
-      await expect(matchCard(parent, open).locator('[data-answer="absent"]')).toBeEnabled();
+    const lastDayCard = matchCard(parent, lastDayOpponent);
+    await expect(lastDayCard.locator("[data-absence-report]")).toBeVisible();
+    await expect(lastDayCard.locator("[data-availability-deadline]")).toHaveText(`Puoi segnalarlo fino a ${deadlineText(localDate(0), "23:59")}.`);
+    // Le altre due sono chiuse: si vedono, ma niente pulsante, e si dice di scrivere all'allenatore.
+    for (const opponent of [closedOpponent, soonOpponent]) {
+      const closedCard = matchCard(parent, opponent);
+      await expect(closedCard).toBeVisible();
+      await expect(closedCard.locator("[data-absence-report]")).toHaveCount(0);
+      await expect(closedCard.locator("[data-availability-status]")).toHaveText("Nessuna assenza segnalata.");
+      await expect(closedCard.locator("[data-availability-closed]")).toContainText("Segnalazioni chiuse (5 giorni prima della partita)");
+      await expect(closedCard.locator("[data-availability-closed]")).toContainText("scrivi all'allenatore");
+      await expect(closedCard.locator("[data-availability-deadline]")).toHaveCount(0);
     }
-    const startedCard = matchCard(parent, startedOpponent);
-    await expect(startedCard).toBeVisible();
-    await expect(startedCard.locator('[data-answer="present"]')).toBeDisabled();
-    await expect(startedCard.locator('[data-answer="absent"]')).toBeDisabled();
-    await expect(startedCard.locator("[data-availability-closed]")).toContainText("La partita è già cominciata");
 
-    // Lo staff, invece, scrive la risposta anche per una partita già cominciata; il genitore la legge ma non la cambia.
-    await page.goto(`/admin/partite/${started}`);
-    const row = boardRow(page, carla);
-    await row.locator('[data-answer="absent"]').click();
+    // Lo staff, invece, segna un'assenza anche a segnalazioni chiuse; il genitore la legge ma non la cambia.
+    await page.goto(`/admin/partite/${soon}`);
+    await markButton(page, carla).click();
+    const row = absentRow(page, carla);
     await expect(row).toHaveAttribute("data-availability-state", "absent");
     await boardSettled(page);
     await row.locator("[data-availability-edit]").click();
@@ -350,14 +335,15 @@ test("rigenerare il link rende inutile il vecchio; un codice inventato non mostr
     await expect(row.locator("[data-availability-details]")).toContainText("Altro · ha avvisato");
     await boardSettled(page);
     await parent.reload();
-    const closed = matchCard(parent, startedOpponent);
+    const closed = matchCard(parent, soonOpponent);
     await expect(closed).toHaveAttribute("data-availability-state", "absent");
-    await expect(closed.locator("[data-availability-details-readonly]")).toContainText("Altro · ha avvisato");
-    await expect(closed.locator("[data-availability-note-save]")).toHaveCount(0);
-    await expect(closed.locator('[data-answer="present"]')).toBeDisabled();
-    await expect(closed.locator('[data-answer="absent"]')).toBeDisabled();
+    await expect(closed.locator("[data-availability-status]")).toContainText("Segnata dall'allenatore");
+    await expect(closed.locator("[data-availability-details-readonly]")).toHaveText("Altro · ha avvisato");
+    await expect(closed.locator("[data-availability-details]")).toHaveCount(0);
+    await expect(closed.locator("[data-absence-clear]")).toHaveCount(0);
+    await expect(closed.locator("[data-availability-closed]")).toBeVisible();
 
-    // Rigenerato: il vecchio non funziona più e non dice niente di chi era; il nuovo sì (e le risposte restano).
+    // Rigenerato: il vecchio non funziona più e non dice niente di chi era; il nuovo sì (e le assenze restano).
     await page.goto("/admin/presenze/atlete/link-genitori");
     page.once("dialog", (dialog) => dialog.accept());
     await familyRow(page, carla).locator("[data-family-rotate]").click();
@@ -370,7 +356,7 @@ test("rigenerare il link rende inutile il vecchio; un codice inventato non mostr
     expect(await parent.content()).not.toContain(carla);
     await parent.goto(newPath);
     await expect(parent.locator("[data-family-athlete]")).toContainText(carla);
-    await expect(matchCard(parent, startedOpponent)).toHaveAttribute("data-availability-state", "absent");
+    await expect(matchCard(parent, soonOpponent)).toHaveAttribute("data-availability-state", "absent");
 
     // Un codice inventato, di lunghezza giusta o sbagliata, non mostra niente.
     for (const fake of ["a".repeat(32), "A1-_".repeat(8), "corto", "x".repeat(80)]) {
@@ -381,9 +367,9 @@ test("rigenerare il link rende inutile il vecchio; un codice inventato non mostr
     }
   } finally {
     await parentContext.close().catch(() => {});
-    await deleteMatchById(page, later).catch(() => {});
-    await deleteMatchById(page, started).catch(() => {});
-    await deleteMatchById(page, tonight).catch(() => {});
+    await deleteMatchById(page, lastDay).catch(() => {});
+    await deleteMatchById(page, closedMatch).catch(() => {});
+    await deleteMatchById(page, soon).catch(() => {});
     await deleteAthletes(page, [carla]);
   }
 });

@@ -7,7 +7,7 @@ import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { FieldError } from "@/components/ui/Field";
-import { CallUpsSection, type AnswerFlag } from "./CallUpsSection";
+import { CallUpsSection } from "./CallUpsSection";
 import { LineupEditor } from "./LineupEditor";
 import { saveCallUpsAndLineupAction, type CallUpsAndLineupFormState } from "./actions";
 import { emptyMatchLineupSets } from "@/lib/types";
@@ -37,7 +37,7 @@ export function CallUpsAndLineupsDialog({
   allAthletes,
   initialCalledUpIds,
   initialLineup,
-  answers,
+  absences,
   onClose,
 }: {
   matchId: string;
@@ -45,7 +45,7 @@ export function CallUpsAndLineupsDialog({
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
-  answers?: Record<string, AnswerFlag>;
+  absences?: Record<string, string>;
   onClose: () => void;
 }) {
   const [calledUp, setCalledUp] = useState<Set<string>>(() => new Set(initialCalledUpIds));
@@ -157,7 +157,7 @@ export function CallUpsAndLineupsDialog({
                 onToggle={toggleCalledUp}
                 onSelectAll={() => setCalledUp(new Set(allAthletes.map((a) => a.id)))}
                 onSelectNone={() => setCalledUp(new Set())}
-                answers={answers}
+                absences={absences}
               />
             </section>
 

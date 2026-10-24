@@ -1,9 +1,8 @@
 "use client";
 
-import { CalendarX2, Check, CircleHelp, X } from "lucide-react";
+import { CalendarX2, Check, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { categoryBadgeClass, categoryLabel } from "@/lib/category";
-import type { AnswerStatus } from "@/lib/availability/types";
 import type { Athlete } from "@/lib/types";
 
 function ToggleButton({
@@ -35,31 +34,25 @@ function ToggleButton({
   );
 }
 
-/** La risposta di un'atleta per la partita («Ci sarà», oppure «Non ci sarà · motivo · nota»); senza risposta non c'è. */
-export interface AnswerFlag {
-  status: AnswerStatus;
-  text: string;
-}
-
 /** Elenco convocazioni nello stesso stile della pagina Presenze: righe con
- * nome, categoria e un toggle Convocata/Non convocata. Sotto il nome c'è la
- * risposta dell'atleta (ci sarà, non ci sarà, o ancora nessuna), più forte se è
- * convocata e non c'è: non la toglie da sola, decide lo staff. Senza `answers`
- * (la presenza non è attiva per questa partita) non c'è nessuna riga di risposta. */
+ * nome, categoria e un toggle Convocata/Non convocata. Sotto il nome di chi
+ * non ci sarà c'è l'assenza («Non ci sarà · motivo · nota»), più forte se è
+ * convocata: non la toglie da sola, decide lo staff. */
 export function CallUpsSection({
   athletes,
   calledUp,
   onToggle,
   onSelectAll,
   onSelectNone,
-  answers,
+  absences = {},
 }: {
   athletes: Athlete[];
   calledUp: Set<string>;
   onToggle: (athleteId: string) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
-  answers?: Record<string, AnswerFlag>;
+  /** Le assenze, per atleta: la riga già scritta («Non ci sarà · motivo · nota»). */
+  absences?: Record<string, string>;
 }) {
   return (
     <div>
@@ -86,7 +79,7 @@ export function CallUpsSection({
         <div className="space-y-2.5">
           {athletes.map((athlete) => {
             const isCalledUp = calledUp.has(athlete.id);
-            const flag = answers?.[athlete.id];
+            const absence = absences[athlete.id];
             return (
               <div key={athlete.id} className="rounded-xl border border-border-subtle bg-surface px-4 py-3.5" data-call-up-row={athlete.id}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,7 +109,7 @@ export function CallUpsSection({
                     </ToggleButton>
                   </div>
                 </div>
-                {!answers ? null : flag?.status === "absent" ? (
+                {absence && (
                   <p
                     className={cn("mt-2 flex items-start gap-1.5 text-[13px] font-semibold", isCalledUp ? "text-destructive" : "text-warning")}
                     data-answer-flag={athlete.id}
@@ -124,19 +117,9 @@ export function CallUpsSection({
                   >
                     <CalendarX2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                     <span>
-                      {flag.text}
+                      {absence}
                       {isCalledUp ? " · ma è convocata" : ""}
                     </span>
-                  </p>
-                ) : flag?.status === "present" ? (
-                  <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-success" data-answer-flag={athlete.id} data-answer-status="present">
-                    <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    {flag.text}
-                  </p>
-                ) : (
-                  <p className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground" data-answer-flag={athlete.id} data-answer-status="none">
-                    <CircleHelp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Nessuna risposta
                   </p>
                 )}
               </div>

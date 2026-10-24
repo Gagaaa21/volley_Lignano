@@ -51,7 +51,7 @@ export default async function MatchesListPage({
     (entry) => entry.source.enabled && entry.source.url && (activeCategory === "all" || entry.source.category === activeCategory),
   );
 
-  // Quante atlete hanno risposto «Non ci sarà», partita per partita (solo quelle in programma; finché le tabelle non ci sono, niente).
+  // Quante atlete non ci saranno, partita per partita (solo quelle in programma; finché le tabelle non ci sono, niente).
   const today = todayIso();
   const upcomingIds = matches.filter((match) => match.matchDate.slice(0, 10) >= today).map((match) => match.id);
   const absent: Record<string, number> = {};

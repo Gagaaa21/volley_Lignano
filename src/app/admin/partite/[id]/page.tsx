@@ -5,7 +5,7 @@ import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { describeAnswer } from "@/lib/availability/rules";
+import { describeAbsence, isAbsence } from "@/lib/availability/rules";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import { matchTitle } from "@/lib/calendar";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -16,7 +16,6 @@ import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
 import { deleteMatchAction } from "../actions";
-import type { AnswerFlag } from "../CallUpsSection";
 import { MatchAvailability } from "../MatchAvailability";
 import { MatchForm } from "../MatchForm";
 import { MatchWorkspace } from "../MatchWorkspace";
@@ -48,7 +47,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
 
   const activeAthletes = allAthletes.filter((a) => a.isActive);
 
-  // Chi viene (solo U14/U15): le risposte dei genitori e dell'allenatore. Finché le tabelle non ci sono, niente.
+  // Le assenze (solo U14/U15): segnalate dai genitori o dall'allenatore. Finché le tabelle non ci sono, niente.
   let answerRows: MatchAvailabilityRow[] = [];
   let availabilityReady = match.team === "u14u15";
   if (availabilityReady) {
@@ -59,8 +58,8 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
       availabilityReady = false;
     }
   }
-  const answerFlags: Record<string, AnswerFlag> = Object.fromEntries(
-    answerRows.map((row) => [row.athleteId, { status: row.status, text: describeAnswer(row) }] as const),
+  const absenceTexts: Record<string, string> = Object.fromEntries(
+    answerRows.filter(isAbsence).map((row) => [row.athleteId, describeAbsence(row)] as const),
   );
   // Il collegamento ai link per i genitori solo a chi può gestirli (permesso Presenze).
   const canFamilyLinks =
@@ -109,7 +108,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         allAthletes={activeAthletes}
         initialCalledUpIds={match.calledUpAthleteIds}
         initialLineup={lineup}
-        answers={availabilityReady ? answerFlags : undefined}
+        absences={absenceTexts}
       />
 
       <Card className="mt-6">

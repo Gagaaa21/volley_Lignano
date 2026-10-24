@@ -1,12 +1,12 @@
-import { appliesToAthlete } from "@/lib/availability/rules";
+import { appliesToAthlete, isAbsence } from "@/lib/availability/rules";
 import { answerWhen } from "@/lib/availability/format";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import type { Athlete, Match } from "@/lib/types";
-import { AvailabilityBoard, type BoardAnswer } from "./AvailabilityBoard";
+import { AvailabilityBoard, type BoardAbsence } from "./AvailabilityBoard";
 
 /**
- * «Chi viene» di una partita: prepara per la lavagna le atlete attive che la riguardano (squadra e categoria) e la risposta di
- * ognuna. Solo area tecnici, mai sul sito pubblico.
+ * Le assenze di una partita: prepara per il riquadro le atlete attive che la riguardano (squadra e categoria) e l'assenza di chi
+ * non ci sarà. Solo area tecnici, mai sul sito pubblico.
  */
 export function MatchAvailability({
   match,
@@ -24,17 +24,17 @@ export function MatchAvailability({
     .filter((athlete) => athlete.isActive && appliesToAthlete(match, athlete))
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "it"));
   const ids = new Set(eligible.map((athlete) => athlete.id));
-  const answers: Record<string, BoardAnswer> = {};
+  const absences: Record<string, BoardAbsence> = {};
   for (const row of rows) {
-    if (!ids.has(row.athleteId)) continue;
-    answers[row.athleteId] = { status: row.status, reason: row.reason, note: row.note, by: row.answeredBy, when: answerWhen(row.updatedAt) };
+    if (!ids.has(row.athleteId) || !isAbsence(row)) continue;
+    absences[row.athleteId] = { reason: row.reason, note: row.note, by: row.answeredBy, when: answerWhen(row.updatedAt) };
   }
 
   return (
     <AvailabilityBoard
       matchId={match.id}
       athletes={eligible.map((athlete) => ({ id: athlete.id, name: athlete.fullName, calledUp: match.calledUpAthleteIds.includes(athlete.id) }))}
-      answers={answers}
+      absences={absences}
       familyLinksHref={familyLinksHref}
     />
   );
