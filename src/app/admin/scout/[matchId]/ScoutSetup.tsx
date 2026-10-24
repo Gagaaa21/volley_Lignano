@@ -91,16 +91,17 @@ function LevelChoice({ value, onChange }: { value: ScoutLevel; onChange: (level:
   );
 }
 
+/** Una colonna dei dettagli: titolo ed elenco stanno insieme (nella griglia a tre colonne sono una cella sola). */
 function LevelList({ title, lines, muted = false }: { title: string; lines: string[]; muted?: boolean }) {
   return (
-    <>
+    <div className="min-w-0" data-scout-level-list={title}>
       <span className="mt-2.5 block text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{title}</span>
       <ul className={cn("mt-1 space-y-1 text-[13px] leading-snug", muted ? "text-muted-foreground" : "text-foreground")}>
         {lines.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }
 

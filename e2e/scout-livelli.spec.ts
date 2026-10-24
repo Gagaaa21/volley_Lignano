@@ -73,6 +73,25 @@ async function prepare(page: Page, matchId: string, level: Level) {
   const choice = page.locator(`[data-scout-level="${level}"]`);
   await choice.click();
   await expect(choice).toHaveAttribute("aria-checked", "true");
+  // Sotto, i dettagli del livello: su schermo largo tre colonne, ognuna con il suo titolo sopra il suo elenco (tutti alla stessa altezza).
+  const lists = page.locator(`[data-scout-level-details="${level}"] [data-scout-level-list]`);
+  await expect(lists).toHaveCount(3);
+  const columns = await lists.evaluateAll((elements) =>
+    elements.map((element) => {
+      const title = element.querySelector("span")!.getBoundingClientRect();
+      const items = element.querySelector("ul")!.getBoundingClientRect();
+      return { titleX: title.x, titleY: title.y, itemsX: items.x, itemsY: items.y };
+    }),
+  );
+  for (const column of columns) {
+    expect(Math.abs(column.titleX - column.itemsX)).toBeLessThan(2);
+    expect(column.titleY).toBeLessThan(column.itemsY);
+  }
+  if ((page.viewportSize()?.width ?? 0) >= 640) {
+    expect(new Set(columns.map((column) => Math.round(column.titleY))).size).toBe(1);
+    expect(columns[0].titleX).toBeLessThan(columns[1].titleX);
+    expect(columns[1].titleX).toBeLessThan(columns[2].titleX);
+  }
   await page.locator("[data-scout-start]").click();
   await expect(score(page)).toHaveText("0–0");
   await expect(page.locator(`[data-scout-level-label="${level}"]`)).toBeVisible();
