@@ -493,7 +493,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           "**Ace e battuta sbagliata da soli**: sono sempre di chi batte, quindi non si chiede «chi?»: vanno alla giocatrice in posizione 1 della squadra che batte. Se non era lei (per esempio la rotazione era sbagliata), tocca **«Cambia»** accanto all'ultimo punto e scegli chi è stata: il punteggio non cambia. Se tocchi «Ace» per la squadra che non batte, lo Scout chiede «chi?» come sempre.",
           "**«Chi» dal campo**: la finestra «chi?» mostra il campo, con la rete in alto, davanti 4-3-2, dietro 5-6-1, la libero in scuro e il pallone verde su chi batte: tocchi la giocatrice dove sta. Chi è in panchina è sotto, più chiara. A muro la libero non si sceglie e la seconda linea è più chiara.",
           "**Cambi**: li registri con un pulsante, lo Scout conta quelli del set e ti avvisa se non sono regolari.",
-          "**Tabellino e PDF**: in più trovi le formazioni di partenza di ogni set e i cambi.",
+          "**Tabellino**: in più trovi le formazioni di partenza di ogni set e i cambi; nel foglio (anche in PDF) c'è da dove è partita ognuna in ogni set.",
         ],
       },
       { type: "sub", title: "Come si scrive" },
@@ -1187,7 +1187,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Il PDF" },
       {
         type: "p",
-        text: "**Scarica PDF** (in alto nel tabellino, e accanto a ogni partita nell'elenco) crea il tabellino da stampare: la **prima pagina** (A4 verticale) è il tabellino come quelli delle leghe, sempre su tutta la partita; poi le analisi, con le stesse schede del livello della partita. Se hai scelto un set, le analisi del PDF sono solo di quel set. **Condividi PDF** (accanto) lo manda come file: dal telefono si apre il foglio di condivisione con il PDF già allegato, dal computer il file si scarica.",
+        text: "**Scarica PDF** (in alto nel tabellino, e accanto a ogni partita nell'elenco) crea il tabellino da stampare: il **foglio** come quelli delle leghe, in A4 verticale, sempre su tutta la partita (con rose molto lunghe continua su una seconda pagina). Le analisi restano nella pagina del tabellino. **Condividi PDF** (accanto) lo manda come file: dal telefono si apre il foglio di condivisione con il PDF già allegato, dal computer il file si scarica.",
       },
     ],
   },

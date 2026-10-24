@@ -5,8 +5,8 @@ import { CATEGORY_SHORT } from "@/lib/category";
 import { summarizeScout } from "@/lib/scout/match";
 import { requireScoutAccess, withScoutStore } from "@/lib/scout/access";
 
-/** Tabellino dello scout in PDF. `?set=2` per un solo set, altrimenti tutta la partita. */
-export async function GET(request: Request, { params }: { params: Promise<{ matchId: string }> }) {
+/** Tabellino dello scout in PDF: il foglio come quelli delle leghe, sempre su tutta la partita. */
+export async function GET(_request: Request, { params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params;
   const access = await requireScoutAccess(matchId);
   if (!access.ok) return access.response;
@@ -17,12 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ matc
     return NextResponse.json({ error: "Non ci sono ancora punti segnati per questa partita." }, { status: 404 });
   }
 
-  const setParam = Number(new URL(request.url).searchParams.get("set"));
-  const bytes = await buildScoutPdf({
-    match: access.match,
-    scout,
-    set: Number.isInteger(setParam) && setParam > 0 ? setParam : null,
-  });
+  const bytes = await buildScoutPdf({ match: access.match, scout });
   const { match } = access;
   const category = match.category ? `${CATEGORY_SHORT[match.category]} ` : "";
   return pdfResponse(bytes, pdfFilename(`tabellino ${category}${match.opponent} ${match.matchDate.slice(0, 10)}`));

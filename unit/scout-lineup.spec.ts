@@ -699,13 +699,13 @@ test.describe("tabellino e PDF", () => {
     expect(lineupSummary(deriveScout(point(roster(), "us")), roster().roster)).toEqual({ starts: [], subs: [] });
   });
 
-  test("il PDF con formazioni e cambi si genera", async () => {
+  test("il PDF (il foglio, con le posizioni di partenza) si genera anche con formazioni e cambi", async () => {
     let data = withLineups(roster());
     for (let i = 0; i < 10; i++) data = point(data, i % 3 === 0 ? "opp" : "us");
     data = substitute(data, "us", 3, "u7", at(data), id());
     data = endSet(data, "opp", at(data), id());
     data = point(data, "us");
-    const bytes = await buildScoutPdf({ match: pdfMatch(), scout: data, set: null, generatedAt: new Date("2026-10-17T12:00:00Z") });
+    const bytes = await buildScoutPdf({ match: pdfMatch(), scout: data });
     expect(Buffer.from(bytes.slice(0, 5)).toString("latin1")).toBe("%PDF-");
     expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(0);
   });

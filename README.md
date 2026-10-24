@@ -285,9 +285,10 @@ staff (Developer e Admin).
   il tabellino ci sono le **analisi** (tutta la partita o un set: break point,
   cambio palla, «come si è fatto punto», errori e falli, andamento del
   punteggio e, con le ricezioni, la ricezione e la sua mappa). Il PDF
-  (`src/lib/pdf/scoutPdf.ts`) ha come prima pagina il tabellino in A4 verticale
-  (`scoutSheetPdf.ts`, disegnato con `PdfReport.drawnPage`; con rose lunghissime
-  continua su una seconda pagina), poi le analisi in A4 orizzontale. Il
+  (`src/lib/pdf/scoutPdf.ts`) è solo il tabellino in A4 verticale, sempre su
+  tutta la partita (`scoutSheetPdf.ts`, disegnato con `PdfReport.drawnPage` in
+  un documento `drawnOnly`; con rose lunghissime continua su una seconda
+  pagina): le analisi restano nella pagina. Il
   riepilogo di stagione resta con le colonne di `columns.ts`. Il salvataggio
   (`useScoutSession`) è automatico e non deve mai far perdere punti: lo stato è
   in un solo posto (`createSessionStore`) letto da pagina e salvataggi; ogni

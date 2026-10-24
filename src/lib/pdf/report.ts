@@ -197,6 +197,8 @@ export interface PdfReportOptions {
   generatedAt?: Date;
   /** Un'etichetta piena accanto a «Volley Lignano», in ogni intestazione (la categoria del documento, es. «UNDER 14»). */
   tag?: { text: string; tone: PdfTone };
+  /** Un documento fatto solo di pagine disegnate a mano (`drawnPage`, es. il tabellino): niente prima pagina con l'intestazione. */
+  drawnOnly?: boolean;
 }
 
 /** Date «gg/mm/aaaa» nell'ora italiana, come tutto il sito. */
@@ -470,7 +472,7 @@ export class PdfReport {
       .catch(() => null);
 
     const report = new PdfReport(doc, fonts, crest, options);
-    report.addPage(true);
+    if (!options.drawnOnly) report.addPage(true);
     return report;
   }
 

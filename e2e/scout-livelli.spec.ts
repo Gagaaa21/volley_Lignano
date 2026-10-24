@@ -114,8 +114,6 @@ async function expectPdf(page: Page, matchId: string) {
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
   expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
-  const pdfSet = await page.request.get(`/api/scout/${matchId}/pdf?set=1`);
-  expect(pdfSet.status()).toBe(200);
 }
 
 test("livello «Con ricezioni»: la striscia della ricezione, l'errore chiude lo scambio e il tabellino ha la ricezione", async ({ page }) => {

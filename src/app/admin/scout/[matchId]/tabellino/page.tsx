@@ -62,7 +62,8 @@ export default async function ScoutTabellinoPage({
   const lineups = view && scout ? lineupSummary(view, scout.roster, selected) : null;
   const showLineups = Boolean(lineups && (lineups.starts.length > 0 || lineups.subs.length > 0));
 
-  const pdfHref = `/api/scout/${matchId}/pdf${setParam ? `?set=${encodeURIComponent(setParam)}` : ""}`;
+  // Il PDF è il foglio del tabellino, sempre su tutta la partita (il set scelto vale solo per le analisi in pagina).
+  const pdfHref = `/api/scout/${matchId}/pdf`;
   const header = (
     <PageHeader
       back={{ href: "/admin/scout", label: "Scout" }}

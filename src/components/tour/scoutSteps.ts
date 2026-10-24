@@ -625,7 +625,7 @@ export function getScoutTabellinoTourSteps(matchId: string, context: ScoutTabell
       target: "scout-tab-pdf",
       chapter: C_TAB,
       title: "Il PDF",
-      body: "Scarica il tabellino in PDF, da stampare o condividere: la prima pagina è il tabellino come quello delle leghe (A4 verticale), poi le analisi. Se hai scelto un set, le analisi del PDF sono solo di quel set.",
+      body: "Scarica il tabellino in PDF, da stampare o condividere: è il foglio come quello delle leghe, in A4 verticale, sempre su tutta la partita. Le analisi restano qui nella pagina.",
     },
   ];
 }
