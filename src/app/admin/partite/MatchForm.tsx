@@ -1,18 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Save } from "lucide-react";
+import { BellOff, BellRing, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea, FieldError, FieldHint, FormActions, FormSection, RadioSegment, Toggle } from "@/components/ui/Field";
 import { TimeField } from "@/components/ui/TimeField";
-import {
-  TournamentGamesEditor,
-  tournamentGamesToFormState,
-  type TournamentGameFormState,
-} from "@/components/admin/TournamentGamesEditor";
 import { CATEGORY_LABELS } from "@/lib/category";
-import { clockTimeMinusMinutes } from "@/lib/clockTime";
+import { clockTimeMinusMinutes, parseClockTime } from "@/lib/clockTime";
+import { matchChangeNotice, newMatchNotice, type MatchNotice } from "@/lib/matchNotices";
 import { saveMatchAction, type MatchFormState } from "./actions";
 import type { Match, TrainingTeam } from "@/lib/types";
 
@@ -28,12 +24,66 @@ function SubmitButton() {
   );
 }
 
-function todayStr() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+type MatchFacts = Parameters<typeof newMatchNotice>[0];
+
+/** I dettagli come sono scritti adesso nel modulo, per l'anteprima della notifica. */
+function readFacts(form: HTMLFormElement, team: TrainingTeam, overrides: Partial<MatchFacts> = {}): MatchFacts & { notify: boolean } {
+  const data = new FormData(form);
+  const text = (name: string) => data.get(name)?.toString().trim() ?? "";
+  const meeting = parseClockTime(text("meetingTime"));
+  const category = text("category");
+  return {
+    team,
+    category: team === "u14u15" && (category === "U14" || category === "U15") ? category : null,
+    opponent: text("opponent"),
+    isHome: data.get("isHome") !== "away",
+    isFriendly: data.get("isFriendly") === "on",
+    isTournament: data.get("isTournament") === "on",
+    location: text("location"),
+    matchDate: text("matchDate"),
+    meetingTime: meeting.ok ? meeting.value : text("meetingTime") || null,
+    meetingLocation: text("meetingLocation") || null,
+    notes: text("notes") || null,
+    ...overrides,
+    notify: data.get("notify") === "on",
+  };
 }
 
-const MAX_SETS = 5;
+/** Sotto «Avvisa chi segue il calendario»: la notifica che partirà, o perché non ne parte nessuna. */
+function NoticePreview({ notice, notify, editing }: { notice: MatchNotice | null; notify: boolean; editing: boolean }) {
+  if (!notify) {
+    return (
+      <p className="flex items-center gap-2 text-[13px] text-muted-foreground" data-match-notice-preview="off">
+        <BellOff className="h-4 w-4 shrink-0" />
+        Nessuna notifica: l&apos;avviso è spento.
+      </p>
+    );
+  }
+  if (!notice) {
+    return (
+      <p className="flex items-start gap-2 text-[13px] text-muted-foreground" data-match-notice-preview="none">
+        <BellOff className="mt-0.5 h-4 w-4 shrink-0" />
+        {editing
+          ? "Nessuna notifica: finora non hai cambiato niente che interessi alle famiglie (data, orario, luogo, ritrovo, nota…)."
+          : "La notifica dirà chi gioca, quando e dove: compila avversaria, luogo, data e ora."}
+      </p>
+    );
+  }
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft/50 px-3.5 py-2.5" data-match-notice-preview="on">
+      <BellRing className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+      <div className="min-w-0 text-[13px] leading-snug">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Partirà questa notifica</p>
+        <p className="mt-0.5 font-semibold text-foreground" data-match-notice-title>
+          {notice.title}
+        </p>
+        <p className="text-muted-foreground" data-match-notice-body>
+          {notice.body}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 /** Orari di ritrovo che si propongono con un tocco, contati dall'ora della partita. */
 const MEETING_OFFSETS = [
@@ -49,18 +99,28 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
   const [isTournament, setIsTournament] = useState(match?.isTournament ?? false);
   const [matchDate, setMatchDate] = useState(match?.matchDate ?? "");
   const [meetingTime, setMeetingTime] = useState(match?.meetingTime ?? "");
-  const [tournamentGames, setTournamentGames] = useState<TournamentGameFormState[]>(() =>
-    tournamentGamesToFormState(match?.tournamentGames),
-  );
-  const isPastMatch = Boolean(match && match.matchDate.slice(0, 10) <= todayStr());
   const effectiveTeam = match?.team ?? team;
+  const formRef = useRef<HTMLFormElement>(null);
+  // I dettagli come sono scritti adesso (null finché non si tocca niente): servono all'anteprima della notifica.
+  const [facts, setFacts] = useState<(MatchFacts & { notify: boolean }) | null>(null);
+  const refresh = (overrides: Partial<MatchFacts> = {}) => {
+    if (formRef.current) setFacts(readFacts(formRef.current, effectiveTeam, overrides));
+  };
+  const notify = facts ? facts.notify : (values?.notify ?? true);
+  const notice: MatchNotice | null = match
+    ? facts
+      ? matchChangeNotice(match, facts)
+      : null
+    : facts && facts.opponent && facts.location && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(facts.matchDate)
+      ? newMatchNotice(facts)
+      : null;
   const meetingSuggestions = MEETING_OFFSETS.flatMap(({ label, minutes }) => {
     const time = clockTimeMinusMinutes(matchDate.slice(11, 16), minutes);
     return time ? [{ label, time }] : [];
   });
 
   return (
-    <form action={formAction} noValidate>
+    <form action={formAction} noValidate ref={formRef} onChange={() => refresh()}>
       {match && <input type="hidden" name="id" value={match.id} />}
       <input type="hidden" name="team" value={effectiveTeam} />
 
@@ -157,7 +217,10 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
                 id="meetingTime"
                 name="meetingTime"
                 value={meetingTime}
-                onChange={setMeetingTime}
+                onChange={(value) => {
+                  setMeetingTime(value);
+                  refresh({ meetingTime: value || null });
+                }}
                 clearLabel="Togli l'ora di ritrovo"
               />
             </div>
@@ -182,7 +245,10 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
                     size="xs"
                     variant={meetingTime === time ? "soft" : "outline"}
                     aria-pressed={meetingTime === time}
-                    onClick={() => setMeetingTime(time)}
+                    onClick={() => {
+                      setMeetingTime(time);
+                      refresh({ meetingTime: time });
+                    }}
                     data-meeting-suggestion={time}
                     className="gap-1 px-2"
                   >
@@ -199,70 +265,20 @@ export function MatchForm({ match, team = "u14u15" }: { match?: Match; team?: Tr
         </div>
       </FormSection>
 
-      {isPastMatch && isTournament && (
-        <FormSection title="Risultati" description="Una partita per ogni avversaria affrontata.">
-          <TournamentGamesEditor
-            games={tournamentGames}
-            onChange={setTournamentGames}
-            hiddenFieldName="tournamentGames"
-            title="Risultati del torneo"
-            hint="Lascia in bianco i set non giocati, o l'intera partita se non conosci ancora il risultato: set vinti e persi vengono calcolati automaticamente."
-          />
-        </FormSection>
-      )}
-
-      {isPastMatch && !isTournament && (
-        <FormSection
-          title="Risultato finale"
-          description="Punti dei singoli set; quelli non giocati restano vuoti. Set vinti e persi si calcolano da soli."
-        >
-          <div className="overflow-x-auto rounded-2xl border border-border bg-surface-muted p-3 sm:p-4">
-            <div className="grid min-w-[19rem] grid-cols-[5.5rem_repeat(5,minmax(0,1fr))] items-center gap-1.5">
-              <span />
-              {Array.from({ length: MAX_SETS }, (_, i) => (
-                <span key={i} className="text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  Set {i + 1}
-                </span>
-              ))}
-              <span className="text-sm font-semibold text-foreground">Lignano</span>
-              {Array.from({ length: MAX_SETS }, (_, i) => (
-                <Input
-                  key={`us-${i}`}
-                  type="number"
-                  name="setUs"
-                  min={0}
-                  max={99}
-                  inputMode="numeric"
-                  defaultValue={values?.setUs[i] ?? match?.setScores?.[i]?.us ?? ""}
-                  className="tabular px-1 text-center font-semibold"
-                  aria-label={`Punti Lignano, set ${i + 1}`}
-                />
-              ))}
-              <span className="text-sm font-semibold text-muted-foreground">Avversaria</span>
-              {Array.from({ length: MAX_SETS }, (_, i) => (
-                <Input
-                  key={`them-${i}`}
-                  type="number"
-                  name="setThem"
-                  min={0}
-                  max={99}
-                  inputMode="numeric"
-                  defaultValue={values?.setThem[i] ?? match?.setScores?.[i]?.them ?? ""}
-                  className="tabular px-1 text-center"
-                  aria-label={`Punti avversario, set ${i + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        </FormSection>
-      )}
-
       <FormSection title="Altro">
         <div>
           <Label htmlFor="notes">Note (opzionale)</Label>
           <Textarea id="notes" name="notes" defaultValue={values?.notes ?? match?.notes ?? ""} placeholder="Es. Portare la seconda maglia…" />
         </div>
-        <Toggle name="notify" label="Invia notifica push" description="A chi segue il calendario." defaultChecked={values?.notify ?? true} />
+        <div className="space-y-2.5" data-match-notify>
+          <Toggle
+            name="notify"
+            label="Avvisa chi segue il calendario"
+            description="Con una notifica che dice che cosa è cambiato: parte solo se cambia qualcosa che interessa alle famiglie."
+            defaultChecked={values?.notify ?? true}
+          />
+          <NoticePreview notice={notice} notify={notify} editing={Boolean(match)} />
+        </div>
       </FormSection>
 
       {state.error && (

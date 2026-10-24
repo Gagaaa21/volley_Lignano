@@ -155,8 +155,9 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
     await page.getByLabel(`Punti Lignano, set ${set}`).fill("25");
     await page.getByLabel(`Punti avversario, set ${set}`).fill("10");
   }
-  await page.getByRole("button", { name: /salva partita/i }).click();
-  await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "Salva risultato" }).click();
+  await expect(page.locator('[data-match-result="saved"]')).toBeVisible({ timeout: 20_000 });
+  await page.goto("/admin/partite");
   await expect(matchRow(page, "Itas Ceccarelli")).toContainText("3–0");
 
   // --- 3. Partite: un riquadro in alto dice cosa c'è da sistemare e apre la pagina del portale. ---

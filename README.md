@@ -32,7 +32,22 @@ staff (Developer e Admin).
   variazioni stanno in `training_sessions.occurrence_overrides` (vedi
   `supabase/schema.sql`).
 - **Gestione partite** (`/admin/partite`) — partite per categoria (U14/U15),
-  avversario, casa/trasferta, data/ora, luogo.
+  avversario, casa/trasferta, data/ora, luogo. La scheda di una partita
+  (`/admin/partite/[id]`) va nell'ordine in cui serve: i dettagli in breve
+  (`MatchDetailsCard`) con «Modifica», il riquadro «Risultato» a partita giocata
+  (`MatchResultCard`, salvato da solo con `saveMatchResultAction`), le assenze e
+  «Convocazioni e formazioni». Il modulo dei dettagli sta a parte, in
+  `/admin/partite/[id]/modifica`, con l'eliminazione in fondo; salvando si torna
+  alla scheda (una partita nuova torna all'elenco). Le **notifiche push** delle
+  partite sono mirate (`src/lib/matchNotices.ts`, funzioni pure con i loro test
+  in `unit/match-notices.spec.ts`): dicono che cosa è cambiato («Cambio orario»
+  con l'orario di prima, «Cambio luogo», «Ritrovo aggiornato», «Nota sulla
+  partita», «Cambiano data e luogo»…), il risultato («Vinta 3-1» e i parziali)
+  e le convocazioni (quante e il ritrovo, mai i nomi, solo se cambia la lista);
+  non partono se non cambia niente che interessi alle famiglie. Portano al
+  calendario sul mese e sulla categoria della partita (`matchNoticeUrl`) e hanno
+  il tag `partita-<id>`, così sul telefono l'ultimo avviso sostituisce il
+  precedente. Il modulo mostra in anteprima la notifica che partirà.
 - **Gestione staff** (`/admin/staff`) — creazione nuovi account admin con
   password temporanea. Un Developer può anche modificare il nome utente di
   un Admin o impostargli una nuova password temporanea.

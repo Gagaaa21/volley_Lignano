@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import { matchToInput } from "@/lib/matchInput";
 import { getActiveRepo, getRepo, type Repo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -63,27 +64,6 @@ function isLeagueMatch(match: Match | null | undefined, category: Category): mat
   return Boolean(
     match && match.team === "u14u15" && match.category === category && !match.isFriendly && !match.isTournament,
   );
-}
-
-function inputFromMatch(match: Match): MatchInput {
-  return {
-    team: match.team,
-    category: match.category,
-    opponent: match.opponent,
-    isHome: match.isHome,
-    isFriendly: match.isFriendly,
-    isTournament: match.isTournament,
-    location: match.location,
-    matchDate: match.matchDate,
-    meetingTime: match.meetingTime,
-    meetingLocation: match.meetingLocation,
-    notes: match.notes,
-    calledUpAthleteIds: match.calledUpAthleteIds,
-    setScores: match.setScores,
-    resultSetsWon: match.resultSetsWon,
-    resultSetsLost: match.resultSetsLost,
-    tournamentGames: match.tournamentGames,
-  };
 }
 
 /** Parziali ufficiali pronti da salvare, o il motivo per cui non si può. */
@@ -181,7 +161,7 @@ export async function applyOfficialResultAction(
       return { error: "Nel sito c'è già un risultato diverso: non lo cambio senza una tua scelta esplicita." };
     }
 
-    await repo.updateMatch(match.id, { ...inputFromMatch(match), ...parsed.fields });
+    await repo.updateMatch(match.id, { ...matchToInput(match), ...parsed.fields });
     await repo.setFederationDecision({
       category,
       externalId,
@@ -223,7 +203,7 @@ export async function confirmAllResultsAction(
             skipped++;
             continue;
           }
-          await repo.updateMatch(game.match.id, { ...inputFromMatch(game.match), ...parsed.fields });
+          await repo.updateMatch(game.match.id, { ...matchToInput(game.match), ...parsed.fields });
           await repo.setFederationDecision({
             category,
             externalId: game.official.externalId,
@@ -423,7 +403,7 @@ export async function linkOfficialGameAction(
       return { error: "La partita scelta non è una partita di campionato di questa categoria." };
     }
 
-    let input = inputFromMatch(match);
+    let input = matchToInput(match);
     const hasResult = match.resultSetsWon !== null;
     if (!game.result && !hasResult) {
       input = alignToPortal(input, match, game);
@@ -505,7 +485,7 @@ export async function updateOfficialGamesAction(
     try {
       for (const game of chosen) {
         const match = game.match!;
-        await repo.updateMatch(match.id, alignToPortal(inputFromMatch(match), match, game));
+        await repo.updateMatch(match.id, alignToPortal(matchToInput(match), match, game));
         updated++;
       }
     } finally {
@@ -548,7 +528,7 @@ export async function markFriendlyAction(
     if (!match || match.team !== "u14u15" || match.isTournament) {
       return { error: "Partita non trovata: aggiorna la pagina." };
     }
-    if (!match.isFriendly) await repo.updateMatch(match.id, { ...inputFromMatch(match), isFriendly: true });
+    if (!match.isFriendly) await repo.updateMatch(match.id, { ...matchToInput(match), isFriendly: true });
     revalidateAll(match.id);
   } catch (error) {
     console.error("[markFriendlyAction]", error);

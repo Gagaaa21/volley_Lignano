@@ -38,6 +38,7 @@ export function CallUpsAndLineupsDialog({
   initialCalledUpIds,
   initialLineup,
   absences,
+  notifyByDefault = true,
   onClose,
 }: {
   matchId: string;
@@ -46,6 +47,7 @@ export function CallUpsAndLineupsDialog({
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
   absences?: Record<string, string>;
+  notifyByDefault?: boolean;
   onClose: () => void;
 }) {
   const [calledUp, setCalledUp] = useState<Set<string>>(() => new Set(initialCalledUpIds));
@@ -204,6 +206,11 @@ export function CallUpsAndLineupsDialog({
 
           <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-surface-muted px-5 py-3.5 sm:px-6">
             <SubmitButton />
+            {/* L'avviso parte solo se cambia la lista delle convocate (le formazioni restano allo staff), e dice quante sono e il ritrovo. */}
+            <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-foreground" data-callups-notify>
+              <input type="checkbox" name="notify" defaultChecked={notifyByDefault} className="h-4 w-4 rounded border-border-strong accent-[var(--primary)]" />
+              Avvisa le famiglie se cambiano le convocate
+            </label>
             {state.error && <FieldError>{state.error}</FieldError>}
             {state.success && !dirty && <span className="text-sm font-semibold text-success">Salvato.</span>}
             {dirty && (

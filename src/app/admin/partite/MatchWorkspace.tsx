@@ -18,6 +18,7 @@ export function MatchWorkspace({
   initialCalledUpIds,
   initialLineup,
   absences = {},
+  notifyByDefault = true,
 }: {
   matchId: string;
   title: string;
@@ -26,6 +27,8 @@ export function MatchWorkspace({
   initialLineup: MatchLineup | null;
   /** Le assenze, per atleta: la riga già scritta («Non ci sarà · motivo · nota»). */
   absences?: Record<string, string>;
+  /** Avvisare di serie le famiglie quando cambiano le convocate (sì per le partite ancora da giocare). */
+  notifyByDefault?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const calledUpCount = initialCalledUpIds.length;
@@ -110,6 +113,7 @@ export function MatchWorkspace({
           initialCalledUpIds={initialCalledUpIds}
           initialLineup={initialLineup}
           absences={absences}
+          notifyByDefault={notifyByDefault}
           onClose={() => setOpen(false)}
         />
       )}

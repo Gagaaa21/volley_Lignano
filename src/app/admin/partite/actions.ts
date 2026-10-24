@@ -7,13 +7,22 @@ import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
-import { CATEGORY_LABELS, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { parseClockTime } from "@/lib/clockTime";
-import { formatDateLong } from "@/lib/format";
+import { matchToInput } from "@/lib/matchInput";
+import {
+  callUpsNotice,
+  deletedMatchNotice,
+  matchChangeNotice,
+  matchNoticeTag,
+  matchNoticeUrl,
+  newMatchNotice,
+  resultNotice,
+  type MatchNotice,
+} from "@/lib/matchNotices";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import { clearPublicScore } from "@/lib/scout/publicSnapshot";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
-import type { MatchInput, MatchLineupInput } from "@/lib/types";
+import type { Match, MatchInput, MatchLineupInput } from "@/lib/types";
 import { todayIso } from "@/lib/today";
 
 const schema = z
@@ -62,8 +71,6 @@ export interface MatchFormValues {
   meetingLocation: string;
   notes: string;
   notify: boolean;
-  setUs: string[];
-  setThem: string[];
 }
 
 export interface MatchFormState {
@@ -84,31 +91,14 @@ function readRawValues(formData: FormData): MatchFormValues {
     meetingLocation: formData.get("meetingLocation")?.toString() ?? "",
     notes: formData.get("notes")?.toString() ?? "",
     notify: formData.get("notify") === "on",
-    setUs: formData.getAll("setUs").map((v) => v.toString()),
-    setThem: formData.getAll("setThem").map((v) => v.toString()),
   };
 }
 
-function matchScheduleLabel(matchDate: string, location: string): string {
-  const date = matchDate.slice(0, 10);
-  const time = matchDate.slice(11, 16);
-  return `${formatDateLong(date)}, ${time} · ${location}`;
-}
-
-/** Riga sintetica per le notifiche push: "vs"/"@" indica casa/trasferta,
- * ma per un torneo (dove "opponent" descrive l'evento, non un'unica
- * avversaria) quella sigla non avrebbe senso — si mostra solo il testo. */
-function matchupLabel(input: {
-  category: "U14" | "U15" | null;
-  opponent: string;
-  isHome: boolean;
-  isFriendly: boolean;
-  isTournament: boolean;
-}): string {
-  const prefix = input.isFriendly ? "Amichevole " : "";
-  const categoryLabel = input.category ? CATEGORY_LABELS[input.category] : MATCH_NO_CATEGORY_LABEL;
-  if (input.isTournament) return `${prefix}${categoryLabel} · ${input.opponent}`;
-  return `${prefix}${categoryLabel} ${input.isHome ? "vs" : "@"} ${input.opponent}`;
+/** Manda l'avviso di una partita a chi segue il calendario della sua squadra: porta al mese giusto e sostituisce sul telefono
+ * l'avviso precedente sulla stessa partita. */
+async function sendMatchNotice(notice: MatchNotice | null, match: Pick<Match, "team" | "category" | "matchDate">, matchId?: string) {
+  if (!notice) return;
+  await notifyCalendarChange({ ...notice, url: matchNoticeUrl(match), tag: matchId ? matchNoticeTag(matchId) : undefined }, match.team);
 }
 
 function parseMatchForm(formData: FormData) {
@@ -138,33 +128,6 @@ export async function saveMatchAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi.", values };
   }
 
-  const isTournament = parsed.data.isTournament;
-  // Per un torneo il risultato non è un unico setScores ma una partita per
-  // ogni avversaria affrontata (tournamentGames) — i due campi sono a
-  // esclusione reciproca, mai valorizzati entrambi.
-  const result = isTournament ? { setScores: null, resultSetsWon: null, resultSetsLost: null } : parseSetScoresFromFormData(formData);
-  if ("error" in result && result.error) {
-    return { error: result.error, values };
-  }
-  const tournamentResult = isTournament
-    ? parseTournamentGamesJson(formData.get("tournamentGames")?.toString() ?? "[]", { requireCompleteScore: false })
-    : { tournamentGames: null };
-  if ("error" in tournamentResult && tournamentResult.error) {
-    return { error: tournamentResult.error, values };
-  }
-
-  const hasResultInput =
-    result.resultSetsWon !== null || (tournamentResult.tournamentGames?.some((g) => g.setScores.length > 0) ?? false);
-  if (hasResultInput) {
-    // Confronto solo sulla data (non sull'ora, per evitare falsi negativi
-    // dovuti al fuso orario tra client e server) — chi inserisce un
-    // risultato lo fa comunque a partita già conclusa da un pezzo.
-    const todayStr = todayIso();
-    if (parsed.data.matchDate.slice(0, 10) > todayStr) {
-      return { error: "Puoi inserire il risultato solo dopo che la partita è stata giocata.", values };
-    }
-  }
-
   const id = formData.get("id")?.toString();
   const notify = formData.get("notify") === "on";
 
@@ -174,11 +137,11 @@ export async function saveMatchAction(
   // dedicato).
   try {
     const repo = await getActiveRepo();
-    // Le convocazioni si gestiscono solo dalla finestra "Convocazioni e
-    // formazioni": qui si preserva il valore esistente invece di azzerarlo.
-    // La squadra di una partita esistente non cambia mai in modifica (il
-    // campo "team" nel form è nascosto e riflette quella già salvata).
+    // Qui si cambiano solo i dettagli: convocazioni (finestra «Convocazioni e formazioni») e risultato (riquadro «Risultato»
+    // della partita) restano come sono. La squadra di una partita esistente non cambia mai in modifica (il campo "team" nel
+    // form è nascosto e riflette quella già salvata).
     const existing = id ? await repo.getMatch(id) : null;
+    if (id && !existing) return { error: "La partita non c'è più: forse è stata eliminata.", values };
     const team = existing?.team ?? parsed.data.team;
     const input: MatchInput = {
       team,
@@ -193,42 +156,21 @@ export async function saveMatchAction(
       meetingLocation: parsed.data.meetingLocation ?? null,
       notes: parsed.data.notes ?? null,
       calledUpAthleteIds: existing?.calledUpAthleteIds ?? [],
-      setScores: result.setScores,
-      resultSetsWon: result.resultSetsWon,
-      resultSetsLost: result.resultSetsLost,
-      tournamentGames: tournamentResult.tournamentGames,
+      // Un torneo e una partita normale tengono il risultato in campi diversi: se la partita cambia tipo, quello di prima
+      // non vale più.
+      setScores: existing && existing.isTournament === parsed.data.isTournament ? existing.setScores : null,
+      resultSetsWon: existing && existing.isTournament === parsed.data.isTournament ? existing.resultSetsWon : null,
+      resultSetsLost: existing && existing.isTournament === parsed.data.isTournament ? existing.resultSetsLost : null,
+      tournamentGames: existing && existing.isTournament === parsed.data.isTournament ? existing.tournamentGames : null,
     };
 
-    const matchup = matchupLabel(input);
-    const scheduleLabel = matchScheduleLabel(input.matchDate, input.location);
-    if (id) {
+    if (existing && id) {
       await repo.updateMatch(id, input);
-      if (notify) {
-        const resultLabel =
-          input.resultSetsWon !== null && input.resultSetsLost !== null
-            ? ` · Risultato ${input.resultSetsWon}-${input.resultSetsLost}`
-            : "";
-        await notifyCalendarChange(
-          {
-            title: "Partita modificata",
-            body: `${matchup} · ${scheduleLabel}${resultLabel}`,
-            url: team === "minivolley" ? "/minivolley" : "/",
-          },
-          team,
-        );
-      }
+      // L'avviso dice che cosa è cambiato (orario, luogo, ritrovo…); se non è cambiato niente che interessi, non parte.
+      if (notify) await sendMatchNotice(matchChangeNotice(existing, input), input, id);
     } else {
-      await repo.createMatch(input, session.sub);
-      if (notify) {
-        await notifyCalendarChange(
-          {
-            title: "Partita creata",
-            body: `${matchup} · ${scheduleLabel}`,
-            url: team === "minivolley" ? "/minivolley" : "/",
-          },
-          team,
-        );
-      }
+      const created = await repo.createMatch(input, session.sub);
+      if (notify) await sendMatchNotice(newMatchNotice(input), input, created.id);
     }
 
     revalidatePath("/admin/partite");
@@ -241,7 +183,69 @@ export async function saveMatchAction(
     return { error: "Non è stato possibile salvare la partita. Riprova.", values };
   }
 
-  redirect("/admin/partite");
+  // Una partita nuova torna all'elenco; una modificata alla sua scheda.
+  redirect(id ? `/admin/partite/${id}` : "/admin/partite");
+}
+
+export interface MatchResultFormState {
+  error?: string;
+  message?: string;
+  /** Quello che si era scritto, riportato indietro con un errore (React svuoterebbe i campi). */
+  values?: { setUs: string[]; setThem: string[]; tournamentGames: string };
+}
+
+/** Il risultato di una partita giocata, dal suo riquadro «Risultato»: parziali set per set (o, per un torneo, una partita per
+ * avversaria). Si salva da solo, senza toccare i dettagli, e avvisa con «Vinta 3-1» e i parziali. */
+export async function saveMatchResultAction(_prevState: MatchResultFormState, formData: FormData): Promise<MatchResultFormState> {
+  await requireStaffPage("partite");
+  const id = formData.get("id")?.toString();
+  if (!id) return { error: "Partita non valida." };
+  const values = {
+    setUs: formData.getAll("setUs").map((v) => v.toString()),
+    setThem: formData.getAll("setThem").map((v) => v.toString()),
+    tournamentGames: formData.get("tournamentGames")?.toString() ?? "[]",
+  };
+  const notify = formData.get("notify") === "on";
+
+  try {
+    const repo = await getActiveRepo();
+    const match = await repo.getMatch(id);
+    if (!match) return { error: "La partita non c'è più: forse è stata eliminata." };
+
+    // Per un torneo il risultato non è un unico setScores ma una partita per ogni avversaria affrontata (tournamentGames):
+    // i due campi sono a esclusione reciproca, mai valorizzati entrambi.
+    const result = match.isTournament ? { setScores: null, resultSetsWon: null, resultSetsLost: null } : parseSetScoresFromFormData(formData);
+    if ("error" in result && result.error) return { error: result.error, values };
+    const tournament = match.isTournament
+      ? parseTournamentGamesJson(values.tournamentGames, { requireCompleteScore: false })
+      : { tournamentGames: null };
+    if ("error" in tournament && tournament.error) return { error: tournament.error, values };
+
+    const hasResult = result.resultSetsWon !== null || (tournament.tournamentGames?.some((g) => g.setScores.length > 0) ?? false);
+    // Solo sulla data (non sull'ora, per non sbagliare col fuso tra telefono e server): un risultato si scrive a partita giocata.
+    if (hasResult && match.matchDate.slice(0, 10) > todayIso()) {
+      return { error: "Puoi inserire il risultato solo dopo che la partita è stata giocata.", values };
+    }
+
+    const next = {
+      setScores: result.setScores,
+      resultSetsWon: result.resultSetsWon,
+      resultSetsLost: result.resultSetsLost,
+      tournamentGames: tournament.tournamentGames,
+    };
+    await repo.updateMatch(id, { ...matchToInput(match), ...next });
+    if (notify) await sendMatchNotice(resultNotice(match, match, next), match, id);
+
+    revalidatePath("/admin/partite");
+    revalidatePath(`/admin/partite/${id}`);
+    revalidatePath("/admin");
+    revalidatePath(match.team === "minivolley" ? "/minivolley" : "/");
+    updateTag(PUBLIC_CALENDAR_TAG);
+    return { message: hasResult ? "Risultato salvato." : "Risultato tolto." };
+  } catch (err) {
+    console.error("[saveMatchResultAction]", err);
+    return { error: "Non è stato possibile salvare il risultato. Riprova.", values };
+  }
 }
 
 /** Pagine da cui si può eliminare una partita e su cui si torna dopo (il resto torna all'elenco). */
@@ -258,17 +262,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   await repo.deleteMatch(id);
   // Con la partita se ne va anche lo scout: il suo punteggio live non deve restare sul sito.
   await clearPublicScore(repo, id).catch((error: unknown) => console.error("[deleteMatchAction] punteggio live non tolto:", error));
-  if (match) {
-    const matchup = matchupLabel(match);
-    await notifyCalendarChange(
-      {
-        title: "Partita eliminata",
-        body: `${matchup} · ${matchScheduleLabel(match.matchDate, match.location)} · non è più in calendario.`,
-        url: match.team === "minivolley" ? "/minivolley" : "/",
-      },
-      match.team,
-    );
-  }
+  if (match) await sendMatchNotice(deletedMatchNotice(match), match, match.id);
   revalidatePath("/admin/partite");
   revalidatePath("/admin/partite/portale");
   revalidatePath("/admin");
@@ -360,6 +354,7 @@ export async function saveCallUpsAndLineupAction(
   if (!match) return { error: "Partita non trovata." };
 
   const calledUpAthleteIds = formData.getAll("calledUpAthleteIds").map((v) => v.toString());
+  const notify = formData.get("notify") === "on";
 
   let rawSets: unknown;
   try {
@@ -373,24 +368,7 @@ export async function saveCallUpsAndLineupAction(
     return { error: "Dati non validi." };
   }
 
-  const input: MatchInput = {
-    team: match.team,
-    category: match.category,
-    opponent: match.opponent,
-    isHome: match.isHome,
-    isFriendly: match.isFriendly,
-    isTournament: match.isTournament,
-    location: match.location,
-    matchDate: match.matchDate,
-    meetingTime: match.meetingTime,
-    meetingLocation: match.meetingLocation,
-    notes: match.notes,
-    calledUpAthleteIds,
-    setScores: match.setScores,
-    resultSetsWon: match.resultSetsWon,
-    resultSetsLost: match.resultSetsLost,
-    tournamentGames: match.tournamentGames,
-  };
+  const input: MatchInput = { ...matchToInput(match), calledUpAthleteIds };
   try {
     await repo.updateMatch(matchId, input);
     await repo.saveMatchLineup(
@@ -398,6 +376,8 @@ export async function saveCallUpsAndLineupAction(
       { sets: normalizeSets(parsed.data.sets, calledUpAthleteIds) },
       session.sub,
     );
+    // Avvisa solo se la lista delle convocate è cambiata (le formazioni restano allo staff).
+    if (notify) await sendMatchNotice(callUpsNotice(match, match.calledUpAthleteIds, calledUpAthleteIds), match, matchId);
     revalidatePath(`/admin/partite/${matchId}`);
     // Le convocazioni sono visibili anche sul sito pubblico: invalida la
     // cache del calendario, altrimenti resterebbero non aggiornate fino a

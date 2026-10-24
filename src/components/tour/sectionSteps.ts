@@ -51,7 +51,7 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     path: "/admin/partite",
     target: "section-partite-cards",
     title: "Partite registrate",
-    body: "Sono le partite del calendario del sito. Ogni scheda apre i dettagli della partita, dove imposti anche convocazioni, formazioni per set ed esportazione PDF.",
+    body: "Sono le partite del calendario del sito. Ogni riga apre la scheda della partita: i dettagli in breve (con «Modifica»), il risultato a partita giocata, le assenze e le convocazioni con formazioni ed esportazione PDF.",
   },
   {
     id: "section-partite-official",

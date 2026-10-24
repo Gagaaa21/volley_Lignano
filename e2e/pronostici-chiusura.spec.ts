@@ -70,14 +70,14 @@ test("pronostici: aperti fino a un'ora dopo l'inizio, chiusi dopo e appena c'è 
   await expect(page.getByRole("button", { name: "Salva pronostico" })).toHaveCount(0);
   await expect(page.getByText("Nessun pronostico è stato inviato per questa partita prima della chiusura.")).toBeVisible();
 
-  // Col risultato inserito si chiude subito, anche dentro l'ora di tolleranza.
+  // Col risultato inserito (dal riquadro «Risultato» della partita) si chiude subito, anche dentro l'ora di tolleranza.
   await page.goto(`/admin/partite/${openId}`);
   for (let set = 1; set <= 3; set++) {
     await page.getByLabel(`Punti Lignano, set ${set}`).fill("25");
     await page.getByLabel(`Punti avversario, set ${set}`).fill("10");
   }
-  await page.getByRole("button", { name: /salva partita/i }).click();
-  await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "Salva risultato" }).click();
+  await expect(page.locator('[data-match-result="saved"]')).toBeVisible({ timeout: 20_000 });
   await page.goto(`/admin/pronostici/${openId}`);
   await expect(page.getByRole("button", { name: "Salva pronostico" })).toHaveCount(0);
 

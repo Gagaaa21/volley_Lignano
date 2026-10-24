@@ -35,15 +35,16 @@ async function matchId(page: Page, opponent: string): Promise<string> {
 /** Il modulo della partita (le altre form della pagina, come il cambio squadra, non hanno novalidate). */
 const matchForm = (page: Page) => page.locator("form[novalidate]");
 
-/** Apre la partita e aspetta che la pagina sia pronta: quel che si scrive prima che React sia partito non gli arriva. */
+/** Apre il modulo della partita e aspetta che la pagina sia pronta: quel che si scrive prima che React sia partito non gli arriva. */
 async function openMatch(page: Page, id: string) {
-  await page.goto(`/admin/partite/${id}`);
+  await page.goto(`/admin/partite/${id}/modifica`);
   await page.waitForLoadState("networkidle");
 }
 
+/** Salva: una partita nuova torna all'elenco, una modificata alla sua scheda. */
 async function save(page: Page) {
   await page.getByRole("button", { name: /salva partita/i }).click();
-  await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
+  await page.waitForURL(/\/admin\/partite(\/[^/?#]+)?$/, { timeout: 20_000 });
 }
 
 test("l'ora di ritrovo si scrive, si cambia con un tocco, si toglie, e il calendario la segue", async ({ page, request }) => {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Binoculars, Car, Trash2 } from "lucide-react";
+import { Binoculars, Car } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
@@ -8,23 +8,27 @@ import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { describeAbsence, isAbsence } from "@/lib/availability/rules";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import { matchTitle } from "@/lib/calendar";
-import { Card, CardBody } from "@/components/ui/Card";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
-import { deleteMatchAction } from "../actions";
+import { todayIso } from "@/lib/today";
 import { MatchAvailability } from "../MatchAvailability";
-import { MatchForm } from "../MatchForm";
+import { MatchDetailsCard } from "../MatchDetailsCard";
+import { MatchResultCard } from "../MatchResultCard";
 import { MatchWorkspace } from "../MatchWorkspace";
 
 export const metadata: Metadata = {
-  title: "Modifica partita",
+  title: "Partita",
 };
 
-export default async function EditMatchPage({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * La scheda di una partita, nell'ordine in cui serve: i dettagli in breve (con «Modifica», che apre il modulo a parte), il
+ * risultato a partita giocata, le assenze e le convocazioni con le formazioni.
+ */
+
+export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await requireStaff();
   const repo = await getActiveRepo();
@@ -65,6 +69,9 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
   const canFamilyLinks =
     match.team === "u14u15" &&
     (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("presenze") ?? false));
+  // Il risultato si scrive a partita giocata (o si corregge se c'è già).
+  const played = match.matchDate.slice(0, 10) <= todayIso();
+  const showResult = played || match.resultSetsWon !== null || (match.tournamentGames?.some((game) => game.setScores.length > 0) ?? false);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -93,6 +100,10 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         }
       />
 
+      <MatchDetailsCard match={match} />
+
+      {showResult && <MatchResultCard match={match} />}
+
       {availabilityReady && (
         <MatchAvailability
           match={match}
@@ -109,27 +120,8 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         initialCalledUpIds={match.calledUpAthleteIds}
         initialLineup={lineup}
         absences={absenceTexts}
+        notifyByDefault={!played}
       />
-
-      <Card className="mt-6">
-        <CardBody className="pt-6 sm:pt-7">
-          <MatchForm match={match} />
-        </CardBody>
-      </Card>
-
-      <section className="mt-10 flex flex-col gap-3 rounded-2xl border border-destructive/20 bg-destructive/[0.03] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-foreground">Elimina partita</p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Sparisce dal calendario insieme a convocazioni, formazioni e scout.</p>
-        </div>
-        <form action={deleteMatchAction}>
-          <input type="hidden" name="id" value={match.id} />
-          <ConfirmSubmitButton confirmMessage={`Eliminare la partita ${matchTitle(match)}?`} variant="danger" size="sm">
-            <Trash2 className="h-4 w-4" />
-            Elimina
-          </ConfirmSubmitButton>
-        </form>
-      </section>
     </div>
   );
 }

@@ -110,7 +110,8 @@ export function uniqueName(prefix: string) {
  * demo, e le partite lasciate in giro falserebbero i conteggi dei test dopo. */
 export async function deleteMatchById(page: Page, id: string) {
   page.once("dialog", (dialog) => dialog.accept());
-  await page.goto(`/admin/partite/${id}`);
+  // L'eliminazione sta in fondo alla pagina «Modifica» della partita.
+  await page.goto(`/admin/partite/${id}/modifica`);
   await page.getByRole("button", { name: "Elimina", exact: true }).click();
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
 }
