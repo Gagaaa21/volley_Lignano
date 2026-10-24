@@ -23,14 +23,13 @@ import {
   type ZoneGrid,
 } from "@/lib/scout/stats";
 import { TOUCH_SKILLS } from "@/lib/scout/touches";
-import { SCOUT_GRADES, type ScoutData, type ScoutGrade, type ScoutLevel } from "@/lib/scout/types";
+import { SCOUT_GRADES, type ScoutData, type ScoutGrade } from "@/lib/scout/types";
 import type { Match } from "@/lib/types";
 
 /**
  * Il tabellino di una partita in PDF. La prima pagina (A4 verticale) è il tabellino come quelli delle leghe, sempre su tutta la
  * partita (src/lib/pdf/scoutSheetPdf.ts); poi le analisi in A4 orizzontale: parziali, come si è fatto punto, errori e falli,
- * andamento del punteggio e, coi livelli «Con ricezioni» e «Completo», la ricezione (voti, zone, cambio palla), le mappe del campo
- * e le rotazioni; infine formazioni e cambi. Con `set` le analisi sono di quel set solo. Stessi conti della pagina «Tabellino».
+ * andamento del punteggio e, col livello «Con ricezioni», la ricezione (voti, zone, cambio palla); infine formazioni e cambi. Con `set` le analisi sono di quel set solo. Stessi conti della pagina «Tabellino».
  */
 
 export interface ScoutPdfInput {
@@ -170,7 +169,7 @@ function howRows(us: TeamStats, opp: TeamStats): PdfCellInput[][] {
   ];
 }
 
-// ── ricezione, mappe e rotazioni (livelli «Con ricezioni» e «Completo») ──
+// ── ricezione e mappa delle zone (livello «Con ricezioni») ──
 
 /** I colori dei voti, gli stessi del sito: sfondo e colore del testo. */
 const GRADE_RGB: Record<ScoutGrade, { fill: RGB; ink: RGB }> = {
@@ -243,7 +242,7 @@ const ZONE_ROWS = [
 const ZONE_CELL_H = 30;
 const ZONE_CANVAS_HEIGHT = 112;
 
-/** Le mappe del campo affiancate: sei zone ciascuna, con la percentuale di tocchi riusciti e quanti sono. */
+/** Le mappe del campo affiancate (oggi solo quella della ricezione): sei zone, con la percentuale di tocchi riusciti e quanti sono. */
 function drawZoneMaps(canvas: PdfCanvas, maps: ZoneMapSpec[]) {
   const { page, top, left, width, fonts, colors, safe } = canvas;
   const count = maps.length;
@@ -280,14 +279,11 @@ function ratio2(part: number, total: number): string {
   return total === 0 ? "–" : `${part} su ${total} (${percent(part, total)}%)`;
 }
 
-function receptionSections(report: PdfReport, matchOpponent: string, analysis: Record<"us" | "opp", SideAnalysis>, players: PlayerStats[], level: ScoutLevel) {
-  const us = analysis.us;
+function receptionSections(report: PdfReport, us: SideAnalysis, players: PlayerStats[]) {
   if (us.receptions === 0) return;
   const good = (a: SideAnalysis) => a.reception["#"] + a.reception["+"];
   const sideOuts = (a: SideAnalysis) => SCOUT_GRADES.filter((g) => g !== "=").reduce((n, g) => n + a.sideOutByGrade[g].won, 0);
   const received = (a: SideAnalysis) => SCOUT_GRADES.reduce((n, g) => n + a.sideOutByGrade[g].total, 0);
-  const both = level === "completo" && analysis.opp.receptions > 0;
-  const cell = (a: SideAnalysis, value: string): PdfCellInput => (a.receptions === 0 ? dash : value);
 
   tableSection(
     report,
@@ -296,18 +292,13 @@ function receptionSections(report: PdfReport, matchOpponent: string, analysis: R
     [
       { header: "", weight: 3 },
       { header: "Noi", weight: 1.6, align: "center" },
-      ...(both ? [{ header: matchOpponent, weight: 1.6, align: "center" as const }] : []),
     ],
     [
-      ["Ricezioni segnate", String(us.receptions), ...(both ? [String(analysis.opp.receptions)] : [])],
-      ["Positive (# e +)", ratio2(good(us), us.receptions), ...(both ? [cell(analysis.opp, ratio2(good(analysis.opp), analysis.opp.receptions))] : [])],
-      ["Perfette (#)", ratio2(us.reception["#"], us.receptions), ...(both ? [cell(analysis.opp, ratio2(analysis.opp.reception["#"], analysis.opp.receptions))] : [])],
-      ["Errori (=)", ratio2(us.reception["="], us.receptions), ...(both ? [cell(analysis.opp, ratio2(analysis.opp.reception["="], analysis.opp.receptions))] : [])],
-      [
-        "Cambio palla dopo la ricezione",
-        ratio2(sideOuts(us), received(us)),
-        ...(both ? [cell(analysis.opp, ratio2(sideOuts(analysis.opp), received(analysis.opp)))] : []),
-      ],
+      ["Ricezioni segnate", String(us.receptions)],
+      ["Positive (# e +)", ratio2(good(us), us.receptions)],
+      ["Perfette (#)", ratio2(us.reception["#"], us.receptions)],
+      ["Errori (=)", ratio2(us.reception["="], us.receptions)],
+      ["Cambio palla dopo la ricezione", ratio2(sideOuts(us), received(us))],
     ],
   );
 
@@ -367,41 +358,12 @@ function receptionSections(report: PdfReport, matchOpponent: string, analysis: R
   }
 }
 
-function zoneSection(report: PdfReport, analysis: SideAnalysis, level: ScoutLevel) {
-  const maps: ZoneMapSpec[] = [];
-  if (zonedTouches(analysis.zones.reception) > 0) maps.push({ title: "Dove si riceve", grid: analysis.zones.reception, good: "positivi (# e +)" });
-  if (level === "completo" && zonedTouches(analysis.zones.dig) > 0) maps.push({ title: "Dove si difende", grid: analysis.zones.dig, good: "positivi (# e +)" });
-  if (level === "completo" && zonedTouches(analysis.zones.attack) > 0) maps.push({ title: "Da dove si attacca", grid: analysis.zones.attack, good: "a punto" });
-  if (maps.length === 0) return;
+function zoneSection(report: PdfReport, analysis: SideAnalysis) {
+  if (zonedTouches(analysis.zones.reception) === 0) return;
+  const maps: ZoneMapSpec[] = [{ title: "Dove si riceve", grid: analysis.zones.reception, good: "positivi (# e +)" }];
   report.requireSpace(24 + ZONE_CANVAS_HEIGHT);
-  report.heading("Le mappe del campo", "viste dalla propria metà, rete in alto: davanti 4-3-2, dietro 5-6-1");
+  report.heading("La mappa della ricezione", "vista dalla nostra metà, rete in alto: davanti 4-3-2, dietro 5-6-1");
   report.canvas(ZONE_CANVAS_HEIGHT, (canvas) => drawZoneMaps(canvas, maps));
-}
-
-function rotationSection(report: PdfReport, analysis: Record<"us" | "opp", SideAnalysis>, opponent: string) {
-  const columns: PdfColumn[] = [
-    { header: "Rotazione", weight: 1.4, align: "center" },
-    { header: "Battute", weight: 1, align: "center" },
-    { header: "Punti in battuta", weight: 1.4, align: "center" },
-    { header: "Break point", weight: 1.2, align: "center" },
-    { header: "Ricezioni", weight: 1, align: "center" },
-    { header: "Punti in ricezione", weight: 1.4, align: "center" },
-    { header: "Cambio palla", weight: 1.2, align: "center" },
-  ];
-  const rows = (a: SideAnalysis): PdfCellInput[][] =>
-    a.rotations.map((r) => [
-      { text: `${r.rotation}ª`, bold: true },
-      r.served ? String(r.served) : dash,
-      r.served ? String(r.breakPoints) : dash,
-      r.served ? { text: `${percent(r.breakPoints, r.served)}%`, bold: true } : dash,
-      r.received ? String(r.received) : dash,
-      r.received ? String(r.sideOuts) : dash,
-      r.received ? { text: `${percent(r.sideOuts, r.received)}%`, bold: true } : dash,
-    ]);
-  const used = (a: SideAnalysis) => a.rotations.some((r) => r.served + r.received > 0);
-  if (!used(analysis.us)) return;
-  tableSection(report, "Le rotazioni · Volley Lignano", "la 1ª è quella con cui si comincia il set; si ruota quando si recupera la battuta", columns, rows(analysis.us));
-  if (used(analysis.opp)) tableSection(report, `Le rotazioni · ${opponent}`, "stesse regole, per l'avversaria", columns, rows(analysis.opp));
 }
 
 function lineupSections(report: PdfReport, starts: StartingLineupRow[], subs: SubstitutionRow[], opponent: string) {
@@ -537,9 +499,8 @@ export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdf
   report.heading("Andamento del punteggio", "sopra la linea in vantaggio noi, sotto loro");
   report.canvas(FLOW_HEIGHT, (canvas) => drawFlow(canvas, stats.sets.filter((s) => selected === null || s.n === selected)));
 
-  if (level !== "base") receptionSections(report, match.opponent, stats.analysis, stats.players.us, level);
-  if (level !== "base") zoneSection(report, stats.analysis.us, level);
-  if (level === "completo") rotationSection(report, stats.analysis, match.opponent);
+  if (level !== "base") receptionSections(report, stats.analysis.us, stats.players.us);
+  if (level !== "base") zoneSection(report, stats.analysis.us);
 
   const lineups = lineupSummary(view, scout.roster, selected);
   lineupSections(report, lineups.starts, lineups.subs, match.opponent);

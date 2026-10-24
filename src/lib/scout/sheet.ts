@@ -13,14 +13,13 @@ import {
   type SideAnalysis,
   type TeamStats,
 } from "./stats";
-import { effectiveTouches, isPositiveGrade } from "./touches";
-import { otherSide, SCOUT_GRADES, type ScoutData, type ScoutLevel, type ScoutSide, type ScoutTouch } from "./types";
+import { otherSide, SCOUT_GRADES, type ScoutData, type ScoutLevel, type ScoutSide } from "./types";
 
 /**
  * Il tabellino come quello delle federazioni e delle leghe (gli scout ufficiali, tipo Data Volley): una tabella per squadra con
  * una riga per giocatrice (posizione di partenza in ogni set, punti, battuta, ricezione, attacco, muro), il totale e i numeri set
  * per set; sopra i set con durata, parziali e finali; sotto i punti per rotazione, ricezioni e battute per punto, e il cambio
- * palla diretto e il contrattacco. Tutto si ricava dagli scambi già segnati, quindi vale anche per le partite scoutizzate prima.
+ * palla dopo la ricezione. Tutto si ricava dagli scambi già segnati, quindi vale anche per le partite scoutizzate prima.
  *
  * Quello che il livello non segna non si inventa: è `null` nei numeri (e «–» sul foglio), mentre zero è zero (« . »).
  */
@@ -38,12 +37,9 @@ export interface SheetNumbers {
   /** Ricezioni positive (# e +) e perfette (#) su quelle segnate: null se non ce n'è nessuna. */
   positivePct: number | null;
   perfectPct: number | null;
-  attacks: number | null;
   attackErrors: number;
   blocked: number;
   kills: number;
-  /** Attacchi vincenti su quelli segnati: null se non se ne è segnato nessuno. */
-  killPct: number | null;
   blocks: number;
 }
 
@@ -74,14 +70,6 @@ export interface SheetSetRow extends SheetNumbers {
   won: SheetPointsWon;
 }
 
-/** Un fondamentale d'attacco in una fase: quanti, a punto, sbagliati, murati. */
-export interface AttackSplit {
-  total: number;
-  kills: number;
-  errors: number;
-  blocked: number;
-}
-
 export interface SheetRotation {
   /** 1 = la rotazione con cui si comincia il set. */
   rotation: number;
@@ -93,10 +81,8 @@ export interface SheetTeam {
   side: ScoutSide;
   /** Si sa chi batteva (formazione seguita o battute segnate): allora c'è il totale delle battute per giocatrice. */
   tracksServes: boolean;
-  /** Le ricezioni di questa squadra si segnano (per noi da «Con ricezioni», per l'avversaria solo a «Completo»). */
+  /** Le ricezioni di questa squadra si segnano: solo le nostre, a livello «Con ricezioni». */
   tracksReceptions: boolean;
-  /** Si segnano tutti gli attacchi (livello «Completo»). */
-  tracksAttacks: boolean;
   /** I set in cui ha battuto per prima. */
   firstServes: number[];
   lines: SheetLine[];
@@ -110,9 +96,7 @@ export interface SheetTeam {
   /** Battute e punti fatti in battuta (break point). */
   serves: number;
   breakPoints: number;
-  /** Il primo attacco dopo una ricezione positiva o negativa, e tutti gli altri (contrattacco): solo a livello «Completo». */
-  attackPhases: { positive: AttackSplit; negative: AttackSplit; counter: AttackSplit } | null;
-  /** Il cambio palla dopo una ricezione positiva o negativa, quando si segnano le ricezioni ma non gli attacchi. */
+  /** Il cambio palla dopo una ricezione positiva o negativa, quando si segnano le ricezioni. */
   sideOutByReception: { positive: { total: number; won: number }; negative: { total: number; won: number } } | null;
 }
 
@@ -138,7 +122,6 @@ export interface ScoutSheet {
   opp: SheetTeam;
 }
 
-const emptySplit = (): AttackSplit => ({ total: 0, kills: 0, errors: 0, blocked: 0 });
 
 /** Le soglie dei parziali: 8, 16 e 21 nei set a 25, 8 nel set corto (a 15). */
 export function partialThresholds(target: number): number[] {
@@ -173,16 +156,11 @@ export function serverOf(rally: Pick<ScoutRally, "touches" | "server" | "closedB
 
 /** Quello che serve di una riga del tabellino di sempre (una giocatrice, o la somma di una squadra). */
 type RowInput = Pick<PlayerStats, "points" | "bp" | "balance" | "aces" | "serveErrors" | "receptionErrors" | "kills" | "attackErrors" | "blocked" | "stuffs"> & {
-  detail: Pick<PlayerDetail, "receptions" | "reception" | "attacks">;
+  detail: Pick<PlayerDetail, "receptions" | "reception">;
 };
 
 /** I numeri di una riga a partire da quelli del tabellino di sempre, con quello che il livello non segna a null. */
-function numbersOf(
-  p: RowInput,
-  serves: number | null,
-  tracksReceptions: boolean,
-  tracksAttacks: boolean,
-): SheetNumbers {
+function numbersOf(p: RowInput, serves: number | null, tracksReceptions: boolean): SheetNumbers {
   const receptions = p.detail.receptions;
   const positive = p.detail.reception["#"] + p.detail.reception["+"];
   return {
@@ -196,17 +174,15 @@ function numbersOf(
     receptionErrors: p.receptionErrors,
     positivePct: tracksReceptions ? percent(positive, receptions) : null,
     perfectPct: tracksReceptions ? percent(p.detail.reception["#"], receptions) : null,
-    attacks: tracksAttacks ? p.detail.attacks : null,
     attackErrors: p.attackErrors,
     blocked: p.blocked,
     kills: p.kills,
-    killPct: tracksAttacks ? percent(p.kills, p.detail.attacks) : null,
     blocks: p.stuffs,
   };
 }
 
 /** La somma delle righe di una squadra (le percentuali si rifanno sui totali). */
-function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean, tracksAttacks: boolean): SheetNumbers {
+function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean): SheetNumbers {
   const total: RowInput = {
     points: 0,
     bp: 0,
@@ -218,7 +194,7 @@ function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean
     attackErrors: 0,
     blocked: 0,
     stuffs: 0,
-    detail: { receptions: 0, reception: emptyGrades(), attacks: 0 },
+    detail: { receptions: 0, reception: emptyGrades() },
   };
   for (const p of players) {
     total.points += p.points;
@@ -232,10 +208,9 @@ function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean
     total.blocked += p.blocked;
     total.stuffs += p.stuffs;
     total.detail.receptions += p.detail.receptions;
-    total.detail.attacks += p.detail.attacks;
     for (const grade of SCOUT_GRADES) total.detail.reception[grade] += p.detail.reception[grade];
   }
-  return numbersOf(total, serves, tracksReceptions, tracksAttacks);
+  return numbersOf(total, serves, tracksReceptions);
 }
 
 function wonOf(team: TeamStats): SheetPointsWon {
@@ -262,34 +237,6 @@ function setMark(set: ScoutSet, side: ScoutSide, id: string, played: Set<string>
     return null;
   }
   return played.has(id) ? "in" : null;
-}
-
-/** Primo attacco dopo la ricezione (positiva o negativa) e contrattacco, dai tocchi segnati (livello «Completo»). */
-function attackPhases(rallies: ScoutRally[], side: ScoutSide): SheetTeam["attackPhases"] {
-  const phases = { positive: emptySplit(), negative: emptySplit(), counter: emptySplit() };
-  const add = (split: AttackSplit, touch: ScoutTouch) => {
-    split.total += 1;
-    if (touch.grade === "#") split.kills += 1;
-    else if (touch.grade === "=") split.errors += 1;
-    else if (touch.grade === "/") split.blocked += 1;
-  };
-  for (const rally of rallies) {
-    const touches = effectiveTouches(rally);
-    let first = -1;
-    let bucket: AttackSplit | null = null;
-    if (rally.server !== side) {
-      const reception = touches.findIndex((touch) => touch.skill === "reception" && touch.side === side);
-      if (reception >= 0 && touches[reception].grade !== "=") {
-        first = touches.findIndex((touch, index) => index > reception && touch.skill === "attack" && touch.side === side);
-        bucket = isPositiveGrade(touches[reception].grade) ? phases.positive : phases.negative;
-      }
-    }
-    touches.forEach((touch, index) => {
-      if (touch.skill !== "attack" || touch.side !== side) return;
-      add(index === first && bucket ? bucket : phases.counter, touch);
-    });
-  }
-  return phases;
 }
 
 /** Il cambio palla dopo una ricezione positiva (# +) o negativa (! - /), dai voti segnati. */
@@ -332,12 +279,11 @@ export function buildSheet(data: Pick<ScoutData, "settings" | "events" | "roster
   }
 
   const team = (side: ScoutSide): SheetTeam => {
-    const tracksReceptions = level === "completo" || (level === "ricezioni" && side === "us");
-    const tracksAttacks = level === "completo";
+    const tracksReceptions = level === "ricezioni" && side === "us";
     const teamStats = side === "us" ? stats.us : stats.opp;
     const other = side === "us" ? stats.opp : stats.us;
     const lines: SheetLine[] = stats.players[side].map((p) => ({
-      ...numbersOf(p, tracksServes[side] ? (serveCount[side].get(p.id) ?? 0) : null, tracksReceptions, tracksAttacks),
+      ...numbersOf(p, tracksServes[side] ? (serveCount[side].get(p.id) ?? 0) : null, tracksReceptions),
       id: p.id,
       number: p.number,
       name: p.name,
@@ -349,13 +295,12 @@ export function buildSheet(data: Pick<ScoutData, "settings" | "events" | "roster
       side,
       tracksServes: tracksServes[side],
       tracksReceptions,
-      tracksAttacks,
       firstServes: playedSets.filter((set) => set.firstServer === side).map((set) => set.n),
       lines,
-      total: sumOf(stats.players[side], teamStats.served, tracksReceptions, tracksAttacks),
+      total: sumOf(stats.players[side], teamStats.served, tracksReceptions),
       perSet: perSetStats.map(({ n, stats: s }) => {
         const t = side === "us" ? s.us : s.opp;
-        return { n, won: wonOf(t), ...sumOf(s.players[side], t.served, tracksReceptions, tracksAttacks) };
+        return { n, won: wonOf(t), ...sumOf(s.players[side], t.served, tracksReceptions) };
       }),
       won: wonOf(teamStats),
       rotations: rotationsOf(stats.analysis[side]),
@@ -363,8 +308,7 @@ export function buildSheet(data: Pick<ScoutData, "settings" | "events" | "roster
       sideOutPoints: teamStats.sideOuts - other.committed.serveError,
       serves: teamStats.served,
       breakPoints: teamStats.breakPoints,
-      attackPhases: tracksAttacks ? attackPhases(view.rallies, side) : null,
-      sideOutByReception: tracksReceptions && !tracksAttacks ? sideOutByReception(stats.analysis[side]) : null,
+      sideOutByReception: tracksReceptions ? sideOutByReception(stats.analysis[side]) : null,
     };
   };
 

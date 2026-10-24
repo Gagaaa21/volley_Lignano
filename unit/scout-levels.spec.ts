@@ -19,7 +19,7 @@ import {
   type TouchInput,
 } from "@/lib/scout/actions";
 import { deriveScout, currentServer } from "@/lib/scout/derive";
-import { effectiveLevel, hasTouches, higherLevel, levelOf, LEVEL_META, recordsReceptions, recordsTouches } from "@/lib/scout/levels";
+import { effectiveLevel, hasTouches, higherLevel, levelOf, LEVEL_META, readLevel, recordsReceptions } from "@/lib/scout/levels";
 import { MAX_SCOUT_EVENTS, scoutDataSchema } from "@/lib/scout/schema";
 import { aggregateSeason, computeStats, hasActivity, statsOf, zonedTouches } from "@/lib/scout/stats";
 import { scoutContent } from "@/lib/scout/sync";
@@ -28,15 +28,15 @@ import {
   endsRally,
   GRADE_META,
   gradeSymbol,
-  isGradeAllowed,
-  suggestNext,
-  TOUCH_SKILL_ORDER,
   TOUCH_SKILLS,
   touchOutcome,
 } from "@/lib/scout/touches";
 import { SCOUT_GRADES, SCOUT_LEVELS, SCOUT_TOUCH_SKILLS, type ScoutData, type ScoutGrade, type ScoutSide, type ScoutTouch, type ScoutTouchSkill } from "@/lib/scout/types";
 
-/** Livelli dello scout: tocchi con voto (ricezioni e scambio completo), regole di chiusura, conti e salvataggio. */
+/**
+ * Livelli dello scout: tocchi con voto (le ricezioni, e ogni tocco negli scout del vecchio livello Completo, che si leggono
+ * ancora), regole di chiusura, conti e salvataggio.
+ */
 
 const T0 = Date.UTC(2026, 9, 17, 9, 0, 0);
 
@@ -45,7 +45,8 @@ const BEA = { id: "a2", name: "Bea", number: "7", libero: false };
 const CARLA = { id: "a3", name: "Carla", number: "1", libero: true };
 
 function emptyMatch(settings: Partial<ScoutData["settings"]> = {}): ScoutData {
-  let data = newScoutData({ us: [], opp: [] }, { level: "completo", ...settings });
+  // Le regole valgono per ogni tocco, anche quelli degli scout segnati col vecchio livello Completo.
+  let data = newScoutData({ us: [], opp: [] }, { level: "ricezioni", ...settings });
   for (const p of [ANNA, BEA, CARLA]) data = addPlayer(data, "us", p);
   for (const n of ["5", "9"]) data = addPlayer(data, "opp", opponentPlayer(n));
   return data;
@@ -114,8 +115,8 @@ function sixRallies(): ScoutData {
 }
 
 test.describe("le regole dei tocchi", () => {
-  test("i livelli sono tre, con testi per la scelta, e il vecchio scout vale «base»", () => {
-    expect([...SCOUT_LEVELS]).toEqual(["base", "ricezioni", "completo"]);
+  test("i livelli sono due, con testi per la scelta; il vecchio scout vale «base» e il vecchio «Completo» vale «ricezioni»", () => {
+    expect([...SCOUT_LEVELS]).toEqual(["base", "ricezioni"]);
     for (const level of SCOUT_LEVELS) {
       const meta = LEVEL_META[level];
       expect(meta.label.length).toBeGreaterThan(3);
@@ -126,19 +127,19 @@ test.describe("le regole dei tocchi", () => {
     expect(levelOf({})).toBe("base");
     expect(levelOf({ level: "ricezioni" })).toBe("ricezioni");
     expect(levelOf({ level: "inventato" })).toBe("base");
+    expect(levelOf({ level: "completo" })).toBe("ricezioni");
+    expect(readLevel("completo")).toBe("ricezioni");
+    expect(readLevel(undefined)).toBe("base");
     expect(recordsReceptions("base")).toBe(false);
     expect(recordsReceptions("ricezioni")).toBe(true);
-    expect(recordsTouches("ricezioni")).toBe(false);
-    expect(recordsTouches("completo")).toBe(true);
-    expect(higherLevel("base", "completo")).toBe("completo");
-    expect(higherLevel("completo", "ricezioni")).toBe("completo");
+    expect(higherLevel("base", "ricezioni")).toBe("ricezioni");
+    expect(higherLevel("ricezioni", "base")).toBe("ricezioni");
     expect(DEFAULT_SETTINGS.level).toBe("base");
     expect(normalizeSettings({ format: "bo5", setPoints: 25, lastSetPoints: 15, firstServer: "us" })).toMatchObject({ publicLive: false, level: "base" });
   });
 
   test("ogni fondamentale ha lettera, nome, voti e spiegazioni coerenti", () => {
-    expect(TOUCH_SKILL_ORDER).toEqual([...SCOUT_TOUCH_SKILLS]);
-    expect(new Set(TOUCH_SKILL_ORDER.map((s) => TOUCH_SKILLS[s].letter)).size).toBe(6);
+    expect(new Set(SCOUT_TOUCH_SKILLS.map((s) => TOUCH_SKILLS[s].letter)).size).toBe(6);
     for (const skill of SCOUT_TOUCH_SKILLS) {
       const meta = TOUCH_SKILLS[skill];
       expect(meta.grades.length).toBeGreaterThanOrEqual(3);
@@ -146,12 +147,9 @@ test.describe("le regole dei tocchi", () => {
       for (const grade of meta.grades) {
         expect(meta.gradeLabels[grade], `${skill} ${grade}`).toBeTruthy();
         expect(meta.gradeHints[grade], `${skill} ${grade}`).toBeTruthy();
-        expect(isGradeAllowed(skill, grade)).toBe(true);
       }
       expect(meta.grades).toContain("=");
     }
-    expect(isGradeAllowed("serve", "+")).toBe(false);
-    expect(isGradeAllowed("attack", "-")).toBe(false);
     expect(gradeSymbol("-")).toBe("−");
     expect(Object.keys(GRADE_META).sort()).toEqual([...SCOUT_GRADES].sort());
   });
@@ -193,20 +191,6 @@ test.describe("le regole dei tocchi", () => {
     expect(touchOutcome(asTouch("us", "block", "a2", "#"), [asTouch("us", "attack", "a1", "+")])?.victim).toBeNull();
     // Il muro sbagliato non ha vittime.
     expect(touchOutcome(asTouch("us", "block", "a2", "="), before)?.victim).toBeNull();
-  });
-
-  test("il tocco successivo si propone da solo (e chi segna può sempre scegliere altro)", () => {
-    expect(suggestNext([], "opp")).toEqual({ skill: "serve", side: "opp" });
-    expect(suggestNext([asTouch("us", "serve", "a1", "!")], "us")).toEqual({ skill: "reception", side: "opp" });
-    expect(suggestNext([asTouch("opp", "reception", "opp-5", "+")], "us")).toEqual({ skill: "attack", side: "opp" });
-    expect(suggestNext([asTouch("opp", "set", "opp-9", "+")], "us")).toEqual({ skill: "attack", side: "opp" });
-    expect(suggestNext([asTouch("us", "attack", "a1", "+")], "us")).toEqual({ skill: "dig", side: "opp" });
-    expect(suggestNext([asTouch("us", "attack", "a1", "/")], "us")).toEqual({ skill: "block", side: "opp" });
-    expect(suggestNext([asTouch("opp", "block", "opp-5", "+")], "us")).toEqual({ skill: "dig", side: "opp" });
-    expect(suggestNext([asTouch("us", "dig", "a3", "+")], "us")).toEqual({ skill: "attack", side: "us" });
-    // Palla rimandata di là: la gioca e attacca l'altra squadra.
-    expect(suggestNext([asTouch("us", "reception", "a3", "/")], "opp")).toEqual({ skill: "attack", side: "opp" });
-    expect(suggestNext([asTouch("us", "dig", "a3", "/")], "opp")).toEqual({ skill: "attack", side: "opp" });
   });
 });
 
@@ -572,10 +556,11 @@ test.describe("i tocchi nel tabellino", () => {
     expect(effectiveLevel(d)).toBe("base");
     d = touch(d, "us", "reception", "a1", "+");
     expect(effectiveLevel(d)).toBe("ricezioni");
+    // Gli altri tocchi (di uno scout del vecchio Completo) si leggono come «Con ricezioni».
     d = touch(d, "opp", "attack", "opp-5", "+");
-    expect(effectiveLevel(d)).toBe("completo");
+    expect(effectiveLevel(d)).toBe("ricezioni");
     // Il livello scelto vale comunque se è più alto.
-    expect(effectiveLevel(emptyMatch({ level: "completo" }))).toBe("completo");
+    expect(effectiveLevel(emptyMatch({ level: "ricezioni" }))).toBe("ricezioni");
     expect(effectiveLevel({ settings: { ...DEFAULT_SETTINGS, level: "ricezioni" }, events: [] })).toBe("ricezioni");
   });
 
@@ -620,7 +605,7 @@ test.describe("stagione e salvataggio con i livelli", () => {
     const season = aggregateSeason([basic, detailed]);
     expect(season.matches).toBe(2);
     expect(season.detailMatches).toBe(1);
-    expect(season.level).toBe("completo");
+    expect(season.level).toBe("ricezioni");
     const anna = season.players.find((p) => p.id === "a1")!;
     // I punti sommano tutte e due le partite; il dettaglio solo quella con i tocchi (3 battute, 2 attacchi).
     expect(anna.kills).toBe(3);
@@ -662,6 +647,16 @@ test.describe("stagione e salvataggio con i livelli", () => {
     const wrongLevel = JSON.parse(JSON.stringify(d)) as { settings: Record<string, unknown> };
     wrongLevel.settings.level = "super";
     expect(scoutDataSchema.safeParse(wrongLevel).success).toBe(false);
+
+    // Uno scout del vecchio livello Completo si salva e si rilegge come «Con ricezioni», con tutti i suoi tocchi.
+    const full = JSON.parse(JSON.stringify(d)) as { settings: Record<string, unknown> };
+    full.settings.level = "completo";
+    const fromFull = scoutDataSchema.safeParse(full);
+    expect(fromFull.success).toBe(true);
+    if (fromFull.success) {
+      expect(fromFull.data.settings.level).toBe("ricezioni");
+      expect(fromFull.data.events).toEqual(d.events);
+    }
   });
 
   test("la copia di una partita intera (5 set da molti tocchi) sta nei limiti", () => {
@@ -695,7 +690,7 @@ test.describe("stagione e salvataggio con i livelli", () => {
       finished: false,
     } as unknown as ScoutData;
     expect(scoutContent(legacy).settings).toMatchObject({ publicLive: false, level: "base" });
-    expect(scoutContent({ ...legacy, settings: { ...legacy.settings, level: "completo" } }).settings.level).toBe("completo");
+    expect(scoutContent({ ...legacy, settings: { ...legacy.settings, level: "completo" } as unknown as ScoutData["settings"] }).settings.level).toBe("ricezioni");
   });
 
   test("le statistiche ricevono lo stesso set di tocchi sia da computeStats sia da statsOf", () => {

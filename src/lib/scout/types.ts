@@ -61,10 +61,11 @@ export type ScoutFormat = "bo5" | "bo3" | "fixed3";
 /**
  * Quanto si segna in una partita, a scelta prima di cominciare:
  * - base: come finisce ogni scambio (chi fa punto e come);
- * - ricezioni: in più, chi riceve la battuta avversaria e con che voto;
- * - completo: ogni tocco della palla (battuta, ricezione, alzata, attacco, muro, difesa) con il suo voto, come nei tabellini di Lega.
+ * - ricezioni: in più, chi riceve la battuta avversaria e con che voto.
+ * C'era anche «completo» (ogni tocco della palla): non si sceglie più, e gli scout segnati così si leggono come «ricezioni»
+ * (vedi readLevel in levels.ts).
  */
-export const SCOUT_LEVELS = ["base", "ricezioni", "completo"] as const;
+export const SCOUT_LEVELS = ["base", "ricezioni"] as const;
 export type ScoutLevel = (typeof SCOUT_LEVELS)[number];
 
 /** I voti degli scout ufficiali (Data Volley): # perfetto, + positivo, ! neutro, - negativo, / scarso, = errore. */

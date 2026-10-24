@@ -255,7 +255,7 @@ test.describe("ace e battuta sbagliata a chi batte", () => {
     expect(servePlayerWasAuto(deriveScout(wrongSide).rallies[0])).toBe(false);
   });
 
-  test("un ace chiuso da un tocco (livello Completo) non ha «Cambia»: chi batte si sceglie prima del voto", () => {
+  test("un ace chiuso da un tocco (scout del vecchio livello Completo) non ha «Cambia»: chi batte era già segnato", () => {
     let data = withLineups(roster());
     data = addTouch(data, { side: "us", skill: "serve", player: "u1", grade: "#" }, at(data), "t1");
     const rally = deriveScout(data).rallies[0];

@@ -13,9 +13,8 @@ import { gradeSymbol, TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutGrade, ScoutPlayer, ScoutRoster, ScoutSide, ScoutTouch, ScoutTouchSkill } from "@/lib/scout/types";
 
 /**
- * I pezzi con cui si segna un tocco (ricezione, o ogni tocco nel livello
- * Completo): chi, il voto, la zona. Sono gli stessi nella striscia della
- * ricezione e nella schermata completa, così si imparano una volta.
+ * I pezzi con cui si segna la ricezione (livello «Con ricezioni»): chi, il
+ * voto, la zona; e la pastiglia di un tocco segnato, per il registro.
  */
 
 /** Schermo intero su schermo largo: più di così le tessere diventano troppo strette per il nome. */

@@ -8,9 +8,10 @@ import {
 } from "./types";
 
 /**
- * Le regole dei tocchi (livelli «Con ricezioni» e «Completo»). Ogni tocco ha un
- * fondamentale e un voto; il voto dice se lo scambio è finito (un ace, un
- * errore, un attacco a terra…) oppure se il gioco continua. Quando finisce, il
+ * Le regole dei tocchi: la ricezione del livello «Con ricezioni» e, negli scout
+ * del vecchio livello «Completo», ogni tocco della palla (si leggono ancora).
+ * Ogni tocco ha un fondamentale e un voto; il voto dice se lo scambio è finito
+ * (un ace, un errore, un attacco a terra…) oppure se il gioco continua. Quando finisce, il
  * punto e il «come» si ricavano dal tocco stesso, con le stesse regole dello
  * scout «a punto» (vedi rules.ts): un solo modo di contare, qualunque livello.
  */
@@ -129,9 +130,6 @@ export const TOUCH_SKILLS: Record<ScoutTouchSkill, TouchSkillMeta> = {
   },
 };
 
-/** L'ordine in cui si propongono i fondamentali (le lettere sono quelle di Data Volley: B è il muro, «block»). */
-export const TOUCH_SKILL_ORDER: ScoutTouchSkill[] = ["serve", "reception", "set", "attack", "block", "dig"];
-
 export function gradeSymbol(grade: ScoutGrade): string {
   return GRADE_META[grade].symbol;
 }
@@ -145,11 +143,6 @@ export function isPositiveGrade(grade: ScoutGrade): boolean {
 export function endsRally(skill: ScoutTouchSkill, grade: ScoutGrade): boolean {
   if (grade === "=") return true;
   return grade === "#" && (skill === "serve" || skill === "attack" || skill === "block");
-}
-
-/** Il voto sta tra quelli che si propongono per quel fondamentale? */
-export function isGradeAllowed(skill: ScoutTouchSkill, grade: ScoutGrade): boolean {
-  return TOUCH_SKILLS[skill].grades.includes(grade);
 }
 
 export interface TouchOutcome {
@@ -197,42 +190,6 @@ export function touchOutcome(touch: ScoutTouch, before: readonly ScoutTouch[]): 
     player: touch.player,
     victim: how === "block" ? lastAttacker(before, touch.side) : null,
   };
-}
-
-export interface NextTouch {
-  skill: ScoutTouchSkill;
-  side: ScoutSide;
-}
-
-/**
- * Il tocco più probabile dopo quelli già segnati: serve solo a preselezionare
- * i pulsanti, chi segna può sempre scegliere altro. Senza tocchi in sospeso
- * comincia lo scambio con la battuta di chi ha la battuta.
- */
-export function suggestNext(pending: readonly ScoutTouch[], server: ScoutSide, tracksSets = false): NextTouch {
-  const last = pending[pending.length - 1];
-  if (!last) return { skill: "serve", side: server };
-  // Palla rimandata di là: l'altra squadra la gioca e attacca.
-  if ((last.skill === "reception" || last.skill === "dig" || last.skill === "set") && last.grade === "/") {
-    return { skill: "attack", side: otherSide(last.side) };
-  }
-  switch (last.skill) {
-    case "serve":
-      return { skill: "reception", side: otherSide(last.side) };
-    case "reception":
-    case "dig":
-      // L'alzata si segna solo se si è abituati a segnarla: altrimenti dopo la ricezione o la difesa si passa all'attacco.
-      return tracksSets ? { skill: "set", side: last.side } : { skill: "attack", side: last.side };
-    case "set":
-      return { skill: "attack", side: last.side };
-    case "attack":
-      return last.grade === "/"
-        ? { skill: "block", side: otherSide(last.side) }
-        : { skill: "dig", side: otherSide(last.side) };
-    case "block":
-      // Il muro ha toccato la palla e il gioco continua: di solito resta a chi ha murato.
-      return { skill: "dig", side: last.side };
-  }
 }
 
 /** Il tocco che corrisponde a un esito scelto a mano («Punto nostro: attacco»…), se ne ha uno. Falli e sanzioni non sono tocchi. */
@@ -299,93 +256,4 @@ export function effectiveTouches(rally: RallyForTouches): ScoutTouch[] {
     else list.splice(Math.max(list.length - 1, 0), 0, { id: `${rally.id}:murato`, at: rally.at, side: blocked, skill: "attack", player: rally.victim, grade: "/", zone: null });
   }
   return list;
-}
-
-/** Il tocco che di solito segue questo (a gioco in corso, con un tocco positivo). */
-function typicalAfter(current: NextTouch, tracksSets: boolean): NextTouch {
-  const { skill, side } = current;
-  switch (skill) {
-    case "serve":
-      return { skill: "reception", side: otherSide(side) };
-    case "reception":
-    case "dig":
-      return tracksSets ? { skill: "set", side } : { skill: "attack", side };
-    case "set":
-      return { skill: "attack", side };
-    case "attack":
-      return { skill: "dig", side: otherSide(side) };
-    case "block":
-      return { skill: "dig", side };
-  }
-}
-
-/** Le fasi che di solito seguono `from`, per far vedere come si alternano le due squadre (battuta, ricezione, alzata, attacco, difesa…). */
-export function flowAfter(from: NextTouch, tracksSets: boolean, count = 3): NextTouch[] {
-  const flow: NextTouch[] = [];
-  let current = from;
-  for (let i = 0; i < count; i++) {
-    current = typicalAfter(current, tracksSets);
-    flow.push(current);
-  }
-  return flow;
-}
-
-const TEAM_NAME: Record<ScoutSide, string> = { us: "la nostra squadra", opp: "l'avversaria" };
-
-export interface PhaseHint {
-  /** Il tocco che tocca adesso (lo stesso di suggestNext). */
-  next: NextTouch;
-  /** Perché tocca a questo tocco, in una frase. */
-  why: string;
-  /** Le fasi che di solito seguono. */
-  after: NextTouch[];
-}
-
-/**
- * Cosa succede adesso nello scambio e perché, con le fasi che di solito
- * seguono: serve a chi segna per capire a che punto è la palla e di chi è il
- * turno, senza dover ricordare la sequenza (battuta, ricezione, alzata, attacco,
- * muro e difesa, poi di nuovo dall'altra parte).
- */
-export function describeNext(pending: readonly ScoutTouch[], server: ScoutSide, tracksSets = false): PhaseHint {
-  const next = suggestNext(pending, server, tracksSets);
-  const last = pending[pending.length - 1];
-  const after = flowAfter(next, tracksSets);
-  const team = TEAM_NAME[next.side];
-  const lastTeam = last ? TEAM_NAME[last.side] : team;
-  let why: string;
-  if (!last) {
-    why = `Ogni scambio comincia dalla battuta: batte ${TEAM_NAME[server]}.`;
-  } else if ((last.skill === "reception" || last.skill === "dig" || last.skill === "set") && last.grade === "/") {
-    why = `${cap(lastTeam)} ha rimandato la palla di là: ora la gioca e attacca ${team}.`;
-  } else {
-    switch (last.skill) {
-      case "serve":
-        why = `La battuta è in campo: la riceve ${team}.`;
-        break;
-      case "reception":
-        why = `Dopo la ricezione ${team} costruisce il gioco: ${tracksSets ? "alzata e " : ""}attacco.`;
-        break;
-      case "dig":
-        why = `Dopo la difesa ${team} ricostruisce: ${tracksSets ? "alzata e " : ""}attacco.`;
-        break;
-      case "set":
-        why = `Dopo l'alzata ${team} attacca.`;
-        break;
-      case "attack":
-        why =
-          last.grade === "/"
-            ? `L'attacco è stato fermato dal muro: segna il muro di ${team} (a punto o solo tocco).`
-            : `L'attacco è stato difeso e il gioco continua: ora difende ${team}.`;
-        break;
-      case "block":
-        why = `Il muro ha toccato la palla e il gioco continua: ora difende ${team}, che ha murato.`;
-        break;
-    }
-  }
-  return { next, why, after };
-}
-
-function cap(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }

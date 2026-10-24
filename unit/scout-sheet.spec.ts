@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { addPlayer, addRally, addTouch, endSet, newScoutData, opponentPlayer, setLineup, substitute, type LineupInput } from "@/lib/scout/actions";
 import { deriveScout } from "@/lib/scout/derive";
 import { buildSheet, partialsOf, partialThresholds, perPoint, seasonOf, serverOf } from "@/lib/scout/sheet";
-import type { ScoutData, ScoutHow, ScoutSide } from "@/lib/scout/types";
+import type { ScoutData, ScoutHow, ScoutLevel, ScoutSide } from "@/lib/scout/types";
 
 /**
  * Il tabellino in stile ufficiale (come quelli delle leghe): segni dei set, battute per giocatrice, punti vinti set per set,
@@ -74,8 +74,8 @@ test.describe("parziali e chi batte", () => {
     expect(serverOf(view.rallies[1])).toBe("opp-4");
     // Senza formazione né battuta segnata non si sa.
     expect(serverOf(deriveScout(point(roster(), "us")).rallies[0])).toBeUndefined();
-    // La battuta segnata (livello Completo) vince su tutto, anche se non dice chi.
-    const touched = addTouch(roster({ level: "completo" }), { side: "us", skill: "serve", player: null, grade: "#" }, T0, id());
+    // La battuta segnata (negli scout del vecchio livello Completo) vince su tutto, anche se non dice chi.
+    const touched = addTouch(roster(), { side: "us", skill: "serve", player: null, grade: "#" }, T0, id());
     expect(serverOf(deriveScout(touched).rallies[0])).toBeNull();
   });
 });
@@ -94,16 +94,13 @@ test.describe("le righe delle giocatrici", () => {
     expect(u2.points).toBe(1);
     expect(u2.sets).toEqual(["in"]);
     expect(sheet.us.lines.find((line) => line.id === "u7")!.sets).toEqual([null]);
-    // Né battute per giocatrice (non si sa chi batteva), né ricezioni, né attacchi tentati.
+    // Né battute per giocatrice (non si sa chi batteva), né ricezioni.
     expect(sheet.us.tracksServes).toBe(false);
     expect(u2.serves).toBeNull();
     expect(u2.receptions).toBeNull();
-    expect(u2.attacks).toBeNull();
-    expect(u2.killPct).toBeNull();
     // Il totale delle battute della squadra si sa sempre.
     expect(sheet.us.total.serves).toBe(sheet.us.serves);
     expect(sheet.us.total.serves).toBeGreaterThan(0);
-    expect(sheet.us.attackPhases).toBeNull();
     expect(sheet.us.sideOutByReception).toBeNull();
   });
 
@@ -198,8 +195,8 @@ test.describe("set per set, rotazioni, ricezioni e battute", () => {
     expect(u2.perfectPct).toBe(0);
   });
 
-  test("Completo: primo attacco dopo ricezione positiva o negativa, e contrattacco", () => {
-    let data = roster({ level: "completo", firstServer: "opp" });
+  test("uno scout del vecchio livello Completo si legge come «Con ricezioni», con tutti i suoi punti", () => {
+    let data = roster({ level: "completo" as unknown as ScoutLevel, firstServer: "opp" });
     const touch = (side: ScoutSide, skill: "serve" | "reception" | "attack" | "dig" | "block", player: string | null, grade: "#" | "+" | "!" | "-" | "/" | "=") => {
       data = addTouch(data, { side, skill, player, grade }, at(data), id());
     };
@@ -219,18 +216,27 @@ test.describe("set per set, rotazioni, ricezioni e battute", () => {
     touch("us", "attack", "u2", "!");
     touch("opp", "block", "opp-3", "#");
     const sheet = buildSheet(data);
-    expect(sheet.level).toBe("completo");
-    expect(sheet.us.attackPhases).toEqual({
-      positive: { total: 1, kills: 1, errors: 0, blocked: 0 },
-      negative: { total: 1, kills: 0, errors: 0, blocked: 1 },
-      counter: { total: 1, kills: 0, errors: 1, blocked: 0 },
-    });
-    expect(sheet.opp.attackPhases!.negative).toEqual({ total: 1, kills: 0, errors: 0, blocked: 0 });
-    const u4 = sheet.us.lines.find((l) => l.id === "u4")!;
-    expect(u4.attacks).toBe(1);
-    expect(u4.killPct).toBe(100);
+    expect(sheet.level).toBe("ricezioni");
+    expect(sheet.setsWon).toEqual({ us: 0, opp: 0 });
+    expect(sheet.sets[0].final).toEqual({ us: 1, opp: 2 });
+    const line = (key: string) => sheet.us.lines.find((l) => l.id === key)!;
+    // I punti arrivano dai tocchi che chiudono lo scambio.
+    expect(line("u4").kills).toBe(1);
+    expect(line("u3").attackErrors).toBe(1);
+    expect(line("u2").blocked).toBe(1);
+    expect(sheet.opp.lines.find((l) => l.id === "opp-3")!.blocks).toBe(1);
+    // Le nostre ricezioni ci sono; quelle dell'avversaria, come a «Con ricezioni», no.
+    expect(line("u2").receptions).toBe(1);
+    expect(line("u2").positivePct).toBe(100);
+    expect(line("u6").receptions).toBe(1);
+    expect(sheet.us.tracksReceptions).toBe(true);
+    expect(sheet.opp.tracksReceptions).toBe(false);
+    expect(sheet.opp.lines.find((l) => l.id === "opp-5")!.receptions).toBeNull();
+    expect(sheet.us.sideOutByReception).toEqual({ positive: { total: 1, won: 1 }, negative: { total: 1, won: 0 } });
+    expect(sheet.opp.sideOutByReception).toBeNull();
+    // Le battute segnate dicono chi batteva.
     expect(sheet.us.tracksServes).toBe(true);
-    expect(sheet.us.lines.find((l) => l.id === "u1")!.serves).toBe(1);
+    expect(line("u1").serves).toBe(1);
   });
 });
 

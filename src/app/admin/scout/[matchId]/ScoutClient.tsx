@@ -49,7 +49,6 @@ import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
 import { ScoutBackups, UnsavedBanner, downloadScoutCopy, summaryLine } from "./ScoutSafety";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
-import { ScoutTouchEntry } from "./ScoutTouchEntry";
 import { useScoutSession, type ScoutConflict, type SyncStatus } from "./useScoutSession";
 import { useWakeLock } from "./useWakeLock";
 
@@ -585,11 +584,7 @@ export function ScoutClient({
                   {/* La ricezione sta subito sotto la fascia della palla: una riga sola (la finestra si apre da sola quando battono loro). */}
                   {level === "ricezioni" && <ScoutReception data={data} view={view} locked={locked} paused={setEnding || closingSet || lineupSheet} dispatch={dispatch} />}
                   {!twoColumns && courtStrip}
-                  {level === "completo" ? (
-                    <ScoutTouchEntry data={data} view={view} locked={locked} dispatch={dispatch} compact={twoColumns} />
-                  ) : (
-                    <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} compact={twoColumns} />
-                  )}
+                  <ScoutEntry data={data} locked={locked} dispatch={dispatch} courts={view.court} server={currentServer(view)} compact={twoColumns} />
                 </div>
               </>
             )}

@@ -18,7 +18,7 @@ export interface ScoutSummary {
   /** Punteggio finale di ogni set giocato. */
   sets: ScoutScore[];
   rallies: number;
-  /** Il livello con cui è stata segnata (Base, Con ricezioni, Completo). */
+  /** Il livello con cui è stata segnata (Base o Con ricezioni). */
   level: ScoutLevel;
 }
 

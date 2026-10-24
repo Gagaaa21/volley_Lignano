@@ -2,10 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "./helpers";
 
 /**
- * Scout, i tre livelli: si sceglie quanto segnare prima di ogni partita.
- * «Con ricezioni» aggiunge la striscia della ricezione, «Completo» segue ogni
- * tocco della palla; il tabellino, il PDF e l'elenco seguono il livello, e le
- * partite segnate prima dei livelli restano «Base».
+ * Scout, i due livelli: si sceglie quanto segnare prima di ogni partita.
+ * «Con ricezioni» aggiunge la striscia della ricezione; il tabellino, il PDF e
+ * l'elenco seguono il livello. Le partite segnate prima dei livelli restano
+ * «Base», quelle del vecchio livello «Completo» si leggono «Con ricezioni».
  */
 
 // Come in scout.spec.ts: il service worker risponderebbe da sé alle richieste.
@@ -22,8 +22,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-type Level = "base" | "ricezioni" | "completo";
-type Skill = "serve" | "reception" | "set" | "attack" | "block" | "dig";
+type Level = "base" | "ricezioni";
 
 async function createMatch(page: Page, opponent: string): Promise<string> {
   await page.goto("/admin/partite/nuovo");
@@ -68,7 +67,9 @@ async function prepare(page: Page, matchId: string, level: Level) {
   await page.getByLabel("Numeri di maglia dell'avversaria").fill("3, 5 8");
   await page.getByLabel("Numeri di maglia dell'avversaria").press("Enter");
   await expect(page.locator('[data-scout-opponent="5"]')).toBeVisible();
-  // Di partenza il livello è «Base»; si sceglie quello voluto.
+  // Di partenza il livello è «Base»; si sceglie quello voluto. Le scelte sono due: «Completo» non c'è più.
+  await expect(page.locator("[data-scout-level]")).toHaveCount(2);
+  await expect(page.locator('[data-scout-level="completo"]')).toHaveCount(0);
   await expect(page.locator('[data-scout-level="base"]')).toHaveAttribute("aria-checked", "true");
   const choice = page.locator(`[data-scout-level="${level}"]`);
   await choice.click();
@@ -106,21 +107,6 @@ async function receive(page: Page, who: string, grade: string, zone?: number) {
     await strip.locator(`[data-scout-zone-pick="${zone}"]`).click();
   }
   await strip.locator(`[data-scout-grades="reception"] [data-scout-grade="${grade}"]`).click();
-}
-
-/** Livello «Completo»: un tocco, con fondamentale, squadra, chi, zona (facoltativa) e voto. */
-async function touch(page: Page, t: { skill: Skill; side: "us" | "opp"; who: string; grade: string; zone?: number }) {
-  const entry = page.locator("[data-scout-touch-entry]");
-  await entry.locator(`[data-scout-skill="${t.skill}"]`).click();
-  await entry.locator(`[data-scout-side="${t.side}"]`).click();
-  const who = t.side === "opp" ? entry.locator(`[data-scout-who="opp-${t.who}"]`) : entry.locator("[data-scout-who]", { hasText: t.who });
-  await who.click();
-  if (t.zone) {
-    const pick = entry.locator(`[data-scout-zone-pick="${t.zone}"]`);
-    if (!(await pick.isVisible())) await entry.locator('details[data-tour="scout-touch-zone"] summary').click();
-    await pick.click();
-  }
-  await entry.locator(`[data-scout-grades="touch"] [data-scout-grade="${t.grade}"]`).click();
 }
 
 async function expectPdf(page: Page, matchId: string) {
@@ -211,8 +197,9 @@ test("livello «Con ricezioni»: la striscia della ricezione, l'errore chiude lo
   await expect(page.locator("[data-scout-rotations-card]")).toHaveCount(0);
   const usTable = page.locator('[data-scout-table="us"]');
   await expect(usTable.locator("thead")).toContainText(/Pos%/i);
-  // A livello Con ricezioni gli attacchi tentati non si segnano; al loro posto il cambio palla dopo la ricezione.
-  await expect(usTable.locator('[data-scout-total="us"] [data-col="attacco-tot"]')).toHaveText("–");
+  // Gli attacchi tentati non si segnano: nel foglio non ci sono le loro colonne (Attacco ha Err, Mur e Pt); in mezzo, il cambio palla dopo la ricezione.
+  await expect(usTable.locator('[data-col="attacco-tot"], [data-col="attacco-pct"]')).toHaveCount(0);
+  await expect(usTable.locator('[data-scout-total="us"] [data-col="attacco-pt"]')).toBeVisible();
   await expect(usTable.locator('[data-scout-total="us"] [data-col="ricezione-tot"]')).not.toHaveText("–");
   await expect(page.locator("[data-scout-sideout-by-reception]")).toBeVisible();
   await expectPdf(page, matchId);
@@ -225,151 +212,7 @@ test("livello «Con ricezioni»: la striscia della ricezione, l'errore chiude lo
   await deleteMatchById(page, matchId);
 });
 
-test("livello «Completo»: ogni tocco, il punto lo dà il voto, si corregge e il tabellino ha mappe e rotazioni", async ({ page }) => {
-  test.setTimeout(300_000);
-  await loginAsDev(page);
-  await switchTeam(page, "u14u15");
-  const matchId = await createMatch(page, uniqueName("Completo "));
-
-  await prepare(page, matchId, "completo");
-  // Al posto dei pannelli c'è lo «Scambio in corso»; i pulsanti dei punti restano sotto «Falli, sanzioni o solo il punto».
-  const entry = page.locator("[data-scout-touch-entry]");
-  await expect(entry).toBeVisible();
-  await expect(page.locator('[data-scout-skill="serve"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('[data-scout-add="us-attack"]')).toBeHidden();
-  await expect(page.locator("[data-scout-other-ways]")).toBeVisible();
-
-  // 1) Ace di Giulia: il voto # alla battuta chiude lo scambio → 1-0.
-  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "#" });
-  await expect(score(page)).toHaveText("1–0");
-  await expect(chip(page, 1, "serve:#")).toBeVisible();
-
-  // 2) Battuta in campo, ricezione positiva loro, attacco loro sbagliato (=) → punto nostro, 2-0. Tre tocchi nello scambio.
-  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "!" });
-  await expect(page.locator("[data-scout-pending] [data-scout-touch-chip]")).toHaveCount(1);
-  // Lo Scout propone da solo la ricezione dell'altra squadra.
-  await expect(page.locator('[data-scout-skill="reception"]')).toHaveAttribute("data-scout-suggested", "true");
-  await touch(page, { skill: "reception", side: "opp", who: "5", grade: "+" });
-  await expect(page.locator('[data-scout-skill="attack"]')).toHaveAttribute("data-scout-suggested", "true");
-  await touch(page, { skill: "attack", side: "opp", who: "5", grade: "=" });
-  await expect(score(page)).toHaveText("2–0");
-  await expect(rally(page, 2).locator("[data-scout-touch-chip]")).toHaveCount(3);
-
-  // 3) Battuta sbagliata di Giulia (=) → punto loro, 2-1, e ora battono loro.
-  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "=" });
-  await expect(score(page)).toHaveText("2–1");
-
-  // 4) Battono loro: ricezione di Giulia in zona 6, alzata di Sara, attacco di Sara in zona 4 e punto → cambio palla, 3-1.
-  await touch(page, { skill: "serve", side: "opp", who: "8", grade: "!" });
-  await touch(page, { skill: "reception", side: "us", who: "Giulia B.", grade: "+", zone: 6 });
-  await touch(page, { skill: "set", side: "us", who: "Sara R.", grade: "+" });
-  await touch(page, { skill: "attack", side: "us", who: "Sara R.", grade: "#", zone: 4 });
-  await expect(score(page)).toHaveText("3–1");
-  await expect(rally(page, 4).locator("[data-scout-touch-chip]")).toHaveCount(4);
-
-  // 5) «Annulla ultimo» toglie l'ultimo tocco, non tutto lo scambio.
-  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "!" });
-  await expect(page.locator("[data-scout-pending] [data-scout-touch-chip]")).toHaveCount(1);
-  await page.locator("[data-scout-undo]").click();
-  await expect(page.locator("[data-scout-pending] [data-scout-touch-chip]")).toHaveCount(0);
-  await expect(score(page)).toHaveText("3–1");
-
-  // 6) Per un fallo o se si perde il filo: i pulsanti dei punti, con il tocco già segnato che resta.
-  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "!" });
-  await page.locator("[data-scout-other-ways] summary").click();
-  await addPoint(page, "opp-attack", null);
-  await expect(score(page)).toHaveText("3–2");
-  await expect(chip(page, 5, "serve:!")).toBeVisible();
-  await expect(page.locator("[data-scout-rally]")).toHaveCount(5);
-
-  // 7) Si corregge lo scambio 4: ricezione da positiva a neutra, e si toglie l'alzata.
-  await page.getByLabel("Correggi lo scambio 4", { exact: true }).click();
-  const dialog = page.locator('[data-scout-sheet="edit"]');
-  await expect(dialog.locator("[data-scout-touch-edit]")).toHaveCount(4);
-  await expect(dialog).toContainText("Lo scambio è finito con l'ultimo tocco");
-  await dialog.getByLabel("Voto: Ricezione").selectOption("!");
-  await dialog.getByLabel("Togli il tocco: Alzata").click();
-  await expect(dialog.locator("[data-scout-touch-edit]")).toHaveCount(3);
-  await dialog.locator("[data-scout-edit-save]").click();
-  await expect(chip(page, 4, "reception:!")).toBeVisible();
-  await expect(chip(page, 4, "set:+")).toHaveCount(0);
-  await expect(rally(page, 4).locator("[data-scout-touch-chip]")).toHaveCount(3);
-  await expect(score(page)).toHaveText("3–2");
-
-  // Tutto salvato: ricaricando c'è ancora.
-  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
-  await page.reload();
-  await expect(score(page)).toHaveText("3–2");
-  await expect(chip(page, 4, "reception:!")).toBeVisible();
-  await expect(page.locator('[data-scout-level-label="completo"]')).toBeVisible();
-
-  // Si può tornare al Base anche a partita iniziata: i pulsanti dei punti tornano, quello già segnato resta.
-  await page.locator("[data-scout-open-setup]").click();
-  await page.locator('[data-scout-sheet="setup"] [data-scout-level="base"]').click();
-  await page.locator('[data-scout-sheet="setup"]').getByRole("button", { name: "Fatto" }).click();
-  await expect(page.locator('[data-scout-level-label="base"]')).toBeVisible();
-  await expect(page.locator('[data-scout-add="us-attack"]')).toBeVisible();
-  await expect(page.locator("[data-scout-touch-entry]")).toHaveCount(0);
-  await expect(chip(page, 4, "reception:!")).toBeVisible();
-
-  // Tabellino: i tocchi segnati contano anche se il livello è stato rimesso a Base; mappe e rotazioni ci sono.
-  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
-  await page.goto(`/admin/scout/${matchId}/tabellino`);
-  await expect(page.locator('[data-scout-level-badge="completo"]')).toBeVisible();
-  await expect(page.locator("[data-scout-reception-card]")).toBeVisible();
-  await expect(page.locator("[data-scout-zones-card]")).toBeVisible();
-  await expect(page.locator("[data-scout-rotations-card]")).toBeVisible();
-  const usTable = page.locator('[data-scout-table="us"]');
-  await expect(usTable.locator("thead")).toContainText(/Pt%/i);
-  const sara = usTable.locator("[data-scout-player-row]", { hasText: "Sara Rossi" });
-  await expect(sara.locator('[data-col="punti-tot"]')).toHaveText("1"); // un solo punto: l'attacco vincente dello scambio 4
-  // A livello Completo si contano gli attacchi tentati, e il foglio ha il cambio palla diretto e il contrattacco.
-  await expect(sara.locator('[data-col="attacco-tot"]')).not.toHaveText("–");
-  await expect(page.locator("[data-scout-attack-phases]")).toBeVisible();
-  await expectPdf(page, matchId);
-
-  await deleteMatchById(page, matchId);
-});
-
-test("livello «Completo»: l'attacco loro non chiede chi (i voti sono subito attivi), il nostro sì", async ({ page }) => {
-  test.setTimeout(180_000);
-  await loginAsDev(page);
-  await switchTeam(page, "u14u15");
-  const matchId = await createMatch(page, uniqueName("Completo senza chi "));
-
-  await prepare(page, matchId, "completo");
-  const entry = page.locator("[data-scout-touch-entry]");
-  const grade = (g: string) => entry.locator(`[data-scout-grades="touch"] [data-scout-grade="${g}"]`);
-
-  // Battuta in campo e ricezione loro: lo Scout propone da solo l'attacco loro.
-  await touch(page, { skill: "serve", side: "us", who: "Giulia B.", grade: "!" });
-  await touch(page, { skill: "reception", side: "opp", who: "5", grade: "+" });
-  const attack = entry.locator('[data-scout-skill="attack"]');
-  await expect(attack).toHaveAttribute("data-scout-suggested", "true");
-  await expect(attack).toHaveAttribute("aria-pressed", "true");
-  await expect(entry.locator('[data-scout-side="opp"]')).toHaveAttribute("aria-pressed", "true");
-
-  // Non si sceglie nessuno: «Non so» è già scelto e il voto è attivo. Un attacco a terra (#) dà il punto loro.
-  await expect(entry.locator('[data-scout-who="unknown"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(grade("#")).toBeEnabled();
-  await grade("#").click();
-  await expect(score(page)).toHaveText("0–1");
-  await expect(rally(page, 1).locator("[data-scout-touch-chip]")).toHaveCount(3);
-  await expect(rally(page, 1)).toContainText("Squadra");
-
-  // L'attacco nostro invece chiede chi: finché non si sceglie, i voti restano spenti.
-  await attack.click();
-  await entry.locator('[data-scout-side="us"]').click();
-  await expect(grade("#")).toBeDisabled();
-  await entry.locator("[data-scout-who]", { hasText: "Sara R." }).click();
-  await expect(grade("#")).toBeEnabled();
-
-  // Tutto salvato prima di lasciare la pagina (altrimenti il suo avviso «modifiche non salvate» si prende la conferma dell'eliminazione).
-  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
-  await deleteMatchById(page, matchId);
-});
-
-test("livelli: le partite segnate prima restano Base, il livello si salva con la partita e i dati strani si rifiutano", async ({ page }) => {
+test("livelli: le partite segnate prima restano Base, quelle del vecchio Completo si leggono Con ricezioni, i dati strani si rifiutano", async ({ page }) => {
   test.setTimeout(180_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
@@ -406,17 +249,27 @@ test("livelli: le partite segnate prima restano Base, il livello si salva con la
   await expect(page.locator('[data-scout-level-label="base"]')).toBeVisible();
   await expect(page.locator('[data-scout-add="us-attack"]')).toBeVisible();
   await expect(page.locator("[data-scout-reception]")).toHaveCount(0);
-  await expect(page.locator("[data-scout-touch-entry]")).toHaveCount(0);
 
-  // Il livello e i tocchi si salvano; un livello o un voto inventati no.
+  // Uno scout del vecchio livello Completo (ogni tocco) si salva ancora, e si legge come «Con ricezioni»; un livello o un voto inventati no.
   const version = legacy.body.version!;
   const touchEvent = { type: "touch", id: "t1", at: base + 60_000, side: "us", skill: "serve", player: null, grade: "#", zone: null };
+  const touchAt = (id: string, at: number, side: "us" | "opp", skill: string, grade: string) => ({ type: "touch", id, at, side, skill, player: null, grade, zone: null });
+  const rallyByTouches = [
+    touchAt("t2", base + 90_000, "us", "serve", "!"),
+    touchAt("t3", base + 91_000, "opp", "reception", "+"),
+    touchAt("t4", base + 92_000, "opp", "attack", "="),
+  ];
   const full = await put(
-    { settings: { ...settings, level: "completo" }, roster: { us: [], opp: [] }, events: [attack("v1", base, "us"), attack("v2", base + 30_000, "opp"), touchEvent], finished: false },
+    {
+      settings: { ...settings, level: "completo" },
+      roster: { us: [], opp: [] },
+      events: [attack("v1", base, "us"), attack("v2", base + 30_000, "opp"), touchEvent, ...rallyByTouches],
+      finished: false,
+    },
     version,
   );
   expect(full.status).toBe(200);
-  expect((await read()).settings.level).toBe("completo");
+  expect((await read()).settings.level).toBe("ricezioni");
   const badLevel = await put({ settings: { ...settings, level: "turbo" }, roster: { us: [], opp: [] }, events: [], finished: false }, full.body.version!);
   expect(badLevel.status).toBe(400);
   const badGrade = await put(
@@ -425,10 +278,19 @@ test("livelli: le partite segnate prima restano Base, il livello si salva con la
   );
   expect(badGrade.status).toBe(400);
 
-  // La partita salvata con il livello Completo si apre così, e l'ace segnato come tocco ha dato il punto: 2-1.
+  // La partita del vecchio Completo si apre a «Con ricezioni», con i punti dati dai tocchi: l'ace e l'attacco loro sbagliato, 3-1.
   await page.goto(`/admin/scout/${matchId}`);
-  await expect(page.locator('[data-scout-level-label="completo"]')).toBeVisible();
-  await expect(score(page)).toHaveText("2–1");
+  await expect(page.locator('[data-scout-level-label="ricezioni"]')).toBeVisible();
+  await expect(score(page)).toHaveText("3–1");
+  await expect(page.locator('[data-scout-add="us-attack"]')).toBeVisible();
+  await expect(chip(page, 4, "attack:=")).toBeVisible();
+  // Il tabellino la legge allo stesso modo.
+  await page.goto(`/admin/scout/${matchId}/tabellino`);
+  await expect(page.locator('[data-scout-level-badge="ricezioni"]')).toBeVisible();
+  await expect(page.locator("[data-scout-result-us]")).toHaveText("0");
+  await expect(page.locator('[data-scout-table="us"] [data-scout-total="us"] [data-col="punti-tot"]')).toHaveText("2");
+  await expect(page.locator("[data-scout-attack-phases]")).toHaveCount(0);
+  await expectPdf(page, matchId);
 
   await deleteMatchById(page, matchId);
 });

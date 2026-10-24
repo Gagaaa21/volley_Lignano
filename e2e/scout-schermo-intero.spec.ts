@@ -67,7 +67,7 @@ const BENCH: [string, string][] = [
 async function prepare(
   page: Page,
   matchId: string,
-  level: "base" | "ricezioni" | "completo" = "base",
+  level: "base" | "ricezioni" = "base",
   { bench = false, lineup = true }: { bench?: boolean; lineup?: boolean } = {},
 ) {
   await page.goto(`/admin/scout/${matchId}`);

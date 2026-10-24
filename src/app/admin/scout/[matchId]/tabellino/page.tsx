@@ -9,8 +9,8 @@ import { isScoutTableMissing } from "@/lib/scout/missing";
 import type { MatchScout } from "@/lib/scout/types";
 import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { requireScoutMatch } from "@/lib/scout/server";
-import { computeStats, emptyZones, percent, zonedTouches } from "@/lib/scout/stats";
-import { ReceptionBars, ReceptionTiles, RotationsTable, SideOutByGrade, ZoneMaps } from "@/components/scout/ScoutDetail";
+import { computeStats, percent } from "@/lib/scout/stats";
+import { ReceptionBars, ReceptionTiles, ReceptionZones, SideOutByGrade } from "@/components/scout/ScoutDetail";
 import { ErrorsTable, FlowChart, HowComparison } from "@/components/scout/ScoutTables";
 import { TabellinoSheet } from "@/components/scout/TabellinoSheet";
 import { buildSheet } from "@/lib/scout/sheet";
@@ -59,8 +59,6 @@ export default async function ScoutTabellinoPage({
   const selected = played.some((set) => set.n === requested) ? requested : null;
   const stats = scout && view ? computeStats(view, scout.roster, { set: selected }) : null;
   const showReception = level !== "base" && Boolean(stats && stats.analysis.us.receptions > 0);
-  const showZones = level === "completo" && Boolean(stats && (zonedTouches(stats.analysis.us.zones.dig) > 0 || zonedTouches(stats.analysis.us.zones.attack) > 0));
-  const showRotations = level === "completo" && Boolean(stats && stats.analysis.us.rotations.some((r) => r.served + r.received > 0));
   const lineups = view && scout ? lineupSummary(view, scout.roster, selected) : null;
   const showLineups = Boolean(lineups && (lineups.starts.length > 0 || lineups.subs.length > 0));
 
@@ -80,7 +78,7 @@ export default async function ScoutTabellinoPage({
       description={match.location}
       help={
         summary.state !== "none" ? (
-          <SectionTour steps={getScoutTabellinoTourSteps(matchId, { level, reception: showReception, zones: showZones, rotations: showRotations, lineups: showLineups })} />
+          <SectionTour steps={getScoutTabellinoTourSteps(matchId, { level, reception: showReception, lineups: showLineups })} />
         ) : undefined
       }
       actions={
@@ -251,44 +249,10 @@ export default async function ScoutTabellinoPage({
                   <p className="mb-3 text-sm text-muted-foreground">Dopo una ricezione di quel voto, quante volte abbiamo vinto lo scambio e preso la battuta.</p>
                   <SideOutByGrade analysis={stats.analysis.us} />
                 </div>
-                <ZoneMaps analysis={{ ...stats.analysis.us, zones: { ...stats.analysis.us.zones, dig: emptyZones(), attack: emptyZones() } }} full={false} />
+                <ReceptionZones analysis={stats.analysis.us} />
               </div>
             </CardBody>
           </Card>
-        )}
-
-        {level === "completo" && (
-          <>
-            {showZones && (
-              <Card data-tour="scout-tab-zones" data-scout-zones-card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Le mappe del campo</CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">Dove abbiamo difeso e da dove abbiamo attaccato, nelle zone che hai segnato.</p>
-                </CardHeader>
-                <CardBody>
-                  <ZoneMaps
-                    analysis={{ ...stats.analysis.us, zones: { ...stats.analysis.us.zones, reception: emptyZones() } }}
-                    full
-                  />
-                </CardBody>
-              </Card>
-            )}
-            <Card data-tour="scout-tab-rotations" data-scout-rotations-card>
-              <CardHeader className="pb-3">
-                <CardTitle>Le rotazioni</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Break point e cambio palla in ogni rotazione. La 1ª è quella con cui si comincia il set; si passa alla successiva ogni volta che la squadra recupera la
-                  battuta.
-                </p>
-              </CardHeader>
-              <CardBody>
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <RotationsTable analysis={stats.analysis.us} title="Volley Lignano" />
-                  <RotationsTable analysis={stats.analysis.opp} title={match.opponent} />
-                </div>
-              </CardBody>
-            </Card>
-          </>
         )}
 
         {lineups && <ScoutLineups {...lineups} opponent={match.opponent} />}

@@ -13,7 +13,7 @@ import {
   type ManualChapter,
 } from "@/lib/scout/manual";
 import { asksPlayer, ERROR_HOWS, HOW_META } from "@/lib/scout/rules";
-import { TOUCH_SKILL_ORDER, TOUCH_SKILLS } from "@/lib/scout/touches";
+import { TOUCH_SKILLS } from "@/lib/scout/touches";
 import type { ScoutGrade, ScoutLevel, ScoutTouchSkill } from "@/lib/scout/types";
 import { PdfReport, type PdfCanvas, type PdfCellInput } from "./report";
 
@@ -155,17 +155,6 @@ const GRADES_COLUMNS = [
   { header: "Cosa vuol dire", weight: 8 },
 ];
 
-const GRADES_ALL_COLUMNS = [
-  { header: "Tocco", weight: 2 },
-  { header: "Voto", weight: 2.2 },
-  { header: "Cosa vuol dire", weight: 7 },
-];
-
-const GRADES_SUMMARY_COLUMNS = [
-  { header: "Tocco", weight: 2 },
-  { header: "Voti, dal migliore al peggiore", weight: 8 },
-];
-
 /** Il voto come si legge a schermo: il simbolo e il nome che ha per quel fondamentale. */
 function gradeName(skill: ScoutTouchSkill, grade: ScoutGrade): string {
   return `${grade} ${TOUCH_SKILLS[skill].gradeLabels[grade] ?? ""}`.trim();
@@ -175,26 +164,6 @@ function gradeName(skill: ScoutTouchSkill, grade: ScoutGrade): string {
 function gradesRows(skill: ScoutTouchSkill): PdfCellInput[][] {
   const meta = TOUCH_SKILLS[skill];
   return meta.grades.map((grade) => [{ text: gradeName(skill, grade), bold: true }, meta.gradeHints[grade] ?? ""]);
-}
-
-/** I voti di tutti i fondamentali: il nome del tocco compare solo sulla prima riga di ognuno. */
-function allGradesRows(): PdfCellInput[][] {
-  return TOUCH_SKILL_ORDER.flatMap((skill) => {
-    const meta = TOUCH_SKILLS[skill];
-    return meta.grades.map((grade, i): PdfCellInput[] => [
-      i === 0 ? { text: `${meta.letter} ${meta.label}`, bold: true } : "",
-      { text: gradeName(skill, grade), bold: true },
-      meta.gradeHints[grade] ?? "",
-    ]);
-  });
-}
-
-/** Una riga per fondamentale, con i voti in fila. */
-function summaryGradesRows(): PdfCellInput[][] {
-  return TOUCH_SKILL_ORDER.map((skill) => {
-    const meta = TOUCH_SKILLS[skill];
-    return [{ text: `${meta.letter} ${meta.label}`, bold: true }, meta.grades.map((grade) => gradeName(skill, grade)).join(",  ")];
-  });
 }
 
 const LEGEND_COLUMNS = [
@@ -277,9 +246,7 @@ async function headHeight(ctx: RenderContext, index: number): Promise<number> {
     case "pageBreak":
       return 0;
     case "grades":
-      if (block.skill) return report.tableHeight(GRADES_COLUMNS, gradesRows(block.skill));
-      if (block.summary) return report.tableHeight(GRADES_SUMMARY_COLUMNS, summaryGradesRows());
-      return report.tableHeight(GRADES_ALL_COLUMNS, allGradesRows().slice(0, 2));
+      return report.tableHeight(GRADES_COLUMNS, gradesRows(block.skill));
     case "legend":
       return report.tableHeight(LEGEND_COLUMNS, legendRows(block.level, block.onlyNew));
     case "glossary":
@@ -332,9 +299,7 @@ async function renderBlock(ctx: RenderContext, index: number) {
       report.pageBreak();
       return;
     case "grades":
-      if (block.skill) report.table(GRADES_COLUMNS, gradesRows(block.skill), { keepTogether: true });
-      else if (block.summary) report.table(GRADES_SUMMARY_COLUMNS, summaryGradesRows(), { keepTogether: true });
-      else report.table(GRADES_ALL_COLUMNS, allGradesRows(), { keepTogether: false });
+      report.table(GRADES_COLUMNS, gradesRows(block.skill), { keepTogether: true });
       return;
     case "legend":
       report.table(LEGEND_COLUMNS, legendRows(block.level, block.onlyNew), { keepTogether: true });
@@ -399,14 +364,14 @@ export async function buildScoutManualPdf(options: { generatedAt?: Date } = {}):
   report.spacer(8);
   report.heading("Lo Scout in tre mosse");
   report.numbered([
-    "Scegli il **livello** della partita: **Base** (come finisce ogni scambio), **Con ricezioni** (in più la ricezione) o **Completo** (ogni tocco della palla).",
-    "Segna quello che succede. Nel Base: il **pannello** di chi ha fatto punto, **come** è finito lo scambio (Attacco, Muro, Ace o Errore) e **chi**. Nei livelli più alti segni anche **chi ha toccato la palla** e **con che voto**.",
+    "Scegli il **livello** della partita: **Base** (come finisce ogni scambio) o **Con ricezioni** (in più la ricezione).",
+    "Segna quello che succede: il **pannello** di chi ha fatto punto, **come** è finito lo scambio (Attacco, Muro, Ace o Errore) e **chi**. Con ricezioni segni anche **chi ha ricevuto** e **con che voto**.",
     "Il punteggio, i set, la battuta, i break point e il tabellino li calcola lo Scout.",
   ]);
   report.spacer(4);
   report.heading("Come usare questo manuale");
   report.bullets([
-    `Se è la **prima volta**, leggi i capitoli da 1 a ${chapterNumber("segnare")}: bastano una decina di minuti e dopo sai segnare una partita a livello Base. Le ricezioni e il livello Completo hanno i loro capitoli (${chapterNumber("ricezioni")} e ${chapterNumber("completo")}).`,
+    `Se è la **prima volta**, leggi i capitoli da 1 a ${chapterNumber("segnare")}: bastano una decina di minuti e dopo sai segnare una partita a livello Base. Le ricezioni hanno il loro capitolo (${chapterNumber("ricezioni")}).`,
     "**Durante la partita** ti basta la **scheda rapida** (ultimo capitolo): stampala e tienila sul tavolo.",
     "Per qualsiasi dubbio c'è l'**indice**, e il **glossario** spiega le parole della pallavolo.",
     "Dentro l'area riservata trovi anche la **guida passo passo**: il punto interrogativo in alto a destra di ogni pagina dello Scout.",

@@ -7,10 +7,9 @@ import { gradeSymbol, TOUCH_SKILLS } from "@/lib/scout/touches";
 import { SCOUT_GRADES, type ScoutGrade } from "@/lib/scout/types";
 
 /**
- * Le parti del tabellino che esistono solo coi livelli «Con ricezioni» e
- * «Completo»: la ricezione (voti, zone, cambio palla) e, nel Completo, le
- * rotazioni e le mappe di difesa e attacco. Senza stato: servono anche alla
- * pagina della stagione.
+ * Le parti del tabellino che esistono solo col livello «Con ricezioni»: la
+ * ricezione (voti, zone, cambio palla). Senza stato: servono anche alla pagina
+ * della stagione.
  */
 
 const RECEPTION_NAMES: Partial<Record<ScoutGrade, string>> = TOUCH_SKILLS.reception.gradeLabels;
@@ -116,74 +115,12 @@ export function SideOutByGrade({ analysis }: { analysis: SideAnalysis }) {
   );
 }
 
-/** Le mappe del campo di una squadra: ricezione, e nel Completo anche difesa e attacco. */
-export function ZoneMaps({ analysis, full }: { analysis: SideAnalysis; full: boolean }) {
-  const maps = [
-    zonedTouches(analysis.zones.reception) > 0 && (
-      <ZoneMap key="r" grid={analysis.zones.reception} title="Dove si riceve" goodLabel="positivi (# e +)" lostLabel="scarsi o errori" />
-    ),
-    full && zonedTouches(analysis.zones.dig) > 0 && (
-      <ZoneMap key="d" grid={analysis.zones.dig} title="Dove si difende" goodLabel="positivi (# e +)" lostLabel="scarsi o errori" />
-    ),
-    full && zonedTouches(analysis.zones.attack) > 0 && (
-      <ZoneMap key="a" grid={analysis.zones.attack} title="Da dove si attacca" goodLabel="a punto" lostLabel="errori o murati" />
-    ),
-  ].filter(Boolean);
-  if (maps.length === 0) return null;
+/** La mappa delle zone di ricezione, se in qualche ricezione si è segnata la zona. */
+export function ReceptionZones({ analysis }: { analysis: SideAnalysis }) {
+  if (zonedTouches(analysis.zones.reception) === 0) return null;
   return (
     <div className="flex flex-wrap items-start justify-center gap-x-8 gap-y-6" data-scout-zone-maps>
-      {maps}
-    </div>
-  );
-}
-
-/** Break point e cambio palla per rotazione: dove si fanno punti in battuta e dove si fatica a recuperare la palla. */
-export function RotationsTable({ analysis, title }: { analysis: SideAnalysis; title: string }) {
-  const used = analysis.rotations.some((r) => r.served + r.received > 0);
-  if (!used) return null;
-  return (
-    <div data-scout-rotations={title}>
-      <h4 className="mb-1.5 text-[13px] font-bold text-foreground">{title}</h4>
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="tabular w-full min-w-[22rem] border-collapse text-sm">
-          <thead className="bg-surface-muted text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            <tr>
-              <th className="px-2 py-1.5 text-left">Rotazione</th>
-              <th className="px-2 py-1.5 text-center" title="Scambi in cui la squadra batteva">Battute</th>
-              <th className="px-2 py-1.5 text-center" title="Punti fatti mentre batteva">BP</th>
-              <th className="px-2 py-1.5 text-center" title="Scambi in cui la squadra riceveva">Ricez.</th>
-              <th className="px-2 py-1.5 text-center" title="Punti fatti mentre riceveva">Cambio</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {analysis.rotations.map((row) => (
-              <tr key={row.rotation} data-scout-rotation={row.rotation}>
-                <td className="px-2 py-1.5 text-left font-semibold text-foreground">{row.rotation}ª</td>
-                <td className="px-2 py-1.5 text-center">{row.served || <span className="text-muted-foreground/45">–</span>}</td>
-                <td className="px-2 py-1.5 text-center">
-                  {row.served ? (
-                    <>
-                      <b>{percent(row.breakPoints, row.served)}%</b> <span className="text-xs text-muted-foreground">{row.breakPoints}/{row.served}</span>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground/45">–</span>
-                  )}
-                </td>
-                <td className="px-2 py-1.5 text-center">{row.received || <span className="text-muted-foreground/45">–</span>}</td>
-                <td className="px-2 py-1.5 text-center">
-                  {row.received ? (
-                    <>
-                      <b>{percent(row.sideOuts, row.received)}%</b> <span className="text-xs text-muted-foreground">{row.sideOuts}/{row.received}</span>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground/45">–</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ZoneMap grid={analysis.zones.reception} title="Dove si riceve" goodLabel="positivi (# e +)" lostLabel="scarsi o errori" />
     </div>
   );
 }

@@ -7,10 +7,9 @@ import type { ScoutLevel, ScoutSide } from "@/lib/scout/types";
 /**
  * Le parti del tabellino, senza stato: si usano nella pagina del tabellino e
  * si leggono bene anche stampate. A livello Base le colonne sono quelle del
- * tabellino di Lega che uno scout «a punto» sa riempire davvero; coi livelli
- * «Con ricezioni» e «Completo», che segnano anche i tocchi, si aggiungono la
- * ricezione (totali, positiva %, perfetta %) e, nel Completo, battute, attacchi
- * (punto %, efficienza) e difese. Le colonne cambiano da sole col livello.
+ * tabellino di Lega che uno scout «a punto» sa riempire davvero; con «Con
+ * ricezioni» si aggiunge la ricezione (totali, positiva %, perfetta %). Le
+ * colonne cambiano da sole col livello.
  */
 
 function Cell({ value, strong, tone }: { value: number; strong?: boolean; tone?: "plus" | "minus" }) {
@@ -36,8 +35,8 @@ const sep = "border-l border-border";
 function ColumnCell({ column, row, total }: { column: Column; row: Row; total?: boolean }) {
   const value = column.value(row);
   const base = cn(td, column.sep && sep);
-  if (column.kind === "pct" || column.kind === "eff") {
-    return <td className={cn(base, total && "font-bold")}>{value === null ? <span className="text-muted-foreground/45">–</span> : formatPercent(value, column.kind === "eff")}</td>;
+  if (column.kind === "pct") {
+    return <td className={cn(base, total && "font-bold")}>{value === null ? <span className="text-muted-foreground/45">–</span> : formatPercent(value)}</td>;
   }
   const n = value ?? 0;
   if (column.kind === "balance") {
@@ -77,7 +76,7 @@ export function PlayerTable({
     if (last && last.name === column.group) last.span += 1;
     else groups.push({ name: column.group, span: 1 });
   }
-  const minWidth = level === "completo" ? "min-w-[74rem]" : level === "ricezioni" ? "min-w-[54rem]" : "min-w-[46rem]";
+  const minWidth = level === "ricezioni" ? "min-w-[54rem]" : "min-w-[46rem]";
 
   return (
     <section data-scout-table={side} data-scout-level-table={level} aria-label={title}>

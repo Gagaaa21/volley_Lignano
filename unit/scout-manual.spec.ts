@@ -17,8 +17,8 @@ import {
   type ManualBlock,
 } from "@/lib/scout/manual";
 import { ERROR_HOWS, HOW_META } from "@/lib/scout/rules";
-import { TOUCH_SKILL_ORDER, TOUCH_SKILLS } from "@/lib/scout/touches";
-import { SCOUT_LEVELS } from "@/lib/scout/types";
+import { TOUCH_SKILLS } from "@/lib/scout/touches";
+import { SCOUT_LEVELS, SCOUT_TOUCH_SKILLS } from "@/lib/scout/types";
 
 /**
  * Il manuale d'uso dello Scout (PDF) e la guida passo passo: il testo è pulito
@@ -88,7 +88,7 @@ function manualStrings(): { where: string; text: string }[] {
     push(`errori/${how}`, HOW_META[how].hint);
   }
   // I testi che il manuale ricava dalle regole dell'app (blocchi «grades» e «legend», tabella dei livelli).
-  for (const skill of TOUCH_SKILL_ORDER) {
+  for (const skill of SCOUT_TOUCH_SKILLS) {
     const meta = TOUCH_SKILLS[skill];
     push(`voti/${skill}`, meta.label);
     push(`voti/${skill}`, meta.zone ?? undefined);
@@ -140,18 +140,18 @@ test.describe("testo del manuale", () => {
     }
   });
 
-  test("spiega i tre livelli, i sei fondamentali e ogni colonna del tabellino", () => {
+  test("spiega i due livelli, i sei fondamentali e ogni colonna del tabellino", () => {
     const all = manualStrings()
       .map((item) => item.text)
       .join("\n");
     for (const level of LEVEL_ORDER) expect(all, level).toContain(LEVEL_META[level].label);
-    for (const skill of TOUCH_SKILL_ORDER) expect(all, skill).toContain(TOUCH_SKILLS[skill].label);
+    for (const skill of SCOUT_TOUCH_SKILLS) expect(all, skill).toContain(TOUCH_SKILLS[skill].label);
     const blocks = SCOUT_MANUAL.flatMap((chapter) => chapter.blocks);
-    // I voti della ricezione, quelli di tutti i fondamentali e il riepilogo della scheda.
-    expect(blocks.some((block) => block.type === "grades" && block.skill === "reception")).toBe(true);
-    expect(blocks.some((block) => block.type === "grades" && !block.skill && !block.summary)).toBe(true);
-    expect(blocks.some((block) => block.type === "grades" && block.summary)).toBe(true);
-    // Le colonne del tabellino di ogni livello (quelle nuove, per gli ultimi due).
+    // I voti della ricezione (nel capitolo e sul retro della scheda rapida).
+    expect(blocks.filter((block) => block.type === "grades" && block.skill === "reception").length).toBe(2);
+    // Il livello Completo non c'è più: nessun capitolo né colonna.
+    expect(all).not.toMatch(/livello Completo|Scambio in corso|Ora tocca a/);
+    // Le colonne del tabellino di ogni livello (quelle nuove, per «Con ricezioni»).
     for (const level of LEVEL_ORDER) {
       expect(blocks.some((block) => block.type === "legend" && block.level === level), level).toBe(true);
     }
@@ -285,7 +285,7 @@ test.describe("guida passo passo dello Scout", () => {
     ...SCOUT_LEVELS.flatMap((level) =>
       [false, true].map((all) => ({
         name: `tabellino livello ${level} sezioni=${all}`,
-        steps: getScoutTabellinoTourSteps(MATCH, { level, reception: all, zones: all, rotations: all }),
+        steps: getScoutTabellinoTourSteps(MATCH, { level, reception: all }),
       })),
     ),
   ];
@@ -381,43 +381,31 @@ test.describe("guida passo passo dello Scout", () => {
     expect(getScoutTabellinoTourSteps(MATCH).length).toBeGreaterThanOrEqual(8);
   });
 
-  test("la guida segue il livello: ricezioni e tocchi hanno i loro passi, i pulsanti dei punti solo dove ci sono", () => {
+  test("la guida segue il livello: le ricezioni hanno il loro passo, i pulsanti dei punti ci sono sempre", () => {
     const ctx: ScoutMatchTourContext = { setup: false, setEnding: false, decided: false, closed: false, canCloseSet: false, canFinish: false, level: "base" };
     const ids = (level: ScoutMatchTourContext["level"], extra: Partial<ScoutMatchTourContext> = {}) =>
       getScoutMatchTourSteps(MATCH, { ...ctx, level, ...extra }).map((step) => step.id);
 
-    // Base: come prima, senza striscia della ricezione né tocchi.
+    // Base: senza la finestra della ricezione.
     expect(ids("base")).toContain("scout-entry-us");
     expect(ids("base")).not.toContain("scout-reception");
-    expect(ids("base")).not.toContain("scout-touch-entry");
 
-    // Con ricezioni: in più la striscia della ricezione, e i pulsanti dei punti restano.
+    // Con ricezioni: in più la ricezione, e i pulsanti dei punti restano.
     expect(ids("ricezioni")).toEqual(expect.arrayContaining(["scout-reception", "scout-entry-us", "scout-entry-error", "scout-last"]));
-    expect(ids("ricezioni")).not.toContain("scout-touch-entry");
-
-    // Completo: la schermata dei tocchi al posto dei pannelli (che stanno in una sezione chiusa e non si possono evidenziare).
-    const full = ids("completo");
-    expect(full).toEqual(
-      expect.arrayContaining(["scout-touch-entry", "scout-touch-skill", "scout-touch-side", "scout-touch-zone", "scout-touch-grade", "scout-touch-end", "scout-touch-fallback", "scout-last"]),
-    );
-    expect(full).not.toContain("scout-entry-us");
-    expect(full).not.toContain("scout-reception");
+    // Nessun passo del vecchio livello Completo (la schermata dei tocchi non c'è più).
+    for (const level of SCOUT_LEVELS) expect(ids(level).filter((id) => id.startsWith("scout-touch") || id === "scout-phase-help"), level).toEqual([]);
 
     // A partita finita non ci sono pulsanti da spiegare, qualunque sia il livello.
     for (const level of SCOUT_LEVELS) {
       const over = ids(level, { decided: true });
       expect(over).not.toContain("scout-reception");
-      expect(over).not.toContain("scout-touch-entry");
       expect(over).not.toContain("scout-entry-us");
     }
 
     // Il tabellino spiega le sezioni solo se ci sono.
     const tab = (context: Parameters<typeof getScoutTabellinoTourSteps>[1]) => getScoutTabellinoTourSteps(MATCH, context).map((step) => step.id);
-    expect(tab({ level: "base", reception: false, zones: false, rotations: false })).not.toContain("scout-tab-reception");
-    expect(tab({ level: "ricezioni", reception: true, zones: false, rotations: false })).toContain("scout-tab-reception");
-    expect(tab({ level: "ricezioni", reception: true, zones: false, rotations: false })).not.toContain("scout-tab-rotations");
-    expect(tab({ level: "completo", reception: true, zones: true, rotations: true })).toEqual(
-      expect.arrayContaining(["scout-tab-reception", "scout-tab-zones", "scout-tab-rotations"]),
-    );
+    expect(tab({ level: "base", reception: false })).not.toContain("scout-tab-reception");
+    expect(tab({ level: "ricezioni", reception: true })).toContain("scout-tab-reception");
+    expect(tab({ level: "ricezioni", reception: true }).filter((id) => id === "scout-tab-zones" || id === "scout-tab-rotations")).toEqual([]);
   });
 });

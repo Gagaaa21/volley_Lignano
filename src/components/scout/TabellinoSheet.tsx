@@ -2,7 +2,7 @@ import { CATEGORY_LABELS } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { formatDateLong } from "@/lib/format";
 import { LEVEL_META } from "@/lib/scout/levels";
-import { perPoint, seasonOf, type AttackSplit, type ScoutSheet, type SheetSetMark, type SheetTeam } from "@/lib/scout/sheet";
+import { perPoint, seasonOf, type ScoutSheet, type SheetSetMark, type SheetTeam } from "@/lib/scout/sheet";
 import {
   POINTS_WON,
   SHEET_COLUMNS,
@@ -173,118 +173,6 @@ function TeamTable({ team, name, sets }: { team: SheetTeam; name: string; sets: 
   );
 }
 
-/** Le quattro celle di una fase d'attacco; per l'avversaria in ordine inverso, come nei tabellini ufficiali (le due squadre si guardano). */
-function splitCells(split: AttackSplit, mirror: boolean): { label: string; value: string }[] {
-  const cells = [
-    { label: "Err", value: sheetCount(split.errors) },
-    { label: "Mur", value: sheetCount(split.blocked) },
-    { label: "Punti%", value: split.total ? `${percent(split.kills, split.total)}%` : "." },
-    { label: "Tot", value: sheetCount(split.total) },
-  ];
-  return mirror ? cells.reverse() : cells;
-}
-
-/** Il cambio palla diretto (primo attacco dopo la ricezione) e il contrattacco, con le due squadre una di fronte all'altra. */
-function AttackPhases({
-  us,
-  opp,
-  oppName,
-}: {
-  us: NonNullable<SheetTeam["attackPhases"]>;
-  opp: NonNullable<SheetTeam["attackPhases"]>;
-  oppName: string;
-}) {
-  const sections: { title: string; rows: { key: "positive" | "negative" | "counter"; label: string | null }[] }[] = [
-    {
-      title: "Cambio palla diretto",
-      rows: [
-        { key: "positive", label: "1° attacco dopo ricezione positiva (# +)" },
-        { key: "negative", label: "1° attacco dopo ricezione negativa (! - /)" },
-      ],
-    },
-    { title: "Contrattacco", rows: [{ key: "counter", label: null }] },
-  ];
-  return (
-    <div className="overflow-x-auto" data-scout-attack-phases>
-      <table className="tabular w-full min-w-[22rem] border-collapse text-[12px]">
-        <thead>
-          <tr>
-            <th colSpan={4} className="truncate px-1.5 pb-1 text-left text-[11px] font-extrabold uppercase text-foreground">
-              {US_NAME}
-            </th>
-            <th className="w-3" />
-            <th colSpan={4} className="truncate px-1.5 pb-1 text-right text-[11px] font-extrabold uppercase text-foreground">
-              {oppName}
-            </th>
-          </tr>
-        </thead>
-        {sections.map((section) => (
-          <tbody key={section.title} className="border-t border-border">
-            <tr>
-              <td colSpan={9} className="bg-surface-muted px-1.5 py-1 text-center text-[11px] font-extrabold uppercase tracking-[0.05em] text-foreground">
-                {section.title}
-              </td>
-            </tr>
-            {section.rows.map((row) => (
-              <PhaseRows key={row.key} label={row.label} us={splitCells(us[row.key], false)} opp={splitCells(opp[row.key], true)} phase={row.key} />
-            ))}
-          </tbody>
-        ))}
-      </table>
-    </div>
-  );
-}
-
-function PhaseRows({
-  label,
-  us,
-  opp,
-  phase,
-}: {
-  label: string | null;
-  us: { label: string; value: string }[];
-  opp: { label: string; value: string }[];
-  phase: string;
-}) {
-  return (
-    <>
-      {label && (
-        <tr>
-          <td colSpan={9} className="px-1.5 pt-1.5 text-center text-[11px] font-semibold text-foreground/80">
-            {label}
-          </td>
-        </tr>
-      )}
-      <tr>
-        {us.map((cell) => (
-          <th key={`us-${cell.label}`} className={th}>
-            {cell.label}
-          </th>
-        ))}
-        <th className="w-3" />
-        {opp.map((cell) => (
-          <th key={`opp-${cell.label}`} className={th}>
-            {cell.label}
-          </th>
-        ))}
-      </tr>
-      <tr data-scout-phase={phase}>
-        {us.map((cell) => (
-          <td key={`us-${cell.label}`} className={cn(td, cell.label === "Punti%" && "font-bold")}>
-            {cell.value}
-          </td>
-        ))}
-        <td className="w-3 border-l border-border" />
-        {opp.map((cell) => (
-          <td key={`opp-${cell.label}`} className={cn(td, cell.label === "Punti%" && "font-bold")}>
-            {cell.value}
-          </td>
-        ))}
-      </tr>
-    </>
-  );
-}
-
 function TeamSummary({ team, name }: { team: SheetTeam; name: string }) {
   const perReception = perPoint(team.receptionsFaced, team.sideOutPoints);
   const perServe = perPoint(team.serves, team.breakPoints);
@@ -427,9 +315,7 @@ export function TabellinoSheet({ sheet, match, over }: { sheet: ScoutSheet; matc
       <div className="grid gap-5 border-b border-border p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1fr)]" data-tour="scout-tab-summary" data-scout-sheet-summary>
         <TeamSummary team={sheet.us} name={US_NAME} />
         <div className="min-w-0 rounded-xl border border-border px-3 py-2">
-          {sheet.us.attackPhases && sheet.opp.attackPhases ? (
-            <AttackPhases us={sheet.us.attackPhases} opp={sheet.opp.attackPhases} oppName={match.opponent} />
-          ) : sheet.us.sideOutByReception ? (
+          {sheet.us.sideOutByReception ? (
             <div className="space-y-2 py-1 text-[12.5px]" data-scout-sideout-by-reception>
               <p className="text-center text-[11px] font-extrabold uppercase tracking-[0.05em] text-foreground">Cambio palla dopo la ricezione · {US_NAME}</p>
               {[
@@ -443,11 +329,10 @@ export function TabellinoSheet({ sheet, match, over }: { sheet: ScoutSheet; matc
                   </span>
                 </p>
               ))}
-              <p className="text-[11.5px] text-muted-foreground">Primo attacco dopo la ricezione e contrattacco si contano a livello Completo.</p>
             </div>
           ) : (
             <p className="py-2 text-center text-[12.5px] text-muted-foreground">
-              Il cambio palla diretto (il primo attacco dopo la ricezione) e il contrattacco si contano a livello Completo; il cambio palla dopo la ricezione da «Con ricezioni».
+              Il cambio palla dopo una ricezione positiva o negativa si conta a livello «Con ricezioni».
             </p>
           )}
         </div>

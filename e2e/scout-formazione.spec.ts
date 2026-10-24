@@ -22,8 +22,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-type Level = "base" | "ricezioni" | "completo";
-type Skill = "serve" | "reception" | "set" | "attack" | "block" | "dig";
+type Level = "base" | "ricezioni";
 
 async function createMatch(page: Page, opponent: string): Promise<string> {
   await page.goto("/admin/partite/nuovo");
@@ -55,16 +54,6 @@ async function addPoint(page: Page, button: string, who: { text: string } | { op
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();
   else if ("opp" in who) await sheet.locator(`[data-scout-pick="opp-${who.opp}"]`).click();
   else await sheet.locator("[data-scout-pick]", { hasText: who.text }).click();
-}
-
-/** Livello «Completo»: un tocco, con fondamentale, squadra, chi e voto. */
-async function touch(page: Page, t: { skill: Skill; side: "us" | "opp"; who: string; grade: string }) {
-  const entry = page.locator("[data-scout-touch-entry]");
-  await entry.locator(`[data-scout-skill="${t.skill}"]`).click();
-  await entry.locator(`[data-scout-side="${t.side}"]`).click();
-  const who = t.side === "opp" ? entry.locator(`[data-scout-who="opp-${t.who}"]`) : entry.locator("[data-scout-who]", { hasText: t.who });
-  await who.click();
-  await entry.locator(`[data-scout-grades="touch"] [data-scout-grade="${t.grade}"]`).click();
 }
 
 /** Sceglie in un menù la giocatrice con quel numero di maglia (le voci sono «9 · Anna V.»). */
@@ -404,75 +393,6 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   expect(pdf.status()).toBe(200);
   expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
-  await deleteMatchById(page, matchId);
-});
-
-test("fasi di gioco: lo Scout dice di chi è il turno e quale fase viene adesso, scambio dopo scambio", async ({ page }) => {
-  test.setTimeout(300_000);
-  await loginAsDev(page);
-  await switchTeam(page, "u14u15");
-  const matchId = await createMatch(page, uniqueName("Fasi "));
-
-  await prepare(page, matchId, "completo");
-
-  const card = page.locator("[data-scout-phase-card]");
-  /** Cosa propone lo Scout adesso: fondamentale e squadra, sulla scheda e nel percorso della palla. */
-  async function expectNext(skill: Skill, side: "us" | "opp") {
-    await expect(card).toHaveAttribute("data-scout-phase", skill);
-    await expect(card).toHaveAttribute("data-scout-phase-side", side);
-    await expect(card).toContainText(`Ora tocca a · ${side === "us" ? "noi" : "loro"}`);
-    await expect(page.locator('[data-scout-phase-chip][data-scout-phase-state="now"]')).toHaveAttribute("data-scout-phase-chip", `${skill}:${side}`);
-    await expect(page.locator("[data-scout-phase-why]")).not.toHaveText("");
-    // E la palla è dalla parte di chi tocca, nella fascia e sul tabellone.
-    await expectBall(page, side, { serve: "Battuta", reception: "Ricezione", set: "Alzata", attack: "Attacco", block: "Muro", dig: "Difesa" }[skill]);
-  }
-
-  // Si comincia dalla battuta: tocca a noi, e con la formazione c'è già scritto chi batte (la n. 9).
-  await expectNext("serve", "us");
-  await expect(card).toContainText("Battuta");
-  await expect(card).toContainText("Anna");
-  // Le fasi che di solito seguono sono tratteggiate; la rete compare dove la palla passa dall'altra parte.
-  await expect(page.locator('[data-scout-phase-chip][data-scout-phase-state="next"]').first()).toBeVisible();
-  await expect(page.locator('[data-scout-phase-link="net"]').first()).toBeAttached();
-
-  // Battuta in campo → riceve l'altra squadra.
-  await touch(page, { skill: "serve", side: "us", who: "Anna", grade: "!" });
-  await expectNext("reception", "opp");
-  // Ricezione scarsa (/): la palla è tornata di là → attacca la nostra squadra.
-  await touch(page, { skill: "reception", side: "opp", who: "21", grade: "/" });
-  await expectNext("attack", "us");
-  // Attacco che continua (+): lo difendono loro.
-  await touch(page, { skill: "attack", side: "us", who: "Bea", grade: "+" });
-  await expectNext("dig", "opp");
-  // Difesa buona: tocca all'attacco di chi ha difeso.
-  await touch(page, { skill: "dig", side: "opp", who: "22", grade: "+" });
-  await expectNext("attack", "opp");
-  // Attacco murato (/): ora il muro è della squadra che ha murato, cioè la nostra.
-  await touch(page, { skill: "attack", side: "opp", who: "22", grade: "/" });
-  await expectNext("block", "us");
-  // Muro che tocca la palla (+): difende chi ha murato.
-  await touch(page, { skill: "block", side: "us", who: "Carla", grade: "+" });
-  await expectNext("dig", "us");
-  // Difesa che rimanda di là (/): attacca l'altra squadra.
-  await touch(page, { skill: "dig", side: "us", who: "Dora", grade: "/" });
-  await expectNext("attack", "opp");
-  await expect(page.locator("[data-scout-pending] [data-scout-touch-chip]")).toHaveCount(7);
-
-  // Un attacco a terra chiude lo scambio: punto loro, battono loro e si ricomincia dalla battuta.
-  await touch(page, { skill: "attack", side: "opp", who: "23", grade: "#" });
-  await expect(score(page)).toHaveText("0–1");
-  await expect(page.locator("[data-scout-pending] [data-scout-touch-chip]")).toHaveCount(0);
-  await expectNext("serve", "opp");
-
-  // «Come si alternano le fasi»: la spiegazione sta lì, a portata di mano, ed è la stessa del manuale.
-  const help = page.locator("[data-scout-phase-help]");
-  await expect(help).not.toHaveAttribute("open", "");
-  await help.locator("summary").click();
-  await expect(help).toContainText("1 · Battuta.");
-  await expect(help).toContainText("6 · Il punto.");
-  await expect(help).toContainText("conquista la battuta");
-
-  await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);
 });
 

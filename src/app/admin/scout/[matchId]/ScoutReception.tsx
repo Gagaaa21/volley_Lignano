@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -15,7 +15,6 @@ import type { ScoutData, ScoutGrade } from "@/lib/scout/types";
 import { GradeDot } from "@/components/scout/GradeChart";
 import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
 import { GradeButtons, PlayerChips, ZonePicker } from "./ScoutInputParts";
-import { FlowSteps } from "./ScoutPhaseBanner";
 import { Sheet } from "./ScoutSheet";
 
 /**
@@ -248,5 +247,34 @@ export function ScoutReception({
         </Sheet>
       )}
     </>
+  );
+}
+
+/** Piccola striscia di passi: dove si è arrivati nello scambio (battuta, ricezione, punto). */
+function FlowSteps({ steps }: { steps: { label: string; state: "done" | "now" | "todo" }[] }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1" aria-label="Fasi dello scambio" data-scout-flow-steps>
+      {steps.map((step, index) => (
+        <Fragment key={step.label}>
+          {index > 0 && (
+            <li aria-hidden className="text-xs text-muted-foreground/60">
+              ›
+            </li>
+          )}
+          <li
+            data-scout-flow-step={step.state}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold",
+              step.state === "now" && "border-primary bg-primary text-primary-foreground",
+              step.state === "done" && "border-border-subtle bg-surface-muted text-muted-foreground line-through decoration-muted-foreground/40",
+              step.state === "todo" && "border-dashed border-border-strong text-muted-foreground",
+            )}
+          >
+            <span className="tabular">{index + 1}</span>
+            {step.label}
+          </li>
+        </Fragment>
+      ))}
+    </ol>
   );
 }

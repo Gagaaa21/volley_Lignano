@@ -180,7 +180,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
   const header = (
     <PageHeader
       title="Scout"
-      description="Segna la partita punto per punto: ne esce il tabellino, con i numeri di ogni giocatrice. Prima di ogni partita scegli quanto segnare: solo i punti, anche le ricezioni, oppure ogni tocco."
+      description="Segna la partita punto per punto: ne esce il tabellino, con i numeri di ogni giocatrice. Prima di ogni partita scegli quanto segnare: solo i punti, oppure anche le ricezioni."
       help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
       actions={
         <>
@@ -253,7 +253,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
                 <CardHeader className="pb-3">
                   <CardTitle>La ricezione, in stagione</CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Solo le {stats.detailMatches} {stats.detailMatches === 1 ? "partita" : "partite"} in cui hai segnato le ricezioni (livelli Con ricezioni e Completo).
+                    Solo le {stats.detailMatches} {stats.detailMatches === 1 ? "partita" : "partite"} in cui hai segnato le ricezioni (livello Con ricezioni).
                   </p>
                 </CardHeader>
                 <CardBody className="space-y-6">
@@ -271,7 +271,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
               <PlayerTable side="us" players={stats.players} title="Le nostre giocatrici" matches={matchesByPlayer} level={stats.level} />
               {stats.level !== "base" && (
                 <p className="mt-2 text-xs text-muted-foreground" data-scout-season-note>
-                  Le colonne di ricezione, attacco e difesa contano solo le {stats.detailMatches} {stats.detailMatches === 1 ? "partita" : "partite"} segnate con i tocchi: le altre
+                  Le colonne della ricezione contano solo le {stats.detailMatches} {stats.detailMatches === 1 ? "partita" : "partite"} in cui hai segnato le ricezioni: le altre
                   non hanno questi numeri. Punti ed errori sommano tutte le partite.
                 </p>
               )}

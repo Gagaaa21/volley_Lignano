@@ -53,7 +53,7 @@ export interface SheetColumn {
   label: string;
   title: string;
   /** Il testo della cella; `team` dice cosa si segna per quella squadra. */
-  text: (row: SheetNumbers, team: Pick<SheetTeam, "tracksReceptions" | "tracksAttacks">) => string;
+  text: (row: SheetNumbers, team: Pick<SheetTeam, "tracksReceptions">) => string;
   /** Una riga verticale a sinistra: comincia un gruppo. */
   first?: boolean;
   /** Il numero che conta di più del gruppo (in grassetto). */
@@ -71,11 +71,9 @@ export const SHEET_COLUMNS: SheetColumn[] = [
   { key: "ricezione-err", group: "Ricezione", label: "Err", title: "Ricezioni sbagliate", text: (r) => sheetCount(r.receptionErrors) },
   { key: "ricezione-pos", group: "Ricezione", label: "Pos%", title: "Ricezioni positive (# e +) su quelle segnate", text: (r, t) => sheetPercent(r.positivePct, t.tracksReceptions) },
   { key: "ricezione-prf", group: "Ricezione", label: "(Prf%)", title: "Ricezioni perfette (#) su quelle segnate", text: (r, t) => sheetPercent(r.perfectPct, t.tracksReceptions, true) },
-  { key: "attacco-tot", group: "Attacco", label: "Tot", title: "Attacchi segnati", text: (r) => sheetCount(r.attacks), first: true },
-  { key: "attacco-err", group: "Attacco", label: "Err", title: "Attacchi sbagliati", text: (r) => sheetCount(r.attackErrors) },
+  { key: "attacco-err", group: "Attacco", label: "Err", title: "Attacchi sbagliati", text: (r) => sheetCount(r.attackErrors), first: true },
   { key: "attacco-mur", group: "Attacco", label: "Mur", title: "Attacchi murati dall'avversaria", text: (r) => sheetCount(r.blocked) },
   { key: "attacco-pt", group: "Attacco", label: "Pt", title: "Attacchi vincenti", text: (r) => sheetCount(r.kills), strong: true },
-  { key: "attacco-pct", group: "Attacco", label: "Pt%", title: "Attacchi vincenti su quelli segnati", text: (r, t) => sheetPercent(r.killPct, t.tracksAttacks) },
   { key: "muro-pt", group: "Muro", label: "Pt", title: "Muri vincenti", text: (r) => sheetCount(r.blocks), first: true },
 ];
 
@@ -124,7 +122,6 @@ export const SHEET_MARKS: [string, string][] = [
 export function sheetFootnote(level: ScoutLevel): string {
   const always =
     "Risultato calcolato con lo scout, non ufficiale. Le battute di ogni giocatrice si contano quando si segue la formazione (o si segnano le battute); il totale della squadra c'è sempre. Le durate sono stimate dall'ora del primo e dell'ultimo punto.";
-  if (level === "base") return `${always} A livello Base non si segnano ricezioni e attacchi tentati: le loro colonne restano vuote.`;
-  if (level === "ricezioni") return `${always} A livello Con ricezioni si segnano le ricezioni nostre (non quelle dell'avversaria) ma non gli attacchi tentati.`;
-  return `${always} A livello Completo le percentuali sono sui tocchi segnati.`;
+  if (level === "base") return `${always} A livello Base delle ricezioni si segnano solo quelle sbagliate: le altre colonne della ricezione restano vuote.`;
+  return `${always} A livello Con ricezioni si segnano le ricezioni nostre, non quelle dell'avversaria.`;
 }

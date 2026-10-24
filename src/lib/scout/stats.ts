@@ -19,8 +19,9 @@ import {
 /**
  * Dal registro degli scambi al tabellino. Il livello Base conta chi ha fatto
  * punto e come, gli errori, i break point (punti fatti in battuta) e i cambi
- * palla (punti fatti in ricezione). Con i livelli «Con ricezioni» e «Completo»
- * si contano anche i tocchi segnati (ricezioni con voto, attacchi, difese…):
+ * palla (punti fatti in ricezione). Con il livello «Con ricezioni» si contano
+ * anche i tocchi segnati (le ricezioni con voto; negli scout del vecchio livello
+ * «Completo» anche attacchi, difese…):
  * i tocchi di uno scambio chiuso a mano («Punto loro: ace») si ricavano dal suo
  * esito (vedi effectiveTouches), così i due modi di segnare si sommano.
  */

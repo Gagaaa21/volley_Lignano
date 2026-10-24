@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { readLevel } from "./levels";
 import { SCOUT_GRADES, SCOUT_HOWS, SCOUT_LEVELS, SCOUT_TOUCH_SKILLS, type ScoutData } from "./types";
 
 /**
  * Forma valida di uno scout salvato (src/app/api/scout). I limiti sono larghi
  * rispetto a una partita vera (al massimo 5 set da 25-30 punti: qualche
- * centinaio di scambi, ognuno con una decina di tocchi nel livello Completo)
- * ma impediscono che una richiesta sbagliata riempia il database.
+ * centinaio di scambi, ognuno con una decina di tocchi negli scout del vecchio
+ * livello Completo) ma impediscono che una richiesta sbagliata riempia il database.
  */
 
 const sideSchema = z.enum(["us", "opp"]);
@@ -107,8 +108,8 @@ export const scoutDataSchema = z
       firstServer: sideSchema,
       // Gli scout salvati prima del punteggio live non lo hanno: si leggono come spento.
       publicLive: z.boolean().default(false),
-      // Gli scout salvati prima dei livelli non lo hanno: si leggono come «base».
-      level: z.enum(SCOUT_LEVELS).default("base"),
+      // Gli scout salvati prima dei livelli non lo hanno: si leggono come «base». Quelli del vecchio livello «Completo» come «ricezioni».
+      level: z.enum([...SCOUT_LEVELS, "completo"]).transform(readLevel).default("base"),
     }),
     roster: z.object({
       // Larghi: una rosa o un elenco di maglie avversarie più lungo di 30 non deve far rifiutare il salvataggio di una partita intera.

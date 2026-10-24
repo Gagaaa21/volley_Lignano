@@ -247,9 +247,11 @@ staff (Developer e Admin).
 - **Scout** (`/admin/scout`, permesso «Scout», regole in `src/lib/scout/`) —
   si segna la partita scambio per scambio, al **livello** scelto prima di ogni
   partita (`settings.level`, `levels.ts`): **Base** (chi fa punto e come, come
-  negli scout dei campionati ufficiali con Data Volley), **Con ricezioni** (in
-  più la nostra ricezione, con voto e zona) o **Completo** (ogni tocco, vedi
-  sotto). A livello Base: attacco, muro, ace, oppure l'errore o il
+  negli scout dei campionati ufficiali con Data Volley) o **Con ricezioni** (in
+  più la nostra ricezione, con voto e zona). Il vecchio livello **Completo**
+  (ogni tocco) è stato tolto: gli scout salvati così si leggono come «Con
+  ricezioni» senza perdere punti (`readLevel` in `levels.ts`, anche nello
+  schema). A livello Base: attacco, muro, ace, oppure l'errore o il
   fallo dell'altra squadra (`rules.ts`: battuta, ricezione, attacco, muro,
   alzata, difesa, rete, invasione, doppia, trattenuta, quattro tocchi,
   rotazione, sanzione), con la giocatrice se si sa. Si salvano **solo gli
@@ -265,13 +267,12 @@ staff (Developer e Admin).
   set corto) e finali; una tabella per squadra con tutta la rosa: **Set** (la
   posizione di partenza in ogni set, un rettangolo per chi è entrata o la
   libero, i set cerchiati dove la squadra ha battuto per prima), Punti Tot/BP/V-P,
-  Battuta Tot/Err/Pt, Ricezione Tot/Err/Pos%/(Prf%), Attacco Tot/Err/Mur/Pt/Pt%,
+  Battuta Tot/Err/Pt, Ricezione Tot/Err/Pos%/(Prf%), Attacco Err/Mur/Pt,
   Muro Pt, i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
   sotto, per ogni squadra i punti fatti meno persi in ogni rotazione,
   ricezioni e punti in cambio palla (CP), battute e break point (BP), e in
-  mezzo il **cambio palla diretto** (primo attacco dopo ricezione positiva o
-  negativa) e il **contrattacco** a livello Completo (a Con ricezioni il cambio
-  palla dopo ricezione positiva o negativa). Lo zero è « . » come nei
+  mezzo (a Con ricezioni) il cambio palla dopo ricezione positiva o
+  negativa. Lo zero è « . » come nei
   tabellini ufficiali, «–» vuol dire che a quel livello non si segna. Tutto si
   ricava dagli scambi già segnati (`buildSheet` in `sheet.ts`, colonne e
   formati in `sheetFormat.ts`, usati insieme da pagina e PDF), quindi vale
@@ -280,7 +281,7 @@ staff (Developer e Admin).
   l'ace o sbagliato la battuta, oppure la posizione 1 con la formazione). Sotto
   il tabellino ci sono le **analisi** (tutta la partita o un set: break point,
   cambio palla, «come si è fatto punto», errori e falli, andamento del
-  punteggio e, coi livelli superiori, ricezione, mappe e rotazioni). Il PDF
+  punteggio e, con le ricezioni, la ricezione e la sua mappa). Il PDF
   (`src/lib/pdf/scoutPdf.ts`) ha come prima pagina il tabellino in A4 verticale
   (`scoutSheetPdf.ts`, disegnato con `PdfReport.drawnPage`; con rose lunghissime
   continua su una seconda pagina), poi le analisi in A4 orizzontale. Il
@@ -309,16 +310,17 @@ staff (Developer e Admin).
   «Scout»; per gli Admin esistenti va spuntato dal Centro di controllo.
   - **Livelli**: `level` sta nel `settings` jsonb dello scout, quindi non serve
     nessuna migrazione e gli scout salvati prima valgono «base»
-    (`levelOf`, `normalizeSettings`). Con ricezioni e Completo, oltre agli
-    scambi si salvano i **tocchi** (`ScoutTouchEvent`, voti `# + ! - / =`,
+    (`levelOf`, `normalizeSettings`). Con ricezioni, oltre agli scambi si
+    salvano i **tocchi** (la ricezione; gli scout del vecchio Completo ne hanno
+    di ogni fondamentale, e si leggono ancora) (`ScoutTouchEvent`, voti `# + ! - / =`,
     zona 1-6 facoltativa, regole in `touches.ts`): un voto che chiude lo
     scambio (errore, ace, attacco a terra, muro vincente) assegna il punto da
     solo, gli altri lasciano lo scambio aperto (`pending`) finché un altro
     tocco o un esito scelto a mano lo chiude. `derive.ts` ricostruisce tutto
     dagli eventi; `effectiveTouches` rende uguali i conti di chi segna a
-    punto e di chi segna ogni tocco. `stats.ts` ricava ricezione, attacchi
-    totali, efficienza, difese, zone e rotazioni (si parte dalla 1ª a ogni set
-    e si avanza a ogni cambio palla: senza formazioni sono indicative). Le
+    punto e di chi segna i tocchi. `stats.ts` ricava ricezione, zone e
+    rotazioni (si parte dalla 1ª a ogni set e si avanza a ogni cambio palla:
+    senza formazioni sono indicative). Le
     colonne del tabellino sono in `sheetFormat.ts` (pagina e PDF) e la legenda
     per livello del manuale in `legend.ts`. Inserimento: scheda della
     ricezione (`ScoutReception.tsx`: quando battono loro si apre da sola una
@@ -327,9 +329,7 @@ staff (Developer e Admin).
     (facoltativa), la panchina e «Non so»; senza formazione una riga di numeri;
     si chiude con «Salta la ricezione» o Esc, toccare fuori non la chiude, e in
     pagina resta una riga con «Segna la ricezione» per riaprirla; a set finito
-    non si apre) e schermata dei tocchi
-    (`ScoutTouchEntry.tsx`, con i pulsanti dei punti in «Falli, sanzioni o
-    solo il punto»); correzione dei tocchi dal Registro.
+    non si apre); correzione dei tocchi dal Registro.
   - **Formazione in campo** (facoltativa, come nel Live score): si scrive
     nella preparazione (`ScoutLineupEditor.tsx`, subito sotto le giocatrici) o
     nella finestra «Formazione» (`ScoutLineupSheet`: dal pulsante «Formazione»,
@@ -360,11 +360,10 @@ staff (Developer e Admin).
     sceglie e la seconda linea è più chiara; senza formazione resta l'elenco di
     numeri, con un avviso per impostarla). Il «chi?» non si chiede mai per
     l'attacco vincente loro («Punto loro > Attacco» si segna con un tocco solo,
-    regola `asksPlayerFor` in `rules.ts`; nel Completo il tocco d'attacco loro
-    parte già da «Non so» e nel Registro si legge «Squadra»). Con la formazione
+    regola `asksPlayerFor` in `rules.ts`; nel Registro si legge «Squadra»). Con la formazione
     non si chiede nemmeno per ace e battuta sbagliata della squadra che batte:
     vanno da soli a chi è in posizione 1 (`autoServePlayer` in `court.ts`, usato da
-    `ScoutEntry.tsx`, anche nel Completo per «solo il punto»); se non era lei,
+    `ScoutEntry.tsx`); se non era lei,
     accanto all'ultimo punto c'è «Cambia» (`servePlayerWasAuto`), che apre il campo
     com'era in quello scambio e corregge solo la giocatrice (`updateRally`, il
     punteggio non cambia). Se si tocca «Ace» per la squadra che non batte, «chi?»
@@ -484,15 +483,12 @@ staff (Developer e Admin).
     vista sotto l'intestazione del sito (`--admin-header-h`, pubblicata da
     `AdminHeader`) o, a schermo intero, in cima. `ballOf` in `phases.ts` decide da
     che parte sta: chi batte a inizio scambio (Base), anche la nostra ricezione
-    segnata (Con ricezioni), chi tocca adesso (Completo). Il tabellone
+    segnata (Con ricezioni). Il tabellone
     (`ScoutBoard`) la mostra accanto al nome della squadra e illumina quella metà.
-  - **Fasi di gioco**: nei livelli Con ricezioni e Completo la schermata dice
-    sempre **di chi è il turno e quale fase viene adesso** (battuta,
-    ricezione, alzata, attacco, muro, difesa). Il percorso della palla e il
-    riquadro «Ora tocca a» (`ScoutPhaseBanner.tsx`) leggono
-    `suggestNext`/`flowAfter`/`describeNext` in `touches.ts`; i sei passi
-    dell'alternanza, uguali in app e nel manuale, sono in `phases.ts`
-    (`PHASE_STEPS`, `PHASE_FLOW`). Test in `unit/scout-phases.spec.ts`.
+  - **Fasi di gioco**: a livello Con ricezioni una striscia a tre passi
+    (battuta, ricezione, punto, `FlowSteps` in `ScoutReception.tsx`) dice a che
+    punto è lo scambio; `receptionOpen` in `phases.ts` dice quando la nostra
+    ricezione è da segnare. Test in `unit/scout-phases.spec.ts`.
   - **Numero di maglia**: vive sull'atleta (`Athlete.jerseyNumber`, colonna
     `jersey_number smallint`, 0-99, solo U14/U15, non unico: un omonimo di
     categoria dà solo un avviso). Si scrive in Presenze > Atlete (scheda,

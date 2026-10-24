@@ -4,7 +4,7 @@ import { it } from "date-fns/locale";
 import { CATEGORY_LABELS } from "@/lib/category";
 import type { PdfReport } from "@/lib/pdf/report";
 import { LEVEL_META } from "@/lib/scout/levels";
-import { perPoint, seasonOf, type AttackSplit, type ScoutSheet, type SheetSetMark, type SheetTeam } from "@/lib/scout/sheet";
+import { perPoint, seasonOf, type ScoutSheet, type SheetSetMark, type SheetTeam } from "@/lib/scout/sheet";
 import {
   POINTS_WON,
   SHEET_COLUMNS,
@@ -287,48 +287,8 @@ function drawTeamSummary(c: Ctx, team: SheetTeam, name: string, left: number, to
   if (perServe) text(c, `ogni ${perServe} battute 1 break point`, rx, top - 74, rw, 6.3, { color: c.muted });
 }
 
-function splitTexts(split: AttackSplit): string[] {
-  return [sheetCount(split.errors), sheetCount(split.blocked), split.total ? `${percent(split.kills, split.total)}%` : ".", sheetCount(split.total)];
-}
-
-function drawMiddle(c: Ctx, sheet: ScoutSheet, opponent: string, left: number, top: number, width: number, height: number) {
+function drawMiddle(c: Ctx, sheet: ScoutSheet, left: number, top: number, width: number, height: number) {
   box(c, left, top, width, height);
-  const us = sheet.us.attackPhases;
-  const opp = sheet.opp.attackPhases;
-  if (us && opp) {
-    const cell = (width - 10) / 8;
-    const labels = ["Err", "Mur", "Punti%", "Tot"];
-    let y = top - 9;
-    text(c, US_NAME.toUpperCase(), left + 4, y, width / 2 - 8, 6, { bold: true });
-    text(c, opponent.toUpperCase(), left + width / 2 + 4, y, width / 2 - 8, 6, { bold: true, align: "right" });
-    const section = (title: string, rows: { label: string | null; key: "positive" | "negative" | "counter" }[]) => {
-      y -= 4;
-      c.page.drawRectangle({ x: left, y: y - 8.5, width, height: 9.5, color: FILL });
-      text(c, title, left, y - 6, width, 6.8, { bold: true, align: "center" });
-      y -= 9.5;
-      for (const row of rows) {
-        if (row.label) {
-          text(c, row.label, left, y - 6.5, width, 6, { align: "center", color: c.muted });
-          y -= 8;
-        }
-        labels.forEach((label, i) => text(c, label, left + 4 + i * cell, y - 5.5, cell, 5.3, { bold: true, align: "center", color: c.muted }));
-        [...labels].reverse().forEach((label, i) => text(c, label, left + 6 + (i + 4) * cell, y - 5.5, cell, 5.3, { bold: true, align: "center", color: c.muted }));
-        y -= 6.5;
-        splitTexts(us[row.key]).forEach((value, i) => text(c, value, left + 4 + i * cell, y - 6, cell, 6.8, { bold: i === 2, align: "center" }));
-        splitTexts(opp[row.key])
-          .reverse()
-          .forEach((value, i) => text(c, value, left + 6 + (i + 4) * cell, y - 6, cell, 6.8, { bold: i === 1, align: "center" }));
-        vline(c, left + width / 2 + 1, y + 6.5, y - 7.5, 0.4, LINE);
-        y -= 8;
-      }
-    };
-    section("CAMBIO PALLA DIRETTO", [
-      { label: "1° attacco dopo ricezione positiva (# +)", key: "positive" },
-      { label: "1° attacco dopo ricezione negativa (! - /)", key: "negative" },
-    ]);
-    section("CONTRATTACCO", [{ label: null, key: "counter" }]);
-    return;
-  }
   const byReception = sheet.us.sideOutByReception;
   if (byReception) {
     text(c, `CAMBIO PALLA DOPO LA RICEZIONE · ${US_NAME.toUpperCase()}`, left, top - 11, width, 6.8, { bold: true, align: "center" });
@@ -340,13 +300,11 @@ function drawMiddle(c: Ctx, sheet: ScoutSheet, opponent: string, left: number, t
       text(c, label, left + 8, y, width * 0.55, 7.5, { color: c.muted });
       text(c, cell.total ? `${cell.won} su ${cell.total} (${percent(cell.won, cell.total)}%)` : ".", left + width * 0.55, y, width * 0.45 - 8, 7.5, { bold: true, align: "right" });
     });
-    const note = wrap(c.regular, "Primo attacco dopo la ricezione e contrattacco si contano a livello Completo.", width - 16, 6.3);
-    note.forEach((line, i) => text(c, line, left + 8, top - 64 - i * 8, width - 16, 6.3, { color: c.muted }));
     return;
   }
   const note = wrap(
     c.regular,
-    c.safe("Il cambio palla diretto (il primo attacco dopo la ricezione) e il contrattacco si contano a livello Completo; il cambio palla dopo la ricezione da «Con ricezioni»."),
+    c.safe("Il cambio palla dopo una ricezione positiva o negativa si conta a livello «Con ricezioni»."),
     width - 16,
     7,
   );
@@ -388,7 +346,7 @@ export function addSheetPages(report: PdfReport, sheet: ScoutSheet, match: Match
       const side = width * 0.3;
       const middle = width - side * 2 - 8;
       drawTeamSummary(c, sheet.us, US_NAME, left, top, side, SUMMARY_H);
-      drawMiddle(c, sheet, match.opponent, left + side + 4, top, middle, SUMMARY_H);
+      drawMiddle(c, sheet, left + side + 4, top, middle, SUMMARY_H);
       drawTeamSummary(c, sheet.opp, match.opponent, left + side + middle + 8, top, side, SUMMARY_H);
     },
   });

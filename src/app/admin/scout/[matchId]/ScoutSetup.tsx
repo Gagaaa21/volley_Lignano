@@ -34,14 +34,14 @@ const FORMATS: { value: ScoutFormat; label: string; hint: string }[] = [
 ];
 
 /**
- * La scelta del livello, prima di ogni partita: quanto si vuole segnare. Tre scelte in una riga sola, con le stesse
+ * La scelta del livello, prima di ogni partita: quanto si vuole segnare. Due scelte affiancate, con le stesse
  * parole del manuale (src/lib/scout/levels.ts); sotto, cosa si segna, cosa si ottiene e cosa serve per quella scelta.
  */
 function LevelChoice({ value, onChange }: { value: ScoutLevel; onChange: (level: ScoutLevel) => void }) {
   const chosen = LEVEL_META[value];
   return (
     <div className="space-y-3" data-scout-levels>
-      <div role="radiogroup" aria-label="Livello dello scout" className="grid gap-2 sm:grid-cols-3">
+      <div role="radiogroup" aria-label="Livello dello scout" className="grid gap-2 sm:grid-cols-2">
         {LEVEL_ORDER.map((level) => {
           const meta = LEVEL_META[level];
           const active = value === level;
