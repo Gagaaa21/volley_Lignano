@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
 import { buildScoutPdf } from "@/lib/pdf/scoutPdf";
-import { benchOf, benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, lineupWrittenThisSet, receptionCourt, reentryOfPlayer, setLineupPending, substitutionWarningFor } from "@/lib/scout/court";
+import { autoServePlayer, benchOf, benchOptions, COURT_ROWS, courtSpots, jerseyLabel, lineupSummary, lineupWrittenThisSet, receptionCourt, reentryOfPlayer, servePlayerWasAuto, setLineupPending, substitutionWarningFor } from "@/lib/scout/court";
 import type { Match } from "@/lib/types";
 import {
   addPlayer,
@@ -16,12 +16,13 @@ import {
   substitute,
   undoLast,
   updatePlayer,
+  updateRally,
   usedPlayerIds,
   type LineupInput,
 } from "@/lib/scout/actions";
 import { currentServer, deriveScout, type ScoutCourt } from "@/lib/scout/derive";
 import { receptionOpen } from "@/lib/scout/phases";
-import { canDo, isBlockHow } from "@/lib/scout/rules";
+import { canDo, isBlockHow, isServeHow } from "@/lib/scout/rules";
 import { scoutDataSchema } from "@/lib/scout/schema";
 import type { ScoutData, ScoutHow, ScoutSide } from "@/lib/scout/types";
 
@@ -194,6 +195,72 @@ test.describe("formazione in campo", () => {
     // La libero non può essere anche in campo tra le sei; una sostituita deve stare tra le sei.
     expect(event.type === "lineup" && event.libero).toBeNull();
     expect(event.type === "lineup" && event.hosts).toEqual([null, "u5"]);
+  });
+});
+
+test.describe("ace e battuta sbagliata a chi batte", () => {
+  test("solo ace e battuta sbagliata sono sempre di chi batte", () => {
+    expect(isServeHow("ace")).toBe(true);
+    expect(isServeHow("serveError")).toBe(true);
+    for (const how of ["attack", "block", "receptionError", "attackError", "rotationFault"] as const) expect(isServeHow(how)).toBe(false);
+  });
+
+  test("con la formazione vanno da soli a chi è in posizione 1 della squadra che batte, per noi e per loro", () => {
+    let data = withLineups(roster());
+    let view = deriveScout(data);
+    expect(currentServer(view)).toBe("us");
+    expect(autoServePlayer("ace", "us", currentServer(view), view.court.us)).toBe("u1");
+    expect(autoServePlayer("serveError", "us", currentServer(view), view.court.us)).toBe("u1");
+    // Poi batte loro (hanno conquistato la battuta e ruotato): la loro posizione 1 adesso è la n. 2.
+    data = point(data, "opp");
+    view = deriveScout(data);
+    expect(autoServePlayer("ace", "opp", currentServer(view), view.court.opp)).toBe("opp-2");
+    expect(autoServePlayer("serveError", "opp", currentServer(view), view.court.opp)).toBe("opp-2");
+  });
+
+  test("altrimenti si chiede «chi?» come sempre: senza formazione, per chi non batte o per altri modi di fare punto", () => {
+    const view = deriveScout(withLineups(roster()));
+    // Battiamo noi: un «ace loro» non torna, e si chiede.
+    expect(autoServePlayer("ace", "opp", "us", view.court.opp)).toBeUndefined();
+    expect(autoServePlayer("serveError", "opp", "us", view.court.opp)).toBeUndefined();
+    expect(autoServePlayer("attack", "us", "us", view.court.us)).toBeUndefined();
+    expect(autoServePlayer("ace", "us", "us", null)).toBeUndefined();
+    expect(autoServePlayer("ace", "us", null, view.court.us)).toBeUndefined();
+    // Una posizione 1 vuota: non si sa chi batte.
+    const empty = deriveScout(setLineup(roster(), "us", { ...OURS, positions: [null, "u2", "u3", "u4", "u5", "u6"] }, T0, id()));
+    expect(autoServePlayer("ace", "us", "us", empty.court.us)).toBeUndefined();
+  });
+
+  test("«Cambia» c'è per un ace o una battuta sbagliata di chi batteva, con la formazione; cambia la giocatrice, non il punteggio", () => {
+    let data = withLineups(roster());
+    data = addRally(data, { actor: "us", how: "ace", player: "u1" }, at(data), "ace1");
+    let rally = deriveScout(data).rallies[0];
+    expect(servePlayerWasAuto(rally)).toBe(true);
+
+    // Non era la n. 1 ma la n. 2 (la rotazione era sbagliata): cambia solo chi, il punto resta nostro.
+    data = updateRally(data, "ace1", { actor: "us", how: "ace", player: "u2" });
+    rally = deriveScout(data).rallies[0];
+    expect(rally.player).toBe("u2");
+    expect(rally.score).toEqual({ us: 1, opp: 0 });
+
+    // Battuta sbagliata nostra: punto loro, «Cambia» c'è.
+    data = addRally(data, { actor: "us", how: "serveError", player: "u1" }, at(data), "err1");
+    expect(servePlayerWasAuto(deriveScout(data).rallies[1])).toBe(true);
+    // Altri modi, o senza formazione, o un ace di chi non batteva (scelto a mano): niente «Cambia».
+    data = point(data, "opp", "attack");
+    expect(servePlayerWasAuto(deriveScout(data).rallies[2])).toBe(false);
+    const noLineup = addRally(roster(), { actor: "us", how: "ace", player: "u1" }, T0, "ace2");
+    expect(servePlayerWasAuto(deriveScout(noLineup).rallies[0])).toBe(false);
+    const wrongSide = addRally(withLineups(roster()), { actor: "opp", how: "ace", player: "opp-1" }, T0, "ace3");
+    expect(servePlayerWasAuto(deriveScout(wrongSide).rallies[0])).toBe(false);
+  });
+
+  test("un ace chiuso da un tocco (livello Completo) non ha «Cambia»: chi batte si sceglie prima del voto", () => {
+    let data = withLineups(roster());
+    data = addTouch(data, { side: "us", skill: "serve", player: "u1", grade: "#" }, at(data), "t1");
+    const rally = deriveScout(data).rallies[0];
+    expect(rally.how).toBe("ace");
+    expect(servePlayerWasAuto(rally)).toBe(false);
   });
 });
 

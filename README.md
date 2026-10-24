@@ -340,7 +340,14 @@ staff (Developer e Admin).
     numeri, con un avviso per impostarla). Il «chi?» non si chiede mai per
     l'attacco vincente loro («Punto loro > Attacco» si segna con un tocco solo,
     regola `asksPlayerFor` in `rules.ts`; nel Completo il tocco d'attacco loro
-    parte già da «Non so» e nel Registro si legge «Squadra»). Il cambio disegna lo stesso campo con
+    parte già da «Non so» e nel Registro si legge «Squadra»). Con la formazione
+    non si chiede nemmeno per ace e battuta sbagliata della squadra che batte:
+    vanno da soli a chi è in posizione 1 (`autoServePlayer` in `court.ts`, usato da
+    `ScoutEntry.tsx`, anche nel Completo per «solo il punto»); se non era lei,
+    accanto all'ultimo punto c'è «Cambia» (`servePlayerWasAuto`), che apre il campo
+    com'era in quello scambio e corregge solo la giocatrice (`updateRally`, il
+    punteggio non cambia). Se si tocca «Ace» per la squadra che non batte, «chi?»
+    si chiede come sempre. Il cambio disegna lo stesso campo con
     numero e nome di ognuna e ha «Cambia la libero» (non conta tra i cambi: è un
     evento `lineup` con la libero nuova); formazioni di partenza e cambi nel tabellino
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF

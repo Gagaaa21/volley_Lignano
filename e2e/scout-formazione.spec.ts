@@ -201,22 +201,54 @@ test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro,
   await expect(score(page)).toHaveText("1–0");
   await expect(page.locator('[data-scout-rally="1"]')).toContainText("su n. 24");
 
-  // Ace nostro: chi batte (n. 9, posizione 1) è già segnata col pallone; si sceglie toccandola.
+  // Ace nostro: è di chi batte (n. 9, posizione 1) e si segna da solo, senza chiedere «chi?».
+  const last = page.locator("[data-scout-last]");
   await page.locator('[data-scout-add="us-ace"]').click();
+  await expect(score(page)).toHaveText("2–0");
+  await expect(sheet).toHaveCount(0);
+  await expect(last).toContainText("Ace");
+  await expect(last).toContainText("Anna");
+  await expect(page.locator('[data-scout-rally="2"]')).toContainText("Anna");
+  // Non era lei? «Cambia» apre il campo com'era in quello scambio (il pallone su chi batteva): si tocca chi è stata.
+  await last.locator("[data-scout-serve-change]").click();
   await sheet.waitFor();
+  await expect(sheet).toContainText("Ace: chi è stata?");
   await expect(sheet.locator('[data-scout-spot="1"]').getByLabel("Batte")).toBeVisible();
   await expect(sheet).not.toContainText("A muro vanno solo");
-  await sheet.locator('[data-scout-spot="1"]').click();
+  await sheet.locator('[data-scout-spot="2"]').click();
+  await expect(sheet).toHaveCount(0);
   await expect(score(page)).toHaveText("2–0");
+  await expect(last).toContainText("Bea");
+  await expect(page.locator('[data-scout-rally="2"]')).toContainText("Bea");
+  await expect(page.locator('[data-scout-rally="2"]')).not.toContainText("Anna");
 
-  // Loro hanno la battuta solo quando fanno punto: allora il pallone è sul loro campo, non sul nostro.
+  // Loro hanno la battuta solo quando fanno punto (e ruotano): il loro ace è della loro nuova posizione 1, la n. 22.
   await addPoint(page, "opp-attack", null);
   await expect(score(page)).toHaveText("2–1");
   await page.locator('[data-scout-add="opp-ace"]').click();
+  await expect(score(page)).toHaveText("2–2");
+  await expect(sheet).toHaveCount(0);
+  await expect(last).toContainText("n. 22");
+  await last.locator("[data-scout-serve-change]").click();
   await sheet.waitFor();
   await expect(sheet.locator("[data-scout-court-picker='opp'] [data-scout-spot='1']").getByLabel("Batte")).toBeVisible();
+  await expect(sheet.locator("[data-scout-court-picker='opp'] [data-scout-spot='1']")).toContainText("22");
   await sheet.getByRole("button", { name: "Chiudi" }).click();
   await expect(sheet).toHaveCount(0);
+  await expect(last).toContainText("n. 22");
+  // Anche la loro battuta sbagliata va a chi batte.
+  await page.locator('[data-scout-add="us-error"]').click();
+  await page.locator('[data-scout-error="serveError"]').click();
+  await expect(score(page)).toHaveText("3–2");
+  await expect(sheet).toHaveCount(0);
+  await expect(last).toContainText("Battuta sbagliata");
+  await expect(last).toContainText("n. 22");
+  // Battiamo noi: un ace loro non torna, e allora «chi?» si chiede come sempre (e senza «Cambia» dopo).
+  await page.locator('[data-scout-add="opp-ace"]').click();
+  await sheet.waitFor();
+  await sheet.locator("[data-scout-court-picker='opp'] [data-scout-spot='3']").click();
+  await expect(score(page)).toHaveText("3–3");
+  await expect(last.locator("[data-scout-serve-change]")).toHaveCount(0);
 
   await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
   await deleteMatchById(page, matchId);

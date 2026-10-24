@@ -514,6 +514,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         items: [
           "**Rotazioni da sole**: la squadra ruota quando conquista la battuta, come in campo. Sai sempre in che rotazione siete (la 1ª è quella di partenza) e chi batte.",
           "**Libero al posto giusto**: entra al posto della centrale in seconda linea e esce quando la centrale ruota a rete. Non batte mai: se in battuta c'è una centrale, batte lei e la libero entra quando la squadra riceve.",
+          "**Ace e battuta sbagliata da soli**: sono sempre di chi batte, quindi non si chiede «chi?»: vanno alla giocatrice in posizione 1 della squadra che batte. Se non era lei (per esempio la rotazione era sbagliata), tocca **«Cambia»** accanto all'ultimo punto e scegli chi è stata: il punteggio non cambia. Se tocchi «Ace» per la squadra che non batte, lo Scout chiede «chi?» come sempre.",
           "**«Chi» dal campo**: la finestra «chi?» mostra il campo, con la rete in alto, davanti 4-3-2, dietro 5-6-1, la libero in scuro e il pallone verde su chi batte: tocchi la giocatrice dove sta. Chi è in panchina è sotto, più chiara. A muro la libero non si sceglie e la seconda linea è più chiara.",
           "**Cambi**: li registri con un pulsante, lo Scout conta quelli del set e ti avvisa se non sono regolari.",
           "**Tabellino e PDF**: in più trovi le formazioni di partenza di ogni set e i cambi.",
@@ -719,13 +720,13 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           { header: "Cosa tocchi", weight: 6 },
         ],
         rows: [
-          ["La n. 7 batte e la palla cade a terra.", "Punto nostro > Ace > n. 7"],
+          ["La n. 7 batte e la palla cade a terra.", "Punto nostro > Ace > n. 7 (se segui la formazione basta «Ace»: è di chi batte)"],
           ["La n. 9 schiaccia e fa punto.", "Punto nostro > Attacco > n. 9"],
           ["La loro n. 11 schiaccia e fa punto.", "Punto loro > Attacco (e basta: non chiede chi)"],
           ["La n. 3 ferma l'attacco della loro n. 12.", "Punto nostro > Muro > n. 3 > n. 12 (chi attaccava)"],
           ["La loro n. 4 attacca fuori.", "Punto nostro > Errore loro > Attacco sbagliato > n. 4"],
-          ["La loro battuta finisce in rete.", "Punto nostro > Errore loro > Battuta sbagliata > il loro numero (o «Non so»)"],
-          ["Battiamo fuori.", "Punto loro > Errore nostro > Battuta sbagliata > la giocatrice che ha battuto"],
+          ["La loro battuta finisce in rete.", "Punto nostro > Errore loro > Battuta sbagliata > il loro numero (o «Non so»; con la loro formazione va da sola a chi batte)"],
+          ["Battiamo fuori.", "Punto loro > Errore nostro > Battuta sbagliata > la giocatrice che ha battuto (con la formazione va da sola a chi batte)"],
           ["L'arbitro fischia doppia a una nostra giocatrice.", "Punto loro > Errore nostro > Doppia > la giocatrice"],
           ["L'arbitro fischia rotazione sbagliata a loro.", "Punto nostro > Errore loro > Rotazione / posizione (nessuna giocatrice)"],
         ],
@@ -734,7 +735,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "L'ultimo punto e «Annulla ultimo»" },
       {
         type: "p",
-        text: "Sotto i pannelli una riga riassume l'ultimo punto, per esempio «Ultimo: 12-10 · punto nostro · Attacco · n. 7». Se hai toccato il pulsante sbagliato, **«Annulla ultimo»** toglie l'ultimo scambio e il punteggio torna indietro. Puoi premerlo più volte di seguito.",
+        text: "Sotto i pannelli una riga riassume l'ultimo punto, per esempio «Ultimo: 12-10 · punto nostro · Attacco · n. 7». Se hai toccato il pulsante sbagliato, **«Annulla ultimo»** toglie l'ultimo scambio e il punteggio torna indietro. Puoi premerlo più volte di seguito. Se segui la formazione e l'ultimo punto è un ace o una battuta sbagliata assegnati da soli a chi batte, accanto c'è **«Cambia»**: se non era lei, tocchi chi è stata e il punteggio resta com'è.",
       },
       {
         type: "callout",
@@ -830,7 +831,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           ],
           ["La n. 4 sbaglia la ricezione: la palla va fuori.", "Ricezione > n. 4 > = Errore. Il punto va a loro da solo"],
           ["La ricezione della n. 7 è scarsa, la palla torna di là e fanno punto loro.", "Ricezione > n. 7 > / Scarsa; poi Punto loro > Attacco > il loro numero"],
-          ["La loro battuta cade a terra e nessuna la tocca.", "Niente ricezione: Punto loro > Ace > il numero di chi batte"],
+          ["La loro battuta cade a terra e nessuna la tocca.", "Niente ricezione: Punto loro > Ace > il numero di chi batte (con la loro formazione basta «Ace»)"],
         ],
         keepTogether: true,
       },
@@ -1570,7 +1571,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         items: [
           "Scegli il **pannello** di chi ha fatto punto: «Punto nostro» o «Punto loro».",
           "Scegli **come**: Attacco, Muro, Ace oppure Errore.",
-          "Scegli **chi**: il numero di maglia (o «Non so»).",
+          "Scegli **chi**: il numero di maglia (o «Non so»). Con la formazione, ace e battuta sbagliata vanno da soli a chi batte (se non era lei: «Cambia» sull'ultimo punto).",
         ],
       },
       {

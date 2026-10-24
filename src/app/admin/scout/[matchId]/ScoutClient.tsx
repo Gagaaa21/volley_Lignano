@@ -36,14 +36,14 @@ import { currentServer, defaultNextServer, deriveScout, isMatchDecided, setTarge
 import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { setLineupPending } from "@/lib/scout/court";
+import { servePlayerWasAuto, setLineupPending } from "@/lib/scout/court";
 import { LEVEL_META, levelOf } from "@/lib/scout/levels";
 import { ballOf } from "@/lib/scout/phases";
 import type { MatchScout, ScoutData, ScoutSide } from "@/lib/scout/types";
 import type { Category } from "@/lib/types";
 import { ScoutBallSide } from "./ScoutBallSide";
 import { ScoutCourtStrip } from "./ScoutCourtStrip";
-import { ScoutEntry } from "./ScoutEntry";
+import { ScoutEntry, ServePlayerPicker } from "./ScoutEntry";
 import { ScoutLineupSheet, type SavedScoutLineup } from "./ScoutLineupEditor";
 import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
@@ -276,6 +276,8 @@ export function ScoutClient({
   const [lineupOpen, setLineupOpen] = useState(false);
   const [lineupSkipped, setLineupSkipped] = useState<number[]>([]);
   const [nudgeHidden, setNudgeHidden] = useState(false);
+  // «Cambia» accanto all'ultimo punto: lo scambio di cui si sta scegliendo chi ha battuto (ace o battuta sbagliata dati da soli).
+  const [serveChangeFor, setServeChangeFor] = useState<string | null>(null);
   const lineupCommit = useRef<(() => void) | null>(null);
   const lineupAsked = !locked && !inlineSetup && cur !== null && !lineupSkipped.includes(cur.n) && setLineupPending(data.events, view);
   const lineupSheet = !inlineSetup && cur !== null && (lineupOpen || lineupAsked);
@@ -598,13 +600,25 @@ export function ScoutClient({
                 <div className="flex items-start gap-3" data-scout-last data-tour="scout-last">
                   <div className={cn("min-w-0 flex-1 pt-1.5 text-sm leading-snug", twoColumns && "pt-2 text-[15px]")}>
                     {lastRally && lastText ? (
-                      <p className="line-clamp-2 text-muted-foreground">
+                      // Con «Cambia» la riga non si accorcia: sul telefono, con un nome lungo, il pulsante finirebbe tagliato.
+                      <p className={cn("text-muted-foreground", !servePlayerWasAuto(lastRally) && "line-clamp-2")}>
                         Ultimo:{" "}
                         <b className="tabular text-foreground">
                           {lastRally.score.us}–{lastRally.score.opp}
                         </b>{" "}
                         · punto {lastText.winner === "us" ? "nostro" : "loro"} · {lastText.label}
                         {lastRally.player ? ` · ${lastText.who}` : ""}
+                        {servePlayerWasAuto(lastRally) && (
+                          <button
+                            type="button"
+                            onClick={() => setServeChangeFor(lastRally.id)}
+                            title="Era di chi batteva: tocca qui se è stata un'altra"
+                            className="ml-1.5 inline-block rounded-md bg-primary-soft px-2 py-0.5 text-[13px] font-bold text-primary transition-colors hover:bg-primary-soft-hover"
+                            data-scout-serve-change
+                          >
+                            Cambia
+                          </button>
+                        )}
                       </p>
                     ) : lastPending ? (
                       <p className="line-clamp-2 text-muted-foreground" data-scout-last-touch>
@@ -636,6 +650,10 @@ export function ScoutClient({
                     Annulla ultimo
                   </Button>
                 </div>
+                {/* Solo finché quello scambio è ancora l'ultimo (un punto segnato intanto da un altro dispositivo la chiude). */}
+                {lastRally && serveChangeFor === lastRally.id && (
+                  <ServePlayerPicker rally={lastRally} roster={data.roster} dispatch={dispatch} onClose={() => setServeChangeFor(null)} />
+                )}
 
                 <div className="flex flex-wrap gap-2" data-tour="section-scout-tools">
                   <Button variant="outline" size="xs" onClick={() => setSetupOpen(true)} data-scout-open-setup>

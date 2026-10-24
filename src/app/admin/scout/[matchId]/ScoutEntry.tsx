@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
 import { opponentPlayer, type ScoutAction } from "@/lib/scout/actions";
-import { orderByCourt } from "@/lib/scout/court";
-import type { ScoutCourt, ScoutCourts } from "@/lib/scout/derive";
+import { autoServePlayer, orderByCourt } from "@/lib/scout/court";
+import type { ScoutCourt, ScoutCourts, ScoutRally } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { asksPlayerFor, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
-import { otherSide, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutSide } from "@/lib/scout/types";
+import { otherSide, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutRoster, type ScoutSide } from "@/lib/scout/types";
 import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
 import { Sheet } from "./ScoutSheet";
 
@@ -20,7 +20,9 @@ import { Sheet } from "./ScoutSheet";
  * con i quattro modi in cui finisce uno scambio: attacco, muro, ace o errore
  * dell'altra squadra. Poi si dice chi l'ha fatto, e basta: due tocchi per un
  * punto normale, tre per un errore. Fa eccezione l'attacco vincente loro: un
- * tocco solo, senza chiedere chi (vedi `asksPlayerFor`).
+ * tocco solo, senza chiedere chi (vedi `asksPlayerFor`). E se si segue la
+ * formazione, ace e battuta sbagliata vanno da soli a chi batte (posizione 1),
+ * con «Cambia» accanto all'ultimo punto se non era lei (`ServePlayerPicker`).
  */
 
 /** L'ora dello scambio: la legge un gestore di tocco, mai il rendering. */
@@ -320,15 +322,14 @@ export function ScoutEntry({
     setStep(null);
   }
 
-  /** Attacco, muro o ace: si chiede chi è stata, tranne per l'attacco vincente loro, che si segna subito con un tocco solo. */
-  function pickPoint(actor: ScoutSide, how: ScoutHow) {
-    if (asksPlayerFor(actor, how)) setStep({ stage: "player", actor, how });
-    else commit({ actor, how, player: null });
-  }
-
-  function pickError(scorer: ScoutSide, how: ScoutHow) {
-    const actor = otherSide(scorer);
-    if (asksPlayerFor(actor, how)) setStep({ stage: "player", actor, how });
+  /**
+   * Chi è stata: si chiede, tranne per l'attacco vincente loro (si segna subito, senza dire chi) e per ace e battuta sbagliata
+   * della squadra che batte quando se ne segue la formazione (sono di chi sta in posizione 1).
+   */
+  function pickHow(actor: ScoutSide, how: ScoutHow) {
+    const serverPlayer = autoServePlayer(how, actor, server, courts?.[actor]);
+    if (serverPlayer) commit({ actor, how, player: serverPlayer });
+    else if (asksPlayerFor(actor, how)) setStep({ stage: "player", actor, how });
     else commit({ actor, how, player: null });
   }
 
@@ -378,7 +379,7 @@ export function ScoutEntry({
               hint={hint}
               disabled={locked}
               testId={`${scorer}-${how}`}
-              onClick={() => pickPoint(scorer, how)}
+              onClick={() => pickHow(scorer, how)}
             />
           ))}
           <SideButton
@@ -406,7 +407,7 @@ export function ScoutEntry({
       </div>
 
       {step?.stage === "error" && (
-        <ErrorPicker scorer={step.scorer} onPick={(how) => pickError(step.scorer, how)} onClose={close} />
+        <ErrorPicker scorer={step.scorer} onPick={(how) => pickHow(otherSide(step.scorer), how)} onClose={close} />
       )}
 
       {step?.stage === "player" && (
@@ -448,5 +449,49 @@ export function ScoutEntry({
         />
       )}
     </>
+  );
+}
+
+/**
+ * La scelta che si apre da «Cambia» accanto all'ultimo punto, quando è un ace o una battuta sbagliata che lo Scout ha dato da
+ * solo a chi batteva (vedi `servePlayerWasAuto`): se non era lei, per esempio perché la rotazione era sbagliata, si tocca chi è
+ * stata sul campo com'era in quello scambio, o «Non so». Il punteggio non cambia: cambia solo la giocatrice.
+ */
+export function ServePlayerPicker({
+  rally,
+  roster,
+  dispatch,
+  onClose,
+}: {
+  rally: ScoutRally;
+  roster: ScoutRoster;
+  dispatch: (action: ScoutAction) => void;
+  onClose: () => void;
+}) {
+  const { actor, how } = rally;
+
+  function change(player: string | null) {
+    dispatch({ type: "update", id: rally.id, patch: { actor, how, player } });
+    onClose();
+  }
+
+  return (
+    <PlayerPicker
+      title={`${HOW_META[how].label}: chi è stata?`}
+      subtitle="Segnato a chi batteva (posizione 1): tocca chi è stata davvero."
+      side={actor}
+      players={roster[actor].filter((p) => canDo(how, p.libero))}
+      roster={roster[actor]}
+      court={rally.court[actor]}
+      serving
+      unknownLabel="Non so / non indicare"
+      onPick={change}
+      onPickNew={(number) => {
+        const player = opponentPlayer(number);
+        dispatch({ type: "addPlayer", side: "opp", player });
+        change(player.id);
+      }}
+      onClose={onClose}
+    />
   );
 }

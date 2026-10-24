@@ -241,8 +241,12 @@ test("senza formazione: un avviso propone di impostarla; la finestra la scrive e
     await expect(nudge).toHaveCount(0);
     await expect(usSpot(page, 1)).toContainText("Anna");
 
-    // Adesso «chi?» è il campo con le sei in campo (e la panchina sotto), con il pallone verde su chi batte: un ace è di chi sta in posizione 1.
+    // Adesso un ace è di chi sta in posizione 1 e si segna da solo; «chi?» è il campo con le sei in campo (e la panchina sotto).
     await page.locator('[data-scout-add="us-ace"]').click();
+    await expect(score(page)).toHaveText("1–0");
+    await expect(picker).toHaveCount(0);
+    await expect(page.locator("[data-scout-last]")).toContainText("Anna");
+    await page.locator('[data-scout-add="us-attack"]').click();
     await picker.waitFor();
     const court = picker.locator("[data-scout-court-picker='us']");
     await expect(court).toBeVisible();
@@ -250,7 +254,7 @@ test("senza formazione: un avviso propone di impostarla; la finestra la scrive e
     await expect(court.locator('[data-scout-spot="1"]')).toContainText("Anna");
     await expect(court.locator('[data-scout-spot="1"]').getByLabel("Batte")).toBeVisible();
     await court.locator('[data-scout-spot="1"]').click();
-    await expect(score(page)).toHaveText("1–0");
+    await expect(score(page)).toHaveText("2–0");
   } finally {
     await deleteMatchById(page, matchId).catch(() => {});
   }

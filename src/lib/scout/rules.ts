@@ -185,6 +185,11 @@ export function asksPlayerFor(actor: ScoutSide, how: ScoutHow): boolean {
   return asksPlayer(how) && !(actor === "opp" && how === "attack");
 }
 
+/** Ace e battuta sbagliata: li fa sempre chi batte. */
+export function isServeHow(how: ScoutHow): boolean {
+  return how === "ace" || how === "serveError";
+}
+
 /** Il muro vincente e l'errore a muro. */
 export function isBlockHow(how: ScoutHow): boolean {
   return how === "block" || how === "blockError";

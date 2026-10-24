@@ -344,7 +344,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
       chapter: C_PLAY,
       title: "Chi è in campo",
       body: `Le due squadre con le sei posizioni, ognuna con numero e nome: davanti 4-3-2, dietro 5-6-1 (la rete è in alto). Il pallone verde segna chi batte; la libero compare in scuro al posto della centrale che sostituisce. Quando una squadra conquista la battuta ruota da sola (sotto il nome vedi la rotazione: la 1ª è quella di partenza).\n\nCon «Cambio» registri una sostituzione: tocchi chi esce direttamente sul campo (ogni giocatrice sta dove sta davvero, con numero e nome) e scegli chi entra; se non è regolare (per esempio più di ${SUBSTITUTIONS_PER_SET} cambi in un set) ti avvisa, ma puoi confermare lo stesso. Nello stesso Cambio c'è «Cambia la libero», che non è un cambio ufficiale e non conta tra quelli del set. «Formazione» riapre la formazione per correggerla: a ogni set nuovo si apre da sola.`,
-      tip: "Quando scegli «chi» vedi il campo come qui: tocchi la giocatrice dove sta (davanti 4-3-2, dietro 5-6-1); la panchina è sotto, più chiara.",
+      tip: "Quando scegli «chi» vedi il campo come qui: tocchi la giocatrice dove sta (davanti 4-3-2, dietro 5-6-1); la panchina è sotto, più chiara. Ace e battuta sbagliata non lo chiedono: vanno da soli a chi batte (se non era lei, «Cambia» sull'ultimo punto).",
     });
   }
 
@@ -505,7 +505,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: "scout-last",
         chapter: C_PLAY,
         title: "L'ultimo punto e «Annulla ultimo»",
-        body: "Sotto i pannelli leggi l'ultimo punto segnato (per esempio «Ultimo: 12–10 · punto nostro · Attacco · n. 7»). Se hai toccato il pulsante sbagliato, «Annulla ultimo» toglie l'ultimo scambio e il punteggio torna indietro; puoi premerlo più volte di seguito.",
+        body: "Sotto i pannelli leggi l'ultimo punto segnato (per esempio «Ultimo: 12–10 · punto nostro · Attacco · n. 7»). Se hai toccato il pulsante sbagliato, «Annulla ultimo» toglie l'ultimo scambio e il punteggio torna indietro; puoi premerlo più volte di seguito.\n\nSe segui la formazione, un ace o una battuta sbagliata vanno da soli a chi batte: se non era lei (per esempio la rotazione era sbagliata), «Cambia» accanto all'ultimo punto ti fa toccare chi è stata, senza toccare il punteggio.",
       },
     );
   } else if (!locked) {

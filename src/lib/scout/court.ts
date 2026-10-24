@@ -1,8 +1,9 @@
 import { reentryFor, substitutionRuleWarning } from "@/lib/lineup";
 import { SUBSTITUTIONS_PER_SET } from "@/lib/volleyRules";
 import { playerLabel, sortPlayers } from "./describe";
-import type { ScoutCourt, ScoutView } from "./derive";
-import type { ScoutData, ScoutPlayer, ScoutRoster, ScoutSide } from "./types";
+import type { ScoutCourt, ScoutRally, ScoutView } from "./derive";
+import { isServeHow } from "./rules";
+import type { ScoutData, ScoutHow, ScoutPlayer, ScoutRoster, ScoutSide } from "./types";
 
 /**
  * Piccoli aiuti per le schermate che usano la formazione in campo (vedi
@@ -17,6 +18,25 @@ export { SUBSTITUTIONS_PER_SET };
 export function serverId(view: ScoutView, side: ScoutSide): string | undefined {
   const id = view.court[side]?.positions[0];
   return id ? id : undefined;
+}
+
+/**
+ * Chi ha fatto l'ace o ha sbagliato la battuta, senza chiederlo: se si segue la formazione di quella squadra e batte lei, è chi
+ * sta in posizione 1. Undefined negli altri casi (senza formazione, o se il pulsante è della squadra che non batte): allora si
+ * chiede «chi?» come sempre.
+ */
+export function autoServePlayer(how: ScoutHow, actor: ScoutSide, server: ScoutSide | null, court: ScoutCourt | null | undefined): string | undefined {
+  if (!isServeHow(how) || server !== actor) return undefined;
+  const id = court?.positions[0];
+  return id ? id : undefined;
+}
+
+/**
+ * Lo scambio è un ace o una battuta sbagliata assegnati da soli a chi batteva (vedi `autoServePlayer`)? Allora accanto
+ * all'ultimo punto c'è «Cambia», per dire chi è stata se non era lei.
+ */
+export function servePlayerWasAuto(rally: Pick<ScoutRally, "closedBy" | "how" | "actor" | "server" | "court">): boolean {
+  return rally.closedBy === "outcome" && isServeHow(rally.how) && rally.server === rally.actor && Boolean(rally.court[rally.actor]?.positions[0]);
 }
 
 /** In che posizione (1…6) gioca adesso, o null se è in panchina. Per la libero è quella di chi sostituisce. */
