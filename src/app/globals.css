@@ -130,6 +130,8 @@
   /* Aloni colorati dello sfondo di accesso. */
   --stage-glow-a: color-mix(in oklab, var(--color-sea-100) 85%, transparent);
   --stage-glow-b: color-mix(in oklab, var(--color-sand-100) 80%, transparent);
+  /* Quanto si vede il colore delle due squadre sul riquadro «In diretta» (LiveScoreBanner): poco sul chiaro, di più sullo scuro. */
+  --live-glow: 13%;
 
   --gradient-primary: linear-gradient(135deg, var(--color-sea-500), var(--color-sea-700));
   --shadow-xs: 0 1px 2px rgba(15, 30, 50, 0.05);
@@ -359,6 +361,7 @@
 
   --stage-glow-a: color-mix(in oklab, var(--color-sea-800) 50%, transparent);
   --stage-glow-b: color-mix(in oklab, var(--color-sand-800) 32%, transparent);
+  --live-glow: 30%;
 
   /* Categorie e colori degli allenamenti: fondo scuro e testo chiaro. */
   --color-u14-soft: #0f2e2b;

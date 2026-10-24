@@ -240,9 +240,12 @@ staff (Developer e Admin).
   nomi o formazioni), con cache di 3 secondi solo sulla CDN di Vercel
   (`Vercel-CDN-Cache-Control`, mai nel browser); il riquadro «In diretta»
   (`LiveScoreBanner`) sulla home U14/U15 o Minivolley lo rilegge ogni 5
-  secondi mentre la pagina è visibile. È un tabellone scuro, uguale con ogni
-  tema: stemma (o iniziali nel colore scelto per l'avversaria), punteggio
-  grande, set vinti, due pallini dei time-out per squadra e i parziali dei
+  secondi mentre la pagina è visibile. Segue il tema scelto (chiaro o scuro,
+  e i colori del sito): è una scheda come le altre, con i colori delle due
+  squadre come filo in alto, bagliore dalla loro parte (`--live-glow` in
+  `globals.css`, più acceso sullo scuro) e segno sotto il punteggio. Ha lo
+  stemma (o le iniziali nel colore scelto per l'avversaria), il punteggio
+  grande, i set vinti, due pallini dei time-out per squadra e i parziali dei
   set chiusi.
 - **Scout** (`/admin/scout`, permesso «Scout», regole in `src/lib/scout/`) —
   si segna la partita scambio per scambio, al **livello** scelto prima di ogni
