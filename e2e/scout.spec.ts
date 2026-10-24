@@ -190,10 +190,16 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   const sara = usTable.locator('[data-scout-player-row]', { hasText: "Sara Rossi" });
   const giulia = usTable.locator('[data-scout-player-row]', { hasText: "Giulia Bianchi" });
   // Sara: 1 attacco vincente (punto corretto); Giulia: 1 muro.
-  await expect(sara.locator("td").nth(2)).toHaveText("1"); // punti totali
-  await expect(giulia.locator("td").nth(2)).toHaveText("1");
+  await expect(sara.locator('[data-col="punti-tot"]')).toHaveText("1");
+  await expect(giulia.locator('[data-col="punti-tot"]')).toHaveText("1");
+  await expect(giulia.locator('[data-col="muro-pt"]')).toHaveText("1");
+  // Senza formazione non si sa chi batteva: le battute di ognuna restano vuote, ma il totale della squadra c'è.
+  await expect(sara.locator('[data-col="battuta-tot"]')).toHaveText("–");
   // Squadra nostra: 2 punti da giocatrici, più 2 errori loro (battuta del n. 3 e attacco sbagliato corretto) e il fallo di rotazione loro non c'è: era nostro.
-  await expect(page.locator('[data-scout-total="us"] td').nth(2)).toHaveText("2");
+  await expect(page.locator('[data-scout-total="us"] [data-col="punti-tot"]')).toHaveText("2");
+  // Il set con i parziali e, per ogni squadra, i punti vinti del set (ace, attacco, muro, errori dell'avversaria).
+  await expect(page.locator('[data-scout-sheet-set="1"]')).toContainText("4–1");
+  await expect(page.locator('[data-scout-table="us"] [data-scout-set-row="1"] [data-col="vinti-gifts"]')).toHaveText("2");
   // Avversaria: n. 3 con battuta sbagliata, n. 8 attacco murato, e un errore di squadra nostro (rotazione) → il punto è loro.
   const oppTable = page.locator('[data-scout-table="opp"]');
   await expect(oppTable.locator('[data-scout-player-row]', { hasText: "n. 3" })).toBeVisible();

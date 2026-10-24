@@ -242,8 +242,9 @@ test.describe("il PDF del manuale", () => {
     expect(doc.getTitle()).toContain("manuale");
     // Copertina + indice + almeno una pagina per capitolo.
     expect(doc.getPageCount()).toBeGreaterThanOrEqual(SCOUT_MANUAL.length + 2);
-    // Con tre livelli, la formazione, le fasi, le schermate e il glossario sono una cinquantina di pagine: oltre, il manuale non si leggerebbe più.
-    expect(doc.getPageCount()).toBeLessThan(52);
+    // Con tre livelli, la formazione, le fasi, il tabellino ufficiale, le schermate e il glossario sono una cinquantina di pagine:
+    // oltre, il manuale non si leggerebbe più.
+    expect(doc.getPageCount()).toBeLessThan(54);
     // Verticale, A4.
     const { width, height } = doc.getPage(0).getSize();
     expect(width).toBeCloseTo(595.28, 1);

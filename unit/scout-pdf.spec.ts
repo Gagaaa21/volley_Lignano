@@ -97,15 +97,29 @@ function playedMatch({
   return data;
 }
 
-test("tabellino PDF: una partita intera in orizzontale, con più pagine e un file valido", async () => {
+test("tabellino PDF: la prima pagina è il tabellino ufficiale in verticale, poi le analisi in orizzontale", async () => {
   const bytes = await buildScoutPdf({ match: match(), scout: playedMatch(), set: null, generatedAt: new Date(Date.UTC(2026, 9, 18, 10, 0, 0)) });
   expect(isPdf(bytes)).toBe(true);
   const doc = await PDFDocument.load(bytes);
   expect(doc.getPageCount()).toBeGreaterThanOrEqual(3);
-  // A4 orizzontale.
-  const { width, height } = doc.getPage(0).getSize();
-  expect(width).toBeGreaterThan(height);
+  // Il tabellino: A4 verticale. Le analisi: A4 orizzontale.
+  const first = doc.getPage(0).getSize();
+  expect(first.width).toBeCloseTo(595.28, 1);
+  expect(first.height).toBeCloseTo(841.89, 1);
+  const second = doc.getPage(1).getSize();
+  expect(second.width).toBeGreaterThan(second.height);
   expect(doc.getTitle()).toBe("Tabellino vs Pallavolo Degano");
+});
+
+test("tabellino PDF: con rose normali il tabellino sta in una pagina; con rose lunghissime continua su una seconda", async () => {
+  const portrait = async (bytes: Uint8Array) => {
+    const doc = await PDFDocument.load(bytes);
+    return doc.getPages().filter((page) => page.getWidth() < page.getHeight()).length;
+  };
+  const twelve = Array.from({ length: 12 }, (_, i) => `Atleta ${i + 1} Cognome`);
+  expect(await portrait(await buildScoutPdf({ match: match(), scout: playedMatch({ seed: 4, usNames: twelve, oppPlayers: 12 }), set: null }))).toBe(1);
+  const forty = Array.from({ length: 40 }, (_, i) => `Atleta ${i + 1} Cognome`);
+  expect(await portrait(await buildScoutPdf({ match: match(), scout: playedMatch({ seed: 4, usNames: forty, oppPlayers: 30 }), set: null }))).toBe(2);
 });
 
 test("tabellino PDF: un solo set, o un set che non esiste (allora tutta la partita)", async () => {

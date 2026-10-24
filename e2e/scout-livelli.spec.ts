@@ -211,7 +211,10 @@ test("livello «Con ricezioni»: la striscia della ricezione, l'errore chiude lo
   await expect(page.locator("[data-scout-rotations-card]")).toHaveCount(0);
   const usTable = page.locator('[data-scout-table="us"]');
   await expect(usTable.locator("thead")).toContainText(/Pos%/i);
-  await expect(usTable.locator("thead")).not.toContainText(/Eff%/i);
+  // A livello Con ricezioni gli attacchi tentati non si segnano; al loro posto il cambio palla dopo la ricezione.
+  await expect(usTable.locator('[data-scout-total="us"] [data-col="attacco-tot"]')).toHaveText("–");
+  await expect(usTable.locator('[data-scout-total="us"] [data-col="ricezione-tot"]')).not.toHaveText("–");
+  await expect(page.locator("[data-scout-sideout-by-reception]")).toBeVisible();
   await expectPdf(page, matchId);
 
   // Stagione: compare la ricezione, e dice su quante partite si basa.
@@ -317,9 +320,12 @@ test("livello «Completo»: ogni tocco, il punto lo dà il voto, si corregge e i
   await expect(page.locator("[data-scout-zones-card]")).toBeVisible();
   await expect(page.locator("[data-scout-rotations-card]")).toBeVisible();
   const usTable = page.locator('[data-scout-table="us"]');
-  await expect(usTable.locator("thead")).toContainText(/Eff%/i);
+  await expect(usTable.locator("thead")).toContainText(/Pt%/i);
   const sara = usTable.locator("[data-scout-player-row]", { hasText: "Sara Rossi" });
-  await expect(sara.locator("td").nth(2)).toHaveText("1"); // un solo punto: l'attacco vincente dello scambio 4
+  await expect(sara.locator('[data-col="punti-tot"]')).toHaveText("1"); // un solo punto: l'attacco vincente dello scambio 4
+  // A livello Completo si contano gli attacchi tentati, e il foglio ha il cambio palla diretto e il contrattacco.
+  await expect(sara.locator('[data-col="attacco-tot"]')).not.toHaveText("–");
+  await expect(page.locator("[data-scout-attack-phases]")).toBeVisible();
   await expectPdf(page, matchId);
 
   await deleteMatchById(page, matchId);

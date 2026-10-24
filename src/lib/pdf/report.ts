@@ -136,6 +136,25 @@ export interface PdfCanvas {
   safe: (value: string) => string;
 }
 
+/**
+ * Una pagina intera disegnata da chi la chiede (per esempio il tabellino come quello delle leghe): stesse coordinate del PDF
+ * (origine in basso a sinistra), gli stessi caratteri e colori del documento. Il piede con il numero di pagina lo aggiunge il
+ * documento: il disegno deve restare sopra `bottom`.
+ */
+export interface PdfDrawnPage {
+  page: PDFPage;
+  fonts: { regular: PDFFont; bold: PDFFont };
+  colors: PdfCanvas["colors"];
+  /** Lo stemma della squadra, se c'è. */
+  crest: PDFImage | null;
+  width: number;
+  height: number;
+  /** Il margine di ogni lato, e il punto più basso che si può usare (sopra il piede). */
+  margin: number;
+  bottom: number;
+  safe: (value: string) => string;
+}
+
 /** Un tipo di riquadro evidenziato nel testo (consiglio, attenzione, esempio, informazione). */
 export type PdfCalloutKind = "tip" | "warning" | "example" | "info";
 
@@ -664,6 +683,27 @@ export class PdfReport {
       safe: this.safe,
     });
     this.cursor += height + 10;
+  }
+
+  /**
+   * Aggiunge una pagina disegnata a mano, verticale od orizzontale, nella posizione `index` (0 = la prima; di norma in fondo).
+   * Non tocca il resto del documento: le sezioni successive continuano dove erano.
+   */
+  drawnPage(orientation: "portrait" | "landscape", draw: (page: PdfDrawnPage) => void, index = this.pages.length) {
+    const [width, height] = orientation === "landscape" ? [A4_H, A4_W] : [A4_W, A4_H];
+    const page = this.doc.insertPage(index, [width, height]);
+    this.pages.splice(index, 0, page);
+    draw({
+      page,
+      fonts: this.fonts,
+      colors: { ink: INK, muted: MUTED, border: BORDER, primary: this.palette.primary, dark: this.palette.dark, soft: this.palette.soft, accent: ACCENT },
+      crest: this.crest,
+      width,
+      height,
+      margin: MARGIN,
+      bottom: MARGIN + FOOTER_RESERVE - 14,
+      safe: this.safe,
+    });
   }
 
   /**
@@ -1267,17 +1307,19 @@ export class PdfReport {
     const label = this.safe(this.options.footerLabel ?? "Volley Lignano");
     const total = this.pages.length;
     this.pages.forEach((page, index) => {
+      // Ogni pagina con la sua larghezza: in un documento ci possono essere pagine verticali e orizzontali.
+      const pageW = page.getWidth();
       const y = MARGIN - 4;
       page.drawLine({
         start: { x: MARGIN, y: y + 12 },
-        end: { x: this.pageW - MARGIN, y: y + 12 },
+        end: { x: pageW - MARGIN, y: y + 12 },
         thickness: 0.5,
         color: BORDER,
       });
       page.drawText(label, { x: MARGIN, y, size: 8, font: regular, color: MUTED });
       const pageLabel = `Pagina ${index + 1} di ${total}`;
       const width = regular.widthOfTextAtSize(pageLabel, 8);
-      page.drawText(pageLabel, { x: this.pageW - MARGIN - width, y, size: 8, font: regular, color: MUTED });
+      page.drawText(pageLabel, { x: pageW - MARGIN - width, y, size: 8, font: regular, color: MUTED });
     });
     return this.doc.save();
   }

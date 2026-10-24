@@ -4,15 +4,14 @@ import { it } from "date-fns/locale";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { PdfReport, type PdfCanvas, type PdfCell, type PdfCellInput, type PdfColumn } from "@/lib/pdf/report";
-import { cellText, columnsFor, totalOf, type Column, type Row } from "@/lib/scout/columns";
 import { lineupSummary, type StartingLineupRow, type SubstitutionRow } from "@/lib/scout/court";
 import { deriveScout } from "@/lib/scout/derive";
-import { footnoteFor, legendFor } from "@/lib/scout/legend";
+import { addSheetPages } from "@/lib/pdf/scoutSheetPdf";
+import { buildSheet } from "@/lib/scout/sheet";
 import { effectiveLevel, LEVEL_META } from "@/lib/scout/levels";
 import { ERROR_HOWS, HOW_META } from "@/lib/scout/rules";
 import {
   computeStats,
-  hasActivity,
   percent,
   pointsFromErrors,
   sumDetails,
@@ -28,13 +27,10 @@ import { SCOUT_GRADES, type ScoutData, type ScoutGrade, type ScoutLevel } from "
 import type { Match } from "@/lib/types";
 
 /**
- * Il tabellino di una partita in PDF (A4 orizzontale): parziali, come si è
- * fatto punto, errori e falli, andamento del punteggio e una tabella per
- * squadra con i numeri di ogni giocatrice. Coi livelli «Con ricezioni» e
- * «Completo» si aggiungono la ricezione (voti, zone, cambio palla) e, nel
- * Completo, le mappe del campo, le rotazioni e le colonne di battuta, attacco
- * e difesa. Stessi conti e stesse colonne della pagina «Tabellino»
- * (src/lib/scout/stats.ts e columns.ts).
+ * Il tabellino di una partita in PDF. La prima pagina (A4 verticale) è il tabellino come quelli delle leghe, sempre su tutta la
+ * partita (src/lib/pdf/scoutSheetPdf.ts); poi le analisi in A4 orizzontale: parziali, come si è fatto punto, errori e falli,
+ * andamento del punteggio e, coi livelli «Con ricezioni» e «Completo», la ricezione (voti, zone, cambio palla), le mappe del campo
+ * e le rotazioni; infine formazioni e cambi. Con `set` le analisi sono di quel set solo. Stessi conti della pagina «Tabellino».
  */
 
 export interface ScoutPdfInput {
@@ -49,12 +45,6 @@ const dash: PdfCell = { text: "–", tone: "muted" };
 
 function count(value: number): PdfCellInput {
   return value === 0 ? dash : String(value);
-}
-
-function signed(value: number): string {
-  if (value > 0) return `+${value}`;
-  if (value < 0) return `-${Math.abs(value)}`;
-  return "0";
 }
 
 function ratio(part: number, total: number): string {
@@ -151,42 +141,6 @@ function drawFlow(canvas: PdfCanvas, sets: SetSummary[]) {
 
 // ── tabelle ─────────────────────────────────────────────────────────────
 
-function balanceCell(value: number): PdfCell {
-  return { text: signed(value), tone: value > 0 ? "success" : value < 0 ? "danger" : "muted" };
-}
-
-/** Le colonne del tabellino di una squadra: quelle del livello, uguali a quelle della pagina. */
-function playerColumns(level: ScoutLevel): PdfColumn[] {
-  const compact = level === "completo";
-  return [
-    { header: "N°", weight: compact ? 0.6 : 0.55, align: "center" },
-    { header: "Giocatrice", weight: compact ? 3.4 : 3.2 },
-    ...columnsFor(level).map((column) => ({ header: column.pdf, weight: compact ? 1 : 0.85, align: "center" as const })),
-  ];
-}
-
-function statCell(column: Column, row: Row, total = false): PdfCellInput {
-  const text = cellText(column, row, { ascii: true });
-  if (column.kind === "balance") return total ? { text, bold: true } : balanceCell(column.value(row) ?? 0);
-  if (column.kind === "pct" || column.kind === "eff") return text === "–" ? dash : { text, bold: total };
-  const n = column.value(row) ?? 0;
-  if (!total && n === 0 && column.kind !== "strong") return dash;
-  return { text, bold: total || column.kind === "strong" };
-}
-
-function playerRow(p: PlayerStats, level: ScoutLevel): PdfCellInput[] {
-  return [
-    { text: p.number ?? "–", bold: true, tone: p.number ? "default" : "muted" },
-    { text: p.libero ? `${p.name} (L)` : p.name, bold: true, tone: p.id === "?" ? "muted" : "default" },
-    ...columnsFor(level).map((column) => statCell(column, p)),
-  ];
-}
-
-function totalRow(players: PlayerStats[], level: ScoutLevel): PdfCellInput[] {
-  const total = totalOf(players);
-  return ["", { text: "Squadra", bold: true }, ...columnsFor(level).map((column) => statCell(column, total, true))];
-}
-
 /** Titolo e tabella insieme: se non ci stanno nello spazio rimasto, vanno tutti in una pagina nuova. */
 function tableSection(
   report: PdfReport,
@@ -200,28 +154,6 @@ function tableSection(
   report.requireSpace(24 + (rows.length > 0 ? report.tableHeight(columns, rows, { compact }) : 30));
   report.heading(title, detail);
   report.table(columns, rows, { keepTogether: true, emptyText, compact });
-}
-
-function playerSection(report: PdfReport, title: string, side: "us" | "opp", players: PlayerStats[], level: ScoutLevel) {
-  const active = players.filter(hasActivity);
-  const idle = players.filter((p) => !hasActivity(p));
-  const columns = playerColumns(level);
-  const compact = level === "completo";
-  const rows = [...active.map((p) => playerRow(p, level)), totalRow(players, level)];
-  // Titolo e tabella restano insieme: se non ci stanno nello spazio rimasto, vanno tutti in una pagina nuova.
-  report.requireSpace(24 + report.tableHeight(columns, rows, { compact }) + (idle.length > 0 ? 22 : 0));
-  report.heading(title);
-  report.table(columns, rows, {
-    keepTogether: true,
-    compact,
-    emptyText: side === "us" ? "Nessuna azione segnata." : "Nessuna azione segnata per l'avversaria.",
-  });
-  if (idle.length > 0) {
-    report.text(`Senza azioni segnate: ${idle.map((p) => (side === "opp" ? `n. ${p.number ?? p.name}` : p.name)).join(", ")}.`, {
-      size: 8,
-      gapAfter: 10,
-    });
-  }
 }
 
 function howRows(us: TeamStats, opp: TeamStats): PdfCellInput[][] {
@@ -537,7 +469,7 @@ export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdf
     .join(" · ");
 
   const report = await PdfReport.create({
-    title: `Tabellino ${matchTitle(match)}`,
+    title: `Analisi ${matchTitle(match)}`,
     subtitle,
     documentTitle: `Tabellino ${matchTitle(match)}`,
     footerLabel: "Volley Lignano · scout, riservato allo staff",
@@ -547,6 +479,9 @@ export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdf
   });
 
   const over = view.decided || scout.finished;
+  // La prima pagina: il tabellino come quelli delle leghe (sempre tutta la partita).
+  addSheetPages(report, buildSheet(scout, view), match, over);
+
   report.heading(
     "Risultato",
     over ? "Calcolato con lo scout: non è il risultato ufficiale" : "Partita non ancora conclusa: risultato provvisorio",
@@ -609,12 +544,8 @@ export async function buildScoutPdf({ match, scout, set, generatedAt }: ScoutPdf
   const lineups = lineupSummary(view, scout.roster, selected);
   lineupSections(report, lineups.starts, lineups.subs, match.opponent);
 
-  playerSection(report, "Volley Lignano", "us", stats.players.us, level);
-  playerSection(report, match.opponent, "opp", stats.players.opp, level);
-
-  report.requireSpace(60);
-  report.text(`Come leggere: ${legendFor(level).map(([term, text]) => `${term} = ${text}`).join("  ·  ")}`, { size: 7.5, gapAfter: 3 });
-  report.text(`${footnoteFor(level)} Le durate dei set sono stimate dall'ora del primo tocco o punto e dell'ultimo punto segnato.`, {
+  report.requireSpace(30);
+  report.text("I numeri di ogni giocatrice sono nel tabellino, alla prima pagina. Le durate dei set sono stimate dall'ora del primo tocco o punto e dell'ultimo punto segnato.", {
     size: 7.5,
     gapAfter: 0,
   });

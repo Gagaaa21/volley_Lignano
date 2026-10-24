@@ -641,16 +641,47 @@ export function getScoutTabellinoTourSteps(matchId: string, context: ScoutTabell
       path,
       target: "scout-tab-result",
       chapter: C_TAB,
-      title: "Il risultato",
-      body: "È il risultato calcolato dai punti che hai segnato, con il parziale di ogni set e la durata stimata (dal primo all'ultimo punto del set).\n\nNon è il risultato ufficiale: quello lo inserisci in Partite. Se i parziali sono diversi compare un avviso, così controlli quale dei due è giusto.",
+      title: "Il tabellino",
+      body: "È fatto come i tabellini delle leghe: in alto il campionato, le due squadre con i set vinti, i dati della partita e i set con la durata stimata, i parziali (il punteggio quando una delle due arriva a 8, 16 e 21) e il finale.\n\nÈ calcolato dai punti che hai segnato, non è il risultato ufficiale: quello lo inserisci in Partite. Se i parziali sono diversi compare un avviso, così controlli quale dei due è giusto.",
+    },
+    {
+      id: "scout-tab-players",
+      path,
+      target: "scout-tab-players",
+      chapter: C_TAB,
+      title: "Le giocatrici",
+      body:
+        "Una tabella per squadra, con tutta la rosa. Nella colonna «Set» c'è da dove è partita in ogni set (il numero della posizione, 1 = in battuta) o un rettangolo se è entrata dopo; i set cerchiati sono quelli in cui la squadra ha battuto per prima. Poi punti (Tot, BP, V-P), battuta, ricezione, attacco e muro; sotto, i totali e i punti vinti set per set (Bat ace, Att attacco, Mu muro, Er.Av errori dell'avversaria)." +
+        (context.level === "base"
+          ? "\n\nA livello Base ricezioni e attacchi tentati non si segnano: lì trovi «–»."
+          : context.level === "ricezioni"
+            ? "\n\nA livello Con ricezioni gli attacchi tentati non si segnano: lì trovi «–»."
+            : ""),
+      tip: "Lo zero è un punto « . », come nei tabellini ufficiali; le battute di ogni giocatrice si contano quando segui la formazione.",
+    },
+    {
+      id: "scout-tab-summary",
+      path,
+      target: "scout-tab-summary",
+      chapter: C_TAB,
+      title: "Rotazioni, ricezioni e battute",
+      body: "Per ogni squadra: i punti fatti meno quelli persi in ogni rotazione, quante ricezioni servono per un punto in cambio palla (CP) e quante battute per un break point (BP). In mezzo, a livello Completo, il cambio palla diretto (il primo attacco dopo una ricezione positiva o negativa) e il contrattacco; a livello Con ricezioni, il cambio palla dopo una ricezione positiva o negativa.",
+    },
+    {
+      id: "scout-tab-legend",
+      path,
+      target: "scout-tab-legend",
+      chapter: C_TAB,
+      title: "Come leggere le sigle",
+      body: "In fondo al tabellino trovi il significato di ogni sigla (BP, V-P, Pos%, Prf%, Er.Av, CP…) e dei segni della colonna dei set, e cosa non si segna al livello di questa partita.",
     },
     {
       id: "scout-tab-sets",
       path,
       target: "scout-tab-sets",
       chapter: C_TAB,
-      title: "Tutta la partita o un set",
-      body: "Scegli se guardare tutta la partita o un solo set: tutte le tabelle sotto si ricalcolano. Utile per capire, per esempio, perché il terzo set è andato male.",
+      title: "Le analisi: tutta la partita o un set",
+      body: "Sotto il tabellino ci sono le analisi. Scegli se guardare tutta la partita o un solo set: tutte le analisi sotto si ricalcolano. Utile per capire, per esempio, perché il terzo set è andato male.",
     },
     {
       id: "scout-tab-bp",
@@ -699,36 +730,12 @@ export function getScoutTabellinoTourSteps(matchId: string, context: ScoutTabell
         ]
       : []),
     {
-      id: "scout-tab-players",
-      path,
-      target: "scout-tab-players",
-      chapter: C_TAB,
-      title: "Le giocatrici",
-      body:
-        context.level === "base"
-          ? "Una riga per ogni giocatrice, per noi e per l'avversaria: punti totali, punti in battuta, ace, errori, attacchi e muri. In fondo, sotto la riga «Squadra», trovi i totali; chi non ha nessuna azione segnata è raccolta in una riga a parte («Senza azioni segnate»)."
-          : "Una riga per ogni giocatrice, per noi e per l'avversaria. Oltre ai punti, agli ace e agli errori ci sono le colonne dei tocchi che hai segnato: ricezione (totali, positiva %, perfetta %)" +
-            (context.level === "completo" ? ", battute, attacchi (punto %, efficienza), muri e difese" : "") +
-            ". In fondo, sotto la riga «Squadra», trovi i totali.",
-    },
-    {
-      id: "scout-tab-legend",
-      path,
-      target: "scout-tab-legend",
-      chapter: C_TAB,
-      title: "Come leggere le sigle",
-      body:
-        context.level === "base"
-          ? "Qui sotto trovi il significato di ogni sigla del tabellino (Tot, BP, V-P, Ace, Err…). A livello Base lo Scout segna come finisce ogni scambio, non ogni tocco: per questo mancano le percentuali di attacco e di ricezione dei tabellini di Lega (le trovi coi livelli «Con ricezioni» e «Completo»)."
-          : "Qui sotto trovi il significato di ogni sigla del tabellino (Tot, BP, V-P, Pos%, Prf%, Eff%…). Le percentuali sono calcolate sui tocchi che hai segnato.",
-    },
-    {
       id: "scout-tab-pdf",
       path,
       target: "scout-tab-pdf",
       chapter: C_TAB,
       title: "Il PDF",
-      body: "Scarica il tabellino in PDF, da stampare o condividere. Se hai scelto un set, il PDF contiene solo quello.",
+      body: "Scarica il tabellino in PDF, da stampare o condividere: la prima pagina è il tabellino come quello delle leghe (A4 verticale), poi le analisi. Se hai scelto un set, le analisi del PDF sono solo di quel set.",
     },
   ];
 }

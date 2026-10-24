@@ -225,7 +225,7 @@ test("ogni pagina dello Scout ha la sua guida dal punto interrogativo: elenco, s
   await page.locator("[data-tour-start]").click();
   await expect(card(page)).toHaveAttribute("data-tour-step", "scout-tab-result");
   const tab = await walkTour(page);
-  expect(tab).toEqual(["scout-tab-result", "scout-tab-sets", "scout-tab-bp", "scout-tab-how", "scout-tab-errors", "scout-tab-flow", "scout-tab-players", "scout-tab-legend", "scout-tab-pdf"]);
+  expect(tab).toEqual(["scout-tab-result", "scout-tab-players", "scout-tab-summary", "scout-tab-legend", "scout-tab-sets", "scout-tab-bp", "scout-tab-how", "scout-tab-errors", "scout-tab-flow", "scout-tab-pdf"]);
 
   await deleteMatchById(page, matchId);
 });

@@ -1311,23 +1311,78 @@ export const SCOUT_MANUAL: ManualChapter[] = [
   {
     id: "tabellino",
     title: "Il tabellino",
-    summary: "I numeri della partita: risultato, statistiche di squadra e di ogni giocatrice.",
+    summary: "Il tabellino come quelli delle leghe, poi le analisi della partita.",
     blocks: [
       {
         type: "p",
         text: `Dall'elenco delle partite, o dal pulsante **Tabellino** in alto nella pagina della partita, apri il tabellino. Funziona anche **mentre si gioca**: fino alla fine i numeri sono provvisori. Quello che contiene dipende dal **livello** della partita (${cap("livelli")}).`,
       },
       {
+        type: "p",
+        text: "In cima c'è **il tabellino**, fatto come quelli delle leghe: si legge allo stesso modo e si confronta con quelli ufficiali. Sotto ci sono **le analisi** della partita.",
+      },
+      {
         type: "image",
-        file: "tabellino-alto.png",
+        file: "tabellino-foglio.png",
         caption: "La parte alta del tabellino.",
         legend: [
-          "Il risultato in set e i parziali, con la durata stimata di ogni set. Non è il risultato ufficiale.",
-          "Il selettore: tutta la partita oppure un solo set.",
+          "Il campionato, le due squadre e i set vinti. È il risultato calcolato con lo Scout, non quello ufficiale.",
+          "Data, orario, impianto, gara (campionato, amichevole o torneo, in casa o in trasferta) e livello dello Scout.",
+          "I set: durata stimata, **parziali** (il punteggio quando una delle due arriva a 8, 16 e 21) e finale; in fondo il totale.",
+        ],
+        maxHeight: 170,
+      },
+      { type: "sub", title: "Le giocatrici" },
+      {
+        type: "p",
+        text: "Una tabella per squadra, con **tutta la rosa** in ordine di maglia (L = libero). Lo zero si scrive con un punto **.** come nei tabellini ufficiali; il trattino **-** vuol dire che a quel livello quella cosa non si segna.",
+      },
+      {
+        type: "image",
+        file: "tabellino-giocatrici.png",
+        caption: "La tabella di una squadra (livello Base, seguendo la formazione).",
+        legend: [
+          "**Set**: da dove è partita in ogni set (1 = in battuta); il rettangolo: è entrata dopo, o è la libero.",
+          "Punti, battuta, ricezione, attacco e muro di ogni giocatrice.",
+          "**Totali giocatrici**: la somma della squadra.",
+          "**Punti vinti** set per set: ace (Bat), attacco (Att), muro (Mu), errori dell'avversaria (Er.Av), e gli altri numeri del set.",
+        ],
+        maxHeight: 140,
+      },
+      { type: "legend", level: "base" },
+      {
+        type: "p",
+        text: "Con **Con ricezioni** si riempiono anche le colonne della ricezione (le nostre):",
+      },
+      { type: "legend", level: "ricezioni", onlyNew: true },
+      {
+        type: "p",
+        text: "Con **Completo** si riempiono tutte, anche gli attacchi tentati, e in fondo compaiono il cambio palla diretto e il contrattacco:",
+      },
+      { type: "legend", level: "completo", onlyNew: true },
+      { type: "sub", title: "Rotazioni, ricezioni e battute" },
+      {
+        type: "image",
+        file: "tabellino-riepilogo.png",
+        caption: "In fondo al tabellino, per ogni squadra e in mezzo per tutte e due.",
+        legend: [
+          "In ogni **rotazione** (la 1ª è quella con cui comincia il set) i punti fatti meno quelli persi.",
+          "**Ricezioni** e punti in cambio palla (**CP**): quante ricezioni servono per un punto. **Battute** e **break point** (**BP**): quante battute servono per un punto in battuta.",
+          "A livello Completo il **cambio palla diretto** (il primo attacco dopo una ricezione positiva o negativa) e il **contrattacco**; a livello Con ricezioni, il cambio palla dopo una ricezione positiva o negativa.",
+        ],
+        maxHeight: 135,
+      },
+      { type: "sub", title: "Le analisi" },
+      {
+        type: "image",
+        file: "tabellino-alto.png",
+        caption: "Sotto il tabellino cominciano le analisi.",
+        legend: [
+          "Il selettore: tutta la partita oppure un solo set. Le analisi sotto si ricalcolano.",
           "Il livello della partita: Base, Con ricezioni o Completo.",
           "I quattro numeri chiave: break point, cambio palla, serie di punti più lunga, errori commessi.",
         ],
-        maxHeight: 270,
+        maxHeight: 120,
       },
       { type: "sub", title: "I numeri chiave" },
       {
@@ -1407,48 +1462,16 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         ],
         maxHeight: 170,
       },
-      { type: "sub", title: "La tabella delle giocatrici" },
-      {
-        type: "p",
-        text: "Le colonne cambiano con il livello. Queste sono quelle del **Base**; **N°** è il numero di maglia. Ogni gruppo ha le sue colonne (Punti, Battuta, Ricezione, Attacco, Muro).",
-      },
-      {
-        type: "image",
-        file: "tabellino-giocatrici.png",
-        caption: "La tabella di una squadra a livello Base: una riga per giocatrice.",
-        maxHeight: 230,
-      },
-      { type: "legend", level: "base" },
-      {
-        type: "p",
-        text: "Con **Con ricezioni** si aggiunge il gruppo **Ricezione**:",
-      },
-      { type: "legend", level: "ricezioni", onlyNew: true },
-      {
-        type: "p",
-        text: "Con **Completo** la tabella ha più colonne (sul computer scorre di lato) e queste sono nuove o cambiano:",
-      },
-      { type: "legend", level: "completo", onlyNew: true },
-      {
-        type: "image",
-        file: "tabellino-completo.png",
-        caption: "La tabella a livello Completo: Punti, Battuta e Ricezione; scorrendo a destra Attacco, Muro, Difesa e Altri.",
-        maxHeight: 200,
-      },
-      {
-        type: "p",
-        text: "In fondo alla tabella la riga **Squadra** somma tutte le giocatrici. Quelle senza nessuna azione segnata sono raccolte in una riga a parte («Senza azioni segnate»).",
-      },
-      { type: "sub", title: "Il PDF" },
-      {
-        type: "p",
-        text: "**Scarica PDF** (in alto nel tabellino, e accanto a ogni partita nell'elenco) crea il tabellino da stampare, con le stesse schede del livello della partita: da quattro pagine a livello Base a sette a livello Completo. Se hai scelto un set, il PDF contiene solo quello. **Condividi PDF** (accanto) lo manda come file: dal telefono si apre il foglio di condivisione con il PDF già allegato, dal computer il file si scarica.",
-      },
       {
         type: "callout",
         kind: "info",
         title: "Parziali diversi da «Partite»",
         text: "Se hai già scritto i parziali in **Partite** e sono diversi da quelli dello Scout, il tabellino mostra un avviso: controlla quale dei due è giusto.",
+      },
+      { type: "sub", title: "Il PDF" },
+      {
+        type: "p",
+        text: "**Scarica PDF** (in alto nel tabellino, e accanto a ogni partita nell'elenco) crea il tabellino da stampare: la **prima pagina** (A4 verticale) è il tabellino come quelli delle leghe, sempre su tutta la partita; poi le analisi, con le stesse schede del livello della partita. Se hai scelto un set, le analisi del PDF sono solo di quel set. **Condividi PDF** (accanto) lo manda come file: dal telefono si apre il foglio di condivisione con il PDF già allegato, dal computer il file si scarica.",
       },
     ],
   },

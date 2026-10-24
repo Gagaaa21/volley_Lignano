@@ -3,7 +3,6 @@ import { Binoculars, ChartNoAxesColumn, FileDown, Pencil } from "lucide-react";
 import { matchTitle } from "@/lib/calendar";
 import { formatDateLong } from "@/lib/format";
 import { deriveScout } from "@/lib/scout/derive";
-import { footnoteFor, legendFor } from "@/lib/scout/legend";
 import { effectiveLevel, LEVEL_META } from "@/lib/scout/levels";
 import { summarizeScout } from "@/lib/scout/match";
 import { isScoutTableMissing } from "@/lib/scout/missing";
@@ -12,7 +11,9 @@ import { ScoutSetupNeeded } from "@/components/scout/ScoutSetupNeeded";
 import { requireScoutMatch } from "@/lib/scout/server";
 import { computeStats, emptyZones, percent, zonedTouches } from "@/lib/scout/stats";
 import { ReceptionBars, ReceptionTiles, RotationsTable, SideOutByGrade, ZoneMaps } from "@/components/scout/ScoutDetail";
-import { ErrorsTable, FlowChart, HowComparison, PlayerTable } from "@/components/scout/ScoutTables";
+import { ErrorsTable, FlowChart, HowComparison } from "@/components/scout/ScoutTables";
+import { TabellinoSheet } from "@/components/scout/TabellinoSheet";
+import { buildSheet } from "@/lib/scout/sheet";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutTabellinoTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutLineups } from "@/components/scout/ScoutLineups";
@@ -26,15 +27,10 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedLinks } from "@/components/ui/Segmented";
 import { StatTile } from "@/components/ui/StatTile";
-import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "Tabellino",
 };
-
-function minutesLabel(minutes: number): string {
-  return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}'` : `${minutes}'`;
-}
 
 export default async function ScoutTabellinoPage({
   params,
@@ -134,10 +130,8 @@ export default async function ScoutTabellinoPage({
   const { us, opp } = stats;
 
   const over = summary.state === "done";
-  const result = view.setsWon;
-  const totalMinutes = stats.sets.every((set) => set.rallies === 0 || set.minutes !== null)
-    ? stats.sets.reduce((sum, set) => sum + (set.minutes ?? 0), 0)
-    : null;
+  // Il tabellino come quelli delle leghe: sempre su tutta la partita, con i set riga per riga.
+  const sheet = buildSheet(scout, view);
 
   // Il risultato inserito in «Partite» e quello dello scout dovrebbero coincidere.
   const scoutPartials = played.map((set) => `${set.score.us}-${set.score.opp}`).join(" ");
@@ -147,71 +141,23 @@ export default async function ScoutTabellinoPage({
   const setLabel = selected ? `${selected}° set` : "tutta la partita";
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       {header}
 
       <div className="space-y-8">
-        <section
-          aria-label="Risultato"
-          data-scout-result
-          data-tour="scout-tab-result"
-          className="overflow-hidden rounded-2xl bg-sea-950 p-5 text-white shadow-[0_14px_32px_-20px_rgba(12,30,42,0.7)] ring-1 ring-sea-950/10 sm:p-6"
-        >
-          <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/60">
-            {over ? "Risultato dello scout" : "Partita in corso (risultato provvisorio)"}
-            {over && result.us !== result.opp && (
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[11px] tracking-[0.08em]",
-                  result.us > result.opp ? "bg-green-400/20 text-green-300" : "bg-red-400/20 text-red-300",
-                )}
-                data-scout-outcome
-              >
-                {result.us > result.opp ? "Vittoria" : "Sconfitta"}
-              </span>
-            )}
-          </p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-            <p className="tabular flex items-baseline gap-3 font-display text-6xl font-extrabold leading-none sm:text-7xl">
-              <span data-scout-result-us>{result.us}</span>
-              <span aria-hidden className="text-4xl font-bold text-white/30">
-                –
-              </span>
-              <span data-scout-result-opp>{result.opp}</span>
-              <span className="ml-1 text-base font-bold text-white/60">set</span>
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {played.map((set) => {
-                const summaryOfSet = stats.sets.find((s) => s.n === set.n);
-                return (
-                  <span
-                    key={set.n}
-                    className={cn(
-                      "tabular rounded-full px-3 py-1.5 text-sm font-bold",
-                      set.winner === "us" ? "bg-sea-500/35 text-white" : set.winner === "opp" ? "bg-sand-400/30 text-white" : "bg-white/10 text-white/80",
-                    )}
-                  >
-                    <span className="mr-1.5 text-xs font-semibold text-white/60">{set.n}°</span>
-                    {set.score.us}–{set.score.opp}
-                    {summaryOfSet?.minutes ? <span className="ml-2 text-xs font-medium text-white/55">{summaryOfSet.minutes} min</span> : null}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-white/55">
-            Calcolato dai punti segnati con lo scout: non è il risultato ufficiale.
-            {over ? "" : " La partita non è ancora conclusa."}
-            {totalMinutes ? ` Durata stimata: ${minutesLabel(totalMinutes)}.` : ""}
-          </p>
-        </section>
-
         {differs && (
           <p role="status" className="rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground" data-scout-differs>
             I parziali inseriti in <b>Partite</b> ({officialPartials.replaceAll(" ", " · ")}) sono diversi da quelli dello scout ({scoutPartials.replaceAll(" ", " · ")}).
             Controlla quale dei due è giusto.
           </p>
         )}
+
+        <TabellinoSheet sheet={sheet} match={match} over={over} />
+
+        <div className="space-y-1 border-t border-border pt-6">
+          <h2 className="font-display text-xl font-extrabold text-foreground">Analisi della partita</h2>
+          <p className="text-sm text-muted-foreground">Break point, come si è fatto punto, errori, andamento e (con i livelli più alti) ricezione, zone e rotazioni: per tutta la partita o per un set.</p>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3" data-tour="scout-tab-sets">
           <SegmentedLinks
@@ -347,29 +293,6 @@ export default async function ScoutTabellinoPage({
 
         {lineups && <ScoutLineups {...lineups} opponent={match.opponent} />}
 
-        <div className="space-y-6" data-tour="scout-tab-players">
-          <PlayerTable side="us" players={stats.players.us} title="Volley Lignano" level={level} />
-          <PlayerTable side="opp" players={stats.players.opp} title={match.opponent} level={level} />
-        </div>
-
-        <Card className="bg-surface-muted/60 shadow-none" data-tour="scout-tab-legend">
-          <CardHeader className="pb-2">
-            <CardTitle>Come leggere il tabellino</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <dl className="grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2">
-              {legendFor(level).map(([term, text]) => (
-                <div key={term}>
-                  <dt className="inline font-bold text-foreground">{term}: </dt>
-                  <dd className="inline text-muted-foreground">{text}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              {footnoteFor(level)} Le durate dei set sono stimate dall&apos;ora in cui sono stati segnati il primo tocco o punto e l&apos;ultimo punto.
-            </p>
-          </CardBody>
-        </Card>
       </div>
     </div>
   );

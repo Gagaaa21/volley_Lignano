@@ -257,14 +257,34 @@ staff (Developer e Admin).
   punteggi, set vinti, chi batte, break point e cambio palla si ricavano ogni
   volta (`derive.ts`), quindi correggere o annullare uno scambio non può
   mandare niente fuori sincrono. Le regole dei set sono quelle FIPAV (25 con 2
-  di scarto, ultimo set a 15; 3 set su 5, 2 su 3 o 3 fissi). Il tabellino
-  (`stats.ts`, pagina `/admin/scout/[matchId]/tabellino` e PDF in
-  `src/lib/pdf/scoutPdf.ts`) ricalca le colonne di quello di Lega che si
-  possono compilare senza segnare ogni tocco: punti, BP, V-P, ace, errori,
-  attacchi vincenti/sbagliati/murati, muri, più «come si è fatto punto»,
-  errori e falli, andamento del punteggio e riepilogo di stagione; a livello
-  Base non ci sono attacchi tentati né percentuali di attacco e ricezione
-  (arrivano con i livelli superiori, vedi sotto). Il salvataggio
+  di scarto, ultimo set a 15; 3 set su 5, 2 su 3 o 3 fissi). Il **tabellino**
+  (pagina `/admin/scout/[matchId]/tabellino`, `TabellinoSheet.tsx`) è fatto
+  come quelli delle leghe (gli scout ufficiali): campionato e stagione, le due
+  squadre con i set vinti, dati della partita, set con durata stimata,
+  **parziali** (il punteggio quando una delle due arriva a 8, 16 e 21; a 8 nel
+  set corto) e finali; una tabella per squadra con tutta la rosa: **Set** (la
+  posizione di partenza in ogni set, un rettangolo per chi è entrata o la
+  libero, i set cerchiati dove la squadra ha battuto per prima), Punti Tot/BP/V-P,
+  Battuta Tot/Err/Pt, Ricezione Tot/Err/Pos%/(Prf%), Attacco Tot/Err/Mur/Pt/Pt%,
+  Muro Pt, i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
+  sotto, per ogni squadra i punti fatti meno persi in ogni rotazione,
+  ricezioni e punti in cambio palla (CP), battute e break point (BP), e in
+  mezzo il **cambio palla diretto** (primo attacco dopo ricezione positiva o
+  negativa) e il **contrattacco** a livello Completo (a Con ricezioni il cambio
+  palla dopo ricezione positiva o negativa). Lo zero è « . » come nei
+  tabellini ufficiali, «–» vuol dire che a quel livello non si segna. Tutto si
+  ricava dagli scambi già segnati (`buildSheet` in `sheet.ts`, colonne e
+  formati in `sheetFormat.ts`, usati insieme da pagina e PDF), quindi vale
+  anche per le partite scoutizzate prima; le battute di ogni giocatrice si
+  contano quando si sa chi batteva (`serverOf`: la battuta segnata, chi ha fatto
+  l'ace o sbagliato la battuta, oppure la posizione 1 con la formazione). Sotto
+  il tabellino ci sono le **analisi** (tutta la partita o un set: break point,
+  cambio palla, «come si è fatto punto», errori e falli, andamento del
+  punteggio e, coi livelli superiori, ricezione, mappe e rotazioni). Il PDF
+  (`src/lib/pdf/scoutPdf.ts`) ha come prima pagina il tabellino in A4 verticale
+  (`scoutSheetPdf.ts`, disegnato con `PdfReport.drawnPage`; con rose lunghissime
+  continua su una seconda pagina), poi le analisi in A4 orizzontale. Il
+  riepilogo di stagione resta con le colonne di `columns.ts`. Il salvataggio
   (`useScoutSession`) è automatico e non deve mai far perdere punti: lo stato è
   in un solo posto (`createSessionStore`) letto da pagina e salvataggi; ogni
   richiesta ha un limite di tempo (`SAVE_TIMEOUT_MS`, poi si interrompe e si
@@ -299,8 +319,8 @@ staff (Developer e Admin).
     punto e di chi segna ogni tocco. `stats.ts` ricava ricezione, attacchi
     totali, efficienza, difese, zone e rotazioni (si parte dalla 1ª a ogni set
     e si avanza a ogni cambio palla: senza formazioni sono indicative). Le
-    colonne del tabellino sono in `columns.ts` e la legenda in `legend.ts`,
-    usate insieme dalla pagina e dal PDF. Inserimento: scheda della
+    colonne del tabellino sono in `sheetFormat.ts` (pagina e PDF) e la legenda
+    per livello del manuale in `legend.ts`. Inserimento: scheda della
     ricezione (`ScoutReception.tsx`: quando battono loro si apre da sola una
     finestra, la stessa dei tasti dei punti (`ScoutSheet.tsx`), con il campo a
     sinistra dove si tocca chi ha ricevuto, i voti grandi a destra, la zona
