@@ -178,7 +178,8 @@ export function PlanSplitCheck({ plans, single = false }: { plans: PlanRef[]; si
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground" aria-hidden>
           <Sparkles className="h-4 w-4" />
         </span>
-        <div className="min-w-0 flex-1">
+        {/* Il testo tiene almeno 12rem: sul telefono è il pulsante ad andare a capo, invece di ridurre il testo a una parola per riga. */}
+        <div className="min-w-[12rem] flex-1">
           <p className="font-display text-[15px] font-bold leading-tight text-foreground">
             {single ? "Divisione in blocchi" : "Ricontrolla le schede con l'IA"}
           </p>
