@@ -721,6 +721,16 @@ non deve mai iniziare con `NEXT_PUBLIC_`.
    secondo invece di attraversare l'oceano. Se il progetto Supabase è in
    un'altra regione (Supabase → Project Settings → General), scegli in
    `vercel.json` la regione di Vercel più vicina.
+5. Spazio delle funzioni («Functions Storage», 10 GB in tutto sul piano
+   gratuito): ogni pubblicazione conserva le sue funzioni, una per pagina.
+   `outputFileTracingExcludes` in `next.config.ts` ne tiene fuori sharp
+   (~48 MB a funzione, inutile: su Vercel le immagini le ottimizza il suo
+   servizio) e il motore delle immagini di anteprima (`@vercel/og`, serve solo
+   a `/opengraph-image`). Così una pubblicazione occupa circa 0,27 GB invece
+   di 3,2. Per controllare dopo una build:
+   `find .next/server -name "*.nft.json" | xargs grep -l "sharp"` non deve
+   trovare niente. Le pubblicazioni vecchie si cancellano da **Deployments**
+   (resta sempre quella in produzione).
 
 ## Struttura del progetto
 

@@ -6,6 +6,21 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/scout/manuale": ["src/assets/pdf/**/*", "src/assets/fonts/**/*"],
   },
+  // Spazio su Vercel: ogni pubblicazione conserva le sue funzioni, e il piano gratuito ha 10 GB in tutto («Functions
+  // Storage»). Da solo Next metterebbe in quasi ogni funzione sharp (circa 48 MB, in tre versioni) per ottimizzare le
+  // immagini, ma su Vercel le ottimizza il suo servizio e il sito non lo usa altrove; e il motore delle immagini di
+  // anteprima (@vercel/og, circa 3 MB), che serve solo a /opengraph-image. Le chiavi sono confrontate «contenute» nel
+  // percorso: per questo la home non è nell'elenco («/» le prenderebbe tutte, /opengraph-image compresa) e se lo tiene.
+  outputFileTracingExcludes: {
+    "/**": ["node_modules/sharp/**/*", "node_modules/@img/**/*"],
+    "next-server": ["node_modules/sharp/**/*", "node_modules/@img/**/*"],
+    ...Object.fromEntries(
+      ["/_not-found", "/admin/**", "/diretta/**", "/disponibilita/**", "/login/**", "/minivolley/**", "/notifiche/**"].map((route) => [
+        route,
+        ["node_modules/next/dist/compiled/@vercel/og/**/*"],
+      ]),
+    ),
+  },
   async headers() {
     return [
       {
