@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PREDICTION_GRACE_LABEL } from "@/lib/predictions";
 import { RULES_SEASON, SUBSTITUTIONS_PER_SET, TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import {
   Binoculars,
@@ -188,7 +189,7 @@ const SECTIONS: Section[] = [
     title: "Pronostici",
     intro: "Pronostica il punteggio di ogni set insieme al resto dello staff.",
     points: [
-      "Tutte le partite della stagione sono visibili fin da subito, ma si può pronosticare solo a partire dal giorno in cui si gioca. I pronostici restano aperti fino a un'ora dopo l'inizio della partita (la pagina indica l'orario di chiusura) e si chiudono prima solo se il risultato è già stato inserito. Dopo la chiusura i pronostici di tutti diventano visibili.",
+      `Tutte le partite della stagione sono visibili fin da subito, ma si può pronosticare solo a partire dal giorno in cui si gioca. I pronostici restano aperti fino a ${PREDICTION_GRACE_LABEL} dopo l'inizio della partita (la pagina indica l'orario di chiusura) e si chiudono prima solo se il risultato è già stato inserito. Dopo la chiusura i pronostici di tutti diventano visibili.`,
       "Chi si avvicina di più al risultato reale di un set vince il set: i punti totalizzati compongono la classifica.",
       "Anche le partite dei tornei si pronosticano, una gara alla volta.",
       "Ogni partita porta l'etichetta U14 o U15; il filtro \"Tutte / Under 14 / Under 15\" sopra l'elenco mostra una categoria sola (la classifica resta su tutte le partite).",

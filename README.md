@@ -110,7 +110,7 @@ staff (Developer e Admin).
   serve il permesso «Partite», e con `?ids=` segue la
   selezione della finestra delle convocazioni anche se non è ancora salvata.
 - **Pronostici** (`src/lib/predictions.ts`) — si aprono il giorno della
-  partita e si chiudono **un'ora dopo l'inizio** (`PREDICTION_GRACE_MINUTES`),
+  partita e si chiudono **10 minuti dopo l'inizio** (`PREDICTION_GRACE_MINUTES`),
   o subito se il risultato è già stato inserito; pagina e azione dicono
   l'orario di chiusura. Dopo la chiusura i pronostici di tutti diventano
   visibili.

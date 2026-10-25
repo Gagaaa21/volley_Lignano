@@ -1,3 +1,4 @@
+import { PREDICTION_GRACE_LABEL } from "@/lib/predictions";
 import { TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import type { BaseTourStep } from "./engine/types";
 
@@ -220,7 +221,7 @@ export const SECTION_PRONOSTICI_STEPS: BaseTourStep[] = [
     path: "/admin/pronostici",
     target: "section-pronostici-open",
     title: "Da pronosticare",
-    body: "Vedi già tutte le partite della stagione, ma puoi pronosticarle dal giorno in cui si giocano fino a un'ora dopo l'inizio della partita (l'orario di chiusura è scritto accanto a ogni partita): prima di allora la scheda resta bloccata.",
+    body: `Vedi già tutte le partite della stagione, ma puoi pronosticarle dal giorno in cui si giocano fino a ${PREDICTION_GRACE_LABEL} dopo l'inizio della partita (l'orario di chiusura è scritto accanto a ogni partita): prima di allora la scheda resta bloccata.`,
   },
   {
     id: "section-pronostici-results",

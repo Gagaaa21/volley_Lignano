@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { deleteMatchById, loginAsDev, localDateTime, switchTeam, uniqueName } from "./helpers";
 
 /**
- * Pronostici: si aprono il giorno della partita e si chiudono un'ora dopo il
+ * Pronostici: si aprono il giorno della partita e si chiudono 10 minuti dopo il
  * suo inizio (prima, se il risultato è già stato inserito). Le partite di
- * prova partono 30 e 90 minuti fa: la prima è ancora aperta, la seconda chiusa.
+ * prova partono 2 e 30 minuti fa: la prima è ancora aperta, la seconda chiusa.
  */
 
 async function createMatch(page: Page, opponent: string, date: string) {
@@ -22,11 +22,12 @@ async function matchId(page: Page, opponent: string): Promise<string> {
   return href!.split("/").pop()!;
 }
 
-test("pronostici: aperti fino a un'ora dopo l'inizio, chiusi dopo e appena c'è il risultato", async ({ page }) => {
+test("pronostici: aperti fino a 10 minuti dopo l'inizio, chiusi dopo e appena c'è il risultato", async ({ page }) => {
   test.setTimeout(180_000);
-  // Poco dopo mezzanotte «30 minuti fa» sarebbe già ieri: il test non avrebbe senso.
-  const hour = Number(localDateTime().slice(11, 13));
-  test.skip(hour < 2, "troppo vicino a mezzanotte per costruire una partita di oggi iniziata da poco");
+  // Poco dopo mezzanotte «30 minuti fa» sarebbe già ieri, e poco prima la chiusura cadrebbe domani: il test non avrebbe senso.
+  const now = localDateTime();
+  const minutesOfDay = Number(now.slice(11, 13)) * 60 + Number(now.slice(14, 16));
+  test.skip(minutesOfDay < 60 || minutesOfDay > 23 * 60 + 40, "troppo vicino a mezzanotte per costruire una partita di oggi iniziata da poco");
 
   await page.addInitScript(() => {
     try {
@@ -42,15 +43,15 @@ test("pronostici: aperti fino a un'ora dopo l'inizio, chiusi dopo e appena c'è 
   const open = uniqueName("Aperta ");
   const closed = uniqueName("Chiusa ");
   // Tutti gli orari dallo stesso istante: se il minuto cambia durante il test, l'orario atteso non slitta.
+  const startedAgo2 = localDateTime(-2);
   const startedAgo30 = localDateTime(-30);
-  const startedAgo90 = localDateTime(-90);
-  const closesAt = localDateTime(30).slice(11, 16);
-  await createMatch(page, open, startedAgo30);
-  await createMatch(page, closed, startedAgo90);
+  const closesAt = localDateTime(8).slice(11, 16);
+  await createMatch(page, open, startedAgo2);
+  await createMatch(page, closed, startedAgo30);
   const openId = await matchId(page, open);
   const closedId = await matchId(page, closed);
 
-  // Iniziata da 30 minuti: si può ancora pronosticare, e la pagina dice fino a quando.
+  // Iniziata da 2 minuti: si può ancora pronosticare, e la pagina dice fino a quando.
   await page.goto(`/admin/pronostici/${openId}`);
   await expect(page.locator("[data-prediction-deadline]")).toContainText(`alle ${closesAt}`);
   for (let set = 1; set <= 3; set++) {
@@ -65,12 +66,12 @@ test("pronostici: aperti fino a un'ora dopo l'inizio, chiusi dopo e appena c'è 
   await expect(row).toContainText(`Aperto fino alle ${closesAt}`);
   await expect(row.getByRole("link", { name: "Modifica" })).toBeVisible();
 
-  // Iniziata da 90 minuti: chiusa, niente modulo.
+  // Iniziata da 30 minuti (con la regola di prima sarebbe stata ancora aperta): chiusa, niente modulo.
   await page.goto(`/admin/pronostici/${closedId}`);
   await expect(page.getByRole("button", { name: "Salva pronostico" })).toHaveCount(0);
   await expect(page.getByText("Nessun pronostico è stato inviato per questa partita prima della chiusura.")).toBeVisible();
 
-  // Col risultato inserito (dal riquadro «Risultato» della partita) si chiude subito, anche dentro l'ora di tolleranza.
+  // Col risultato inserito (dal riquadro «Risultato» della partita) si chiude subito, anche dentro i 10 minuti di tolleranza.
   await page.goto(`/admin/partite/${openId}`);
   for (let set = 1; set <= 3; set++) {
     await page.getByLabel(`Punti Lignano, set ${set}`).fill("25");

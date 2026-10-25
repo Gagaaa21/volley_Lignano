@@ -11,6 +11,7 @@ import {
   arePredictionsClosed,
   hasPredictionOpened,
   matchHasResult,
+  PREDICTION_GRACE_LABEL,
   predictionClosingLabel,
 } from "@/lib/predictions";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -72,7 +73,7 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
               </h2>
               <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-muted-foreground" data-prediction-deadline>
                 <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                Puoi inviarlo o modificarlo fino a un&apos;ora dopo l&apos;inizio della partita, cioè{" "}
+                Puoi inviarlo o modificarlo fino a {PREDICTION_GRACE_LABEL} dopo l&apos;inizio della partita, cioè{" "}
                 {predictionClosingLabel(match.matchDate)}.
               </p>
             </CardHeader>
@@ -98,7 +99,7 @@ export default async function PredictionPage({ params }: { params: Promise<{ mat
   );
 }
 
-/** Una volta chiusi (un'ora dopo l'inizio, o col risultato già inserito), i pronostici di tutti diventano
+/** Una volta chiusi (10 minuti dopo l'inizio, o col risultato già inserito), i pronostici di tutti diventano
  * visibili — nessuno può più cambiarli, quindi non c'è più nulla da
  * proteggere nascondendoli. Se il risultato reale è già stato inserito,
  * mostra anche chi ha vinto ogni set (raggruppati per avversaria, per i
