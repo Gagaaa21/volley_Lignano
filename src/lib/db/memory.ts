@@ -27,6 +27,16 @@ import type { MatchScout, MatchScoutInput } from "@/lib/scout/types";
 import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
 import type { AthleteFamilyLink, MatchAvailability } from "@/lib/availability/types";
 import {
+  MATCH_REPORTING_PREFIX,
+  REPORTING_RULES_KEY,
+  matchReportingKey,
+  parseMatchReporting,
+  parseReportingRules,
+  serializeMatchReporting,
+  serializeReportingRules,
+  type MatchReporting,
+} from "@/lib/availability/reporting";
+import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
   type FederationSnapshot,
@@ -450,6 +460,26 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     async clearMatchAvailability(matchId, athleteId) {
       const idx = matchAvailability.findIndex((u) => u.matchId === matchId && u.athleteId === athleteId);
       if (idx !== -1) matchAvailability.splice(idx, 1);
+    },
+    // Come su Supabase: tra le impostazioni del sito, con le stesse chiavi.
+    async getReportingRules() {
+      return parseReportingRules(store.appSettings[REPORTING_RULES_KEY]);
+    },
+    async saveReportingRules(rules) {
+      store.appSettings[REPORTING_RULES_KEY] = serializeReportingRules(rules);
+    },
+    async listMatchReporting(matchIds) {
+      const wanted = matchIds ? new Set(matchIds) : null;
+      return Object.entries(store.appSettings)
+        .filter(([key]) => key.startsWith(MATCH_REPORTING_PREFIX))
+        .map(([key, value]) => parseMatchReporting(key.slice(MATCH_REPORTING_PREFIX.length), value))
+        .filter((setting): setting is MatchReporting => setting !== null && (!wanted || wanted.has(setting.matchId)));
+    },
+    async saveMatchReporting(setting) {
+      store.appSettings[matchReportingKey(setting.matchId)] = serializeMatchReporting(setting);
+    },
+    async clearMatchReporting(matchId) {
+      delete store.appSettings[matchReportingKey(matchId)];
     },
     async getPublicLiveScout() {
       const recent = Date.now() - LIVE_SCORE_TTL_MS;

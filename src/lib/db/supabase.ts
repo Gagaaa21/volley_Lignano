@@ -40,6 +40,16 @@ import {
   type AthleteFamilyLink,
   type MatchAvailability,
 } from "@/lib/availability/types";
+import {
+  MATCH_REPORTING_PREFIX,
+  REPORTING_RULES_KEY,
+  matchReportingKey,
+  parseMatchReporting,
+  parseReportingRules,
+  serializeMatchReporting,
+  serializeReportingRules,
+  type MatchReporting,
+} from "@/lib/availability/reporting";
 import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
   DEFAULT_FEDERATION_SOURCES,
@@ -1435,6 +1445,33 @@ export const supabaseRepo: Repo = {
     const { error } = await db
       .from("app_settings")
       .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
+  },
+
+  // Regole delle segnalazioni dei genitori e scelte a mano per partita: tra le impostazioni del sito, una chiave per ognuna.
+  async getReportingRules() {
+    return parseReportingRules(await supabaseRepo.getAppSetting(REPORTING_RULES_KEY));
+  },
+  async saveReportingRules(rules) {
+    await supabaseRepo.setAppSetting(REPORTING_RULES_KEY, serializeReportingRules(rules));
+  },
+  async listMatchReporting(matchIds) {
+    if (matchIds && matchIds.length === 0) return [];
+    const db = getSupabaseAdmin();
+    const query = db.from("app_settings").select("key, value");
+    // Nel LIKE il «_» del prefisso vale «un carattere qualsiasi»: innocuo, ogni chiave trovata si rilegge e si controlla comunque.
+    const { data, error } = await (matchIds ? query.in("key", matchIds.map(matchReportingKey)) : query.like("key", `${MATCH_REPORTING_PREFIX}%`));
+    if (error) throw new Error(error.message);
+    return (data as { key: string; value: string }[])
+      .map((row) => parseMatchReporting(row.key.slice(MATCH_REPORTING_PREFIX.length), row.value))
+      .filter((setting): setting is MatchReporting => setting !== null);
+  },
+  async saveMatchReporting(setting) {
+    await supabaseRepo.setAppSetting(matchReportingKey(setting.matchId), serializeMatchReporting(setting));
+  },
+  async clearMatchReporting(matchId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("app_settings").delete().eq("key", matchReportingKey(matchId));
     if (error) throw new Error(error.message);
   },
 

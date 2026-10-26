@@ -111,6 +111,15 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
   store.athletes = cloneAll(athletes);
   store.attendanceSessions = cloneAll(attendanceSessions);
   store.federationDecisions = cloneAll(federationDecisions);
+  // Le regole delle segnalazioni dei genitori e le scelte per partita, come sul sito vero (stanno tra le impostazioni del sito, che
+  // nella prova partono vuote): così la prova mostra le stesse scadenze, e quello che si cambia resta nella prova.
+  const [reportingRules, matchReporting] = await Promise.all([
+    realRepo.getReportingRules().catch(() => null),
+    realRepo.listMatchReporting().catch(() => []),
+  ]);
+  const sandbox = createMemoryRepo(store);
+  if (reportingRules?.updatedAt) await sandbox.saveReportingRules(reportingRules);
+  for (const setting of matchReporting) await sandbox.saveMatchReporting(setting);
 
   if (!isSupabaseConfigured()) {
     Object.assign(getLocalStore(), store);
@@ -141,6 +150,9 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "rotateAthleteFamilyLink",
   "setMatchAvailability",
   "clearMatchAvailability",
+  "saveReportingRules",
+  "saveMatchReporting",
+  "clearMatchReporting",
   "upsertPrediction",
   "createTrainingPlan",
   "updateTrainingPlan",

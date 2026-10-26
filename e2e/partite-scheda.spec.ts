@@ -171,7 +171,7 @@ test("convocazioni: l'avviso alle famiglie si sceglie nella finestra (acceso per
     await expect(toggle).toBeVisible();
     if (checked) await expect(toggle).toBeChecked();
     else await expect(toggle).not.toBeChecked();
-    await page.getByRole("button", { name: "Chiudi" }).click();
+    await page.getByRole("button", { name: "Chiudi", exact: true }).click();
   }
 
   await deleteMatchById(page, future);

@@ -11,3 +11,9 @@ export function isAvailabilityTableMissing(error: unknown): boolean {
     /(does not exist|could not find the table|schema cache|42P01|PGRST205)/i.test(message)
   );
 }
+
+/** Le regole delle segnalazioni dei genitori stanno tra le impostazioni del sito: riconosce la tabella `app_settings` che manca. */
+export function isAppSettingsMissing(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  return /app_settings/i.test(message) && /(does not exist|could not find the table|schema cache|42P01|PGRST205)/i.test(message);
+}

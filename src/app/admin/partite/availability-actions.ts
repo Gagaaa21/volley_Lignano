@@ -8,7 +8,7 @@ import { appliesToAthlete, normalizeAbsence } from "@/lib/availability/rules";
 
 /**
  * L'assenza di un'atleta da una partita, dalla scheda della partita: l'allenatore la segna («Non ci sarà», con motivo e nota) o
- * la toglie (ci sarà), sempre, a ogni ora e a partita finita, anche se l'aveva scritta il genitore: i 5 giorni valgono solo per
+ * la toglie (ci sarà), sempre, a ogni ora e a partita finita, anche se l'aveva scritta il genitore: la scadenza vale solo per
  * il link dei genitori. Ricontrolla il permesso «Partite» e lavora solo su una partita di U14/U15 e su un'atleta attiva che la
  * riguarda.
  */

@@ -262,6 +262,8 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   await repo.deleteMatch(id);
   // Con la partita se ne va anche lo scout: il suo punteggio live non deve restare sul sito.
   await clearPublicScore(repo, id).catch((error: unknown) => console.error("[deleteMatchAction] punteggio live non tolto:", error));
+  // E le scelte a mano sulle segnalazioni dei genitori (stanno tra le impostazioni del sito, senza legami con la partita).
+  await repo.clearMatchReporting(id).catch(() => {});
   if (match) await sendMatchNotice(deletedMatchNotice(match), match, match.id);
   revalidatePath("/admin/partite");
   revalidatePath("/admin/partite/portale");

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { FlaskConical, Info, Link2, MessageCircle, RefreshCw } from "lucide-react";
+import { CalendarX2, FlaskConical, Info, Link2, MessageCircle, RefreshCw } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { categoryDotClass, categoryLabel } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import { isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { missingAvailabilityTables } from "@/lib/availability/health";
+import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { REPORT_CLOSES_DAYS_BEFORE } from "@/lib/availability/types";
 import { canUseFamilyLink } from "@/lib/availability/rules";
 import { familyLinkMessage, whatsappShareUrl } from "@/lib/availability/share";
 import { familyLinkPath } from "@/lib/availability/token";
@@ -14,7 +16,7 @@ import { SITE_URL } from "@/lib/siteUrl";
 import { whatsappPhone } from "@/lib/trips/phone";
 import type { Athlete, Category } from "@/lib/types";
 import type { AthleteContacts } from "@/lib/trips/types";
-import { AvailabilitySetupNeeded } from "@/components/availability/AvailabilitySetupNeeded";
+import { AvailabilityDatabaseNotice } from "@/components/availability/AvailabilityDatabaseNotice";
 import { CopyLinkButton } from "@/components/availability/CopyLinkButton";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { Avatar, type AvatarTone } from "@/components/ui/Avatar";
@@ -42,15 +44,18 @@ function FamilyRow({
   link,
   contacts,
   tone,
+  daysBefore,
 }: {
   athlete: Athlete;
   link: AthleteFamilyLink | undefined;
   contacts: AthleteContacts["contacts"];
   tone: AvatarTone;
+  /** I giorni prima delle regole di adesso, per il messaggio al genitore. */
+  daysBefore: number;
 }) {
   const path = link ? familyLinkPath(link.token) : null;
   const url = path ? `${SITE_URL}${path}` : null;
-  const message = url ? familyLinkMessage(athlete.fullName, url) : null;
+  const message = url ? familyLinkMessage(athlete.fullName, url, daysBefore) : null;
   // Chi ha il permesso Trasferte ha anche i numeri dei genitori: WhatsApp si apre già sulla loro chat. Gli altri scelgono la chat.
   const reachable = contacts.filter((contact) => whatsappPhone(contact.phone) !== null);
 
@@ -123,7 +128,9 @@ export default async function FamilyLinksPage() {
   const session = await requireStaff();
   if ((await resolveActiveTeam(session)) !== "u14u15") redirect("/admin/presenze/atlete");
   const repo = await getActiveRepo();
-  const canSeeNumbers = session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("trasferte") ?? false);
+  const ownPages = session.role === "dev" ? null : ((await getOwnStaff(session.sub))?.allowedPages ?? []);
+  const canSeeNumbers = ownPages === null || ownPages.includes("trasferte");
+  const canManageReporting = ownPages === null || ownPages.includes("partite");
 
   let athletes: Athlete[];
   let links: AthleteFamilyLink[];
@@ -139,10 +146,21 @@ export default async function FamilyLinksPage() {
     return (
       <div>
         <PageHeader back={{ href: "/admin/presenze/atlete", label: "Atlete" }} title="Link per i genitori" />
-        <AvailabilitySetupNeeded isDev={session.role === "dev"} />
+        <AvailabilityDatabaseNotice missing={await missingAvailabilityTables(repo)} isDev={session.role === "dev"} />
       </div>
     );
   }
+  // Anche con i link a posto può mancare la tabella delle assenze: i genitori vedrebbero «Il servizio non è ancora attivo».
+  const [missingTables, daysBefore] = await Promise.all([
+    missingAvailabilityTables(repo),
+    repo.getReportingRules().then(
+      (rules) => rules.daysBefore,
+      (error: unknown) => {
+        if (!isAppSettingsMissing(error)) throw error;
+        return REPORT_CLOSES_DAYS_BEFORE;
+      },
+    ),
+  ]);
 
   const active = athletes.filter((athlete) => canUseFamilyLink(athlete));
   const linkByAthlete = new Map(links.map((link) => [link.athleteId, link] as const));
@@ -155,9 +173,15 @@ export default async function FamilyLinksPage() {
       <PageHeader
         back={{ href: "/admin/presenze/atlete", label: "Atlete" }}
         title="Link per i genitori"
-        description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì segnala le partite a cui la figlia non ci sarà, fino a 5 giorni prima. Niente account, niente elenco di nomi sul sito."
+        description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì segnala le partite a cui la figlia non ci sarà, fino alla scadenza di ogni partita. Niente account, niente elenco di nomi sul sito."
         actions={
           <>
+            {canManageReporting && (
+              <LinkButton href="/admin/partite/assenze" variant="outline" data-family-reporting-link>
+                <CalendarX2 className="h-4 w-4" />
+                Scadenze e assenze
+              </LinkButton>
+            )}
             <Badge tone={missing === 0 && active.length > 0 ? "success" : "neutral"} data-family-count>
               {withLink} su {active.length} con un link
             </Badge>
@@ -172,6 +196,8 @@ export default async function FamilyLinksPage() {
           </>
         }
       />
+
+      <AvailabilityDatabaseNotice missing={missingTables} isDev={session.role === "dev"} />
 
       {session.role === "dev" && session.testMode && (
         <p className="mb-6 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground">
@@ -213,6 +239,7 @@ export default async function FamilyLinksPage() {
                       link={linkByAthlete.get(athlete.id)}
                       contacts={contactsByAthlete.get(athlete.id) ?? []}
                       tone={tone}
+                      daysBefore={daysBefore}
                     />
                   ))}
                 </div>

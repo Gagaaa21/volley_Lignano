@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
-import { isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { DEFAULT_REPORTING_RULES, type MatchReporting, type ReportingRules } from "@/lib/availability/reporting";
 import { appliesToAthlete, canParentChange, canUseFamilyLink, normalizeAbsence } from "@/lib/availability/rules";
 import { familyLinkPath, isFamilyToken } from "@/lib/availability/token";
 import { nowLocalIso } from "@/lib/today";
@@ -12,8 +13,8 @@ import type { Athlete, Match } from "@/lib/types";
 /**
  * Le azioni della pagina del genitore. Sono raggiungibili da chiunque, quindi ricontrollano tutto da sole: il codice del link (è
  * l'unica chiave: dice di quale atleta si parla), che la partita sia della sua squadra e categoria e che le segnalazioni siano
- * ancora aperte (fino a 5 giorni prima). Tutto quello che arriva dal browser si considera non fidato; la risposta non dice mai
- * altro che se è andata bene.
+ * ancora aperte (le regole e le scelte dello staff per quella partita: scadenza, chiusura a mano, pausa, partita non chiesta). Tutto
+ * quello che arriva dal browser si considera non fidato; la risposta non dice mai altro che se è andata bene.
  */
 
 export type AvailabilityActionResult = { ok: true } | { ok: false; error: string };
@@ -37,7 +38,15 @@ async function resolveTarget(token: unknown, matchId: unknown): Promise<Target> 
   const match = await repo.getMatch(matchId);
   if (!match || !appliesToAthlete(match, athlete)) return { ok: false, error: "Questa partita non c'è più." };
 
-  const allowed = canParentChange(match, nowLocalIso());
+  let rules: ReportingRules = DEFAULT_REPORTING_RULES;
+  let setting: MatchReporting | null = null;
+  try {
+    [rules, [setting = null]] = await Promise.all([repo.getReportingRules(), repo.listMatchReporting([match.id])]);
+  } catch (error) {
+    // Senza la tabella delle impostazioni valgono le regole di serie, come nella pagina.
+    if (!isAppSettingsMissing(error)) throw error;
+  }
+  const allowed = canParentChange(match, nowLocalIso(), rules, setting);
   if (!allowed.ok) return allowed;
   return { ok: true, repo, athlete, match };
 }

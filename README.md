@@ -156,12 +156,13 @@ staff (Developer e Admin).
   bit, `src/lib/availability/token.ts`) che lo staff manda su WhatsApp (o copia). Da lì
   il genitore vede solo la sua atleta e le prossime partite della sua categoria e, per
   ognuna, tocca «Non ci sarà» (si salva subito, senza conferme: `useOptimistic`); poi,
-  se vuole, un motivo a scelta e una nota breve, oppure «Annulla». Può farlo **fino a 5
-  giorni prima dell'inizio della partita** (`REPORT_CLOSES_DAYS_BEFORE`,
-  `reportingDeadline` in `src/lib/availability/rules.ts`: stessa ora, cinque giorni
-  del calendario prima, quindi l'ora legale non sposta niente; partita sabato alle 18 →
+  se vuole, un motivo a scelta e una nota breve, oppure «Annulla». Può farlo **fino alla
+  scadenza della partita**: di serie 5 giorni prima dell'inizio, alla stessa ora
+  (`REPORT_CLOSES_DAYS_BEFORE`, `autoDeadline` in `src/lib/availability/reporting.ts`:
+  giorni del calendario, quindi l'ora legale non sposta niente; partita sabato alle 18 →
   fino a lunedì alle 18, e la pagina lo scrive); dopo, la partita resta visibile ma
-  chiusa e per avvisare si scrive all'allenatore. Lo staff, nel riquadro «Assenze»
+  chiusa e per avvisare si scrive all'allenatore. Regole e scadenze le decide lo staff
+  (vedi «Gestione delle assenze» qui sotto). Lo staff, nel riquadro «Assenze»
   della scheda partita (`AvailabilityBoard`), vede chi non ci sarà con motivo, nota e
   chi l'ha segnalata, e segna o toglie un'assenza con un tocco **sempre**, anche a
   partita finita; l'assenza compare come avviso nelle convocazioni (rosso se è
@@ -184,6 +185,26 @@ staff (Developer e Admin).
   spiegano). Nella tabella si scrive solo lo stato «absent»: le righe «present» di una
   versione di prova non contano. In modalità prova si copiano le assenze ma non i link
   (sono segreti, e quelli creati in prova non funzionano per i genitori).
+- **Gestione delle assenze** (`/admin/partite/assenze`, permesso «Partite», solo U14/U15;
+  pulsante «Assenze» nell'elenco partite) — per l'allenatore e il Developer. Per ogni
+  partita in programma: come stanno le segnalazioni dei genitori e chi non ci sarà, con
+  i comandi (`ReportingControls`, gli stessi anche nel riquadro «Assenze» della scheda
+  partita) «Chiudi adesso», «Riapri fino all'inizio», «Scadenza automatica», «Scegli la
+  scadenza» (mai oltre l'inizio), un messaggio ai genitori sotto quella partita e «Chiedi
+  ai genitori le assenze per questa partita» (tolta la spunta, dal link non si vede). Le
+  **regole per tutte le partite**: giorni prima (0–14, 0 = all'inizio), all'ora della
+  partita o a un'ora fissa, pausa per tutte e un avviso in cima alla pagina di ogni
+  genitore. Poi «Ultime segnalazioni» e un **promemoria per il gruppo** (partite aperte
+  e scadenze, mai nomi né link) da copiare o mandare su WhatsApp. Regole pure in
+  `src/lib/availability/reporting.ts` (`reportingState`: prima «non chiesta», poi pausa,
+  poi scadenza); azioni in `src/app/admin/partite/reporting-actions.ts`, che
+  ricontrollano permesso e dati e scrivono chi ha cambiato e quando; la pagina del
+  genitore e le sue azioni seguono le stesse regole (anche da una pagina rimasta aperta).
+  Nessuna tabella nuova: regole e scelte stanno in `app_settings` (`availability_rules`,
+  `availability_match:<id>`, JSON), in modalità prova restano nella prova. Se nel
+  database manca una tabella delle assenze, le pagine dello staff lo dicono e al
+  Developer mostrano l'SQL già pronto da copiare (`src/lib/availability/setupSql.ts`,
+  uguale a `supabase/schema.sql`: lo controlla una prova).
 - **Live score** (`/admin/livescore`, regole in `src/lib/liveScore.ts`) —
   tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
   punteggio» senza formazione (e senza seguire chi batte); rotazione e libero
@@ -741,10 +762,10 @@ src/
     calendario-partite.pdf/ PDF con tutte le partite (pubblico)
     login/                Login staff
     notifiche/            «Notifiche di questo dispositivo» (minivolley/notifiche/ per l'app di Minivolley)
-    disponibilita/[codice]/ Pagina del genitore: «Non ci sarà» dal link personale (senza account), fino a 5 giorni prima
+    disponibilita/[codice]/ Pagina del genitore: «Non ci sarà» dal link personale (senza account), fino alla scadenza
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti
-      partite/             CRUD partite (portale/: confronto con il portale FIPAV)
+      partite/             CRUD partite (portale/: confronto con il portale FIPAV; assenze/: segnalazioni dei genitori, scadenze e regole)
       schede/              Schede allenamento (blocchi incorporati nella scheda)
       presenze/            Registro presenze, anagrafica atlete, storico
       scout/               Scout partita: elenco, inserimento punto per punto, tabellino

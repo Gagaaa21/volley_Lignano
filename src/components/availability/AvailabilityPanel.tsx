@@ -1,17 +1,10 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { CalendarX2, Clock, Lock, MapPin, Undo2, X } from "lucide-react";
+import { CalendarX2, Clock, Lock, MapPin, MessageSquareText, Undo2, X } from "lucide-react";
 import { clearAbsenceAction, reportAbsenceAction } from "@/app/disponibilita/[codice]/actions";
 import { cn } from "@/lib/cn";
-import {
-  ABSENCE_REASONS,
-  ABSENCE_REASON_LABELS,
-  MAX_NOTE_LENGTH,
-  REPORT_CLOSES_DAYS_BEFORE,
-  type AbsenceReason,
-  type AnsweredBy,
-} from "@/lib/availability/types";
+import { ABSENCE_REASONS, ABSENCE_REASON_LABELS, MAX_NOTE_LENGTH, type AbsenceReason, type AnsweredBy } from "@/lib/availability/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -37,10 +30,14 @@ export interface FamilyMatchItem {
   /** «Amichevole» o «Torneo», se non è una partita di campionato. */
   kind: string | null;
   meeting: string | null;
-  /** Il genitore può ancora segnalare (fino a 5 giorni prima della partita). */
+  /** Il genitore può ancora segnalare (fino alla scadenza, se lo staff non le ha chiuse o sospese). */
   open: boolean;
-  /** Fino a quando si può segnalare, già in italiano («lunedì 19 ottobre, ore 18:00»). */
-  deadline: string;
+  /** Fino a quando si può segnalare, già in italiano («lunedì 19 ottobre, ore 18:00»); null se è già chiusa. */
+  deadline: string | null;
+  /** Perché è chiusa, già in italiano («Segnalazioni chiuse dall'allenatore: …»); null se è aperta. */
+  closedNote: string | null;
+  /** Un messaggio dell'allenatore su questa partita. */
+  message: string | null;
   /** Nessuna assenza = null: ci sarà. */
   absence: FamilyAbsence | null;
 }
@@ -54,8 +51,8 @@ function applyChange(items: FamilyMatchItem[], change: Change): FamilyMatchItem[
 /**
  * Le prossime partite di un'atleta. Si chiede una cosa sola: se non ci sarà. Un tocco su «Non ci sarà» e l'assenza è segnalata
  * (senza conferme: cambia subito sullo schermo e intanto va al server; se il server rifiuta torna com'era e lo dice); poi, se si
- * vuole, il perché e una nota, oppure «Annulla». Si può fare fino a 5 giorni prima della partita; dopo, la partita resta visibile ma
- * chiusa, e per avvisare si scrive all'allenatore.
+ * vuole, il perché e una nota, oppure «Annulla». Si può fare fino alla scadenza di ogni partita (di solito qualche giorno prima,
+ * oppure quella scelta dall'allenatore); dopo, la partita resta visibile ma chiusa, e per avvisare si scrive all'allenatore.
  */
 export function AvailabilityPanel({ token, items }: { token: string; items: FamilyMatchItem[] }) {
   const [optimistic, applyOptimistic] = useOptimistic(items, applyChange);
@@ -139,6 +136,14 @@ function MatchCard({
             Ritrovo {item.meeting}
           </p>
         )}
+        {item.message && (
+          <p className="mt-3 flex items-start gap-2 rounded-xl bg-primary-soft/70 px-3.5 py-2.5 text-[13px] text-foreground" data-availability-message>
+            <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+            <span>
+              <b className="font-semibold">Dall&apos;allenatore:</b> {item.message}
+            </span>
+          </p>
+        )}
 
         {absence ? (
           <div className="mt-4">
@@ -187,15 +192,17 @@ function MatchCard({
           </p>
         )}
 
-        {item.open ? (
+        {item.open && item.deadline ? (
           <p className="mt-3 text-[13px] text-muted-foreground" data-availability-deadline>
             Puoi segnalarlo fino a {item.deadline}.
           </p>
         ) : (
-          <p className="mt-3 flex items-start gap-1.5 text-[13px] text-muted-foreground" data-availability-closed>
-            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            Segnalazioni chiuse ({REPORT_CLOSES_DAYS_BEFORE} giorni prima della partita): per avvisare, scrivi all&apos;allenatore.
-          </p>
+          item.closedNote && (
+            <p className="mt-3 flex items-start gap-1.5 text-[13px] text-muted-foreground" data-availability-closed>
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {item.closedNote}
+            </p>
+          )
         )}
 
         {error && (

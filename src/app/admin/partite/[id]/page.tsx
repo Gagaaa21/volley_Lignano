@@ -4,7 +4,10 @@ import { Binoculars, Car } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
-import { isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { missingAvailabilityTables } from "@/lib/availability/health";
+import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { DEFAULT_REPORTING_RULES, type MatchReporting, type ReportingRules } from "@/lib/availability/reporting";
+import { reportingView, type ReportingView } from "@/lib/availability/reportingView";
 import { describeAbsence, isAbsence } from "@/lib/availability/rules";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import { matchTitle } from "@/lib/calendar";
@@ -13,7 +16,9 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
-import { todayIso } from "@/lib/today";
+import { nowLocalIso, todayIso } from "@/lib/today";
+import type { AvailabilityTable } from "@/lib/availability/setupSql";
+import { AvailabilityDatabaseNotice } from "@/components/availability/AvailabilityDatabaseNotice";
 import { MatchAvailability } from "../MatchAvailability";
 import { MatchDetailsCard } from "../MatchDetailsCard";
 import { MatchResultCard } from "../MatchResultCard";
@@ -51,9 +56,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   const activeAthletes = allAthletes.filter((a) => a.isActive);
 
-  // Le assenze (solo U14/U15): segnalate dai genitori o dall'allenatore. Finché le tabelle non ci sono, niente.
+  // Le assenze (solo U14/U15): segnalate dai genitori o dall'allenatore. Finché le tabelle non ci sono si dice cosa manca (al
+  // Developer con l'SQL da incollare), invece di far sparire il riquadro: i genitori intanto vedrebbero «servizio non attivo».
   let answerRows: MatchAvailabilityRow[] = [];
   let availabilityReady = match.team === "u14u15";
+  let storeReady = true;
   if (availabilityReady) {
     try {
       answerRows = await repo.listMatchAvailability({ matchIds: [id] });
@@ -62,6 +69,22 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       availabilityReady = false;
     }
   }
+  // Le segnalazioni dei genitori per questa partita, finché non è giocata: come stanno e i comandi per cambiarle.
+  let reporting: ReportingView | null = null;
+  if (availabilityReady && match.setScores === null && match.resultSetsWon === null && match.matchDate.slice(0, 10) >= todayIso()) {
+    let rules: ReportingRules = DEFAULT_REPORTING_RULES;
+    let setting: MatchReporting | null = null;
+    try {
+      [rules, [setting = null]] = await Promise.all([repo.getReportingRules(), repo.listMatchReporting([id])]);
+    } catch (error) {
+      if (!isAppSettingsMissing(error)) throw error;
+      storeReady = false;
+    }
+    reporting = reportingView(match, rules, setting, nowLocalIso());
+  }
+  // Il controllo completo del database solo se qualcosa è mancato (la scheda si apre spesso: niente letture in più).
+  const missingTables: AvailabilityTable[] =
+    match.team === "u14u15" && (!availabilityReady || !storeReady) ? await missingAvailabilityTables(repo) : [];
   const absenceTexts: Record<string, string> = Object.fromEntries(
     answerRows.filter(isAbsence).map((row) => [row.athleteId, describeAbsence(row)] as const),
   );
@@ -104,12 +127,15 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
       {showResult && <MatchResultCard match={match} />}
 
+      {match.team === "u14u15" && <AvailabilityDatabaseNotice missing={missingTables} isDev={session.role === "dev"} />}
+
       {availabilityReady && (
         <MatchAvailability
           match={match}
           rows={answerRows}
           athletes={activeAthletes}
           familyLinksHref={canFamilyLinks ? "/admin/presenze/atlete/link-genitori" : null}
+          reporting={reporting}
         />
       )}
 

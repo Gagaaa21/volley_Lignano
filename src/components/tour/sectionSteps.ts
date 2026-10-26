@@ -48,6 +48,13 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     body: "Categoria, avversaria, casa o trasferta, data e ora: da qui crei una nuova partita di campionato o un'amichevole.",
   },
   {
+    id: "section-partite-assenze",
+    path: "/admin/partite",
+    target: "section-partite-assenze",
+    title: "Assenze alle partite",
+    body: "Le segnalazioni dei genitori dal loro link, tutte insieme: fino a quando si possono fare, partita per partita (chiudi adesso, riapri, scegli la scadenza, un messaggio ai genitori), chi non ci sarà, il promemoria per il gruppo e le regole per tutte le partite.",
+  },
+  {
     id: "section-partite-cards",
     path: "/admin/partite",
     target: "section-partite-cards",

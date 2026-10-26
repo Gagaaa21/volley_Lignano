@@ -1,10 +1,12 @@
 import { whatsappPhone } from "@/lib/trips/phone";
+import { daysBeforePhrase } from "./reporting";
 import { REPORT_CLOSES_DAYS_BEFORE } from "./types";
 
-/** Il messaggio che lo staff manda al genitore con il link personale. */
-export function familyLinkMessage(athleteName: string, url: string): string {
+/** Il messaggio che lo staff manda al genitore con il link personale (con i giorni delle regole di adesso). */
+export function familyLinkMessage(athleteName: string, url: string, daysBefore: number = REPORT_CLOSES_DAYS_BEFORE): string {
+  const until = daysBefore === 0 ? "fino all'inizio della partita" : `fino a ${daysBeforePhrase(daysBefore)}`;
   return [
-    `Ciao! Questo è il link personale di ${athleteName} per avvisarci se non può esserci a una partita (fino a ${REPORT_CLOSES_DAYS_BEFORE} giorni prima):`,
+    `Ciao! Questo è il link personale di ${athleteName} per avvisarci se non può esserci a una partita (${until}):`,
     url,
     "È solo per voi: non condividerlo con altri.",
   ].join("\n");

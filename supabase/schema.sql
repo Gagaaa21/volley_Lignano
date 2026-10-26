@@ -806,6 +806,9 @@ alter table federation_decisions enable row level security;
 -- `public_live_scout`: copia compatta (JSON, poche centinaia di byte) del
 -- punteggio live dello Scout, aggiornata a ogni salvataggio: il sito pubblico
 -- legge solo questa invece dell'intero scout (vedi src/lib/scout/publicSnapshot.ts).
+-- `availability_rules` e `availability_match:<id partita>`: le regole delle
+-- segnalazioni dei genitori e le scelte fatte a mano partita per partita (JSON,
+-- vedi src/lib/availability/reporting.ts).
 -- =========================================================
 create table if not exists app_settings (
   key text primary key,

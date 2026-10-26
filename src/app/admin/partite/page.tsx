@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, Download, FileDown, Link2, Plus, Swords } from "lucide-react";
+import { CalendarX2, CheckCircle2, ChevronRight, Download, FileDown, Link2, Plus, Swords } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -93,6 +93,12 @@ export default async function MatchesListPage({
               <Download className="h-4 w-4" />
               Esporta CSV
             </LinkButton>
+            {isU14U15 && (
+              <LinkButton href="/admin/partite/assenze" variant="outline" data-partite-reporting-link data-tour="section-partite-assenze">
+                <CalendarX2 className="h-4 w-4" />
+                Assenze
+              </LinkButton>
+            )}
             <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
               <Plus className="h-4 w-4" />
               Nuova partita

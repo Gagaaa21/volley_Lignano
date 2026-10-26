@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Link2Off, Wrench } from "lucide-react";
+import { Info, Link2Off, PauseCircle, Wrench } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
-import { isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { canUseFamilyLink, isAbsence, matchesForAthlete, reportingDeadline } from "@/lib/availability/rules";
+import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
+import { DEFAULT_REPORTING_POLICY, parentClosedNote, type ReportingPolicy } from "@/lib/availability/reporting";
+import { canUseFamilyLink, isAbsence, matchesForAthlete } from "@/lib/availability/rules";
 import { answerWhen, deadlineLabel } from "@/lib/availability/format";
 import { isFamilyToken } from "@/lib/availability/token";
-import { REPORT_CLOSES_DAYS_BEFORE, type MatchAvailability } from "@/lib/availability/types";
+import type { MatchAvailability } from "@/lib/availability/types";
 import { nowLocalIso } from "@/lib/today";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityPanel, type FamilyMatchItem } from "@/components/availability/AvailabilityPanel";
@@ -71,7 +72,16 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
   if (!athlete || !canUseFamilyLink(athlete)) return <InvalidLink />;
 
   const now = nowLocalIso();
-  const options = matchesForAthlete(athlete, await repo.listMatches({ team: athlete.team, from: now.slice(0, 10) }), now);
+  const upcoming = await repo.listMatches({ team: athlete.team, from: now.slice(0, 10) });
+  // Le regole e le scelte dello staff partita per partita; se la tabella delle impostazioni manca valgono quelle di serie.
+  let policy: ReportingPolicy = DEFAULT_REPORTING_POLICY;
+  try {
+    const [rules, settings] = await Promise.all([repo.getReportingRules(), repo.listMatchReporting(upcoming.map((match) => match.id))]);
+    policy = { rules, matches: new Map(settings.map((setting) => [setting.matchId, setting] as const)) };
+  } catch (error) {
+    if (!isAppSettingsMissing(error)) throw error;
+  }
+  const options = matchesForAthlete(athlete, upcoming, now, 12, policy);
   // Chi aveva già un link ma non ha ancora creato la tabella delle assenze: niente pagina d'errore, si spiega che non è pronto.
   let answers: MatchAvailability[];
   try {
@@ -83,7 +93,7 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
   const absenceByMatch = new Map(answers.filter(isAbsence).map((row) => [row.matchId, row] as const));
 
   // Solo quello che serve a mostrare le partite: mai chi è convocata né altri dati.
-  const items: FamilyMatchItem[] = options.map(({ match, open }) => {
+  const items: FamilyMatchItem[] = options.map(({ match, open, state, setting }) => {
     const row = absenceByMatch.get(match.id);
     const meeting = [match.meetingTime ? `ore ${match.meetingTime}` : null, match.meetingLocation].filter(Boolean).join(" · ");
     return {
@@ -96,7 +106,9 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
       kind: match.isTournament ? "Torneo" : match.isFriendly ? "Amichevole" : null,
       meeting: meeting || null,
       open,
-      deadline: deadlineLabel(reportingDeadline(match)),
+      deadline: state.kind === "open" ? deadlineLabel(state.deadline) : null,
+      closedNote: parentClosedNote(state, policy.rules),
+      message: setting?.message ?? null,
       absence: row ? { reason: row.reason, note: row.note, by: row.answeredBy, when: answerWhen(row.updatedAt) } : null,
     };
   });
@@ -110,9 +122,23 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground/80">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
-        sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino a {REPORT_CLOSES_DAYS_BEFORE} giorni prima della partita; dopo, scrivi
-        all&apos;allenatore.
+        sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino alla scadenza scritta sotto ogni partita; dopo, scrivi all&apos;allenatore.
       </p>
+
+      {policy.rules.paused && (
+        <p className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm font-semibold text-foreground" data-family-paused>
+          <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+          Le segnalazioni sono sospese: per avvisare, scrivi all&apos;allenatore.
+        </p>
+      )}
+      {policy.rules.notice && (
+        <p className="mt-4 flex items-start gap-2.5 rounded-xl bg-primary-soft/70 px-4 py-3 text-sm text-foreground" data-family-notice>
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span>
+            <b className="font-semibold">Dall&apos;allenatore:</b> {policy.rules.notice}
+          </span>
+        </p>
+      )}
 
       <div className="mt-6">
         <AvailabilityPanel token={codice} items={items} />

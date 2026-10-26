@@ -7,6 +7,7 @@ import type {
 } from "@/lib/federation/types";
 import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/scout/types";
 import type { AthleteFamilyLink, MatchAvailability, MatchAvailabilityInput } from "@/lib/availability/types";
+import type { MatchReporting, ReportingRules } from "@/lib/availability/reporting";
 import type { AthleteContact, AthleteContacts, MatchTrip, MatchTripData, SaveMatchTripResult } from "@/lib/trips/types";
 import type {
   AdminPage,
@@ -161,6 +162,16 @@ export interface Repo {
   setMatchAvailability(input: MatchAvailabilityInput): Promise<MatchAvailability>;
   /** Toglie la risposta: l'atleta torna «senza risposta». */
   clearMatchAvailability(matchId: string, athleteId: string): Promise<void>;
+  // Le regole delle segnalazioni dei genitori e le scelte fatte a mano partita per partita (vedi src/lib/availability/reporting.ts).
+  // Stanno tra le impostazioni del sito (app_settings), senza tabelle in più; in modalità prova restano nella prova.
+  /** Le regole: quelle di serie finché nessuno le ha cambiate. */
+  getReportingRules(): Promise<ReportingRules>;
+  saveReportingRules(rules: ReportingRules): Promise<void>;
+  /** Le scelte a mano, solo per le partite che ne hanno una (tutte, o solo quelle indicate). */
+  listMatchReporting(matchIds?: string[]): Promise<MatchReporting[]>;
+  saveMatchReporting(setting: MatchReporting): Promise<void>;
+  /** Toglie la scelta a mano: per la partita tornano a valere le regole. */
+  clearMatchReporting(matchId: string): Promise<void>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).
