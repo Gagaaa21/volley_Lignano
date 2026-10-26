@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { CalendarX2, FlaskConical, Info, Link2, MessageCircle, RefreshCw } from "lucide-react";
+import { FlaskConical, Info, Link2, MessageCircle, RefreshCw } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
-import { getOwnStaff, requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
+import { getOwnStaff, requireStaffPage } from "@/lib/auth/guard";
 import { categoryDotClass, categoryLabel } from "@/lib/category";
 import { cn } from "@/lib/cn";
 import { missingAvailabilityTables } from "@/lib/availability/health";
@@ -25,6 +24,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { AssenzeTabs } from "../AssenzeTabs";
 import { createFamilyLinkAction, createMissingFamilyLinksAction, rotateFamilyLinkAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -125,12 +125,10 @@ function FamilyRow({
 }
 
 export default async function FamilyLinksPage() {
-  const session = await requireStaff();
-  if ((await resolveActiveTeam(session)) !== "u14u15") redirect("/admin/presenze/atlete");
+  // Nella sezione Assenze, con il permesso «Partite» (che per il Minivolley non c'è: lì niente partite né link).
+  const session = await requireStaffPage("partite");
   const repo = await getActiveRepo();
-  const ownPages = session.role === "dev" ? null : ((await getOwnStaff(session.sub))?.allowedPages ?? []);
-  const canSeeNumbers = ownPages === null || ownPages.includes("trasferte");
-  const canManageReporting = ownPages === null || ownPages.includes("partite");
+  const canSeeNumbers = session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("trasferte") ?? false);
 
   let athletes: Athlete[];
   let links: AthleteFamilyLink[];
@@ -145,7 +143,8 @@ export default async function FamilyLinksPage() {
     if (!isAvailabilityTableMissing(error)) throw error;
     return (
       <div>
-        <PageHeader back={{ href: "/admin/presenze/atlete", label: "Atlete" }} title="Link per i genitori" />
+        <PageHeader title="Assenze" />
+        <AssenzeTabs active="link" />
         <AvailabilityDatabaseNotice missing={await missingAvailabilityTables(repo)} isDev={session.role === "dev"} />
       </div>
     );
@@ -171,17 +170,10 @@ export default async function FamilyLinksPage() {
   return (
     <div>
       <PageHeader
-        back={{ href: "/admin/presenze/atlete", label: "Atlete" }}
-        title="Link per i genitori"
+        title="Assenze"
         description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì segnala le partite a cui la figlia non ci sarà, fino alla scadenza di ogni partita. Niente account, niente elenco di nomi sul sito."
         actions={
           <>
-            {canManageReporting && (
-              <LinkButton href="/admin/partite/assenze" variant="outline" data-family-reporting-link>
-                <CalendarX2 className="h-4 w-4" />
-                Scadenze e assenze
-              </LinkButton>
-            )}
             <Badge tone={missing === 0 && active.length > 0 ? "success" : "neutral"} data-family-count>
               {withLink} su {active.length} con un link
             </Badge>
@@ -197,6 +189,8 @@ export default async function FamilyLinksPage() {
         }
       />
 
+      <AssenzeTabs active="link" />
+
       <AvailabilityDatabaseNotice missing={missingTables} isDev={session.role === "dev"} />
 
       {session.role === "dev" && session.testMode && (
@@ -210,8 +204,7 @@ export default async function FamilyLinksPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
         <span>
           Il link è solo di quella famiglia: se finisce dove non deve (per esempio in un gruppo), tocca <b>Rigenera</b> e il vecchio smette di funzionare. Le
-          assenze le vedi nella scheda di ogni partita («Assenze») e nelle convocazioni, e le puoi segnare o togliere anche tu, sempre; non compaiono mai sul
-          sito pubblico.
+          assenze le vedi qui in «Partite» (e nelle convocazioni), e le puoi segnare o togliere anche tu, sempre; non compaiono mai sul sito pubblico.
         </span>
       </p>
 

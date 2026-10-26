@@ -7,7 +7,7 @@ import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { appliesToAthlete, normalizeAbsence } from "@/lib/availability/rules";
 
 /**
- * L'assenza di un'atleta da una partita, dalla scheda della partita: l'allenatore la segna («Non ci sarà», con motivo e nota) o
+ * L'assenza di un'atleta da una partita, dalla sezione Assenze: l'allenatore la segna («Non ci sarà», con motivo e nota) o
  * la toglie (ci sarà), sempre, a ogni ora e a partita finita, anche se l'aveva scritta il genitore: la scadenza vale solo per
  * il link dei genitori. Ricontrolla il permesso «Partite» e lavora solo su una partita di U14/U15 e su un'atleta attiva che la
  * riguarda.
@@ -52,6 +52,9 @@ export async function setStaffAbsenceAction(
     }
     throw error;
   }
+  revalidatePath(`/admin/assenze/partita/${match}`);
+  revalidatePath("/admin/assenze");
+  // Le assenze si vedono anche nelle convocazioni della partita, nel contatore dell'elenco partite e nella dashboard.
   revalidatePath(`/admin/partite/${match}`);
   revalidatePath("/admin/partite");
   revalidatePath("/admin");

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AlertTriangle, Download, FileDown, Link2, ListPlus, Plus, Users } from "lucide-react";
+import { AlertTriangle, Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
@@ -31,12 +31,6 @@ export default async function AthletesPage({ searchParams }: { searchParams: Pro
         }
         actions={
           <>
-            {team === "u14u15" && (
-              <LinkButton href="/admin/presenze/atlete/link-genitori" variant="outline" data-family-links-link>
-                <Link2 className="h-4 w-4" />
-                Link per i genitori
-              </LinkButton>
-            )}
             <LinkButton href="/admin/presenze/atlete/elenco" variant="outline">
               <ListPlus className="h-4 w-4" />
               Aggiungi in elenco

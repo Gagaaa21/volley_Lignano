@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
-import { AlertTriangle, CalendarX2, ChevronRight, Link2, X } from "lucide-react";
+import { AlertTriangle, CalendarX2, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { ReportingView } from "@/lib/availability/reportingView";
 import {
   ABSENCE_REASONS,
   ABSENCE_REASON_LABELS,
@@ -18,7 +16,6 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Field";
 import { setStaffAbsenceAction } from "./availability-actions";
-import { ReportingControls } from "./ReportingControls";
 
 export interface BoardAthlete {
   id: string;
@@ -48,23 +45,16 @@ function applyChange(absences: Record<string, BoardAbsence>, change: Change): Re
  * Le assenze della partita: chi non ci sarà (lo segnalano i genitori dal loro link, fino alla scadenza, oppure lo scrive
  * l'allenatore), con motivo e nota, e sotto le altre atlete per segnarne una con un tocco. Chi non è segnata ci sarà. La modifica
  * si vede subito e intanto va al server; se il server la rifiuta torna com'era e lo dice. Non tocca le convocazioni: se una
- * convocata non c'è lo dice, e decide l'allenatore. In cima, come stanno le segnalazioni dei genitori per questa partita, con i
- * comandi per chiuderle, riaprirle, sceglierne la scadenza o lasciare un messaggio.
+ * convocata non c'è lo dice, e decide l'allenatore.
  */
 export function AvailabilityBoard({
   matchId,
   athletes,
   absences,
-  familyLinksHref,
-  reporting,
 }: {
   matchId: string;
   athletes: BoardAthlete[];
   absences: Record<string, BoardAbsence>;
-  /** Dove si preparano i link per i genitori, se chi guarda può andarci. */
-  familyLinksHref: string | null;
-  /** Le segnalazioni dei genitori per questa partita (null se non se ne possono gestire, per esempio a partita giocata). */
-  reporting: ReportingView | null;
 }) {
   const [optimistic, applyOptimistic] = useOptimistic(absences, applyChange);
   const [saving, startTransition] = useTransition();
@@ -98,7 +88,7 @@ export function AvailabilityBoard({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <CardTitle>Assenze</CardTitle>
+              <CardTitle>Chi non ci sarà</CardTitle>
               <Badge tone={absent.length > 0 ? "danger" : "neutral"} data-count-absent={absent.length}>
                 {absent.length === 0 ? "Nessuna assenza" : absent.length === 1 ? "1 non c'è" : `${absent.length} non ci sono`}
               </Badge>
@@ -107,24 +97,6 @@ export function AvailabilityBoard({
               Le segnalano i genitori dal loro link, fino alla scadenza, oppure tu, sempre. Chi non è segnata ci sarà.
             </p>
           </div>
-        </div>
-        {reporting && (
-          <div className="mt-4 rounded-xl border border-border bg-surface px-3.5 py-3.5" data-match-reporting>
-            <p className="mb-2 text-[13px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Segnalazioni dei genitori</p>
-            <ReportingControls view={reporting} compact />
-          </div>
-        )}
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-          <Link href="/admin/partite/assenze" className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline" data-match-reporting-all>
-            Tutte le partite e le regole
-            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
-          {familyLinksHref && (
-            <Link href={familyLinksHref} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline">
-              <Link2 className="h-3.5 w-3.5" aria-hidden />
-              Link per i genitori
-            </Link>
-          )}
         </div>
       </CardHeader>
       <CardBody className="space-y-5">

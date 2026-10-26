@@ -4,7 +4,7 @@ import { REPORT_CLOSES_DAYS_BEFORE } from "./types";
 /**
  * Fino a quando i genitori possono segnalare un'assenza dal loro link, e cosa vedono. Valgono le regole generali (quanti giorni prima
  * si chiude, a che ora, una pausa per tutte le partite, un avviso in cima alla pagina), che l'allenatore o il Developer cambiano dalla
- * pagina «Assenze alle partite»; e per una singola partita si può scegliere a mano: chiuderla adesso, riaprirla, dare un'altra
+ * sezione «Assenze»; e per una singola partita si può scegliere a mano: chiuderla adesso, riaprirla, dare un'altra
  * scadenza, non chiedere niente ai genitori o lasciare loro un messaggio. Funzioni pure, con le loro prove: le usano la pagina del
  * genitore, le sue azioni (che ricontrollano tutto) e le pagine dello staff.
  *

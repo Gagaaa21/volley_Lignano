@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
       ]),
     ),
   },
+  // La gestione delle assenze ora è una sezione a sé: i vecchi indirizzi (anche quelli salvati nei preferiti) portano lì.
+  async redirects() {
+    return [
+      { source: "/admin/partite/assenze", destination: "/admin/assenze", permanent: false },
+      { source: "/admin/presenze/atlete/link-genitori", destination: "/admin/assenze/link", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

@@ -9,6 +9,7 @@ import {
   Binoculars,
   BookOpen,
   CalendarClock,
+  CalendarX2,
   Car,
   ChevronDown,
   ClipboardCheck,
@@ -47,6 +48,8 @@ const NAV_ITEMS: {
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, page: null },
   { href: "/admin/allenamenti", label: "Allenamenti", icon: CalendarClock, exact: false, page: "allenamenti", tourId: "nav-allenamenti" },
   { href: "/admin/partite", label: "Partite", icon: Swords, exact: false, page: "partite", tourId: "nav-partite" },
+  // Una sezione a sé, ma con lo stesso permesso delle Partite (e come loro solo per U14/U15).
+  { href: "/admin/assenze", label: "Assenze", icon: CalendarX2, exact: false, page: "partite", tourId: "nav-assenze" },
   { href: "/admin/schede", label: "Schede", icon: Puzzle, exact: false, page: "schede", tourId: "nav-schede" },
   { href: "/admin/presenze", label: "Presenze", icon: ClipboardCheck, exact: false, page: "presenze", tourId: "nav-presenze" },
   { href: "/admin/test-fisici", label: "Test fisici", icon: Activity, exact: false, page: "testfisici", tourId: "nav-test-fisici" },

@@ -4,7 +4,8 @@ import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "
 /**
  * Assenze alle partite. Lo staff crea il link di un'atleta; il genitore lo apre senza account e per ogni partita può dire solo «Non ci
  * sarà» (si salva subito; poi, se vuole, il perché e una nota, oppure «Annulla»), fino a 5 giorni prima della partita. Lo staff vede le
- * assenze nella scheda della partita, le segna e le toglie con un tocco, sempre, e le ritrova nelle convocazioni e nell'elenco partite.
+ * assenze nella sezione Assenze (la pagina di ogni partita), le segna e le toglie con un tocco, sempre, e le ritrova nelle convocazioni
+ * e nell'elenco partite.
  * Un link rigenerato rende inutile il vecchio; un codice inventato non mostra niente; il genitore non vede altre atlete.
  */
 
@@ -109,7 +110,7 @@ const absentCount = (page: Page) => board(page).locator("[data-count-absent]");
 
 /** Crea il link dell'atleta dalla pagina dello staff e restituisce il percorso da aprire come farebbe il genitore. */
 async function createLink(page: Page, name: string): Promise<string> {
-  await page.goto("/admin/presenze/atlete/link-genitori");
+  await page.goto("/admin/assenze/link");
   const row = familyRow(page, name);
   if ((await row.locator("[data-family-create]").count()) > 0) await row.locator("[data-family-create]").click();
   await expect(row).toHaveAttribute("data-family-path", /^\/disponibilita\/[A-Za-z0-9_-]{32}$/);
@@ -131,9 +132,13 @@ test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le asse
   const parent = await parentContext.newPage();
   try {
     // Lo staff vede le due atlete senza link e le crea.
+    // Le assenze hanno la loro sezione nel menu, con i link per i genitori; in Atlete non ci sono più.
     await page.goto("/admin/presenze/atlete");
-    await expect(page.locator("[data-family-links-link]")).toBeVisible();
-    await page.goto("/admin/presenze/atlete/link-genitori");
+    await expect(page.getByRole("link", { name: "Link per i genitori" })).toHaveCount(0);
+    await page.locator('[data-tour="nav-assenze"]').click();
+    await page.waitForURL(/\/admin\/assenze$/);
+    await page.locator('[data-tour="section-assenze-tabs"]').getByRole("link", { name: "Link per i genitori" }).click();
+    await page.waitForURL(/\/admin\/assenze\/link$/);
     await expect(familyRow(page, anna).locator("[data-family-create]")).toBeVisible();
     await expect(familyRow(page, bea).locator("[data-family-create]")).toBeVisible();
     const annaPath = await createLink(page, anna);
@@ -174,7 +179,7 @@ test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le asse
     await expect(parent.getByText("Attiva le notifiche")).toHaveCount(0);
 
     // Lo staff, prima che qualcuno segnali: nessuna assenza, e tutte le atlete da segnare con un tocco.
-    await page.goto(`/admin/partite/${matchId}`);
+    await page.goto(`/admin/assenze/partita/${matchId}`);
     await expect(board(page)).toBeVisible();
     await expect(absentCount(page)).toHaveAttribute("data-count-absent", "0");
     await expect(absentCount(page)).toHaveText("Nessuna assenza");
@@ -200,7 +205,7 @@ test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le asse
     await expect(saved.locator("[data-availability-note]")).toHaveValue("mal di gola");
 
     // Lo staff la vede subito: Anna non c'è, con motivo, nota e chi l'ha segnalata; Bea si può ancora segnare.
-    await page.goto(`/admin/partite/${matchId}`);
+    await page.goto(`/admin/assenze/partita/${matchId}`);
     await expect(board(page)).toBeVisible();
     await expect(absentCount(page)).toHaveText("1 non c'è");
     const annaRow = absentRow(page, anna);
@@ -266,11 +271,14 @@ test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le asse
 
     // Nelle convocazioni l'assenza si nota (in rosso se è convocata), ma non viene tolta da sola; chi ci sarà non ha avvisi.
     await callUp(page, matchId, [anna, bea]);
-    await page.goto(`/admin/partite/${matchId}`);
-    await expect(page.locator("[data-called-up-absent]")).toHaveText("1 convocata non ci sarà");
+    await page.goto(`/admin/assenze/partita/${matchId}`);
     await expect(absentRow(page, anna)).toContainText("Convocata");
     await expect(absentRow(page, anna).locator("[data-availability-called-up]")).toBeVisible();
     await expect(markButton(page, bea)).toContainText("convocata");
+    // Nella scheda della partita le assenze non si gestiscono: si vedono solo nelle convocazioni.
+    await page.goto(`/admin/partite/${matchId}`);
+    await expect(board(page)).toHaveCount(0);
+    await expect(page.locator("[data-called-up-absent]")).toHaveText("1 convocata non ci sarà");
     await page.getByRole("button", { name: "Apri", exact: true }).click();
     const dialog = page.locator('[aria-label="Convocazioni e formazioni"]');
     const dialogRow = (name: string) => dialog.locator("[data-call-up-row]").filter({ hasText: name });
@@ -323,7 +331,7 @@ test("le segnalazioni chiudono 5 giorni prima (lo staff segna sempre); rigenerar
     }
 
     // Lo staff, invece, segna un'assenza anche a segnalazioni chiuse; il genitore la legge ma non la cambia.
-    await page.goto(`/admin/partite/${soon}`);
+    await page.goto(`/admin/assenze/partita/${soon}`);
     await markButton(page, carla).click();
     const row = absentRow(page, carla);
     await expect(row).toHaveAttribute("data-availability-state", "absent");
@@ -344,7 +352,7 @@ test("le segnalazioni chiudono 5 giorni prima (lo staff segna sempre); rigenerar
     await expect(closed.locator("[data-availability-closed]")).toBeVisible();
 
     // Rigenerato: il vecchio non funziona più e non dice niente di chi era; il nuovo sì (e le assenze restano).
-    await page.goto("/admin/presenze/atlete/link-genitori");
+    await page.goto("/admin/assenze/link");
     page.once("dialog", (dialog) => dialog.accept());
     await familyRow(page, carla).locator("[data-family-rotate]").click();
     await expect(familyRow(page, carla)).toContainText("Link rigenerato");

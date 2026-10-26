@@ -1,7 +1,6 @@
 import { appliesToAthlete, isAbsence } from "@/lib/availability/rules";
 import { answerWhen } from "@/lib/availability/format";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
-import type { ReportingView } from "@/lib/availability/reportingView";
 import type { Athlete, Match } from "@/lib/types";
 import { AvailabilityBoard, type BoardAbsence } from "./AvailabilityBoard";
 
@@ -13,15 +12,11 @@ export function MatchAvailability({
   match,
   rows,
   athletes,
-  familyLinksHref,
-  reporting,
 }: {
   match: Match;
   rows: MatchAvailabilityRow[];
   /** Le atlete della squadra della partita. */
   athletes: Athlete[];
-  familyLinksHref: string | null;
-  reporting: ReportingView | null;
 }) {
   const eligible = athletes
     .filter((athlete) => athlete.isActive && appliesToAthlete(match, athlete))
@@ -38,8 +33,6 @@ export function MatchAvailability({
       matchId={match.id}
       athletes={eligible.map((athlete) => ({ id: athlete.id, name: athlete.fullName, calledUp: match.calledUpAthleteIds.includes(athlete.id) }))}
       absences={absences}
-      familyLinksHref={familyLinksHref}
-      reporting={reporting}
     />
   );
 }

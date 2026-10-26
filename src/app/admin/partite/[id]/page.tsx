@@ -4,10 +4,7 @@ import { Binoculars, Car } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
-import { missingAvailabilityTables } from "@/lib/availability/health";
-import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { DEFAULT_REPORTING_RULES, type MatchReporting, type ReportingRules } from "@/lib/availability/reporting";
-import { reportingView, type ReportingView } from "@/lib/availability/reportingView";
+import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { describeAbsence, isAbsence } from "@/lib/availability/rules";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import { matchTitle } from "@/lib/calendar";
@@ -16,10 +13,7 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
-import { nowLocalIso, todayIso } from "@/lib/today";
-import type { AvailabilityTable } from "@/lib/availability/setupSql";
-import { AvailabilityDatabaseNotice } from "@/components/availability/AvailabilityDatabaseNotice";
-import { MatchAvailability } from "../MatchAvailability";
+import { todayIso } from "@/lib/today";
 import { MatchDetailsCard } from "../MatchDetailsCard";
 import { MatchResultCard } from "../MatchResultCard";
 import { MatchWorkspace } from "../MatchWorkspace";
@@ -30,7 +24,8 @@ export const metadata: Metadata = {
 
 /**
  * La scheda di una partita, nell'ordine in cui serve: i dettagli in breve (con «Modifica», che apre il modulo a parte), il
- * risultato a partita giocata, le assenze e le convocazioni con le formazioni.
+ * risultato a partita giocata e le convocazioni con le formazioni (con l'avviso accanto a chi non ci sarà; le assenze si gestiscono
+ * nella sezione Assenze).
  */
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
@@ -56,42 +51,19 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   const activeAthletes = allAthletes.filter((a) => a.isActive);
 
-  // Le assenze (solo U14/U15): segnalate dai genitori o dall'allenatore. Finché le tabelle non ci sono si dice cosa manca (al
-  // Developer con l'SQL da incollare), invece di far sparire il riquadro: i genitori intanto vedrebbero «servizio non attivo».
+  // Le assenze (solo U14/U15) si gestiscono nella sezione Assenze; qui servono solo all'avviso accanto alle convocate che non ci
+  // saranno. Finché la tabella non c'è, nessun avviso.
   let answerRows: MatchAvailabilityRow[] = [];
-  let availabilityReady = match.team === "u14u15";
-  let storeReady = true;
-  if (availabilityReady) {
+  if (match.team === "u14u15") {
     try {
       answerRows = await repo.listMatchAvailability({ matchIds: [id] });
     } catch (error) {
       if (!isAvailabilityTableMissing(error)) throw error;
-      availabilityReady = false;
     }
   }
-  // Le segnalazioni dei genitori per questa partita, finché non è giocata: come stanno e i comandi per cambiarle.
-  let reporting: ReportingView | null = null;
-  if (availabilityReady && match.setScores === null && match.resultSetsWon === null && match.matchDate.slice(0, 10) >= todayIso()) {
-    let rules: ReportingRules = DEFAULT_REPORTING_RULES;
-    let setting: MatchReporting | null = null;
-    try {
-      [rules, [setting = null]] = await Promise.all([repo.getReportingRules(), repo.listMatchReporting([id])]);
-    } catch (error) {
-      if (!isAppSettingsMissing(error)) throw error;
-      storeReady = false;
-    }
-    reporting = reportingView(match, rules, setting, nowLocalIso());
-  }
-  // Il controllo completo del database solo se qualcosa è mancato (la scheda si apre spesso: niente letture in più).
-  const missingTables: AvailabilityTable[] =
-    match.team === "u14u15" && (!availabilityReady || !storeReady) ? await missingAvailabilityTables(repo) : [];
   const absenceTexts: Record<string, string> = Object.fromEntries(
     answerRows.filter(isAbsence).map((row) => [row.athleteId, describeAbsence(row)] as const),
   );
-  // Il collegamento ai link per i genitori solo a chi può gestirli (permesso Presenze).
-  const canFamilyLinks =
-    match.team === "u14u15" &&
-    (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("presenze") ?? false));
   // Il risultato si scrive a partita giocata (o si corregge se c'è già).
   const played = match.matchDate.slice(0, 10) <= todayIso();
   const showResult = played || match.resultSetsWon !== null || (match.tournamentGames?.some((game) => game.setScores.length > 0) ?? false);
@@ -126,18 +98,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <MatchDetailsCard match={match} />
 
       {showResult && <MatchResultCard match={match} />}
-
-      {match.team === "u14u15" && <AvailabilityDatabaseNotice missing={missingTables} isDev={session.role === "dev"} />}
-
-      {availabilityReady && (
-        <MatchAvailability
-          match={match}
-          rows={answerRows}
-          athletes={activeAthletes}
-          familyLinksHref={canFamilyLinks ? "/admin/presenze/atlete/link-genitori" : null}
-          reporting={reporting}
-        />
-      )}
 
       <MatchWorkspace
         matchId={id}

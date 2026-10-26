@@ -22,7 +22,7 @@ import { nowLocalIso } from "@/lib/today";
  */
 
 const STORE_MISSING =
-  "Manca la tabella delle impostazioni nel database (app_settings): il Developer trova l'SQL da incollare nella pagina «Assenze alle partite».";
+  "Manca la tabella delle impostazioni nel database (app_settings): il Developer trova l'SQL da incollare nella sezione «Assenze».";
 
 export type ReportingResult = { ok: true } | { ok: false; error: string };
 
@@ -38,8 +38,8 @@ export type ReportingChange =
   | { type: "message"; message: string };
 
 function revalidateReporting(matchId?: string) {
-  revalidatePath("/admin/partite/assenze");
-  if (matchId) revalidatePath(`/admin/partite/${matchId}`);
+  revalidatePath("/admin/assenze");
+  if (matchId) revalidatePath(`/admin/assenze/partita/${matchId}`);
 }
 
 export async function updateMatchReportingAction(matchId: string, change: ReportingChange): Promise<ReportingResult> {
@@ -112,6 +112,7 @@ export async function saveReportingRulesAction(_previous: RulesFormState, formDa
     throw error;
   }
   revalidateReporting();
-  revalidatePath("/admin/partite/[id]", "page");
+  revalidatePath("/admin/assenze/regole");
+  revalidatePath("/admin/assenze/partita/[id]", "page");
   return { ok: true };
 }

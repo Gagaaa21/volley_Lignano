@@ -149,8 +149,8 @@ staff (Developer e Admin).
   Scout): un documento JSON per partita con una `version` (ogni azione rilegge e
   rifà la stessa modifica se nel frattempo un altro ha salvato) e una riga per
   atleta con i suoi contatti. Segue la modalità prova come le altre sezioni.
-- **Assenze alle partite e link per i genitori** (`/disponibilita/[codice]`, pagina pubblica; gestione in
-  `/admin/presenze/atlete/link-genitori`, solo U14/U15) — ai genitori si chiede **solo
+- **Assenze alle partite e link per i genitori** (`/disponibilita/[codice]`, pagina pubblica; gestione nella
+  sezione «Assenze», `/admin/assenze`, solo U14/U15) — ai genitori si chiede **solo
   se la figlia non ci sarà**: chi non segnala niente ci sarà. I genitori non hanno un
   account: ogni atleta ha un **link personale e segreto** (32 caratteri casuali, 192
   bit, `src/lib/availability/token.ts`) che lo staff manda su WhatsApp (o copia). Da lì
@@ -162,8 +162,8 @@ staff (Developer e Admin).
   giorni del calendario, quindi l'ora legale non sposta niente; partita sabato alle 18 →
   fino a lunedì alle 18, e la pagina lo scrive); dopo, la partita resta visibile ma
   chiusa e per avvisare si scrive all'allenatore. Regole e scadenze le decide lo staff
-  (vedi «Gestione delle assenze» qui sotto). Lo staff, nel riquadro «Assenze»
-  della scheda partita (`AvailabilityBoard`), vede chi non ci sarà con motivo, nota e
+  (vedi «Sezione Assenze» qui sotto). Lo staff, nella pagina di ogni partita della
+  sezione (`/admin/assenze/partita/[id]`, `AvailabilityBoard`), vede chi non ci sarà con motivo, nota e
   chi l'ha segnalata, e segna o toglie un'assenza con un tocco **sempre**, anche a
   partita finita; l'assenza compare come avviso nelle convocazioni (rosso se è
   convocata) e l'elenco partite e la dashboard dicono «N non ci sono». Il nome non è mai
@@ -175,7 +175,7 @@ staff (Developer e Admin).
   indirizzo ad altri siti (`referrer: no-referrer`), ha titolo e descrizione uguali per
   tutti (l'anteprima di WhatsApp non mostra nomi) e non mostra gli avvisi di
   installazione e notifiche. Legge sempre il database reale (`getRepo()`), mai la
-  modalità prova. Lo staff, dalle Atlete (permesso «Presenze»): «Crea i link
+  modalità prova. Lo staff, da «Link per i genitori» della sezione (`/admin/assenze/link`): «Crea i link
   mancanti», «Copia link», «WhatsApp» (con il permesso Trasferte si apre già sul numero
   della rubrica, `whatsappPhone`) e «Rigenera» (il codice vecchio smette subito). Le
   assenze non tolgono nessuna dalle convocate da sole. Mai sul sito pubblico. Due tabelle
@@ -185,11 +185,15 @@ staff (Developer e Admin).
   spiegano). Nella tabella si scrive solo lo stato «absent»: le righe «present» di una
   versione di prova non contano. In modalità prova si copiano le assenze ma non i link
   (sono segreti, e quelli creati in prova non funzionano per i genitori).
-- **Gestione delle assenze** (`/admin/partite/assenze`, permesso «Partite», solo U14/U15;
-  pulsante «Assenze» nell'elenco partite) — per l'allenatore e il Developer. Per ogni
-  partita in programma: come stanno le segnalazioni dei genitori e chi non ci sarà, con
-  i comandi (`ReportingControls`, gli stessi anche nel riquadro «Assenze» della scheda
-  partita) «Chiudi adesso», «Riapri fino all'inizio», «Scadenza automatica», «Scegli la
+- **Sezione Assenze** (`/admin/assenze`, voce «Assenze» nel menu accanto a Partite, con lo
+  stesso permesso «Partite», solo U14/U15) — tutto quello che riguarda le assenze sta qui,
+  separato dalle altre sezioni, in tre parti (`AssenzeTabs`): «Partite», «Link per i
+  genitori» (`/admin/assenze/link`) e «Regole» (`/admin/assenze/regole`); fuori restano solo
+  l'avviso nelle convocazioni e il contatore «N non ci sono» (elenco partite e dashboard).
+  I vecchi indirizzi (`/admin/partite/assenze`, `/admin/presenze/atlete/link-genitori`)
+  portano qui (`redirects` in `next.config.ts`). Per ogni partita in programma: come stanno
+  le segnalazioni dei genitori e chi non ci sarà, con i comandi (`ReportingControls`, gli
+  stessi nella pagina della partita) «Chiudi adesso», «Riapri fino all'inizio», «Scadenza automatica», «Scegli la
   scadenza» (mai oltre l'inizio), un messaggio ai genitori sotto quella partita e «Chiedi
   ai genitori le assenze per questa partita» (tolta la spunta, dal link non si vede). Le
   **regole per tutte le partite**: giorni prima (0–14, 0 = all'inizio), all'ora della
@@ -197,7 +201,7 @@ staff (Developer e Admin).
   genitore. Poi «Ultime segnalazioni» e un **promemoria per il gruppo** (partite aperte
   e scadenze, mai nomi né link) da copiare o mandare su WhatsApp. Regole pure in
   `src/lib/availability/reporting.ts` (`reportingState`: prima «non chiesta», poi pausa,
-  poi scadenza); azioni in `src/app/admin/partite/reporting-actions.ts`, che
+  poi scadenza); azioni in `src/app/admin/assenze/reporting-actions.ts`, che
   ricontrollano permesso e dati e scrivono chi ha cambiato e quando; la pagina del
   genitore e le sue azioni seguono le stesse regole (anche da una pagina rimasta aperta).
   Nessuna tabella nuova: regole e scelte stanno in `app_settings` (`availability_rules`,
@@ -765,7 +769,8 @@ src/
     disponibilita/[codice]/ Pagina del genitore: «Non ci sarà» dal link personale (senza account), fino alla scadenza
     admin/                Area riservata (protetta da src/proxy.ts)
       allenamenti/        CRUD allenamenti ricorrenti
-      partite/             CRUD partite (portale/: confronto con il portale FIPAV; assenze/: segnalazioni dei genitori, scadenze e regole)
+      partite/             CRUD partite (portale/: confronto con il portale FIPAV)
+      assenze/             Sezione Assenze: partite (e pagina di ognuna), link per i genitori, regole delle segnalazioni
       schede/              Schede allenamento (blocchi incorporati nella scheda)
       presenze/            Registro presenze, anagrafica atlete, storico
       scout/               Scout partita: elenco, inserimento punto per punto, tabellino

@@ -66,6 +66,14 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Partite di campionato: avversaria, casa/trasferta, risultato set per set e formazioni per ciascun set, esportabili in PDF.",
   },
   {
+    id: "nav-assenze",
+    path: "/admin/assenze",
+    target: "nav-assenze",
+    page: "partite",
+    title: "Assenze",
+    body: "Le partite a cui un'atleta non ci sarà, segnalate dai genitori dal loro link personale o da te: fino a quando possono segnalare (anche chiudendo o riaprendo a mano), i link da mandare alle famiglie, le regole e il promemoria per il gruppo.",
+  },
+  {
     id: "nav-schede",
     path: "/admin/schede",
     target: "nav-schede",

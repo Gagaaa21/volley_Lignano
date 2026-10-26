@@ -48,18 +48,11 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     body: "Categoria, avversaria, casa o trasferta, data e ora: da qui crei una nuova partita di campionato o un'amichevole.",
   },
   {
-    id: "section-partite-assenze",
-    path: "/admin/partite",
-    target: "section-partite-assenze",
-    title: "Assenze alle partite",
-    body: "Le segnalazioni dei genitori dal loro link, tutte insieme: fino a quando si possono fare, partita per partita (chiudi adesso, riapri, scegli la scadenza, un messaggio ai genitori), chi non ci sarà, il promemoria per il gruppo e le regole per tutte le partite.",
-  },
-  {
     id: "section-partite-cards",
     path: "/admin/partite",
     target: "section-partite-cards",
     title: "Partite registrate",
-    body: "Sono le partite del calendario del sito. Ogni riga apre la scheda della partita: i dettagli in breve (con «Modifica»), il risultato a partita giocata, le assenze e le convocazioni con formazioni ed esportazione PDF.",
+    body: "Sono le partite del calendario del sito. Ogni riga apre la scheda della partita: i dettagli in breve (con «Modifica»), il risultato a partita giocata e le convocazioni con formazioni ed esportazione PDF (le assenze stanno nella loro sezione).",
   },
   {
     id: "section-partite-official",
@@ -67,6 +60,30 @@ export const SECTION_PARTITE_STEPS: BaseTourStep[] = [
     target: "section-partite-official",
     title: "Portale FIPAV",
     body: "Questo riquadro ti dice se il sito è allineato al portale della federazione e apre la pagina \"Portale FIPAV\": lì trovi, divise per tipo, solo le cose da sistemare (risultati da confermare, partite cambiate, casi da verificare) e le partite del calendario ufficiale da aggiungere. Nulla cambia senza un tuo clic, e un risultato che hai già scritto non viene mai cambiato da solo.",
+  },
+];
+
+export const SECTION_ASSENZE_STEPS: BaseTourStep[] = [
+  {
+    id: "section-assenze-tabs",
+    path: "/admin/assenze",
+    target: "section-assenze-tabs",
+    title: "Tre parti",
+    body: "«Partite»: chi non ci sarà e fino a quando i genitori possono segnalarlo, partita per partita. «Link per i genitori»: il link personale di ogni atleta da mandare alle famiglie. «Regole»: quanti giorni prima si chiude, a che ora, la pausa e l'avviso per tutti.",
+  },
+  {
+    id: "section-assenze-matches",
+    path: "/admin/assenze",
+    target: "section-assenze-matches",
+    title: "Partita per partita",
+    body: "Per ogni partita vedi se i genitori possono ancora segnalare e chi non ci sarà. «Chiudi adesso», «Riapri fino all'inizio», «Scegli la scadenza», un messaggio ai genitori o la spunta per non chiedere niente; toccando la partita segni tu chi non ci sarà, sempre.",
+  },
+  {
+    id: "section-assenze-reminder",
+    path: "/admin/assenze",
+    target: "section-assenze-reminder",
+    title: "Promemoria per il gruppo",
+    body: "Un messaggio pronto con le partite ancora aperte e le loro scadenze, senza nomi né link: lo copi o lo mandi su WhatsApp nel gruppo dei genitori.",
   },
 ];
 

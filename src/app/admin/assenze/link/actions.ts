@@ -1,23 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getActiveRepo } from "@/lib/db";
-import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
+import { requireStaffPage } from "@/lib/auth/guard";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { canUseFamilyLink } from "@/lib/availability/rules";
 import { newFamilyToken } from "@/lib/availability/token";
 
 /**
- * I link per i genitori si gestiscono dalle Atlete, quindi con il permesso «Presenze», e solo per Under 14 e Under 15.
- * Ogni azione ricontrolla il permesso da sola e lavora sull'atleta indicata solo se può avere un link.
+ * I link per i genitori si gestiscono dalla sezione Assenze, quindi con il permesso «Partite» (che per il Minivolley non c'è: solo
+ * Under 14 e Under 15). Ogni azione ricontrolla il permesso da sola e lavora sull'atleta indicata solo se può avere un link.
  */
 
-const PAGE = "/admin/presenze/atlete/link-genitori";
+const PAGE = "/admin/assenze/link";
 
 async function guard() {
-  const session = await requireStaffPage("presenze");
-  if ((await resolveActiveTeam(session)) !== "u14u15") redirect("/admin/presenze/atlete");
+  await requireStaffPage("partite");
   return getActiveRepo();
 }
 

@@ -3,7 +3,7 @@ import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "
 
 /**
  * La scheda di una partita in ordine: i dettagli in breve con «Modifica» (che apre il modulo a parte, con l'eliminazione),
- * il risultato a partita giocata con il suo salvataggio, le assenze e le convocazioni. E le notifiche mirate: il modulo mostra
+ * il risultato a partita giocata con il suo salvataggio e le convocazioni (le assenze hanno la loro sezione). E le notifiche mirate: il modulo mostra
  * in anteprima quella che partirà, secondo che cosa si cambia.
  */
 
@@ -47,7 +47,8 @@ test("scheda della partita: dettagli in breve, «Modifica» a parte con l'antepr
 
   await page.goto(`/admin/partite/${id}`);
   await page.waitForLoadState("networkidle");
-  // In alto i dettagli in breve, poi assenze e convocazioni; il modulo e l'eliminazione non sono qui; niente risultato (si gioca tra 12 giorni).
+  // In alto i dettagli in breve, poi le convocazioni; il modulo e l'eliminazione non sono qui; niente risultato (si gioca tra 12 giorni);
+  // le assenze stanno nella loro sezione.
   const details = page.locator("[data-match-details]");
   await expect(details.locator('[data-match-detail="dove"]')).toContainText("Palazzetto di Codroipo");
   await expect(details.locator('[data-match-detail="ritrovo"]')).toContainText("Come la partita");
@@ -55,12 +56,12 @@ test("scheda della partita: dettagli in breve, «Modifica» a parte con l'antepr
   await expect(page.locator("[data-match-result]")).toHaveCount(0);
   await expect(page.getByLabel("Luogo della partita")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Elimina", exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-match-availability]")).toHaveCount(0);
   const order = await page.evaluate(() =>
-    ["[data-match-details]", "[data-match-availability]", "[data-match-pdfs]"].map((sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1),
+    ["[data-match-details]", "[data-match-pdfs]"].map((sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1),
   );
   expect(order[0]).toBeGreaterThanOrEqual(0);
   expect(order[0]).toBeLessThan(order[1]);
-  expect(order[1]).toBeLessThan(order[2]);
 
   // «Modifica»: il modulo a parte. Senza cambiare niente, non partirebbe nessuna notifica.
   await details.locator("[data-match-edit-link]").click();
@@ -104,53 +105,60 @@ test("risultato: a partita giocata ha il suo riquadro, si salva da solo e si cor
   const opponent = uniqueName("Risultato ");
   const id = await createMatch(page, opponent, `${localDate(-3)}T18:00`);
 
-  await page.goto(`/admin/partite/${id}`);
-  await page.waitForLoadState("networkidle");
-  const card = page.locator("[data-match-result]");
-  await expect(card).toHaveAttribute("data-match-result", "missing");
-  // Il riquadro del risultato viene subito dopo i dettagli, prima delle assenze.
-  const order = await page.evaluate(() =>
-    ["[data-match-details]", "[data-match-result]", "[data-match-availability]"].map((sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1),
-  );
-  expect(order[0]).toBeLessThan(order[1]);
-  expect(order[1]).toBeLessThan(order[2]);
+  // La partita di prova si toglie anche se la prova si ferma a metà: una partita giocata senza risultato cambierebbe i conti del
+  // confronto con il portale nelle prove dopo.
+  try {
+    await page.goto(`/admin/partite/${id}`);
+    await page.waitForLoadState("networkidle");
+    const card = page.locator("[data-match-result]");
+    await expect(card).toHaveAttribute("data-match-result", "missing");
+    // Il riquadro del risultato viene subito dopo i dettagli, prima delle convocazioni.
+    const order = await page.evaluate(() =>
+      ["[data-match-details]", "[data-match-result]", "[data-match-pdfs]"].map((sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1),
+    );
+    expect(order[0]).toBeLessThan(order[1]);
+    expect(order[1]).toBeLessThan(order[2]);
 
-  // Un set lasciato a metà: l'errore resta nel riquadro con quello che si era scritto.
-  await page.getByLabel("Punti Lignano, set 1").fill("25");
-  await page.getByRole("button", { name: "Salva risultato" }).click();
-  await expect(card).toContainText(/set 1/i);
-  await expect(page.getByLabel("Punti Lignano, set 1")).toHaveValue("25");
+    // Un set lasciato a metà: l'errore resta nel riquadro con quello che si era scritto.
+    await page.getByLabel("Punti Lignano, set 1").fill("25");
+    await page.getByRole("button", { name: "Salva risultato" }).click();
+    // Si aspetta il messaggio vero (non la scritta «Set 1» delle colonne): finché la risposta non arriva, il modulo si ripristinerebbe
+    // dopo e cancellerebbe quello che si scrive nel frattempo.
+    await expect(card).toContainText("Inserisci il punteggio di entrambe le squadre per il set 1.");
+    await expect(page.getByLabel("Punti Lignano, set 1")).toHaveValue("25");
 
-  // 3-1 con i parziali: il riquadro lo mostra in grande; l'elenco lo riporta.
-  const sets = [
-    [25, 20],
-    [22, 25],
-    [25, 18],
-    [25, 21],
-  ];
-  for (const [i, [us, them]] of sets.entries()) {
-    await page.getByLabel(`Punti Lignano, set ${i + 1}`).fill(String(us));
-    await page.getByLabel(`Punti avversario, set ${i + 1}`).fill(String(them));
+    // 3-1 con i parziali: il riquadro lo mostra in grande; l'elenco lo riporta.
+    const sets = [
+      [25, 20],
+      [22, 25],
+      [25, 18],
+      [25, 21],
+    ];
+    for (const [i, [us, them]] of sets.entries()) {
+      await page.getByLabel(`Punti Lignano, set ${i + 1}`).fill(String(us));
+      await page.getByLabel(`Punti avversario, set ${i + 1}`).fill(String(them));
+    }
+    await page.getByRole("button", { name: "Salva risultato" }).click();
+    await expect(card).toHaveAttribute("data-match-result", "saved", { timeout: 20_000 });
+    await expect(card.locator("[data-match-result-summary]")).toContainText("3–1");
+    await expect(card.locator("[data-match-result-summary]")).toContainText("Vinta");
+    await expect(card.locator("[data-match-result-summary]")).toContainText("25-20");
+
+    // «Correggi» riapre i campi già compilati: il secondo set era nostro, e allora la partita è finita 3-0.
+    await card.locator("[data-match-result-edit]").click();
+    await expect(page.getByLabel("Punti Lignano, set 2")).toHaveValue("22");
+    await page.getByLabel("Punti Lignano, set 2").fill("25");
+    await page.getByLabel("Punti avversario, set 2").fill("23");
+    await page.getByLabel("Punti Lignano, set 4").fill("");
+    await page.getByLabel("Punti avversario, set 4").fill("");
+    await page.getByRole("button", { name: "Salva risultato" }).click();
+    await expect(card.locator("[data-match-result-summary]")).toContainText("3–0", { timeout: 20_000 });
+
+    await page.goto("/admin/partite");
+    await expect(page.locator('a[href^="/admin/partite/"]', { hasText: opponent })).toContainText("3–0");
+  } finally {
+    await deleteMatchById(page, id).catch(() => {});
   }
-  await page.getByRole("button", { name: "Salva risultato" }).click();
-  await expect(card).toHaveAttribute("data-match-result", "saved", { timeout: 20_000 });
-  await expect(card.locator("[data-match-result-summary]")).toContainText("3–1");
-  await expect(card.locator("[data-match-result-summary]")).toContainText("Vinta");
-  await expect(card.locator("[data-match-result-summary]")).toContainText("25-20");
-
-  // «Correggi» riapre i campi già compilati: il secondo set era nostro, e allora la partita è finita 3-0.
-  await card.locator("[data-match-result-edit]").click();
-  await expect(page.getByLabel("Punti Lignano, set 2")).toHaveValue("22");
-  await page.getByLabel("Punti Lignano, set 2").fill("25");
-  await page.getByLabel("Punti avversario, set 2").fill("23");
-  await page.getByLabel("Punti Lignano, set 4").fill("");
-  await page.getByLabel("Punti avversario, set 4").fill("");
-  await page.getByRole("button", { name: "Salva risultato" }).click();
-  await expect(card.locator("[data-match-result-summary]")).toContainText("3–0", { timeout: 20_000 });
-
-  await page.goto("/admin/partite");
-  await expect(page.locator('a[href^="/admin/partite/"]', { hasText: opponent })).toContainText("3–0");
-  await deleteMatchById(page, id);
 });
 
 test("convocazioni: l'avviso alle famiglie si sceglie nella finestra (acceso per le partite da giocare)", async ({ page }) => {

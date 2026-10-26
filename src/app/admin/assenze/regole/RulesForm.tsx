@@ -9,7 +9,7 @@ import { saveReportingRulesAction, type RulesFormState } from "../reporting-acti
 
 /**
  * Le regole per tutte le partite: quanti giorni prima si chiudono da sole le segnalazioni e a che ora, la pausa per tutte e un avviso
- * in cima alla pagina dei genitori. Partita per partita si cambia a mano dall'elenco.
+ * in cima alla pagina dei genitori. Partita per partita si cambia a mano dalla parte «Partite» della sezione.
  */
 export function RulesForm({ rules, changed }: { rules: ReportingRules; changed: string | null }) {
   const [state, formAction, pending] = useActionState<RulesFormState, FormData>(saveReportingRulesAction, {});
@@ -17,7 +17,6 @@ export function RulesForm({ rules, changed }: { rules: ReportingRules; changed: 
 
   return (
     <form action={formAction} className="space-y-5" data-reporting-rules>
-      {/* Uno sotto l'altro: il modulo sta nella colonna stretta a destra, dove il selettore dell'ora andrebbe a capo. */}
       <div className="space-y-4">
         <div>
           <Label htmlFor="daysBefore">Giorni prima</Label>
@@ -38,6 +37,7 @@ export function RulesForm({ rules, changed }: { rules: ReportingRules; changed: 
         <div>
           <span className="mb-1.5 block text-[13px] font-semibold text-foreground/80">A che ora</span>
           <RadioSegment
+            className="max-w-sm"
             name="closingMode"
             value={mode}
             onChange={setMode}
