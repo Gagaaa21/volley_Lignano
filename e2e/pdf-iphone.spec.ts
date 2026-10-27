@@ -292,8 +292,9 @@ test("area tecnici, da iPhone: riepilogo presenze e riepilogo test fisici", asyn
   await page.waitForURL(/\/admin\/presenze\/atlete$/, { timeout: 20_000 });
 
   // Riepilogo presenze (nell'elenco delle atlete).
-  const presenze = page.getByRole("button", { name: "Riepilogo presenze" });
-  await expect(presenze).toHaveAttribute("data-file-href", "/api/presenze/riepilogo/pdf");
+  // Accanto c'è anche il CSV con lo stesso nome: il PDF si riconosce dal suo indirizzo.
+  const presenze = page.locator('[data-file-href="/api/presenze/riepilogo/pdf"]');
+  await expect(presenze).toHaveText("Riepilogo presenze");
   await openAndShare(page, presenze, { name: "riepilogo-presenze-u14u15.pdf", title: /Riepilogo presenze/ });
 
   await page.goto("/admin/test-fisici/nuovo");
