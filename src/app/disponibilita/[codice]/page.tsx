@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { Info, Link2Off, PauseCircle, Wrench } from "lucide-react";
+import { CalendarX2, Info, Link2Off, PauseCircle, Wrench } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { DEFAULT_REPORTING_POLICY, byPhrase, fromLabel, parentClosedNote, type ReportingPolicy } from "@/lib/availability/reporting";
 import { canUseFamilyLink, isAbsence, matchesForAthlete, staffNamesById } from "@/lib/availability/rules";
 import { answerWhen, deadlineLabel } from "@/lib/availability/format";
+import { parseFamilySection } from "@/lib/availability/familySection";
 import { isFamilyToken } from "@/lib/availability/token";
 import { certificateStatus, statusLabel, type MedicalCertificate } from "@/lib/medical/certificate";
 import { nowLocalIso, todayIso } from "@/lib/today";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityPanel, type FamilyMatchItem } from "@/components/availability/AvailabilityPanel";
+import { FamilySectionHeader } from "@/components/availability/FamilySectionHeader";
 import { FamilyShell } from "@/components/availability/FamilyShell";
+import { FamilyTabs, type FamilyTab } from "@/components/availability/FamilyTabs";
 import { FamilyCertificateCard } from "@/components/medical/FamilyCertificateCard";
 import { saveFamilyCertificateAction } from "./actions";
 import { CategoryTag } from "@/components/ui/CategoryTag";
@@ -22,8 +25,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 // Un titolo e una descrizione uguali per tutti: l'anteprima di WhatsApp non deve mai mostrare il nome di un'atleta. La pagina
 // non va sui motori di ricerca e non passa il suo indirizzo (che contiene il codice) ai siti verso cui porta.
 export const metadata: Metadata = {
-  title: "Assenze alle partite",
-  description: "Segnala le partite a cui non ci sarà.",
+  title: "Assenze e certificato medico",
+  description: "Segnala le partite a cui non ci sarà e il certificato medico.",
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };
@@ -57,8 +60,15 @@ function NotReady() {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-export default async function FamilyAvailabilityPage({ params }: { params: Promise<{ codice: string }> }) {
+export default async function FamilyAvailabilityPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ codice: string }>;
+  searchParams: Promise<{ sezione?: string | string[] }>;
+}) {
   const { codice } = await params;
+  const { sezione } = await searchParams;
   // Un indirizzo inventato non arriva nemmeno al database; e ogni caso sbagliato mostra la stessa cosa.
   if (!isFamilyToken(codice)) return <InvalidLink />;
 
@@ -155,49 +165,82 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
     };
   });
 
+  // Le assenze: la sezione di sempre, con la sua intestazione, gli avvisi dello staff e le prossime partite.
+  const absences = (
+    <section data-family-absences>
+      <FamilySectionHeader icon={CalendarX2} eyebrow="Assenze alle partite" title="Segnala chi non ci sarà">
+        Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
+        sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino alla scadenza scritta sotto ogni partita; dopo, scrivi all&apos;allenatore.
+      </FamilySectionHeader>
+
+      {policy.rules.paused && (
+        <p className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm font-semibold text-foreground" data-family-paused>
+          <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+          Le segnalazioni sono sospese: per avvisare, scrivi all&apos;allenatore.
+        </p>
+      )}
+      {policy.rules.notice && (
+        <p className="mt-4 flex items-start gap-2.5 rounded-xl bg-primary-soft/70 px-4 py-3 text-sm text-foreground" data-family-notice>
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span>
+            <b className="font-semibold">{fromLabel(policy.rules.noticeBy)}:</b> {policy.rules.notice}
+          </span>
+        </p>
+      )}
+
+      <div className="mt-5">
+        {answers ? (
+          <AvailabilityPanel token={codice} items={items} />
+        ) : (
+          <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted-foreground" data-family-absences-not-ready>
+            Le assenze alle partite non sono ancora attive: per avvisare, sentite l&apos;allenatore.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+
+  // Lo stato di ogni sezione sulla sua scheda: si vede subito se c'è qualcosa da fare.
+  const absentCount = items.filter((item) => item.absence).length;
+  const absencesTab: FamilyTab = {
+    id: "assenze",
+    label: "Assenze alle partite",
+    summary: !answers
+      ? "Non ancora attive"
+      : absentCount > 0
+        ? `${absentCount} ${absentCount === 1 ? "assenza segnalata" : "assenze segnalate"}`
+        : items.length > 0
+          ? `${items.length} ${items.length === 1 ? "partita" : "partite"} in programma`
+          : "Nessuna partita in programma",
+    tone: absentCount > 0 ? "primary" : "neutral",
+    panel: absences,
+  };
+  const certificateLabel = status ? statusLabel(status) : null;
+  // In regola ma senza foto: la scheda lo dice, perché c'è ancora una cosa da fare.
+  const missingPhoto = status?.kind === "valid" && !certificate?.photo;
+  const certificateTab: FamilyTab | null =
+    certificateCard && certificateLabel
+      ? {
+          id: "certificato",
+          label: "Certificato medico",
+          summary: missingPhoto ? "Valido · manca la foto" : certificateLabel.badge,
+          tone: missingPhoto ? "warning" : certificateLabel.tone,
+          attention: certificateLabel.tone !== "success" || missingPhoto,
+          panel: certificateCard,
+        }
+      : null;
+
   return (
     <FamilyShell>
-      <p className="eyebrow">{certificateCard ? "Assenze e certificato medico" : "Assenze alle partite"}</p>
+      <p className="eyebrow">{certificateTab ? "Assenze e certificato medico" : "Assenze alle partite"}</p>
       <h1 className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-display text-2xl font-extrabold text-foreground sm:text-3xl" data-family-athlete>
         {athlete.fullName}
         <CategoryTag category={athlete.category} size="md" long />
       </h1>
 
-      {/* Sempre qui in cima, piccolo quando è in regola: salvando la data non si sposta (chi arriva dal messaggio lo trova subito). */}
-      {certificateCard && <div className="mt-6">{certificateCard}</div>}
-
-      <section className="mt-8" data-family-absences>
-        <h2 className="font-display text-lg font-bold text-foreground">Assenze alle partite</h2>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground/80">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
-          sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino alla scadenza scritta sotto ogni partita; dopo, scrivi all&apos;allenatore.
-        </p>
-
-        {policy.rules.paused && (
-          <p className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm font-semibold text-foreground" data-family-paused>
-            <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
-            Le segnalazioni sono sospese: per avvisare, scrivi all&apos;allenatore.
-          </p>
-        )}
-        {policy.rules.notice && (
-          <p className="mt-4 flex items-start gap-2.5 rounded-xl bg-primary-soft/70 px-4 py-3 text-sm text-foreground" data-family-notice>
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>
-              <b className="font-semibold">{fromLabel(policy.rules.noticeBy)}:</b> {policy.rules.notice}
-            </span>
-          </p>
-        )}
-
-        <div className="mt-6">
-          {answers ? (
-            <AvailabilityPanel token={codice} items={items} />
-          ) : (
-            <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted-foreground" data-family-absences-not-ready>
-              Le assenze alle partite non sono ancora attive: per avvisare, sentite l&apos;allenatore.
-            </p>
-          )}
-        </div>
-      </section>
+      <div className="mt-6">
+        {certificateTab ? <FamilyTabs tabs={[absencesTab, certificateTab]} initial={parseFamilySection(sezione)} /> : absences}
+      </div>
 
       <p className="mt-8 text-[13px] leading-relaxed text-muted-foreground">
         Questo link è personale: non condividerlo con altri. Se lo perdi o pensi che sia finito in mani sbagliate, dillo all&apos;allenatore: ne prepara uno

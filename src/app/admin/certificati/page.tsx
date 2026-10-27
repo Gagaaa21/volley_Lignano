@@ -274,7 +274,8 @@ function CertificateRow({
   const { athlete, certificate, status } = entry;
   const label = statusLabel(status);
   const red = label.tone === "danger";
-  const url = link ? `${SITE_URL}${familyLinkPath(link.token)}#certificato` : null;
+  // Il link apre già la scheda del certificato (e non quella delle assenze).
+  const url = link ? `${SITE_URL}${familyLinkPath(link.token, "certificato")}` : null;
   const photo = certificate?.photo ?? null;
   const reminder = parentReminder(athlete.fullName, status, url, photo !== null);
   // In regola ma senza foto: il messaggio chiede solo quella.

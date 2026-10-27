@@ -4,6 +4,8 @@
  * caratteri (lettere, cifre, «-» e «_») che stanno bene in un indirizzo.
  */
 
+import { familySectionQuery, type FamilySection } from "./familySection";
+
 const BYTES = 24;
 export const FAMILY_TOKEN_LENGTH = 32;
 
@@ -23,7 +25,7 @@ export function isFamilyToken(value: unknown): value is string {
   return typeof value === "string" && TOKEN_PATTERN.test(value);
 }
 
-/** Il percorso della pagina del genitore. */
-export function familyLinkPath(token: string): string {
-  return `/disponibilita/${token}`;
+/** Il percorso della pagina del genitore, se serve già sulla scheda scelta (di serie le assenze: vedi familySection.ts). */
+export function familyLinkPath(token: string, section: FamilySection = "assenze"): string {
+  return `/disponibilita/${token}${familySectionQuery(section)}`;
 }

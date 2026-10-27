@@ -17,6 +17,7 @@ import {
 } from "@/lib/availability/rules";
 import { familyLinkMessage, whatsappShareUrl } from "@/lib/availability/share";
 import { FAMILY_TOKEN_LENGTH, familyLinkPath, isFamilyToken, newFamilyToken } from "@/lib/availability/token";
+import { familySectionQuery, parseFamilySection } from "@/lib/availability/familySection";
 import { MAX_NOTE_LENGTH, REPORT_CLOSES_DAYS_BEFORE } from "@/lib/availability/types";
 import { whatsappPhone } from "@/lib/trips/phone";
 import type { Match } from "@/lib/types";
@@ -80,6 +81,9 @@ test.describe("il codice del link", () => {
 
   test("il percorso della pagina del genitore", () => {
     expect(familyLinkPath("abc")).toBe("/disponibilita/abc");
+    // Il messaggio per il certificato apre la sua scheda; quello per le assenze, la scheda di sempre.
+    expect(familyLinkPath("abc", "certificato")).toBe("/disponibilita/abc?sezione=certificato");
+    expect(familyLinkPath("abc", "assenze")).toBe("/disponibilita/abc");
   });
 });
 
@@ -279,4 +283,13 @@ test("tabelle mancanti: si riconosce l'errore di Postgres e di Supabase, non alt
   expect(isAvailabilityTableMissing(new Error('relation "public.match_trips" does not exist'))).toBe(false);
   expect(isAvailabilityTableMissing(new Error("duplicate key value violates unique constraint athlete_family_links_token_key"))).toBe(false);
   expect(isAvailabilityTableMissing(undefined)).toBe(false);
+});
+
+test("le sezioni della pagina del genitore: si apre quella chiesta, altrimenti le assenze", () => {
+  expect(parseFamilySection("certificato")).toBe("certificato");
+  expect(parseFamilySection(["certificato", "assenze"])).toBe("certificato");
+  expect(parseFamilySection("assenze")).toBe("assenze");
+  for (const value of [undefined, "", "Certificato", "altro", ["altro"], [], 7, null]) expect(parseFamilySection(value)).toBe("assenze");
+  expect(familySectionQuery("certificato")).toBe("?sezione=certificato");
+  expect(familySectionQuery("assenze")).toBe("");
 });

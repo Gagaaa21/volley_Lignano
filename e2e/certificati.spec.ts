@@ -83,13 +83,8 @@ const PHOTO = "src/assets/lignano-crest.png";
 const row = (page: Page, name: string) => page.locator("[data-certificate-row]").filter({ hasText: name });
 const group = (page: Page, key: "attention" | "missing" | "valid") => page.locator(`[data-certificate-group="${key}"]`);
 const familyCard = (page: Page) => page.locator("[data-family-certificate]");
-/** Il riquadro del certificato sta dopo le assenze alle partite (true) o prima (false). */
-const cardAfterAbsences = (page: Page) =>
-  page.evaluate(() => {
-    const card = document.querySelector("[data-family-certificate]");
-    const absences = document.querySelector("[data-family-absences]");
-    return card && absences ? Boolean(absences.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING) : null;
-  });
+/** Le due schede in cima alla pagina del genitore: ognuna col suo stato. */
+const familyTab = (page: Page, section: "assenze" | "certificato") => page.locator(`[data-family-tab="${section}"]`);
 
 /** Il giorno della visita nel modulo (lo stesso per genitore e staff): accanto compare subito la scadenza, un anno dopo. */
 async function chooseVisit(scope: ReturnType<Page["locator"]>, issued: string) {
@@ -121,13 +116,24 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
       await expect(row(page, name).locator("[data-certificate-badge]")).toHaveText("Da inserire");
     }
 
-    // Il genitore: il riquadro è in cima, prima delle partite, con il calendario già aperto. Scelta la visita, la scadenza è un anno dopo.
+    // Il genitore apre il link di sempre: due sezioni distinte, con le assenze aperte. La scheda del certificato dice subito che c'è da
+    // fare qualcosa (pallina rossa), anche da chiusa.
     await parent.goto(path);
     await expect(parent.locator("[data-family-athlete]")).toContainText(anna);
+    await expect(parent.locator("[data-family-tabs]")).toHaveAttribute("data-family-tabs", "assenze");
+    await expect(familyTab(parent, "assenze")).toHaveAttribute("aria-selected", "true");
+    await expect(familyTab(parent, "certificato")).toHaveAttribute("aria-selected", "false");
+    await expect(familyTab(parent, "certificato").locator("[data-family-tab-summary]")).toHaveText("Da inserire");
+    await expect(familyTab(parent, "certificato").locator("[data-family-tab-attention]")).toBeVisible();
+    await expect(parent.locator("[data-family-absences]")).toBeVisible();
+    await expect(familyCard(parent)).toBeHidden();
+    // Dal messaggio dello staff (o toccando la scheda) si apre quella del certificato, con il calendario già pronto.
+    await parent.goto(`${path}?sezione=certificato`);
+    await expect(familyTab(parent, "certificato")).toHaveAttribute("aria-selected", "true");
+    await expect(parent.locator("[data-family-absences]")).toBeHidden();
     const card = familyCard(parent);
     await expect(card).toHaveAttribute("data-family-certificate", "warning");
     await expect(card.locator("[data-family-certificate-badge]")).toHaveText("Da inserire");
-    expect(await cardAfterAbsences(parent)).toBe(false);
     // Un solo campo da scegliere: la scadenza non si scrive.
     await expect(card.locator('input[type="date"]')).toHaveCount(1);
     await chooseVisit(card, localDate(-10));
@@ -194,7 +200,7 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     const href = await annaRow.locator("[data-certificate-remind]").first().getAttribute("href");
     const text = decodeURIComponent(href!.split("?text=")[1]);
     expect(text).toContain(`Il certificato medico di Anna scade il ${longDay(oneYearAfter(visit))}`);
-    expect(text).toContain(`${path}#certificato`);
+    expect(text).toContain(`${path}?sezione=certificato`);
     expect(text).toContain("caricate una foto del certificato");
     // E lo dice la dashboard.
     await page.goto("/admin");
@@ -235,7 +241,11 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     await familyCard(parent).locator("[data-certificate-save]").click();
     await expect(familyCard(parent)).toHaveAttribute("data-family-certificate", "success");
     await parent.reload();
-    expect(await cardAfterAbsences(parent)).toBe(false);
+    // Dopo la ricarica resta sulla scheda del certificato (l'indirizzo la ricorda), e in regola la scheda non ha più la pallina.
+    await expect(familyTab(parent, "certificato")).toHaveAttribute("aria-selected", "true");
+    await expect(familyTab(parent, "certificato").locator("[data-family-tab-summary]")).toHaveText("Valido");
+    await expect(familyTab(parent, "assenze")).toHaveAttribute("aria-selected", "false");
+    await expect(familyTab(parent, "certificato").locator("[data-family-tab-attention]")).toHaveCount(0);
     await expect(familyCard(parent).locator("[data-certificate-form]")).toHaveCount(0);
     await expect(familyCard(parent).locator('[data-family-certificate-photo="yes"]')).toBeVisible();
 
@@ -255,6 +265,66 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
   // Eliminate le atlete, i loro certificati non restano: la dashboard non avvisa più.
   await page.goto("/admin");
   await expect(page.locator("[data-dashboard-certificates]")).toHaveCount(0);
+});
+
+test("il link dei genitori ha due sezioni distinte, con le schede in cima: si passa dall'una all'altra senza perdere quello che si scrive", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  await loginAsDev(page);
+  const name = `Carla Sezioni ${lettersTag()}`;
+  await addAthletes(page, [name]);
+  const parent = await browser.newPage();
+  try {
+    const path = await createLink(page, name);
+
+    // Di serie si apre la sezione delle assenze; le due schede dicono cosa c'è in ognuna.
+    await parent.goto(path);
+    await expect(parent.getByRole("tablist", { name: "Sezioni" })).toBeVisible();
+    await expect(familyTab(parent, "assenze")).toContainText("Assenze alle partite");
+    await expect(familyTab(parent, "assenze").locator("[data-family-tab-summary]")).toContainText(/partit[ae] in programma|Nessuna partita/);
+    await expect(familyTab(parent, "certificato")).toContainText("Certificato medico");
+    await expect(parent.locator("[data-family-absences]")).toBeVisible();
+    await expect(familyCard(parent)).toBeHidden();
+
+    // Toccando la scheda del certificato si apre la sua sezione, e l'indirizzo la ricorda (una ricarica non cambia scheda).
+    await familyTab(parent, "certificato").click();
+    await expect(familyTab(parent, "certificato")).toHaveAttribute("aria-selected", "true");
+    await expect(parent.locator("[data-family-absences]")).toBeHidden();
+    await expect(familyCard(parent)).toBeVisible();
+    await expect(parent).toHaveURL(/\/disponibilita\/[^/?#]+\?sezione=certificato$/);
+
+    // Quello che si sta scrivendo nel certificato non si perde passando alle assenze e tornando.
+    await parent.locator("[data-certificate-issued]").fill(localDate(-3));
+    await familyTab(parent, "assenze").click();
+    await expect(parent.locator("[data-family-absences]")).toBeVisible();
+    await expect(familyCard(parent)).toBeHidden();
+    await expect(parent).toHaveURL(/\/disponibilita\/[^/?#]+$/);
+    await familyTab(parent, "certificato").click();
+    await expect(parent.locator("[data-certificate-issued]")).toHaveValue(localDate(-3));
+
+    // Con la tastiera: le frecce passano da una scheda all'altra (e il fuoco le segue), Fine va all'ultima, Home alla prima.
+    await familyTab(parent, "certificato").focus();
+    await parent.keyboard.press("ArrowLeft");
+    await expect(familyTab(parent, "assenze")).toHaveAttribute("aria-selected", "true");
+    await expect(familyTab(parent, "assenze")).toBeFocused();
+    await parent.keyboard.press("End");
+    await expect(familyTab(parent, "certificato")).toHaveAttribute("aria-selected", "true");
+    await parent.keyboard.press("Home");
+    await expect(familyTab(parent, "assenze")).toHaveAttribute("aria-selected", "true");
+
+    // Un indirizzo con #certificato (i primi messaggi dello staff) apre comunque la scheda del certificato.
+    await parent.goto(`${path}#certificato`);
+    await expect(familyTab(parent, "certificato")).toHaveAttribute("aria-selected", "true");
+    await expect(familyCard(parent)).toBeVisible();
+    // E uno sconosciuto in «sezione» ricade sulle assenze.
+    await parent.goto(`${path}?sezione=altro`);
+    await expect(familyTab(parent, "assenze")).toHaveAttribute("aria-selected", "true");
+  } finally {
+    await parent.close();
+    await deleteAthletes(page, [name]);
+  }
 });
 
 test("la sezione ha un permesso a sé: un nuovo Admin non la vede finché il Developer non gliela dà", async ({ page }) => {

@@ -154,7 +154,12 @@ staff (Developer e Admin).
   se la figlia non ci sarà**: chi non segnala niente ci sarà. I genitori non hanno un
   account: ogni atleta ha un **link personale e segreto** (32 caratteri casuali, 192
   bit, `src/lib/availability/token.ts`) che lo staff manda su WhatsApp (o copia). Da lì
-  il genitore vede solo la sua atleta e le prossime partite della sua categoria e, per
+  il genitore vede solo la sua atleta, con **due sezioni distinte scelte da due schede in
+  cima** (`FamilyTabs`: «Assenze alle partite», aperta di serie, e «Certificato medico»;
+  ogni scheda ha il suo stato in vista e una pallina rossa se nel certificato c'è da fare;
+  la sezione aperta resta nell'indirizzo con `?sezione=`, anche `#certificato` apre quella
+  del certificato; l'altra sezione è solo nascosta, così quello che si scrive non si
+  perde). Nelle assenze vede le prossime partite della sua categoria e, per
   ognuna, tocca «Non ci sarà» (si salva subito, senza conferme: `useOptimistic`); poi,
   se vuole, un motivo a scelta e una nota breve, oppure «Annulla». Può farlo **fino alla
   scadenza della partita**: di serie 5 giorni prima dell'inizio, alla stessa ora
@@ -211,8 +216,9 @@ staff (Developer e Admin).
   uguale a `supabase/schema.sql`: lo controlla una prova).
 - **Certificati medici** (`/admin/certificati`, solo U14/U15, permesso a sé
   «Certificati medici») — per ogni atleta se il certificato medico è valido. Il
-  genitore, dal suo link personale (lo stesso delle assenze, riquadro «Certificato
-  medico» in cima, `id="certificato"`), sceglie con il calendario del telefono
+  genitore, dal suo link personale (lo stesso delle assenze, scheda «Certificato
+  medico»; il messaggio dello staff apre già quella, con `?sezione=certificato`),
+  sceglie con il calendario del telefono
   (`type="date"`) **il giorno della visita** e carica **una foto del certificato**
   (`CertificateForm`). Il certificato dura sempre un anno: la scadenza la calcola il
   sito (`expiryFor`, lo stesso giorno l'anno dopo; il 29 febbraio → 28) e si ricalcola
