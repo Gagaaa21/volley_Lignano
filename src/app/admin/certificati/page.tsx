@@ -44,6 +44,8 @@ import { Badge } from "@/components/ui/Badge";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { CopyTextButton } from "@/components/ui/CopyTextButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FileLink } from "@/components/files/FileLink";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
@@ -347,18 +349,16 @@ function CertificateRow({
           today={today}
         >
           {photo && (
-            <LinkButton
+            <FileLink
               href={`/api/certificati/${athlete.id}/foto`}
               target="_blank"
-              rel="noopener noreferrer"
-              prefetch={false}
-              size="sm"
-              variant="outline"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              sheetTitle={`Certificato medico · ${athlete.fullName}`}
               data-certificate-photo-link
             >
               <ImageIcon className="h-4 w-4" />
               Vedi la foto
-            </LinkButton>
+            </FileLink>
           )}
           {reminder &&
             (reachable.length > 0 ? (

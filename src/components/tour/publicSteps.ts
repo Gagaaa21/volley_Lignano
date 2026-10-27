@@ -36,7 +36,7 @@ const PUBLIC_TOUR_STEPS_U14U15: BaseTourStep[] = [
     path: "/",
     target: "public-ics-button",
     title: "Aggiungi al tuo calendario",
-    body: "Con un tocco, allenamenti e partite si aggiungono al calendario del telefono e restano sempre aggiornati. Se hai scelto una categoria, si aggiungono solo le partite di quella.",
+    body: "Con un tocco si apre il calendario con allenamenti e partite: dal telefono premi \"Condividi\" e scegli Calendario (o \"Salva su File\"), dal computer si scarica il file da aprire. Se hai scelto una categoria, ci sono solo le partite di quella.",
   },
   {
     id: "public-pdf",

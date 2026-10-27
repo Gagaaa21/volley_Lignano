@@ -97,23 +97,31 @@ staff (Developer e Admin).
   il riepilogo presenze (`/api/presenze/riepilogo/pdf`) e il riepilogo test
   fisici (`/api/test-fisici/riepilogo/pdf`). Elenco atlete e storico presenze
   restano solo in CSV (sono dati da elaborare, non da stampare). Ogni PDF del
-  sito (anche il tabellino e il manuale dello Scout, le formazioni di gara e le convocazioni) ha
-  **un solo pulsante** (`PdfLink`, `src/components/pdf/PdfLink.tsx`: «PDF», «Scarica PDF»,
-  «Esporta PDF»…), senza un secondo «Condividi»: si guarda e si manda dallo stesso.
-  Dal computer è un normale link (il PDF si apre in una scheda, con il visualizzatore del
-  browser; anche con un browser che sa condividere file, come Chrome su Windows). Da
-  telefono e tablet (`pdfOpensInSheet` in `src/lib/pdf/client.ts`: iPhone e iPad, oppure
-  schermo a tocco con condivisione di file) è un pulsante che scarica il PDF e lo apre in
-  un foglio dentro la pagina (`PdfSheet`): anteprima, **«Condividi»** (`navigator.share`
-  con il file già in mano, quindi parte al primo tocco: WhatsApp, «Salva su File»,
-  e-mail…), «Scarica» su Android e «Chiudi» (anche Esc e «Torna al sito»); la pagina di
-  prima resta lì sotto. Perché su **iPhone e iPad** nessun PDF si apre mai come pagina: con
-  il sito sulla schermata Home un link a un PDF lo apre nella stessa finestra dell'app, senza
-  «indietro» e senza un modo per salvarlo o mandarlo su WhatsApp (e il download con un link
-  lascerebbe sul file allo stesso modo). Il PDF si prende al tocco, con quello che c'è a
-  schermo in quel momento (le convocate scelte, i filtri). Prove nel browser:
-  `e2e/pdf-iphone.spec.ts` (iPhone finto: condivisione che funziona, che rifiuta, assente),
-  `e2e/pdf-android.spec.ts` (Android e computer).
+  sito (anche il tabellino e il manuale dello Scout, le formazioni di gara e le convocazioni) e,
+  più in generale, **ogni documento** (i CSV di partite, presenze, anagrafica, storico e test
+  fisici; il calendario `.ics` pubblico e quello del singolo evento; la copia di sicurezza dello
+  Scout; la foto del certificato medico) ha **un solo pulsante**, senza un secondo «Condividi»: si
+  guarda e si manda dallo stesso. Per i file che vengono dal server è `FileLink`
+  (`src/components/files/FileLink.tsx`: «PDF», «Esporta CSV», «Vedi la foto»…), per quelli che il
+  telefono crea sul posto (CSV dei test fisici, `.ics` di un evento, copia dello Scout) è
+  l'hook `useFileDelivery` (`deliver(file, titolo)`: sul computer scarica, su telefono e tablet
+  apre il foglio). Dal computer è un normale link o un download (il file si apre in una scheda,
+  con il visualizzatore del browser; anche con un browser che sa condividere file, come Chrome su
+  Windows). Da telefono e tablet (`fileOpensInSheet` in `src/lib/files/client.ts`: iPhone e iPad,
+  oppure schermo a tocco con condivisione di file) è un pulsante che scarica il file e lo apre in
+  un foglio dentro la pagina (`FileSheet`): anteprima (PDF e foto con il loro visualizzatore, CSV
+  e calendario come testo), **«Condividi»** (`navigator.share` con il file già in mano, quindi
+  parte al primo tocco: WhatsApp, «Salva su File», «Calendario», e-mail…), «Scarica» su Android o
+  quando il telefono non accetta quel tipo di file (Chrome, per esempio, non manda i `.ics`) e
+  «Chiudi» (anche Esc e «Torna al sito»); la pagina di prima resta lì sotto. Perché su **iPhone e
+  iPad** nessun file si apre mai come pagina: con il sito sulla schermata Home un link a un PDF
+  lo apre nella stessa finestra dell'app, senza «indietro» e senza un modo per salvarlo o
+  mandarlo su WhatsApp (e il download con un link lascerebbe sul file allo stesso modo). Il file
+  si prende al tocco, con quello che c'è a schermo in quel momento (le convocate scelte, i
+  filtri). Prove nel browser: `e2e/pdf-iphone.spec.ts` (iPhone finto: condivisione che
+  funziona, che rifiuta, assente), `e2e/pdf-android.spec.ts` (Android e computer),
+  `e2e/file-documenti.spec.ts` (CSV, calendari e foto del certificato, su computer, iPhone e
+  Android), `e2e/scout-salvataggio.spec.ts` (copia dello Scout dal telefono).
   Il calendario partite ha nel PDF una colonna con «U14»/«U15» su riquadro
   pieno e una barra del colore della categoria sulla riga; i nomi dei file di
   tabellino, formazioni e convocazioni portano la categoria. Le **convocazioni**

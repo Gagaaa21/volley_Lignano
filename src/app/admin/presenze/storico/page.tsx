@@ -6,7 +6,8 @@ import { format, parseISO } from "date-fns";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { FileLink } from "@/components/files/FileLink";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -29,10 +30,10 @@ export default async function AttendanceHistoryPage() {
         title="Storico presenze"
         description="Tutti i registri salvati, dal più recente. Apri un registro per modificarlo."
         actions={
-          <LinkButton href="/api/presenze/storico/csv" variant="outline">
+          <FileLink href="/api/presenze/storico/csv" className={buttonVariants({ variant: "outline" })} sheetTitle="Storico presenze (CSV)" data-history-csv>
             <Download className="h-4 w-4" />
             Esporta CSV
-          </LinkButton>
+          </FileLink>
         }
       />
 

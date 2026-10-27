@@ -368,3 +368,65 @@ test("a ogni set chiuso il dispositivo mette da parte una copia, e dopo un azzer
     await cleanup(page, matchId);
   }
 });
+
+test.describe("dal telefono", () => {
+  test.use({
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("«Scarica una copia» apre il foglio con la copia dello scout e «Condividi» la manda come file", async ({ page }) => {
+    test.setTimeout(150_000);
+    // Il telefono sa mandare un file con il foglio di condivisione: qui se ne finge uno che ricorda cosa riceve.
+    await page.addInitScript(() => {
+      const shared: { name: string; type: string; size: number }[] = [];
+      (window as unknown as { __copyShared: typeof shared }).__copyShared = shared;
+      Object.defineProperty(navigator, "canShare", { configurable: true, value: (data?: ShareData) => Boolean(data?.files?.length) });
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data: ShareData) => {
+          const file = data.files![0];
+          shared.push({ name: file.name, type: file.type, size: file.size });
+        },
+      });
+    });
+    let downloads = 0;
+    page.on("download", () => (downloads += 1));
+    await loginAsDev(page);
+    await switchTeam(page, "u14u15");
+    const matchId = await createMatch(page, uniqueName("Copia telefono "));
+    try {
+      await openAndStart(page, matchId);
+      await addPoint(page, "us-attack");
+      await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
+      await page.route(`**/api/scout/${matchId}`, (route) =>
+        route.request().method() === "PUT" ? route.fulfill({ status: 503, contentType: "text/plain", body: "Connessione assente. Riprova." }) : route.continue(),
+      );
+      await addPoint(page, "us-attack");
+      await expect(sync(page)).toHaveAttribute("data-scout-sync", "offline", { timeout: 15_000 });
+
+      // Sul telefono la copia non si scarica a caso: si apre nel foglio, con «Chiudi», e da lì si manda.
+      const url = page.url();
+      await page.locator("[data-scout-sync-message] [data-scout-download-copy]").click();
+      const sheet = page.locator("[data-file-sheet]");
+      await expect(sheet).toBeVisible();
+      await expect(sheet.locator("[data-file-sheet-text]")).toContainText('"app": "volley-lignano-scout"');
+      await sheet.locator("[data-file-sheet-share]").click();
+      await expect
+        .poll(() => page.evaluate(() => (window as unknown as { __copyShared: unknown[] }).__copyShared.length))
+        .toBe(1);
+      const [file] = await page.evaluate(() => (window as unknown as { __copyShared: { name: string; type: string; size: number }[] }).__copyShared);
+      expect(file.name).toMatch(/^scout-.*\.json$/);
+      expect(file.type).toBe("application/json");
+      await sheet.locator("[data-file-sheet-close]").click();
+      await expect(sheet).toHaveCount(0);
+      expect(page.url()).toBe(url);
+      expect(downloads).toBe(0);
+      await page.unroute(`**/api/scout/${matchId}`);
+    } finally {
+      await cleanup(page, matchId);
+    }
+  });
+});

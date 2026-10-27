@@ -22,6 +22,7 @@ import { categoryDotClass, MATCH_NO_CATEGORY_LABEL, trainingDotClass } from "@/l
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CategoryTag } from "@/components/ui/CategoryTag";
+import { useFileDelivery } from "@/components/files/FileLink";
 import { BlockContent } from "@/components/schede/BlockContent";
 import { buildICSSingleEvent, eventFullTitle, eventTitle } from "@/lib/ics";
 import type { CalendarEvent } from "@/lib/types";
@@ -58,20 +59,15 @@ function eventShareText(event: CalendarEvent): string {
   return `${eventFullTitle(event)} — ${dateLabel} alle ${time} · ${event.location}`;
 }
 
-function downloadICS(event: CalendarEvent) {
-  const blob = new Blob([buildICSSingleEvent(event)], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${eventFullTitle(event).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}.ics`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+/** Il calendario del singolo evento, come file .ics. */
+function eventCalendarFile(event: CalendarEvent): File {
+  const name = `${eventFullTitle(event).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}.ics`;
+  return new File([buildICSSingleEvent(event)], name, { type: "text/calendar" });
 }
 
 function EventActions({ event }: { event: CalendarEvent }) {
   const [copied, setCopied] = useState(false);
+  const calendar = useFileDelivery();
 
   async function handleShare() {
     const text = eventShareText(event);
@@ -97,8 +93,9 @@ function EventActions({ event }: { event: CalendarEvent }) {
     <div className="sticky bottom-0 flex gap-2 border-t border-border bg-card/95 px-5 py-4 backdrop-blur sm:px-6">
       <button
         type="button"
-        onClick={() => downloadICS(event)}
+        onClick={() => calendar.deliver(eventCalendarFile(event), `${eventFullTitle(event)} · calendario`)}
         className={buttonVariants({ variant: "outline", className: "flex-1" })}
+        data-event-calendar
       >
         <CalendarPlus className="h-4 w-4" />
         Aggiungi al calendario
@@ -107,6 +104,7 @@ function EventActions({ event }: { event: CalendarEvent }) {
         {copied ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
         {copied ? "Copiato" : "Condividi"}
       </button>
+      {calendar.element}
     </div>
   );
 }

@@ -26,18 +26,10 @@ export function summaryLine(scout: ScoutData | null): string {
   return `${s.rallies} scambi · set ${s.setsWon.us}–${s.setsWon.opp} (${sets})`;
 }
 
-/** Scarica lo scout come file: una copia che sta fuori dal sito e dal dispositivo. */
-export function downloadScoutCopy(matchId: string, title: string, data: ScoutData) {
+/** Lo scout come file: una copia che sta fuori dal sito e dal dispositivo (sul telefono si apre nel foglio, da cui si manda). */
+export function buildScoutCopy(matchId: string, title: string, data: ScoutData): File {
   const now = new Date();
-  const blob = new Blob([JSON.stringify(buildExport(matchId, data, now), null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = exportFileName(title, now);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return new File([JSON.stringify(buildExport(matchId, data, now), null, 2)], exportFileName(title, now), { type: "application/json" });
 }
 
 /**

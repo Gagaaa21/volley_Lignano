@@ -13,7 +13,7 @@ import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
 import { StandingsSection } from "@/components/calendar/StandingsSection";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { getPublicCalendarData, getPublicSeasonRecord, getPublicStandings } from "@/lib/publicCalendarData";
@@ -142,16 +142,17 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               aggiornati dallo staff.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <a
+              <FileLink
                 href={activeCategory === "all" ? "/calendario.ics" : `/calendario.ics?cat=${activeCategory}`}
                 data-tour="public-ics-button"
                 data-public-ics
                 className={buttonVariants({ variant: "primary", size: "lg" })}
+                sheetTitle={activeCategory === "all" ? "Calendario Volley Lignano" : `Calendario Volley Lignano ${CATEGORY_LABELS[activeCategory]}`}
               >
                 <CalendarPlus className="h-[18px] w-[18px]" />
                 Aggiungi al tuo calendario
-              </a>
-              <PdfLink
+              </FileLink>
+              <FileLink
                 href={pdfHref}
                 data-public-matches-pdf
                 data-tour="public-pdf"
@@ -160,7 +161,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               >
                 <FileDown className="h-[18px] w-[18px]" />
                 Scarica le partite (PDF)
-              </PdfLink>
+              </FileLink>
             </div>
           </div>
 

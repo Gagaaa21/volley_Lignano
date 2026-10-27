@@ -20,7 +20,7 @@ import { ScoutLineups } from "@/components/scout/ScoutLineups";
 import { lineupSummary } from "@/lib/scout/court";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -90,7 +90,7 @@ export default async function ScoutTabellinoPage({
             {summary.state === "done" ? "Rivedi i punti" : "Segna i punti"}
           </LinkButton>
           {summary.state !== "none" && (
-            <PdfLink
+            <FileLink
               href={pdfHref}
               className={buttonVariants({ variant: "outline" })}
               sheetTitle={`Tabellino ${matchTitle(match)}`}
@@ -99,7 +99,7 @@ export default async function ScoutTabellinoPage({
             >
               <FileDown className="h-4 w-4" />
               Scarica PDF
-            </PdfLink>
+            </FileLink>
           )}
         </>
       }

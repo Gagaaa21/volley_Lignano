@@ -57,7 +57,7 @@ async function withShare(page: Page, mode: ShareMode) {
 }
 
 const sharedFiles = (page: Page) => page.evaluate(() => window.__pdfShared ?? []);
-const sheet = (page: Page) => page.locator("[data-pdf-sheet]");
+const sheet = (page: Page) => page.locator("[data-file-sheet]");
 
 /** La pagina non si è mossa e non si è aperto altro: niente nuove schede, niente download. */
 function watchLeaks(page: Page) {
@@ -74,9 +74,9 @@ function watchLeaks(page: Page) {
 /** Il foglio ha l'anteprima del PDF e si chiude, lasciando la pagina di prima com'era. */
 async function expectSheetThenClose(page: Page, url: string) {
   await expect(sheet(page)).toBeVisible();
-  await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+  await expect(sheet(page).locator("[data-file-sheet-preview]")).toHaveAttribute("src", /^blob:/);
   expect(page.url()).toBe(url);
-  await sheet(page).locator("[data-pdf-sheet-close]").click();
+  await sheet(page).locator("[data-file-sheet-close]").click();
   await expect(sheet(page)).toHaveCount(0);
   expect(page.url()).toBe(url);
 }
@@ -87,15 +87,15 @@ async function openAndShare(page: Page, trigger: Locator, expected: { name: stri
   const url = page.url();
   await trigger.click();
   await expect(sheet(page)).toBeVisible();
-  await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
-  await sheet(page).locator("[data-pdf-sheet-share]").click();
+  await expect(sheet(page).locator("[data-file-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+  await sheet(page).locator("[data-file-sheet-share]").click();
   await expect.poll(async () => (await sharedFiles(page)).length).toBe(before + 1);
   const shared = (await sharedFiles(page))[before];
   expect(shared.type).toBe("application/pdf");
   expect(shared.size).toBeGreaterThan(1_000);
   expect(shared.name).toMatch(expected.name);
   expect(shared.title).toMatch(expected.title);
-  await sheet(page).locator("[data-pdf-sheet-close]").click();
+  await sheet(page).locator("[data-file-sheet-close]").click();
   await expect(sheet(page)).toHaveCount(0);
   expect(page.url()).toBe(url);
 }
@@ -171,10 +171,10 @@ test("da iPhone, se la condivisione rifiuta (tocco scaduto): lo dice nel foglio,
 
   await page.locator("[data-public-matches-pdf]").click();
   await expect(sheet(page)).toBeVisible();
-  await sheet(page).locator("[data-pdf-sheet-share]").click();
-  await expect(sheet(page).locator("[data-pdf-sheet-message]")).toContainText("Non riesco ad aprire la condivisione");
+  await sheet(page).locator("[data-file-sheet-share]").click();
+  await expect(sheet(page).locator("[data-file-sheet-message]")).toContainText("Non riesco ad aprire la condivisione");
   // Il foglio resta aperto (c'è sempre «Chiudi» o «Torna al sito»), l'anteprima c'è ancora e la pagina non si è mossa.
-  await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+  await expect(sheet(page).locator("[data-file-sheet-preview]")).toHaveAttribute("src", /^blob:/);
   await sheet(page).getByRole("button", { name: "Torna al sito" }).click();
   await expect(sheet(page)).toHaveCount(0);
   expect(page.url()).toBe(url);
@@ -193,7 +193,7 @@ test("da iPhone senza condivisione di file (sistema vecchio): il PDF si vede lo 
   await expectSheetThenClose(page, url);
   await page.locator("[data-public-matches-pdf]").click();
   await expect(sheet(page)).toBeVisible();
-  await expect(sheet(page).locator("[data-pdf-sheet-share]")).toHaveCount(0);
+  await expect(sheet(page).locator("[data-file-sheet-share]")).toHaveCount(0);
   await sheet(page).getByRole("button", { name: "Torna al sito" }).click();
   await expect(sheet(page)).toHaveCount(0);
   leaks.expectNone();
@@ -216,10 +216,10 @@ test("area tecnici, da iPhone: partite, convocazioni, formazioni e tabellino, un
     // Elenco partite: il PDF dello staff, che segue il filtro di categoria.
     await page.goto("/admin/partite");
     const staffPdf = page.getByRole("button", { name: "Esporta PDF" });
-    await expect(staffPdf).toHaveAttribute("data-pdf-href", "/api/partite/pdf");
+    await expect(staffPdf).toHaveAttribute("data-file-href", "/api/partite/pdf");
     await openAndShare(page, staffPdf, { name: "calendario-partite-staff-volley-lignano.pdf", title: /Calendario partite/ });
     await page.goto("/admin/partite?cat=U15");
-    await expect(page.getByRole("button", { name: "Esporta PDF" })).toHaveAttribute("data-pdf-href", "/api/partite/pdf?cat=U15");
+    await expect(page.getByRole("button", { name: "Esporta PDF" })).toHaveAttribute("data-file-href", "/api/partite/pdf?cat=U15");
     await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
 
     // La partita: convocazioni e formazioni, ognuna con il suo solo pulsante.
@@ -240,7 +240,7 @@ test("area tecnici, da iPhone: partite, convocazioni, formazioni e tabellino, un
     // La stessa cosa dalla finestra «Convocazioni e formazioni»: chiuso il foglio, la finestra è com'era.
     await page.getByRole("button", { name: "Apri", exact: true }).click();
     const dialog = page.locator('[aria-label="Convocazioni e formazioni"]');
-    await expect(dialog.locator("[data-convocations-pdf-dialog]")).toHaveAttribute("data-pdf-href", `/api/partite/${matchId}/convocazioni/pdf?ids=`);
+    await expect(dialog.locator("[data-convocations-pdf-dialog]")).toHaveAttribute("data-file-href", `/api/partite/${matchId}/convocazioni/pdf?ids=`);
     await openAndShare(page, dialog.locator("[data-convocations-pdf-dialog]"), {
       name: new RegExp(`^convocazioni-u14-${slug}-${date}\\.pdf$`),
       title: /Convocazioni/,
@@ -293,7 +293,7 @@ test("area tecnici, da iPhone: riepilogo presenze e riepilogo test fisici", asyn
 
   // Riepilogo presenze (nell'elenco delle atlete).
   const presenze = page.getByRole("button", { name: "Riepilogo presenze" });
-  await expect(presenze).toHaveAttribute("data-pdf-href", "/api/presenze/riepilogo/pdf");
+  await expect(presenze).toHaveAttribute("data-file-href", "/api/presenze/riepilogo/pdf");
   await openAndShare(page, presenze, { name: "riepilogo-presenze-u14u15.pdf", title: /Riepilogo presenze/ });
 
   await page.goto("/admin/test-fisici/nuovo");
@@ -309,7 +309,7 @@ test("area tecnici, da iPhone: riepilogo presenze e riepilogo test fisici", asyn
   const testFisici = page.locator("[data-riepilogo-pdf]");
   await page.getByRole("button", { name: "Tutte le sessioni" }).click();
   await page.getByLabel("Cerca un'atleta").fill(unique);
-  await expect(testFisici).toHaveAttribute("data-pdf-href", /view=tutte/);
+  await expect(testFisici).toHaveAttribute("data-file-href", /view=tutte/);
   await openAndShare(page, testFisici, { name: "test-fisici-tutte.pdf", title: /test fisici/i });
   leaks.expectNone();
 });

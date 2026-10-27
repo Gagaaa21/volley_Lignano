@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown, Download, FileDown } from "lucide-r
 import { Avatar } from "@/components/ui/Avatar";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Button } from "@/components/ui/Button";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink, useFileDelivery } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Select } from "@/components/ui/Field";
 import { buildCsv } from "@/lib/csv";
@@ -134,6 +134,7 @@ function MetricCell({
  * ordina con un clic sulle intestazioni e si scarica quello che si vede.
  */
 export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
+  const delivery = useFileDelivery();
   const days = useMemo(() => {
     const counts = new Map<string, number>();
     for (const athlete of athletes) for (const s of athlete.sessions) counts.set(s.date, (counts.get(s.date) ?? 0) + 1);
@@ -194,13 +195,9 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
       r.others.map((o) => `${o.name}: ${o.value}`).join(" | "),
     ]);
     // Il segno d'ordine dei byte fa riconoscere a Excel che il file è in UTF-8 (accenti).
-    const blob = new Blob(["﻿" + buildCsv(header, lines)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `test-fisici-${view === "giorno" ? day : view}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const name = `test-fisici-${view === "giorno" ? day : view}.csv`;
+    // Sul computer si scarica; su telefono e tablet si apre nel foglio, da cui «Condividi» lo manda.
+    delivery.deliver(new File(["﻿" + buildCsv(header, lines)], name, { type: "text/csv" }), "Riepilogo test fisici · Volley Lignano (CSV)");
   }
 
   return (
@@ -271,16 +268,17 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
           ) : (
             // Il PDF riproduce la tabella com'è a schermo: stessa vista, giorno, filtri e ordine.
             <>
-              <PdfLink href={pdfHref} data-riepilogo-pdf className={buttonVariants({ variant: "outline", size: "sm" })} sheetTitle="Riepilogo test fisici · Volley Lignano">
+              <FileLink href={pdfHref} data-riepilogo-pdf className={buttonVariants({ variant: "outline", size: "sm" })} sheetTitle="Riepilogo test fisici · Volley Lignano">
                 <FileDown className="h-4 w-4" />
                 Scarica PDF
-              </PdfLink>
+              </FileLink>
             </>
           )}
-          <Button type="button" variant="outline" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>
+          <Button type="button" variant="outline" size="sm" onClick={downloadCsv} disabled={rows.length === 0} data-riepilogo-csv>
             <Download className="h-4 w-4" />
             Scarica CSV
           </Button>
+          {delivery.element}
         </div>
       </div>
 

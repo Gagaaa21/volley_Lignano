@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Download, Save, X } from "lucide-react";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { FieldError } from "@/components/ui/Field";
@@ -140,7 +140,7 @@ export function CallUpsAndLineupsDialog({
                   <p className="mt-0.5 text-sm text-muted-foreground">Chi convochi qui diventa selezionabile nelle formazioni per set, qui sotto.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <PdfLink
+                  <FileLink
                     href={convocationsHref}
                     target="_blank"
                     className={buttonVariants({ variant: "outline", size: "sm" })}
@@ -149,7 +149,7 @@ export function CallUpsAndLineupsDialog({
                   >
                     <Download className="h-4 w-4" />
                     Convocazioni PDF
-                  </PdfLink>
+                  </FileLink>
                 </div>
               </div>
               <CallUpsSection
@@ -174,7 +174,7 @@ export function CallUpsAndLineupsDialog({
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <PdfLink
+                  <FileLink
                     href={lineupsHref}
                     target="_blank"
                     className={buttonVariants({ variant: "outline", size: "sm" })}
@@ -183,7 +183,7 @@ export function CallUpsAndLineupsDialog({
                   >
                     <Download className="h-4 w-4" />
                     Formazioni PDF
-                  </PdfLink>
+                  </FileLink>
                 </div>
               </div>
               {calledUpAthletes.length === 0 ? (

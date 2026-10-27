@@ -4,7 +4,7 @@ import { CheckCircle2, ChevronRight, Download, FileDown, Link2, Plus, Swords } f
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
@@ -80,15 +80,15 @@ export default async function MatchesListPage({
         help={<SectionTour steps={SECTION_PARTITE_STEPS} />}
         actions={
           <>
-            <PdfLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
+            <FileLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
             >
               <FileDown className="h-4 w-4" />
               Esporta PDF
-            </PdfLink>
-            <LinkButton href="/api/partite/csv" variant="outline">
+            </FileLink>
+            <FileLink href="/api/partite/csv" className={buttonVariants({ variant: "outline" })} sheetTitle="Partite · Volley Lignano (CSV)" data-matches-csv>
               <Download className="h-4 w-4" />
               Esporta CSV
-            </LinkButton>
+            </FileLink>
             <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
               <Plus className="h-4 w-4" />
               Nuova partita

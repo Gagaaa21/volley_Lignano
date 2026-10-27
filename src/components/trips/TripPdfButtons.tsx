@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileDown } from "lucide-react";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 
 /**
@@ -16,10 +16,10 @@ export function TripPdfButtons({ matchId, title }: { matchId: string; title: str
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end" data-trip-pdf>
       <div className="flex flex-wrap items-center gap-2">
-        <PdfLink href={href} className={buttonVariants({ variant: "outline" })} sheetTitle={title} data-trip-pdf-download>
+        <FileLink href={href} className={buttonVariants({ variant: "outline" })} sheetTitle={title} data-trip-pdf-download>
           <FileDown className="h-4 w-4" />
           Riepilogo PDF
-        </PdfLink>
+        </FileLink>
       </div>
       <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
         <input

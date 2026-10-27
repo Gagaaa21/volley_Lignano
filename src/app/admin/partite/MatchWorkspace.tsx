@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Download, ShieldHalf } from "lucide-react";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CallUpsAndLineupsDialog } from "./CallUpsAndLineupsDialog";
@@ -64,7 +64,7 @@ export function MatchWorkspace({
         <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border pt-4" data-match-pdfs>
           <div role="group" aria-label="Convocazioni in PDF" className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-semibold text-muted-foreground">Convocazioni</span>
-            <PdfLink
+            <FileLink
               href={`/api/partite/${matchId}/convocazioni/pdf`}
               target="_blank"
               className={buttonVariants({ variant: "outline", size: "sm" })}
@@ -73,11 +73,11 @@ export function MatchWorkspace({
             >
               <Download className="h-4 w-4" />
               PDF
-            </PdfLink>
+            </FileLink>
           </div>
           <div role="group" aria-label="Formazioni in PDF" className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-semibold text-muted-foreground">Formazioni</span>
-            <PdfLink
+            <FileLink
               href={`/api/partite/${matchId}/formazioni/pdf`}
               target="_blank"
               className={buttonVariants({ variant: "outline", size: "sm" })}
@@ -86,7 +86,7 @@ export function MatchWorkspace({
             >
               <Download className="h-4 w-4" />
               PDF
-            </PdfLink>
+            </FileLink>
           </div>
         </div>
       </div>

@@ -48,7 +48,7 @@ async function openHub(page: Page, options: { phone?: boolean } = {}) {
 }
 
 const manualButton = (page: Page) => page.locator("[data-scout-manual-link]").first();
-const sheet = (page: Page) => page.locator("[data-pdf-sheet]");
+const sheet = (page: Page) => page.locator("[data-file-sheet]");
 
 test("manuale: dal computer un solo pulsante scarica il file PDF", async ({ page, request }) => {
   test.setTimeout(120_000);
@@ -82,15 +82,15 @@ test.describe("dal telefono", () => {
     await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
     await manualButton(page).click();
     await expect(sheet(page)).toBeVisible();
-    await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
-    await sheet(page).locator("[data-pdf-sheet-share]").click();
+    await expect(sheet(page).locator("[data-file-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+    await sheet(page).locator("[data-file-sheet-share]").click();
     await expect.poll(async () => (await page.evaluate(() => window.__shared))?.length).toBe(1);
     const [shared] = (await page.evaluate(() => window.__shared))!;
     expect(shared.name).toBe(FILE_NAME);
     expect(shared.type).toBe("application/pdf");
     expect(shared.size).toBeGreaterThan(200_000);
     expect(shared.title).toContain("Manuale");
-    await sheet(page).locator("[data-pdf-sheet-close]").click();
+    await sheet(page).locator("[data-file-sheet-close]").click();
     await expect(sheet(page)).toHaveCount(0);
     expect(page.url()).toBe(url);
     expect(downloads).toBe(0);
@@ -110,7 +110,7 @@ test.describe("dal telefono", () => {
     await expect(manualButton(page)).toBeDisabled();
     await expect(sheet(page)).toBeVisible({ timeout: 20_000 });
     await expect(manualButton(page)).toHaveAttribute("aria-busy", "false");
-    await sheet(page).locator("[data-pdf-sheet-close]").click();
+    await sheet(page).locator("[data-file-sheet-close]").click();
     await expect(sheet(page)).toHaveCount(0);
   });
 });

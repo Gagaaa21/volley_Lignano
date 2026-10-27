@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AlertTriangle, Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -65,21 +65,21 @@ export default async function AthletesPage({ searchParams }: { searchParams: Pro
           <AthleteList athletes={athletes} team={team} />
           <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-4">
             <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta CSV</span>
-            <LinkButton href="/api/presenze/atlete/csv" variant="quiet" size="sm">
+            <FileLink href="/api/presenze/atlete/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Anagrafica atlete (CSV)" data-athletes-csv>
               <Download className="h-4 w-4" />
               Anagrafica
-            </LinkButton>
-            <LinkButton href="/api/presenze/riepilogo/csv" variant="quiet" size="sm">
+            </FileLink>
+            <FileLink href="/api/presenze/riepilogo/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze (CSV)" data-summary-csv>
               <Download className="h-4 w-4" />
               Riepilogo presenze
-            </LinkButton>
+            </FileLink>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1">
             <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta PDF</span>
-            <PdfLink href="/api/presenze/riepilogo/pdf" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze · Volley Lignano">
+            <FileLink href="/api/presenze/riepilogo/pdf" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze · Volley Lignano">
               <FileDown className="h-4 w-4" />
               Riepilogo presenze
-            </PdfLink>
+            </FileLink>
           </div>
         </>
       )}

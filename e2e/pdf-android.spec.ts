@@ -56,7 +56,7 @@ test.describe("dal computer", () => {
     // Un clic scarica il file e la pagina resta dov'è.
     const [download] = await Promise.all([page.waitForEvent("download"), pdf.click()]);
     expect(download.suggestedFilename()).toBe("calendario-partite-under-14-volley-lignano.pdf");
-    await expect(page.locator("[data-pdf-sheet]")).toHaveCount(0);
+    await expect(page.locator("[data-file-sheet]")).toHaveCount(0);
   });
 });
 
@@ -78,12 +78,12 @@ test.describe("da Android", () => {
     await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
 
     await pdf.click();
-    const sheet = page.locator("[data-pdf-sheet]");
+    const sheet = page.locator("[data-file-sheet]");
     await expect(sheet).toBeVisible();
-    await expect(sheet.locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+    await expect(sheet.locator("[data-file-sheet-preview]")).toHaveAttribute("src", /^blob:/);
 
     // «Condividi» manda il file con il foglio di condivisione.
-    await sheet.locator("[data-pdf-sheet-share]").click();
+    await sheet.locator("[data-file-sheet-share]").click();
     await expect.poll(async () => (await page.evaluate(() => window.__pdfShared))?.length).toBe(1);
     const [shared] = (await page.evaluate(() => window.__pdfShared))!;
     expect(shared.name).toBe("calendario-partite-under-14-volley-lignano.pdf");
@@ -91,11 +91,11 @@ test.describe("da Android", () => {
     expect(shared.title).toMatch(/Calendario partite Under 14/);
 
     // «Scarica» lo salva sul telefono (su Android un download normale non toglie dalla pagina).
-    const [download] = await Promise.all([page.waitForEvent("download"), sheet.locator("[data-pdf-sheet-download]").click()]);
+    const [download] = await Promise.all([page.waitForEvent("download"), sheet.locator("[data-file-sheet-download]").click()]);
     expect(download.suggestedFilename()).toBe("calendario-partite-under-14-volley-lignano.pdf");
-    await expect(sheet.locator("[data-pdf-sheet-message]")).toContainText("PDF scaricato");
+    await expect(sheet.locator("[data-file-sheet-message]")).toContainText("PDF scaricato");
 
-    await sheet.locator("[data-pdf-sheet-close]").click();
+    await sheet.locator("[data-file-sheet-close]").click();
     await expect(sheet).toHaveCount(0);
     expect(page.url()).toBe(url);
   });

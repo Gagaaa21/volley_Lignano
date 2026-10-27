@@ -21,7 +21,7 @@ import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { DirettaCard } from "./DirettaCard";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
 import { Badge } from "@/components/ui/Badge";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -72,7 +72,7 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
           <Pencil className="h-3.5 w-3.5" />
           {summary.state === "live" ? "Continua" : "Rivedi"}
         </LinkButton>
-        <PdfLink
+        <FileLink
           href={`/api/scout/${match.id}/pdf`}
           className={buttonVariants({ variant: "quiet", size: "sm" })}
           sheetTitle={`Tabellino ${matchTitle(match)}`}
@@ -81,7 +81,7 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
         >
           <FileDown className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only">PDF</span>
-        </PdfLink>
+        </FileLink>
       </div>
     );
 
@@ -179,7 +179,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
       actions={
         <>
-          <PdfLink
+          <FileLink
             href="/api/scout/manuale"
             download
             className={buttonVariants({ variant: "outline" })}
@@ -189,7 +189,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
           >
             <BookOpen className="h-4 w-4" />
             Manuale d&apos;uso (PDF)
-          </PdfLink>
+          </FileLink>
         </>
       }
     />

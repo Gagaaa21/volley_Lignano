@@ -27,7 +27,7 @@ import { getScoutMatchTourSteps } from "@/components/tour/scoutSteps";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { Button } from "@/components/ui/Button";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink, useFileDelivery } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -48,7 +48,7 @@ import { ScoutEntry, ServePlayerPicker } from "./ScoutEntry";
 import { ScoutLineupSheet, type SavedScoutLineup } from "./ScoutLineupEditor";
 import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
-import { ScoutBackups, UnsavedBanner, downloadScoutCopy, summaryLine } from "./ScoutSafety";
+import { ScoutBackups, UnsavedBanner, buildScoutCopy, summaryLine } from "./ScoutSafety";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
 import { useScoutSession, type ScoutConflict, type SyncStatus } from "./useScoutSession";
 import { useWakeLock } from "./useWakeLock";
@@ -244,6 +244,9 @@ export function ScoutClient({
     initial,
     blank,
   });
+  // «Scarica una copia»: sul computer scarica il file, sul telefono lo apre nel foglio da cui si manda.
+  const copyFile = useFileDelivery();
+  const downloadCopy = () => copyFile.deliver(buildScoutCopy(match.id, match.title, data), `Copia di sicurezza · ${match.title}`);
   const view = useMemo(() => deriveScout(data), [data]);
   // Quanti scambi ci sono qui e non sono ancora sul server (serve all'avviso quando il salvataggio non va).
   const unsavedRallies = useMemo(() => (dirty ? Math.max(0, view.rallies.length - deriveScout(saved).rallies.length) : 0), [dirty, view, saved]);
@@ -423,7 +426,7 @@ export function ScoutClient({
                 </Badge>
               )}
               <SyncBadge status={status} />
-              <PdfLink
+              <FileLink
                 href="/api/scout/manuale"
                 download
                 className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "rounded-full" })}
@@ -434,7 +437,7 @@ export function ScoutClient({
                 data-scout-manual
               >
                 <BookOpen className="h-[18px] w-[18px]" />
-              </PdfLink>
+              </FileLink>
               <SectionTour steps={tourSteps} autoStart={autoGuide} />
             </div>
           </div>
@@ -476,8 +479,9 @@ export function ScoutClient({
           message={message}
           unsavedRallies={unsavedRallies}
           onRetry={retryNow}
-          onDownload={() => downloadScoutCopy(match.id, match.title, data)}
+          onDownload={downloadCopy}
         />
+        {copyFile.element}
 
         {/* Sul telefono e fuori dallo schermo intero è una sola colonna (le fasce sono «contents»); a schermo intero e su
          * schermi larghi diventano due colonne che scorrono per conto loro. */}
@@ -535,7 +539,7 @@ export function ScoutClient({
                     matchId={match.id}
                     archive={archive}
                     locked={Boolean(conflict)}
-                    onDownload={() => downloadScoutCopy(match.id, match.title, data)}
+                    onDownload={downloadCopy}
                     onRestore={restore}
                   />
                 )}
@@ -743,7 +747,7 @@ export function ScoutClient({
                 matchId={match.id}
                 archive={archive}
                 locked={Boolean(conflict)}
-                onDownload={() => downloadScoutCopy(match.id, match.title, data)}
+                onDownload={downloadCopy}
                 onRestore={restore}
               />
             </div>

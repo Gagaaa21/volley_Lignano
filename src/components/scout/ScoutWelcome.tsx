@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { BookOpen, FileDown, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { PdfLink } from "@/components/pdf/PdfLink";
+import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -69,10 +69,10 @@ export function ScoutWelcome({ guideHref }: { guideHref: string | null }) {
               Avvia la guida
             </LinkButton>
           )}
-          <PdfLink href="/api/scout/manuale" download className={buttonVariants({ variant: "outline" })} sheetTitle="Scout · Manuale d'uso" data-scout-manual-link>
+          <FileLink href="/api/scout/manuale" download className={buttonVariants({ variant: "outline" })} sheetTitle="Scout · Manuale d'uso" data-scout-manual-link>
             <FileDown className="h-4 w-4" />
             Manuale (PDF)
-          </PdfLink>
+          </FileLink>
           <Button variant="quiet" size="sm" onClick={dismiss} data-scout-welcome-dismiss>
             Non mostrare più
           </Button>
