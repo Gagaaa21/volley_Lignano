@@ -93,7 +93,7 @@ test.describe("da Android", () => {
     // «Scarica» lo salva sul telefono (su Android un download normale non toglie dalla pagina).
     const [download] = await Promise.all([page.waitForEvent("download"), sheet.locator("[data-file-sheet-download]").click()]);
     expect(download.suggestedFilename()).toBe("calendario-partite-under-14-volley-lignano.pdf");
-    await expect(sheet.locator("[data-file-sheet-message]")).toContainText("PDF scaricato");
+    await expect(sheet.locator("[data-file-sheet-message]")).toContainText("File scaricato");
 
     await sheet.locator("[data-file-sheet-close]").click();
     await expect(sheet).toHaveCount(0);
