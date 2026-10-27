@@ -26,6 +26,8 @@ export interface ReportingRules {
   paused: boolean;
   /** Un avviso per i genitori, in cima alla pagina del loro link. */
   notice: string | null;
+  /** Chi ha scritto l'avviso (il nome del suo account, «Gaga»): i genitori lo leggono come «Da Gaga». */
+  noticeBy: string | null;
   /** Chi le ha cambiate l'ultima volta e quando (ISO): null finché sono quelle di serie. */
   updatedAt: string | null;
   updatedBy: string | null;
@@ -40,6 +42,7 @@ export const DEFAULT_REPORTING_RULES: ReportingRules = {
   closingTime: null,
   paused: false,
   notice: null,
+  noticeBy: null,
   updatedAt: null,
   updatedBy: null,
 };
@@ -49,10 +52,13 @@ export interface MatchReporting {
   matchId: string;
   /** La scadenza scelta a mano; null = quella delle regole. «Chiudi adesso» la mette ad adesso. Mai oltre l'inizio della partita. */
   closesAt: string | null;
+  /** Chi l'ha scelta (o ha chiuso): il genitore legge «chiuse da Gaga». */
+  closesAtBy: string | null;
   /** Per questa partita non si chiede niente ai genitori: dal link non si vede. */
   hidden: boolean;
-  /** Un messaggio per i genitori su questa partita, nella pagina del link. */
+  /** Un messaggio per i genitori su questa partita, nella pagina del link, e chi l'ha scritto. */
   message: string | null;
+  messageBy: string | null;
   updatedAt: string;
   updatedBy: string | null;
 }
@@ -121,10 +127,10 @@ export function effectiveDeadline(match: Pick<Match, "matchDate">, rules: Report
 }
 
 export type ReportingState =
-  /** Si può segnalare fino a `deadline`; `manual` se la scadenza è stata scelta a mano. */
-  | { kind: "open"; deadline: string; manual: boolean }
-  /** Chiuse da `deadline`; `manual` se le ha chiuse (o ne ha scelto la scadenza) lo staff. */
-  | { kind: "closed"; deadline: string; manual: boolean }
+  /** Si può segnalare fino a `deadline`; `manual` se la scadenza è stata scelta a mano (da `by`). */
+  | { kind: "open"; deadline: string; manual: boolean; by: string | null }
+  /** Chiuse da `deadline`; `manual` se le ha chiuse (o ne ha scelto la scadenza) qualcuno dello staff, `by`. */
+  | { kind: "closed"; deadline: string; manual: boolean; by: string | null }
   /** Per questa partita non si chiede niente ai genitori. */
   | { kind: "hidden" }
   /** Sospese per tutte le partite. */
@@ -141,7 +147,23 @@ export function reportingState(
   if (rules.paused) return { kind: "paused" };
   const deadline = effectiveDeadline(match, rules, setting);
   const manual = Boolean(setting?.closesAt);
-  return now < deadline ? { kind: "open", deadline, manual } : { kind: "closed", deadline, manual };
+  const by = manual ? (setting?.closesAtBy ?? null) : null;
+  return now < deadline ? { kind: "open", deadline, manual, by } : { kind: "closed", deadline, manual, by };
+}
+
+/**
+ * Chi ha scritto o deciso qualcosa, per chi lo legge: «da Gaga» (il nome del suo account), mai un ruolo indovinato; «dallo staff»
+ * se il nome non c'è (per esempio per un account eliminato).
+ */
+export function byPhrase(name: string | null | undefined): string {
+  const clean = name?.trim();
+  return clean ? `da ${clean}` : "dallo staff";
+}
+
+/** «Da Gaga» / «Dallo staff», all'inizio di un messaggio per i genitori. */
+export function fromLabel(name: string | null | undefined): string {
+  const phrase = byPhrase(name);
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
 
 /** «5 giorni prima» / «1 giorno prima» / «all'inizio della partita». */
@@ -167,7 +189,7 @@ export function parentBlockMessage(state: ReportingState, rules: Pick<ReportingR
       return "Le segnalazioni sono sospese: per avvisare, scrivi all'allenatore.";
     case "closed":
       return state.manual
-        ? "Le segnalazioni per questa partita sono state chiuse dall'allenatore: per avvisare, scrivi all'allenatore."
+        ? `Le segnalazioni per questa partita sono state chiuse ${byPhrase(state.by)}: per avvisare, scrivi all'allenatore.`
         : `Le segnalazioni per questa partita sono chiuse: si possono fare fino ${rules.daysBefore === 0 ? "all'inizio della partita" : `a ${daysBeforePhrase(rules.daysBefore)}`}. Per avvisare, scrivi all'allenatore.`;
   }
 }
@@ -182,7 +204,7 @@ export function parentClosedNote(state: ReportingState, rules: Pick<ReportingRul
       return "Segnalazioni sospese: per avvisare, scrivi all'allenatore.";
     case "closed":
       return state.manual
-        ? "Segnalazioni chiuse dall'allenatore: per avvisare, scrivi all'allenatore."
+        ? `Segnalazioni chiuse ${byPhrase(state.by)}: per avvisare, scrivi all'allenatore.`
         : rules.daysBefore === 0
           ? "Segnalazioni chiuse (all'inizio della partita): per avvisare, scrivi all'allenatore."
           : `Segnalazioni chiuse (${daysBeforePhrase(rules.daysBefore)} della partita): per avvisare, scrivi all'allenatore.`;
@@ -213,11 +235,14 @@ export function parseReportingRules(raw: string | null | undefined): ReportingRu
   const value = asObject(raw);
   if (!value) return DEFAULT_REPORTING_RULES;
   const days = value.daysBefore;
+  const notice = normalizeParentText(value.notice, MAX_NOTICE_LENGTH);
   return {
     daysBefore: Number.isInteger(days) && (days as number) >= 0 && (days as number) <= MAX_DAYS_BEFORE ? (days as number) : DEFAULT_REPORTING_RULES.daysBefore,
     closingTime: isClockTime(value.closingTime) ? value.closingTime : null,
     paused: value.paused === true,
-    notice: normalizeParentText(value.notice, MAX_NOTICE_LENGTH),
+    notice,
+    // Salvate prima che si tenesse l'autore dell'avviso: era chi le aveva cambiate per ultimo.
+    noticeBy: notice ? (textOrNull(value.noticeBy) ?? textOrNull(value.updatedBy)) : null,
     updatedAt: textOrNull(value.updatedAt),
     updatedBy: textOrNull(value.updatedBy),
   };
@@ -230,25 +255,31 @@ export function serializeReportingRules(rules: ReportingRules): string {
 export function parseMatchReporting(matchId: string, raw: string | null | undefined): MatchReporting | null {
   const value = asObject(raw);
   if (!value) return null;
+  const closesAt = isLocalDateTime(value.closesAt) ? value.closesAt : null;
+  const message = normalizeParentText(value.message, MAX_MATCH_MESSAGE_LENGTH);
+  const updatedBy = textOrNull(value.updatedBy);
   return {
     matchId,
-    closesAt: isLocalDateTime(value.closesAt) ? value.closesAt : null,
+    closesAt,
+    // Salvate prima che si tenesse chi ha chiuso o scritto: era chi l'aveva cambiata per ultimo.
+    closesAtBy: closesAt ? (textOrNull(value.closesAtBy) ?? updatedBy) : null,
     hidden: value.hidden === true,
-    message: normalizeParentText(value.message, MAX_MATCH_MESSAGE_LENGTH),
+    message,
+    messageBy: message ? (textOrNull(value.messageBy) ?? updatedBy) : null,
     updatedAt: textOrNull(value.updatedAt) ?? new Date(0).toISOString(),
-    updatedBy: textOrNull(value.updatedBy),
+    updatedBy,
   };
 }
 
 export function serializeMatchReporting(setting: MatchReporting): string {
-  const { closesAt, hidden, message, updatedAt, updatedBy } = setting;
-  return JSON.stringify({ closesAt, hidden, message, updatedAt, updatedBy });
+  const { closesAt, closesAtBy, hidden, message, messageBy, updatedAt, updatedBy } = setting;
+  return JSON.stringify({ closesAt, closesAtBy, hidden, message, messageBy, updatedAt, updatedBy });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Quello che arriva dai moduli dello staff.
 
-export type RulesInputResult = { ok: true; rules: Omit<ReportingRules, "updatedAt" | "updatedBy"> } | { ok: false; error: string };
+export type RulesInputResult = { ok: true; rules: Omit<ReportingRules, "updatedAt" | "updatedBy" | "noticeBy"> } | { ok: false; error: string };
 
 /** Le regole come le scrive lo staff: giorni (0–14), ora (quella della partita o una fissa), pausa, avviso. */
 export function rulesFromInput(input: { daysBefore: unknown; closingMode: unknown; closingTime: unknown; paused: unknown; notice: unknown }): RulesInputResult {

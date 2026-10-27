@@ -12,8 +12,8 @@ import { missingAvailabilityTables } from "@/lib/availability/health";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { reminderMessage, rulesSummary } from "@/lib/availability/reporting";
 import { reportingView, shortWhen, type ReportingView } from "@/lib/availability/reportingView";
-import { appliesToAthlete, canUseFamilyLink, isAbsence } from "@/lib/availability/rules";
-import { ABSENCE_REASON_LABELS, ANSWERED_BY_PHRASES, type AthleteFamilyLink, type MatchAvailability } from "@/lib/availability/types";
+import { answeredByPhrase, appliesToAthlete, canUseFamilyLink, isAbsence, staffNamesById } from "@/lib/availability/rules";
+import { ABSENCE_REASON_LABELS, type AthleteFamilyLink, type MatchAvailability } from "@/lib/availability/types";
 import { whatsappShareUrl } from "@/lib/availability/share";
 import { nowLocalIso, todayIso } from "@/lib/today";
 import type { Athlete, Match } from "@/lib/types";
@@ -49,11 +49,14 @@ export default async function AssenzePage() {
   const now = nowLocalIso();
   const today = todayIso();
 
-  const [missing, allMatches, athletes] = await Promise.all([
+  const [missing, allMatches, athletes, staff] = await Promise.all([
     missingAvailabilityTables(repo),
     repo.listMatches({ team: "u14u15", from: today }),
     repo.listAthletes({ team: "u14u15" }),
+    repo.listStaff(),
   ]);
+  const staffNames = staffNamesById(staff);
+  const author = (row: MatchAvailability) => answeredByPhrase(row.answeredBy, row.updatedBy ? staffNames.get(row.updatedBy) : null);
   const matches = allMatches
     .filter((match) => match.matchDate.slice(0, 10) >= today && match.setScores === null && match.resultSetsWon === null)
     .sort((a, b) => a.matchDate.localeCompare(b.matchDate));
@@ -84,7 +87,7 @@ export default async function AssenzePage() {
     <div>
       <PageHeader
         title="Assenze"
-        description="Le partite a cui un'atleta non ci sarà: le segnalano i genitori dal loro link personale, fino alla scadenza, oppure tu, sempre. Qui decidete tu e l'allenatore fino a quando si può segnalare, partita per partita."
+        description="Le partite a cui un'atleta non ci sarà: le segnalano i genitori dal loro link personale, fino alla scadenza, oppure lo staff, sempre. Qui si decide fino a quando si può segnalare, partita per partita, e chi cambia qualcosa si vede con il suo nome."
         help={<SectionTour steps={SECTION_ASSENZE_STEPS} />}
       />
       <AssenzeTabs active="partite" />
@@ -123,7 +126,14 @@ export default async function AssenzePage() {
             <EmptyState icon={CalendarX2} title="Nessuna partita in programma" description="Quando inserisci le prossime partite le trovi qui." />
           ) : (
             views.map(({ match, view }) => (
-              <MatchReportingCard key={match.id} match={match} view={view} athletes={active} absences={absences.filter((row) => row.matchId === match.id)} />
+              <MatchReportingCard
+                key={match.id}
+                match={match}
+                view={view}
+                athletes={active}
+                absences={absences.filter((row) => row.matchId === match.id)}
+                author={author}
+              />
             ))
           )}
         </section>
@@ -152,7 +162,7 @@ export default async function AssenzePage() {
                           {row.note ? ` · ${row.note}` : ""}
                         </p>
                         <p className="text-[12px] text-muted-foreground">
-                          Segnalata {ANSWERED_BY_PHRASES[row.answeredBy]} · {answerWhen(row.updatedAt)}
+                          Segnalata {author(row)} · {answerWhen(row.updatedAt)}
                         </p>
                       </li>
                     );
@@ -215,7 +225,20 @@ export default async function AssenzePage() {
   );
 }
 
-function MatchReportingCard({ match, view, athletes, absences }: { match: Match; view: ReportingView; athletes: Athlete[]; absences: MatchAvailability[] }) {
+function MatchReportingCard({
+  match,
+  view,
+  athletes,
+  absences,
+  author,
+}: {
+  match: Match;
+  view: ReportingView;
+  athletes: Athlete[];
+  absences: MatchAvailability[];
+  /** «dal genitore» / «da Gaga». */
+  author: (row: MatchAvailability) => string;
+}) {
   const eligible = athletes.filter((athlete) => appliesToAthlete(match, athlete));
   const names = new Map(eligible.map((athlete) => [athlete.id, athlete.fullName] as const));
   const absent = absences.filter((row) => names.has(row.athleteId));
@@ -247,7 +270,7 @@ function MatchReportingCard({ match, view, athletes, absences }: { match: Match;
                 <li
                   key={row.athleteId}
                   className="rounded-lg bg-destructive/8 px-2.5 py-1 text-[13px] font-semibold text-destructive"
-                  title={[row.reason ? ABSENCE_REASON_LABELS[row.reason] : null, row.note, `segnalata ${ANSWERED_BY_PHRASES[row.answeredBy]}`].filter(Boolean).join(" · ")}
+                  title={[row.reason ? ABSENCE_REASON_LABELS[row.reason] : null, row.note, `segnalata ${author(row)}`].filter(Boolean).join(" · ")}
                 >
                   {names.get(row.athleteId)}
                 </li>

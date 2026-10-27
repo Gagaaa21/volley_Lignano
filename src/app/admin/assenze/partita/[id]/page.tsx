@@ -9,6 +9,7 @@ import { formatDateLong } from "@/lib/format";
 import { missingAvailabilityTables } from "@/lib/availability/health";
 import { isAvailabilityTableMissing } from "@/lib/availability/missing";
 import { reportingView } from "@/lib/availability/reportingView";
+import { staffNamesById } from "@/lib/availability/rules";
 import type { MatchAvailability as MatchAvailabilityRow } from "@/lib/availability/types";
 import { nowLocalIso, todayIso } from "@/lib/today";
 import { AvailabilityDatabaseNotice } from "@/components/availability/AvailabilityDatabaseNotice";
@@ -37,11 +38,12 @@ export default async function AssenzePartitaPage({ params }: { params: Promise<{
   if (!match || match.team !== "u14u15") notFound();
 
   // null = la tabella delle assenze manca (lo spiega l'avviso in cima).
-  const [athletes, missing, { rules, settings }, rows] = await Promise.all([
+  const [athletes, missing, { rules, settings }, rows, staff] = await Promise.all([
     repo.listAthletes({ team: "u14u15" }),
     missingAvailabilityTables(repo),
     loadReporting(repo, [id]),
     orEmpty<MatchAvailabilityRow[] | null>(repo.listMatchAvailability({ matchIds: [id] }), null, isAvailabilityTableMissing),
+    repo.listStaff(),
   ]);
   const upcoming = match.setScores === null && match.resultSetsWon === null && match.matchDate.slice(0, 10) >= todayIso();
   const view = upcoming ? reportingView(match, rules, settings.get(id) ?? null, nowLocalIso()) : null;
@@ -78,7 +80,15 @@ export default async function AssenzePartitaPage({ params }: { params: Promise<{
         </p>
       )}
 
-      {rows && <MatchAvailability match={match} rows={rows} athletes={athletes.filter((athlete) => athlete.isActive)} />}
+      {rows && (
+        <MatchAvailability
+          match={match}
+          rows={rows}
+          athletes={athletes.filter((athlete) => athlete.isActive)}
+          staffNames={staffNamesById(staff)}
+          myName={session.fullName}
+        />
+      )}
     </div>
   );
 }

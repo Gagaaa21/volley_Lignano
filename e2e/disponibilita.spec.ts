@@ -237,13 +237,14 @@ test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le asse
     await editor.locator("[data-availability-save]").click();
     await expect(annaRow.locator("[data-availability-details]")).toContainText("Impegno di famiglia · torna domenica");
     await expect(annaRow.locator("[data-availability-editor]")).toHaveCount(0);
-    await expect(annaRow.locator("[data-availability-by]")).toContainText("Segnalata dall'allenatore");
+    // Chi l'ha scritta si vede con il nome del suo account (qui il Developer, «Gaga»), mai come «allenatore».
+    await expect(annaRow.locator("[data-availability-by]")).toContainText("Segnalata da Gaga");
     await boardSettled(page);
 
     // Il genitore la trova già compilata (e la può ancora correggere).
     await parent.reload();
     const edited = matchCard(parent, opponent);
-    await expect(edited.locator("[data-availability-status]")).toContainText("Segnata dall'allenatore");
+    await expect(edited.locator("[data-availability-status]")).toContainText("Segnata da Gaga");
     await expect(edited.locator('[data-availability-reason="famiglia"]')).toHaveAttribute("aria-pressed", "true");
     await expect(edited.locator("[data-availability-note]")).toHaveValue("torna domenica");
     await expect(edited.locator("[data-absence-clear]")).toBeVisible();
@@ -256,7 +257,7 @@ test("il genitore dice solo «Non ci sarà» dal suo link; lo staff vede le asse
     await parent.goto(beaPath);
     const beaCard = matchCard(parent, opponent);
     await expect(beaCard).toHaveAttribute("data-availability-state", "absent");
-    await expect(beaCard.locator("[data-availability-status]")).toContainText("Segnata dall'allenatore");
+    await expect(beaCard.locator("[data-availability-status]")).toContainText("Segnata da Gaga");
     await absentRow(page, bea).locator("[data-absence-clear]").click();
     await expect(absentRow(page, bea)).toHaveCount(0);
     await expect(markButton(page, bea)).toBeVisible();
@@ -345,7 +346,7 @@ test("le segnalazioni chiudono 5 giorni prima (lo staff segna sempre); rigenerar
     await parent.reload();
     const closed = matchCard(parent, soonOpponent);
     await expect(closed).toHaveAttribute("data-availability-state", "absent");
-    await expect(closed.locator("[data-availability-status]")).toContainText("Segnata dall'allenatore");
+    await expect(closed.locator("[data-availability-status]")).toContainText("Segnata da Gaga");
     await expect(closed.locator("[data-availability-details-readonly]")).toHaveText("Altro · ha avvisato");
     await expect(closed.locator("[data-availability-details]")).toHaveCount(0);
     await expect(closed.locator("[data-absence-clear]")).toHaveCount(0);

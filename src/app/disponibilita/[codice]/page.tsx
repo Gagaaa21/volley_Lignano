@@ -5,8 +5,8 @@ import { Info, Link2Off, PauseCircle, Wrench } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { DEFAULT_REPORTING_POLICY, parentClosedNote, type ReportingPolicy } from "@/lib/availability/reporting";
-import { canUseFamilyLink, isAbsence, matchesForAthlete } from "@/lib/availability/rules";
+import { DEFAULT_REPORTING_POLICY, fromLabel, parentClosedNote, type ReportingPolicy } from "@/lib/availability/reporting";
+import { canUseFamilyLink, isAbsence, matchesForAthlete, staffNamesById } from "@/lib/availability/rules";
 import { answerWhen, deadlineLabel } from "@/lib/availability/format";
 import { isFamilyToken } from "@/lib/availability/token";
 import type { MatchAvailability } from "@/lib/availability/types";
@@ -91,6 +91,8 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
     return <NotReady />;
   }
   const absenceByMatch = new Map(answers.filter(isAbsence).map((row) => [row.matchId, row] as const));
+  // Chi dello staff ha segnato un'assenza si vede con il suo nome («Segnata da Gaga»): solo il nome, niente altro dell'account.
+  const staffNames = [...absenceByMatch.values()].some((row) => row.updatedBy) ? staffNamesById(await repo.listStaff()) : new Map<string, string>();
 
   // Solo quello che serve a mostrare le partite: mai chi è convocata né altri dati.
   const items: FamilyMatchItem[] = options.map(({ match, open, state, setting }) => {
@@ -109,7 +111,16 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
       deadline: state.kind === "open" ? deadlineLabel(state.deadline) : null,
       closedNote: parentClosedNote(state, policy.rules),
       message: setting?.message ?? null,
-      absence: row ? { reason: row.reason, note: row.note, by: row.answeredBy, when: answerWhen(row.updatedAt) } : null,
+      messageFrom: setting?.message ? fromLabel(setting.messageBy) : null,
+      absence: row
+        ? {
+            reason: row.reason,
+            note: row.note,
+            by: row.answeredBy,
+            byName: row.updatedBy ? (staffNames.get(row.updatedBy) ?? null) : null,
+            when: answerWhen(row.updatedAt),
+          }
+        : null,
     };
   });
 
@@ -135,7 +146,7 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
         <p className="mt-4 flex items-start gap-2.5 rounded-xl bg-primary-soft/70 px-4 py-3 text-sm text-foreground" data-family-notice>
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
           <span>
-            <b className="font-semibold">Dall&apos;allenatore:</b> {policy.rules.notice}
+            <b className="font-semibold">{fromLabel(policy.rules.noticeBy)}:</b> {policy.rules.notice}
           </span>
         </p>
       )}

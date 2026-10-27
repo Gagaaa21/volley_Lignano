@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 import {
   DEFAULT_REPORTING_RULES,
   autoDeadline,
+  byPhrase,
   effectiveDeadline,
+  fromLabel,
   isLocalDateTime,
   isPlainMatchReporting,
   normalizeParentText,
@@ -19,7 +21,7 @@ import {
   type MatchReporting,
   type ReportingRules,
 } from "@/lib/availability/reporting";
-import { canParentChange, matchesForAthlete } from "@/lib/availability/rules";
+import { answeredByPhrase, canParentChange, matchesForAthlete, staffNamesById } from "@/lib/availability/rules";
 import type { Match } from "@/lib/types";
 
 /** Fino a quando i genitori possono segnalare: regole generali e scelte a mano partita per partita. */
@@ -54,8 +56,10 @@ const rules = (overrides: Partial<ReportingRules> = {}): ReportingRules => ({ ..
 const setting = (overrides: Partial<MatchReporting> = {}): MatchReporting => ({
   matchId: "m1",
   closesAt: null,
+  closesAtBy: null,
   hidden: false,
   message: null,
+  messageBy: null,
   updatedAt: "2026-11-01T10:00:00.000Z",
   updatedBy: "Marco",
   ...overrides,
@@ -98,19 +102,22 @@ test.describe("le scelte a mano per una partita", () => {
   });
 
   test("aperte fino alla scadenza, chiuse da lì; chi le chiude a mano o ne sceglie la scadenza si vede", () => {
-    expect(reportingState(saturday, "2026-11-10T09:00", rules())).toEqual({ kind: "open", deadline: "2026-11-16T18:00", manual: false });
-    expect(reportingState(saturday, "2026-11-16T18:00", rules())).toEqual({ kind: "closed", deadline: "2026-11-16T18:00", manual: false });
+    expect(reportingState(saturday, "2026-11-10T09:00", rules())).toEqual({ kind: "open", deadline: "2026-11-16T18:00", manual: false, by: null });
+    expect(reportingState(saturday, "2026-11-16T18:00", rules())).toEqual({ kind: "closed", deadline: "2026-11-16T18:00", manual: false, by: null });
     // «Chiudi adesso»: la scadenza diventa adesso.
-    expect(reportingState(saturday, "2026-11-10T09:00", rules(), setting({ closesAt: "2026-11-10T09:00" }))).toEqual({
+    // Chi l'ha chiusa si vede con il suo nome.
+    expect(reportingState(saturday, "2026-11-10T09:00", rules(), setting({ closesAt: "2026-11-10T09:00", closesAtBy: "Gaga" }))).toEqual({
       kind: "closed",
       deadline: "2026-11-10T09:00",
       manual: true,
+      by: "Gaga",
     });
     // «Riapri fino all'inizio»: anche dentro i 5 giorni.
     expect(reportingState(saturday, "2026-11-20T12:00", rules(), setting({ closesAt: "2026-11-21T18:00" }))).toEqual({
       kind: "open",
       deadline: "2026-11-21T18:00",
       manual: true,
+      by: null,
     });
   });
 
@@ -130,31 +137,38 @@ test.describe("le scelte a mano per una partita", () => {
 test.describe("cosa vede e cosa può fare il genitore", () => {
   test("il perché di una partita chiusa, per ogni caso", () => {
     const r = rules();
-    expect(parentBlockMessage({ kind: "open", deadline: "x", manual: false }, r)).toBeNull();
-    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: false }, r)).toBe(
+    expect(parentBlockMessage({ kind: "open", deadline: "x", manual: false, by: null }, r)).toBeNull();
+    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: false, by: null }, r)).toBe(
       "Le segnalazioni per questa partita sono chiuse: si possono fare fino a 5 giorni prima. Per avvisare, scrivi all'allenatore.",
     );
-    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: false }, rules({ daysBefore: 0 }))).toBe(
+    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: false, by: null }, rules({ daysBefore: 0 }))).toBe(
       "Le segnalazioni per questa partita sono chiuse: si possono fare fino all'inizio della partita. Per avvisare, scrivi all'allenatore.",
     );
-    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: false }, rules({ daysBefore: 1 }))).toMatch(/fino a 1 giorno prima\./);
-    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: true }, r)).toMatch(/chiuse dall'allenatore/);
+    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: false, by: null }, rules({ daysBefore: 1 }))).toMatch(/fino a 1 giorno prima\./);
+    // Chiusa a mano: con il nome di chi l'ha chiusa, mai un ruolo indovinato.
+    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: true, by: "Gaga" }, r)).toBe(
+      "Le segnalazioni per questa partita sono state chiuse da Gaga: per avvisare, scrivi all'allenatore.",
+    );
+    expect(parentBlockMessage({ kind: "closed", deadline: "x", manual: true, by: null }, r)).toMatch(/chiuse dallo staff/);
     expect(parentBlockMessage({ kind: "paused" }, r)).toMatch(/sospese/);
     expect(parentBlockMessage({ kind: "hidden" }, r)).toMatch(/non si segnalano dal link/);
     for (const kind of ["closed", "paused", "hidden"] as const) {
-      const state = kind === "closed" ? { kind, deadline: "x", manual: false } : { kind };
+      const state = kind === "closed" ? { kind, deadline: "x", manual: false, by: null } : { kind };
       expect(parentBlockMessage(state, r)).toMatch(/scrivi all'allenatore/);
     }
   });
 
   test("la riga sotto una partita chiusa", () => {
-    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: false }, rules())).toBe(
+    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: false, by: null }, rules())).toBe(
       "Segnalazioni chiuse (5 giorni prima della partita): per avvisare, scrivi all'allenatore.",
     );
-    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: false }, rules({ daysBefore: 1 }))).toMatch(/1 giorno prima/);
-    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: true }, rules())).toMatch(/chiuse dall'allenatore/);
+    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: false, by: null }, rules({ daysBefore: 1 }))).toMatch(/1 giorno prima/);
+    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: true, by: "Gaga" }, rules())).toBe(
+      "Segnalazioni chiuse da Gaga: per avvisare, scrivi all'allenatore.",
+    );
+    expect(parentClosedNote({ kind: "closed", deadline: "x", manual: true, by: null }, rules())).toMatch(/chiuse dallo staff/);
     expect(parentClosedNote({ kind: "paused" }, rules())).toMatch(/sospese/);
-    expect(parentClosedNote({ kind: "open", deadline: "x", manual: false }, rules())).toBeNull();
+    expect(parentClosedNote({ kind: "open", deadline: "x", manual: false, by: null }, rules())).toBeNull();
   });
 
   test("le azioni del genitore seguono le stesse regole", () => {
@@ -174,20 +188,53 @@ test.describe("cosa vede e cosa può fare il genitore", () => {
       rules: rules(),
       matches: new Map([
         ["hidden", setting({ matchId: "hidden", hidden: true })],
-        ["closed", setting({ matchId: "closed", closesAt: "2026-11-09T20:00", message: "Pullman alle 15" })],
+        ["closed", setting({ matchId: "closed", closesAt: "2026-11-09T20:00", closesAtBy: "Gaga", message: "Pullman alle 15", messageBy: "Gaga" })],
       ]),
     });
     expect(list.map((entry) => entry.match.id)).toEqual(["m1", "closed"]);
     expect(list.map((entry) => entry.open)).toEqual([true, false]);
-    expect(list[1].state).toEqual({ kind: "closed", deadline: "2026-11-09T20:00", manual: true });
+    expect(list[1].state).toEqual({ kind: "closed", deadline: "2026-11-09T20:00", manual: true, by: "Gaga" });
     expect(list[1].setting?.message).toBe("Pullman alle 15");
+  });
+});
+
+test.describe("chi ha scritto, con il suo nome", () => {
+  test("«da Gaga», mai un ruolo indovinato; «dallo staff» se il nome non c'è", () => {
+    expect(byPhrase("Gaga")).toBe("da Gaga");
+    expect(byPhrase("  Luca Rossi ")).toBe("da Luca Rossi");
+    expect(byPhrase(null)).toBe("dallo staff");
+    expect(byPhrase("   ")).toBe("dallo staff");
+    expect(fromLabel("Gaga")).toBe("Da Gaga");
+    expect(fromLabel(undefined)).toBe("Dallo staff");
+  });
+
+  test("un'assenza: dal genitore, o dal nome dell'account dello staff che l'ha scritta", () => {
+    expect(answeredByPhrase("parent", "Gaga")).toBe("dal genitore");
+    expect(answeredByPhrase("staff", "Gaga")).toBe("da Gaga");
+    expect(answeredByPhrase("staff", null)).toBe("dallo staff");
+    const names = staffNamesById([
+      { id: "s1", fullName: "Gaga" },
+      { id: "s2", fullName: "Luca" },
+    ]);
+    expect(names.get("s2")).toBe("Luca");
   });
 });
 
 test.describe("lettura e scrittura nell'archivio", () => {
   test("le regole si rileggono uguali; quello che non torna lascia il valore di serie", () => {
-    const saved = rules({ daysBefore: 3, closingTime: "21:00", paused: true, notice: "Torneo a Natale", updatedAt: "2026-11-01T10:00:00Z", updatedBy: "Marco" });
+    const saved = rules({
+      daysBefore: 3,
+      closingTime: "21:00",
+      paused: true,
+      notice: "Torneo a Natale",
+      noticeBy: "Gaga",
+      updatedAt: "2026-11-01T10:00:00Z",
+      updatedBy: "Marco",
+    });
     expect(parseReportingRules(serializeReportingRules(saved))).toEqual(saved);
+    // Salvate prima che si tenesse l'autore dell'avviso: è chi le aveva cambiate; senza avviso nessun autore.
+    expect(parseReportingRules(JSON.stringify({ daysBefore: 5, notice: "Ciao", updatedBy: "Gaga" })).noticeBy).toBe("Gaga");
+    expect(parseReportingRules(JSON.stringify({ daysBefore: 5, notice: "", noticeBy: "Gaga" })).noticeBy).toBeNull();
     expect(parseReportingRules(null)).toEqual(DEFAULT_REPORTING_RULES);
     expect(parseReportingRules("non è json")).toEqual(DEFAULT_REPORTING_RULES);
     expect(parseReportingRules(JSON.stringify({ daysBefore: 40, closingTime: "25:00", paused: "sì", notice: 3 }))).toEqual(DEFAULT_REPORTING_RULES);
@@ -195,8 +242,12 @@ test.describe("lettura e scrittura nell'archivio", () => {
   });
 
   test("la scelta di una partita si rilegge uguale; una data sbagliata non vale", () => {
-    const saved = setting({ closesAt: "2026-11-19T20:00", hidden: true, message: "Si parte alle 15" });
+    const saved = setting({ closesAt: "2026-11-19T20:00", closesAtBy: "Gaga", hidden: true, message: "Si parte alle 15", messageBy: "Luca" });
     expect(parseMatchReporting("m1", serializeMatchReporting(saved))).toEqual(saved);
+    // Salvata prima che si tenesse chi ha chiuso o scritto: è chi l'aveva cambiata.
+    const legacy = parseMatchReporting("m1", JSON.stringify({ closesAt: "2026-11-19T20:00", message: "Ciao", updatedBy: "Gaga", updatedAt: "2026-11-01T10:00:00Z" }));
+    expect([legacy?.closesAtBy, legacy?.messageBy]).toEqual(["Gaga", "Gaga"]);
+    expect(parseMatchReporting("m1", JSON.stringify({ hidden: true, closesAtBy: "Gaga", messageBy: "Gaga" }))).toMatchObject({ closesAtBy: null, messageBy: null });
     expect(parseMatchReporting("m1", JSON.stringify({ closesAt: "2026-02-31T10:00" }))?.closesAt).toBeNull();
     expect(parseMatchReporting("m1", null)).toBeNull();
     expect(parseMatchReporting("m1", "[1,2]")).toBeNull();

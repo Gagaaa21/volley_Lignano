@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "./helpers";
 
 /**
- * La sezione Assenze per l'allenatore e il Developer (/admin/assenze, voce a sé nel menu): partita per partita chiudere adesso,
+ * La sezione Assenze per lo staff con il permesso Partite (/admin/assenze, voce a sé nel menu): partita per partita chiudere adesso,
  * riaprire, scegliere la scadenza, lasciare un messaggio ai genitori o non chiedere niente; le regole per tutte le partite (giorni,
  * ora fissa, pausa, avviso); le ultime segnalazioni e il promemoria per il gruppo. Il genitore vede tutto dal suo link, e le sue
  * azioni rispettano le stesse regole anche da una pagina rimasta aperta. Alla fine le regole tornano quelle di serie.
@@ -138,7 +138,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e �
     await parent.goto(path);
     const farCard = familyCard(parent, farOpponent);
     await expect(farCard.locator("[data-absence-report]")).toHaveCount(0);
-    await expect(farCard.locator("[data-availability-closed]")).toHaveText("Segnalazioni chiuse dall'allenatore: per avvisare, scrivi all'allenatore.");
+    await expect(farCard.locator("[data-availability-closed]")).toHaveText("Segnalazioni chiuse da Gaga: per avvisare, scrivi all'allenatore.");
 
     // «Riapri fino all'inizio» su quella vicina: il genitore può segnalare fino all'ora della partita, e segnala.
     await controls(page, near).locator("[data-reporting-reopen]").click();
@@ -175,7 +175,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e �
     await expect(controls(page, far)).toContainText("Scadenza scelta a mano");
     await parent.reload();
     const reopened = familyCard(parent, farOpponent);
-    await expect(reopened.locator("[data-availability-message]")).toContainText("Dall'allenatore: Partenza in pullman alle 14:30");
+    await expect(reopened.locator("[data-availability-message]")).toContainText("Da Gaga: Partenza in pullman alle 14:30");
     await expect(reopened.locator("[data-availability-deadline]")).toHaveText(`Puoi segnalarlo fino a ${deadlineText(localDate(8), "20:00")}.`);
 
     // La pagina del genitore resta aperta mentre lo staff chiude: il tocco arriva al server, che rifiuta e lo dice.
@@ -183,7 +183,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e �
     await controls(page, far).locator("[data-reporting-close]").click();
     await expectState(page, far, "closed");
     await reopened.locator("[data-absence-report]").click();
-    await expect(reopened.locator("[data-availability-error]")).toContainText("chiuse dall'allenatore");
+    await expect(reopened.locator("[data-availability-error]")).toContainText("chiuse da Gaga");
     await expect(reopened).toHaveAttribute("data-availability-state", "none");
 
     // Gli stessi comandi nella pagina della partita, dentro la sezione: da lì si torna alla scadenza automatica.
@@ -276,7 +276,7 @@ test("regole per tutte le partite: giorni e ora fissa, pausa e avviso ai genitor
     await expect(page.locator("[data-reporting-reminder-text]")).toHaveCount(0);
     await parent.reload();
     await expect(parent.locator("[data-family-paused]")).toBeVisible();
-    await expect(parent.locator("[data-family-notice]")).toContainText("Per il torneo di Natale scrivete all'allenatore.");
+    await expect(parent.locator("[data-family-notice]")).toContainText("Da Gaga: Per il torneo di Natale scrivete all'allenatore.");
     await expect(parent.locator("[data-absence-report]")).toHaveCount(0);
     await expect(familyCard(parent, laterOpponent).locator("[data-availability-closed]")).toContainText("Segnalazioni sospese");
 

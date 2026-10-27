@@ -68,7 +68,7 @@ export default async function AssenzeRegolePage() {
               </li>
               <li className="flex gap-2.5">
                 <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                <span>Con la pausa i genitori vedono le partite ma non possono segnalare; tu e l&apos;allenatore sì, sempre.</span>
+                <span>Con la pausa i genitori vedono le partite ma non possono segnalare; lo staff sì, sempre.</span>
               </li>
               <li className="flex gap-2.5">
                 <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />

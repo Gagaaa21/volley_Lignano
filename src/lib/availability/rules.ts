@@ -3,6 +3,7 @@ import {
   DEFAULT_REPORTING_POLICY,
   DEFAULT_REPORTING_RULES,
   autoDeadline,
+  byPhrase,
   parentBlockMessage,
   reportingState,
   type MatchReporting,
@@ -10,7 +11,15 @@ import {
   type ReportingRules,
   type ReportingState,
 } from "./reporting";
-import { ABSENCE_REASONS, ABSENCE_REASON_LABELS, ANSWER_LABELS, MAX_NOTE_LENGTH, type AbsenceReason, type MatchAvailability } from "./types";
+import {
+  ABSENCE_REASONS,
+  ABSENCE_REASON_LABELS,
+  ANSWER_LABELS,
+  MAX_NOTE_LENGTH,
+  type AbsenceReason,
+  type AnsweredBy,
+  type MatchAvailability,
+} from "./types";
 
 /**
  * Le regole delle assenze alle partite, in funzioni pure (con le loro prove): quali partite vede il genitore, fino a quando può
@@ -130,6 +139,19 @@ export function canParentChange(
 ): ParentChange {
   const blocked = parentBlockMessage(reportingState(match, now, rules, setting), rules);
   return blocked ? { ok: false, error: blocked } : { ok: true };
+}
+
+/**
+ * Chi ha segnalato un'assenza, per chi la legge: «dal genitore», oppure «da Gaga» con il nome dell'account dello staff che l'ha
+ * scritta (mai un ruolo indovinato come «dall'allenatore»); «dallo staff» se l'account non c'è più.
+ */
+export function answeredByPhrase(by: AnsweredBy, staffName: string | null | undefined): string {
+  return by === "parent" ? "dal genitore" : byPhrase(staffName);
+}
+
+/** I nomi degli account dello staff, per sapere chi ha scritto qualcosa (`updatedBy` è l'id dell'account). */
+export function staffNamesById(staff: readonly { id: string; fullName: string }[]): Map<string, string> {
+  return new Map(staff.map((member) => [member.id, member.fullName] as const));
 }
 
 /** L'assenza in una riga, per lo staff: «Non ci sarà · Malata o infortunata · mal di gola». */

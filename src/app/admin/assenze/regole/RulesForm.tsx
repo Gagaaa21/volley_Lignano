@@ -64,7 +64,7 @@ export function RulesForm({ rules, changed }: { rules: ReportingRules; changed: 
         name="paused"
         defaultChecked={rules.paused}
         label="Sospendi le segnalazioni per tutte le partite"
-        description="I genitori vedono le partite ma non possono segnalare (per esempio durante una pausa del campionato). Tu e l'allenatore potete sempre."
+        description="I genitori vedono le partite ma non possono segnalare (per esempio durante una pausa del campionato). Lo staff può sempre."
         data-rules-paused
       />
 

@@ -3,14 +3,8 @@
 import { useOptimistic, useState, useTransition } from "react";
 import { AlertTriangle, CalendarX2, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import {
-  ABSENCE_REASONS,
-  ABSENCE_REASON_LABELS,
-  ANSWERED_BY_PHRASES,
-  MAX_NOTE_LENGTH,
-  type AbsenceReason,
-  type AnsweredBy,
-} from "@/lib/availability/types";
+import { answeredByPhrase } from "@/lib/availability/rules";
+import { ABSENCE_REASONS, ABSENCE_REASON_LABELS, MAX_NOTE_LENGTH, type AbsenceReason, type AnsweredBy } from "@/lib/availability/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -29,6 +23,8 @@ export interface BoardAbsence {
   reason: AbsenceReason | null;
   note: string | null;
   by: AnsweredBy;
+  /** Il nome di chi dello staff l'ha scritta (se `by` è «staff»). */
+  byName: string | null;
   when: string;
 }
 
@@ -42,19 +38,22 @@ function applyChange(absences: Record<string, BoardAbsence>, change: Change): Re
 }
 
 /**
- * Le assenze della partita: chi non ci sarà (lo segnalano i genitori dal loro link, fino alla scadenza, oppure lo scrive
- * l'allenatore), con motivo e nota, e sotto le altre atlete per segnarne una con un tocco. Chi non è segnata ci sarà. La modifica
- * si vede subito e intanto va al server; se il server la rifiuta torna com'era e lo dice. Non tocca le convocazioni: se una
- * convocata non c'è lo dice, e decide l'allenatore.
+ * Le assenze della partita: chi non ci sarà (lo segnalano i genitori dal loro link, fino alla scadenza, oppure qualcuno dello
+ * staff), con motivo e nota, e sotto le altre atlete per segnarne una con un tocco. Chi non è segnata ci sarà. La modifica si vede
+ * subito e intanto va al server; se il server la rifiuta torna com'era e lo dice. Sotto ogni assenza c'è chi l'ha scritta, con il
+ * suo nome. Non tocca le convocazioni: se una convocata non c'è lo dice, e decide lo staff.
  */
 export function AvailabilityBoard({
   matchId,
   athletes,
   absences,
+  myName,
 }: {
   matchId: string;
   athletes: BoardAthlete[];
   absences: Record<string, BoardAbsence>;
+  /** Il nome di chi sta guardando: un'assenza appena segnata è sua. */
+  myName: string;
 }) {
   const [optimistic, applyOptimistic] = useOptimistic(absences, applyChange);
   const [saving, startTransition] = useTransition();
@@ -65,7 +64,7 @@ export function AvailabilityBoard({
     startTransition(async () => {
       applyOptimistic({
         athleteId,
-        absence: absence ? { reason: absence.reason, note: absence.note.trim() || null, by: "staff", when: "adesso" } : null,
+        absence: absence ? { reason: absence.reason, note: absence.note.trim() || null, by: "staff", byName: myName, when: "adesso" } : null,
       });
       try {
         const result = await setStaffAbsenceAction(matchId, athleteId, absence !== null, absence?.reason ?? null, absence?.note ?? "");
@@ -185,7 +184,7 @@ function AbsentRow({
             {athlete.calledUp && <Badge tone="danger">Convocata</Badge>}
           </p>
           <p className="text-[12px] text-muted-foreground" data-availability-by>
-            Segnalata {ANSWERED_BY_PHRASES[absence.by]} · {absence.when}
+            Segnalata {answeredByPhrase(absence.by, absence.byName)} · {absence.when}
           </p>
         </div>
         <Button type="button" size="sm" variant="outline" onClick={onClear} data-absence-clear>

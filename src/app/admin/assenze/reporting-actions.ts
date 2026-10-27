@@ -52,28 +52,44 @@ export async function updateMatchReportingAction(matchId: string, change: Report
 
   try {
     const [current] = await repo.listMatchReporting([id]);
-    const next = { closesAt: current?.closesAt ?? null, hidden: current?.hidden ?? false, message: current?.message ?? null };
+    const next = {
+      closesAt: current?.closesAt ?? null,
+      closesAtBy: current?.closesAtBy ?? null,
+      hidden: current?.hidden ?? false,
+      message: current?.message ?? null,
+      messageBy: current?.messageBy ?? null,
+    };
+    // Chi chiude o scrive si vede con il nome del suo account («chiuse da Gaga», «Da Gaga: …»), non con un ruolo.
+    const me = session.fullName;
     switch (change?.type) {
       case "close":
         next.closesAt = nowLocalIso();
+        next.closesAtBy = me;
         break;
       case "reopen":
         next.closesAt = start;
+        next.closesAtBy = me;
         break;
       case "auto":
         next.closesAt = null;
+        next.closesAtBy = null;
         break;
       case "deadline":
         if (!isLocalDateTime(change.closesAt)) return { ok: false, error: "Scegli il giorno e l'ora della scadenza." };
         if (change.closesAt > start) return { ok: false, error: `La scadenza non può essere dopo l'inizio della partita (${shortWhen(start)}).` };
         next.closesAt = change.closesAt;
+        next.closesAtBy = me;
         break;
       case "hidden":
         next.hidden = change.hidden === true;
         break;
-      case "message":
-        next.message = normalizeParentText(change.message, MAX_MATCH_MESSAGE_LENGTH);
+      case "message": {
+        const message = normalizeParentText(change.message, MAX_MATCH_MESSAGE_LENGTH);
+        // Il messaggio resta di chi l'ha scritto finché nessuno lo cambia.
+        if (message !== next.message) next.messageBy = message ? me : null;
+        next.message = message;
         break;
+      }
       default:
         return { ok: false, error: "Richiesta non valida." };
     }
@@ -106,7 +122,11 @@ export async function saveReportingRulesAction(_previous: RulesFormState, formDa
   if (!parsed.ok) return { error: parsed.error };
   const repo = await getActiveRepo();
   try {
-    await repo.saveReportingRules({ ...parsed.rules, updatedAt: new Date().toISOString(), updatedBy: session.fullName });
+    // L'avviso resta di chi l'ha scritto finché nessuno lo cambia (anche se un altro cambia i giorni o la pausa).
+    const current = await repo.getReportingRules();
+    const notice = parsed.rules.notice;
+    const noticeBy = notice ? (notice === current.notice ? (current.noticeBy ?? session.fullName) : session.fullName) : null;
+    await repo.saveReportingRules({ ...parsed.rules, noticeBy, updatedAt: new Date().toISOString(), updatedBy: session.fullName });
   } catch (error) {
     if (isAppSettingsMissing(error)) return { error: STORE_MISSING };
     throw error;

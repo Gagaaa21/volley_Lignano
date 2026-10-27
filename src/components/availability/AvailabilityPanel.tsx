@@ -4,6 +4,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { CalendarX2, Clock, Lock, MapPin, MessageSquareText, Undo2, X } from "lucide-react";
 import { clearAbsenceAction, reportAbsenceAction } from "@/app/disponibilita/[codice]/actions";
 import { cn } from "@/lib/cn";
+import { byPhrase } from "@/lib/availability/reporting";
 import { ABSENCE_REASONS, ABSENCE_REASON_LABELS, MAX_NOTE_LENGTH, type AbsenceReason, type AnsweredBy } from "@/lib/availability/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,8 @@ export interface FamilyAbsence {
   reason: AbsenceReason | null;
   note: string | null;
   by: AnsweredBy;
+  /** Il nome di chi dello staff l'ha segnata («Segnata da Gaga»), se `by` è «staff». */
+  byName: string | null;
   when: string;
 }
 
@@ -34,10 +37,11 @@ export interface FamilyMatchItem {
   open: boolean;
   /** Fino a quando si può segnalare, già in italiano («lunedì 19 ottobre, ore 18:00»); null se è già chiusa. */
   deadline: string | null;
-  /** Perché è chiusa, già in italiano («Segnalazioni chiuse dall'allenatore: …»); null se è aperta. */
+  /** Perché è chiusa, già in italiano («Segnalazioni chiuse da Gaga: …»); null se è aperta. */
   closedNote: string | null;
-  /** Un messaggio dell'allenatore su questa partita. */
+  /** Un messaggio dello staff su questa partita, e chi l'ha scritto («Da Gaga»). */
   message: string | null;
+  messageFrom: string | null;
   /** Nessuna assenza = null: ci sarà. */
   absence: FamilyAbsence | null;
 }
@@ -64,7 +68,7 @@ export function AvailabilityPanel({ token, items }: { token: string; items: Fami
     startTransition(async () => {
       applyOptimistic({
         matchId,
-        absence: absence ? { reason: absence.reason, note: absence.note.trim() || null, by: "parent", when: "adesso" } : null,
+        absence: absence ? { reason: absence.reason, note: absence.note.trim() || null, by: "parent", byName: null, when: "adesso" } : null,
       });
       try {
         const result = absence
@@ -82,7 +86,7 @@ export function AvailabilityPanel({ token, items }: { token: string; items: Fami
       <EmptyState
         icon={CalendarX2}
         title="Nessuna partita in programma"
-        description="Quando l'allenatore inserisce le prossime partite le trovi qui."
+        description="Quando saranno inserite le prossime partite le trovi qui."
       />
     );
   }
@@ -140,7 +144,7 @@ function MatchCard({
           <p className="mt-3 flex items-start gap-2 rounded-xl bg-primary-soft/70 px-3.5 py-2.5 text-[13px] text-foreground" data-availability-message>
             <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
             <span>
-              <b className="font-semibold">Dall&apos;allenatore:</b> {item.message}
+              <b className="font-semibold">{item.messageFrom ?? "Dallo staff"}:</b> {item.message}
             </span>
           </p>
         )}
@@ -152,11 +156,11 @@ function MatchCard({
               Non ci sarà
             </p>
             <p className="mt-2 text-[13px] text-muted-foreground" data-availability-status>
-              {absence.by === "parent" ? "Segnalata da te" : "Segnata dall'allenatore"} · {absence.when}
+              {absence.by === "parent" ? "Segnalata da te" : `Segnata ${byPhrase(absence.byName)}`} · {absence.when}
             </p>
             {item.open ? (
               <>
-                {/* Il campo della nota riparte da quella salvata quando cambia (per esempio se la cambia l'allenatore). */}
+                {/* Il campo della nota riparte da quella salvata quando cambia (per esempio se la cambia qualcuno dello staff). */}
                 <AbsenceDetails key={absence.note ?? ""} absence={absence} onChange={onReport} />
                 <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={onClear} data-absence-clear>
                   <Undo2 className="h-4 w-4" />
@@ -249,7 +253,7 @@ function AbsenceDetails({ absence, onChange }: { absence: FamilyAbsence; onChang
           value={draft}
           maxLength={MAX_NOTE_LENGTH}
           autoComplete="off"
-          aria-label="Una nota per l'allenatore"
+          aria-label="Una nota per lo staff"
           placeholder="Una nota (facoltativa)"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
