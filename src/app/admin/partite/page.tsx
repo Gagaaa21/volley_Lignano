@@ -4,7 +4,9 @@ import { CheckCircle2, ChevronRight, Download, FileDown, Link2, Plus, Swords } f
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -79,10 +81,10 @@ export default async function MatchesListPage({
         help={<SectionTour steps={SECTION_PARTITE_STEPS} />}
         actions={
           <>
-            <LinkButton href={pdfHref} variant="outline">
+            <PdfLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle="Calendario partite · Volley Lignano">
               <FileDown className="h-4 w-4" />
               Esporta PDF
-            </LinkButton>
+            </PdfLink>
             <SharePdfButton
               href={pdfHref}
               title={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}

@@ -13,6 +13,7 @@ import { SeasonRecordSection } from "@/components/calendar/SeasonRecordSection";
 import { StandingsSection } from "@/components/calendar/StandingsSection";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CATEGORY_LABELS } from "@/lib/category";
@@ -151,15 +152,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <CalendarPlus className="h-[18px] w-[18px]" />
                 Aggiungi al tuo calendario
               </a>
-              <a
+              <PdfLink
                 href={pdfHref}
                 data-public-matches-pdf
                 data-tour="public-pdf"
                 className={buttonVariants({ variant: "outline", size: "lg" })}
+                sheetTitle={pdfTitle}
               >
                 <FileDown className="h-[18px] w-[18px]" />
                 Scarica le partite (PDF)
-              </a>
+              </PdfLink>
               <SharePdfButton
                 href={pdfHref}
                 title={pdfTitle}

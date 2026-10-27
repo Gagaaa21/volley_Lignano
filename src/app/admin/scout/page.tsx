@@ -21,6 +21,7 @@ import { SectionTour } from "@/components/tour/SectionTour";
 import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { DirettaCard } from "./DirettaCard";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { ShareManualButton } from "@/components/scout/ShareManualButton";
 import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
@@ -73,10 +74,16 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
           <Pencil className="h-3.5 w-3.5" />
           {summary.state === "live" ? "Continua" : "Rivedi"}
         </LinkButton>
-        <LinkButton href={`/api/scout/${match.id}/pdf`} size="sm" variant="quiet" aria-label="Scarica il tabellino in PDF" title="Scarica il tabellino in PDF">
+        <PdfLink
+          href={`/api/scout/${match.id}/pdf`}
+          className={buttonVariants({ variant: "quiet", size: "sm" })}
+          sheetTitle={`Tabellino ${matchTitle(match)}`}
+          aria-label="Scarica il tabellino in PDF"
+          title="Scarica il tabellino in PDF"
+        >
           <FileDown className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only">PDF</span>
-        </LinkButton>
+        </PdfLink>
         <SharePdfButton
           href={`/api/scout/${match.id}/pdf`}
           title={`Tabellino ${matchTitle(match)}`}
@@ -184,10 +191,17 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       help={<SectionTour steps={getScoutHubTourSteps({ showMatches: !season && matches.length > 0, season })} />}
       actions={
         <>
-          <a href="/api/scout/manuale" download className={buttonVariants({ variant: "outline" })} data-tour="scout-manual" data-scout-manual-link>
+          <PdfLink
+            href="/api/scout/manuale"
+            download
+            className={buttonVariants({ variant: "outline" })}
+            sheetTitle="Scout · Manuale d'uso"
+            data-tour="scout-manual"
+            data-scout-manual-link
+          >
             <BookOpen className="h-4 w-4" />
             Manuale d&apos;uso (PDF)
-          </a>
+          </PdfLink>
           <ShareManualButton />
         </>
       }

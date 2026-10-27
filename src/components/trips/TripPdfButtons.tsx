@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { FileDown } from "lucide-react";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
-import { LinkButton } from "@/components/ui/LinkButton";
+import { PdfLink } from "@/components/pdf/PdfLink";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 /**
  * Il riepilogo della trasferta in PDF, da mandare alle famiglie: «Scarica» lo salva, «Condividi PDF» apre il foglio di
@@ -16,10 +17,10 @@ export function TripPdfButtons({ matchId, title }: { matchId: string; title: str
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end" data-trip-pdf>
       <div className="flex flex-wrap items-center gap-2">
-        <LinkButton href={href} variant="outline" prefetch={false} data-trip-pdf-download>
+        <PdfLink href={href} className={buttonVariants({ variant: "outline" })} sheetTitle={title} data-trip-pdf-download>
           <FileDown className="h-4 w-4" />
           Riepilogo PDF
-        </LinkButton>
+        </PdfLink>
         <SharePdfButton href={href} title={title} data-share-pdf="trasferta" />
       </div>
       <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">

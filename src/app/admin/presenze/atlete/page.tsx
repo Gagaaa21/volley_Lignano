@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { AlertTriangle, Download, FileDown, ListPlus, Plus, Users } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -75,10 +77,10 @@ export default async function AthletesPage({ searchParams }: { searchParams: Pro
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1">
             <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta PDF</span>
-            <LinkButton href="/api/presenze/riepilogo/pdf" variant="quiet" size="sm">
+            <PdfLink href="/api/presenze/riepilogo/pdf" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze · Volley Lignano">
               <FileDown className="h-4 w-4" />
               Riepilogo presenze
-            </LinkButton>
+            </PdfLink>
             <SharePdfButton
               href="/api/presenze/riepilogo/pdf"
               title="Riepilogo presenze · Volley Lignano"

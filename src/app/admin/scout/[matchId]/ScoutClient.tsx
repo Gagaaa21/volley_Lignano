@@ -27,6 +27,7 @@ import { getScoutMatchTourSteps } from "@/components/tour/scoutSteps";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { Button } from "@/components/ui/Button";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -422,17 +423,18 @@ export function ScoutClient({
                 </Badge>
               )}
               <SyncBadge status={status} />
-              <a
+              <PdfLink
                 href="/api/scout/manuale"
                 download
                 className={buttonVariants({ variant: "quiet", size: "icon-sm", className: "rounded-full" })}
+                sheetTitle="Scout · Manuale d'uso"
                 aria-label="Scarica il manuale d'uso dello Scout (PDF)"
                 title="Manuale d'uso (PDF)"
                 data-tour="scout-manual"
                 data-scout-manual
               >
                 <BookOpen className="h-[18px] w-[18px]" />
-              </a>
+              </PdfLink>
               <SectionTour steps={tourSteps} autoStart={autoGuide} />
             </div>
           </div>

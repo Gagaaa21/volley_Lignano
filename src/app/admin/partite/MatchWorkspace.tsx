@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, ShieldHalf } from "lucide-react";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -64,41 +65,43 @@ export function MatchWorkspace({
         <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border pt-4" data-match-pdfs>
           <div role="group" aria-label="Convocazioni in PDF" className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-semibold text-muted-foreground">Convocazioni</span>
-            <a
+            <PdfLink
               href={`/api/partite/${matchId}/convocazioni/pdf`}
               target="_blank"
-              rel="noopener noreferrer"
               className={buttonVariants({ variant: "outline", size: "sm" })}
+              sheetTitle={`Convocazioni ${title}`}
               data-convocations-pdf
             >
               <Download className="h-4 w-4" />
               PDF
-            </a>
+            </PdfLink>
             <SharePdfButton
               href={`/api/partite/${matchId}/convocazioni/pdf`}
               title={`Convocazioni ${title}`}
               label="Condividi"
               size="sm"
+              prefetch
               data-share-pdf="convocazioni-partita"
             />
           </div>
           <div role="group" aria-label="Formazioni in PDF" className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-semibold text-muted-foreground">Formazioni</span>
-            <a
+            <PdfLink
               href={`/api/partite/${matchId}/formazioni/pdf`}
               target="_blank"
-              rel="noopener noreferrer"
               className={buttonVariants({ variant: "outline", size: "sm" })}
+              sheetTitle={`Formazioni ${title}`}
               data-lineups-pdf
             >
               <Download className="h-4 w-4" />
               PDF
-            </a>
+            </PdfLink>
             <SharePdfButton
               href={`/api/partite/${matchId}/formazioni/pdf`}
               title={`Formazioni ${title}`}
               label="Condividi"
               size="sm"
+              prefetch
               data-share-pdf="formazioni-partita"
             />
           </div>

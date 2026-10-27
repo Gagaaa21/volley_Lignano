@@ -101,6 +101,15 @@ staff (Developer e Admin).
   «Scarica» e «Condividi PDF» (`src/components/pdf/SharePdfButton.tsx`): dal
   telefono apre il foglio di condivisione con il file già allegato, altrove
   scarica; il file si prepara in anticipo (`prefetch`) o al primo tocco.
+  **iPhone e iPad**: con il sito sulla schermata Home un link a un PDF lo apre nella
+  stessa finestra dell'app, senza «indietro» e senza un modo per salvarlo o mandarlo su
+  WhatsApp. Perciò nessun PDF si apre mai come pagina: i link «PDF» / «Scarica PDF» sono
+  `PdfLink` (`src/components/pdf/PdfLink.tsx`), un normale link dal computer e da Android
+  e, su iPhone e iPad (`isAppleTouchDevice` in `src/lib/pdf/client.ts`), un pulsante che
+  apre il PDF in un foglio dentro la pagina (`PdfSheet`: anteprima, «Condividi / Salva su
+  File», «Chiudi» e Esc). Lo stesso foglio si apre se «Condividi PDF» non riesce (tocco
+  scaduto, nessuna condivisione di file) al posto del download con un link, che su
+  iPhone lascerebbe sul file. Prova nel browser con un iPhone finto: `e2e/pdf-iphone.spec.ts`.
   Il calendario partite ha nel PDF una colonna con «U14»/«U15» su riquadro
   pieno e una barra del colore della categoria sulla riga; i nomi dei file di
   tabellino, formazioni e convocazioni portano la categoria. Le **convocazioni**

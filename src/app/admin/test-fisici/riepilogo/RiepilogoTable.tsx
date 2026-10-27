@@ -7,6 +7,7 @@ import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Button } from "@/components/ui/Button";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Select } from "@/components/ui/Field";
 import { buildCsv } from "@/lib/csv";
@@ -271,10 +272,10 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
           ) : (
             // Il PDF riproduce la tabella com'è a schermo: stessa vista, giorno, filtri e ordine.
             <>
-              <a href={pdfHref} data-riepilogo-pdf className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <PdfLink href={pdfHref} data-riepilogo-pdf className={buttonVariants({ variant: "outline", size: "sm" })} sheetTitle="Riepilogo test fisici · Volley Lignano">
                 <FileDown className="h-4 w-4" />
                 Scarica PDF
-              </a>
+              </PdfLink>
               <SharePdfButton href={pdfHref} title="Riepilogo test fisici · Volley Lignano" size="sm" data-share-pdf="test-fisici" />
             </>
           )}

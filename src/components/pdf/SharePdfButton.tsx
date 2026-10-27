@@ -4,51 +4,12 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Check, Loader2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { ButtonSize, ButtonVariant } from "@/components/ui/button-variants";
+import { detectAppleDevice, detectFileShare, fetchPdf, saveFile } from "@/lib/pdf/client";
+import { usePdfSheet } from "./PdfSheet";
 
 type Status = "idle" | "loading" | "ready" | "saved" | "error";
 
 const subscribeNothing = () => () => {};
-
-/** Il telefono (o il browser) sa mandare un file con il foglio di condivisione? Sul server e sul computer di solito no. */
-function detectFileShare(): boolean {
-  try {
-    if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") return false;
-    return navigator.canShare({ files: [new File(["%PDF-"], "prova.pdf", { type: "application/pdf" })] });
-  } catch {
-    return false;
-  }
-}
-
-/** Il nome del file come lo dà il server (`Content-Disposition: attachment; filename="…"`), se c'è. */
-function nameFromResponse(response: Response): string | null {
-  const header = response.headers.get("content-disposition") ?? "";
-  const found = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
-  if (!found) return null;
-  try {
-    return decodeURIComponent(found[1]);
-  } catch {
-    return found[1];
-  }
-}
-
-async function fetchPdf(href: string, fileName: string | undefined): Promise<File> {
-  const response = await fetch(href);
-  if (!response.ok) throw new Error(`PDF non disponibile (${response.status})`);
-  const name = fileName ?? nameFromResponse(response) ?? "documento.pdf";
-  return new File([await response.blob()], name.endsWith(".pdf") ? name : `${name}.pdf`, { type: "application/pdf" });
-}
-
-/** Salva il file sul dispositivo come un normale download. */
-function saveFile(file: File) {
-  const url = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 export type SharePdfButtonProps = {
   /** Da dove si prende il PDF: la stessa strada del pulsante «Scarica». */
@@ -93,6 +54,9 @@ export function SharePdfButton({
   ...rest
 }: SharePdfButtonProps) {
   const canShareFiles = useSyncExternalStore(subscribeNothing, detectFileShare, () => false);
+  // Su iPhone e iPad un PDF non si apre mai come pagina (e non si scarica con un link): si vede in un foglio dentro il sito.
+  const apple = useSyncExternalStore(subscribeNothing, detectAppleDevice, () => false);
+  const sheet = usePdfSheet(canShareFiles);
   // Il file preparato vale per l'indirizzo da cui viene: se l'indirizzo cambia (filtri di una tabella) non si manda quello vecchio.
   const [prepared, setPrepared] = useState<{ href: string; file: File } | null>(null);
   const file = prepared?.href === href ? prepared.file : null;
@@ -102,15 +66,20 @@ export function SharePdfButton({
   useEffect(() => {
     if (!canShareFiles || !prefetch) return;
     let cancelled = false;
-    fetchPdf(href, fileName)
-      .then((ready) => {
-        if (!cancelled) setPrepared({ href, file: ready });
-      })
-      .catch(() => {
-        // Non è un guaio: al tocco si riprova, e se manca ancora lo dice.
-      });
+    // Un attimo di attesa: se l'indirizzo cambia di continuo (le convocate che si scelgono una dopo l'altra) non si prepara un PDF a
+    // ogni tocco, ma solo quello dell'ultima scelta.
+    const wait = setTimeout(() => {
+      fetchPdf(href, fileName)
+        .then((ready) => {
+          if (!cancelled) setPrepared({ href, file: ready });
+        })
+        .catch(() => {
+          // Non è un guaio: al tocco si riprova, e se manca ancora lo dice.
+        });
+    }, 250);
     return () => {
       cancelled = true;
+      clearTimeout(wait);
     };
   }, [canShareFiles, prefetch, href, fileName]);
 
@@ -136,10 +105,16 @@ export function SharePdfButton({
         await navigator.share({ files: [file], title, text });
         setStatus("idle");
       } catch (error) {
-        // Foglio chiuso senza scegliere nessuno: non c'è altro da fare. Qualunque altro problema: si salva il file.
+        // Foglio chiuso senza scegliere nessuno: non c'è altro da fare. Qualunque altro problema: su iPhone e iPad il file si vede in
+        // un foglio dentro il sito (con «Condividi» e «Chiudi»), altrove si salva.
         if (error instanceof DOMException && error.name === "AbortError") return;
-        saveFile(file);
-        flash("saved");
+        if (apple) {
+          sheet.open(file, title);
+          setStatus("idle");
+        } else {
+          saveFile(file);
+          flash("saved");
+        }
       }
       return;
     }
@@ -152,6 +127,10 @@ export function SharePdfButton({
       if (canShareFiles) {
         // Per aprire il foglio serve un nuovo tocco: ormai è passato troppo tempo da quello di prima.
         setStatus("ready");
+      } else if (apple) {
+        // iPhone o iPad senza condivisione di file (sistema vecchio): niente download con un link, che lascerebbe sul PDF.
+        sheet.open(ready, title);
+        setStatus("idle");
       } else {
         saveFile(ready);
         flash("saved");
@@ -181,23 +160,26 @@ export function SharePdfButton({
     );
 
   return (
-    <Button
-      type="button"
-      variant={variant}
-      size={iconOnly ? (size ?? "icon-sm") : size}
-      className={className}
-      onClick={onClick}
-      disabled={status === "loading"}
-      aria-live="polite"
-      aria-label={iconOnly ? statusLabel : undefined}
-      title={iconOnly ? statusLabel : undefined}
-      data-share-status={status}
-      data-share-ready={file ? "true" : "false"}
-      data-share-href={href}
-      {...rest}
-    >
-      {icon}
-      {!iconOnly && statusLabel}
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant={variant}
+        size={iconOnly ? (size ?? "icon-sm") : size}
+        className={className}
+        onClick={onClick}
+        disabled={status === "loading"}
+        aria-live="polite"
+        aria-label={iconOnly ? statusLabel : undefined}
+        title={iconOnly ? statusLabel : undefined}
+        data-share-status={status}
+        data-share-ready={file ? "true" : "false"}
+        data-share-href={href}
+        {...rest}
+      >
+        {icon}
+        {!iconOnly && statusLabel}
+      </Button>
+      {sheet.element}
+    </>
   );
 }

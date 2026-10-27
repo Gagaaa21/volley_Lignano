@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Download, Save, X } from "lucide-react";
+import { PdfLink } from "@/components/pdf/PdfLink";
 import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -140,17 +141,17 @@ export function CallUpsAndLineupsDialog({
                   <p className="mt-0.5 text-sm text-muted-foreground">Chi convochi qui diventa selezionabile nelle formazioni per set, qui sotto.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <a
+                  <PdfLink
                     href={convocationsHref}
                     target="_blank"
-                    rel="noopener noreferrer"
                     className={buttonVariants({ variant: "outline", size: "sm" })}
+                    sheetTitle={`Convocazioni ${title}`}
                     data-convocations-pdf-dialog
                   >
                     <Download className="h-4 w-4" />
                     Convocazioni PDF
-                  </a>
-                  <SharePdfButton href={convocationsHref} title={`Convocazioni ${title}`} size="sm" data-share-pdf="convocazioni" />
+                  </PdfLink>
+                  <SharePdfButton href={convocationsHref} title={`Convocazioni ${title}`} size="sm" prefetch data-share-pdf="convocazioni" />
                 </div>
               </div>
               <CallUpsSection
@@ -175,17 +176,17 @@ export function CallUpsAndLineupsDialog({
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <a
+                  <PdfLink
                     href={lineupsHref}
                     target="_blank"
-                    rel="noopener noreferrer"
                     className={buttonVariants({ variant: "outline", size: "sm" })}
+                    sheetTitle={`Formazioni ${title}`}
                     data-lineups-pdf-dialog
                   >
                     <Download className="h-4 w-4" />
                     Formazioni PDF
-                  </a>
-                  <SharePdfButton href={lineupsHref} title={`Formazioni ${title}`} size="sm" data-share-pdf="formazioni" />
+                  </PdfLink>
+                  <SharePdfButton href={lineupsHref} title={`Formazioni ${title}`} size="sm" prefetch data-share-pdf="formazioni" />
                 </div>
               </div>
               {calledUpAthletes.length === 0 ? (
