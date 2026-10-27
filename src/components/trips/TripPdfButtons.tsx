@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { FileDown } from "lucide-react";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { PdfLink } from "@/components/pdf/PdfLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 
@@ -21,7 +20,6 @@ export function TripPdfButtons({ matchId, title }: { matchId: string; title: str
           <FileDown className="h-4 w-4" />
           Riepilogo PDF
         </PdfLink>
-        <SharePdfButton href={href} title={title} data-share-pdf="trasferta" />
       </div>
       <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
         <input

@@ -573,10 +573,8 @@ test("il riepilogo PDF si scarica solo con il permesso, con o senza i numeri deg
     // I pulsanti seguono la casella: di norma niente numeri.
     const download = page.locator("[data-trip-pdf-download]");
     await expect(download).toHaveAttribute("href", `/api/trasferte/${matchId}/pdf`);
-    await expect(page.locator('[data-share-pdf="trasferta"]')).toHaveAttribute("data-share-href", `/api/trasferte/${matchId}/pdf`);
     await page.locator("[data-trip-pdf-numbers]").check();
     await expect(download).toHaveAttribute("href", `/api/trasferte/${matchId}/pdf?numeri=autisti`);
-    await expect(page.locator('[data-share-pdf="trasferta"]')).toHaveAttribute("data-share-href", `/api/trasferte/${matchId}/pdf?numeri=autisti`);
 
     for (const query of ["", "?numeri=autisti"]) {
       const response = await page.request.get(`/api/trasferte/${matchId}/pdf${query}`);

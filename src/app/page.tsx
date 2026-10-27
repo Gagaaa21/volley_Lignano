@@ -14,7 +14,6 @@ import { StandingsSection } from "@/components/calendar/StandingsSection";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { UpcomingPanel } from "@/components/calendar/UpcomingPanel";
 import { PdfLink } from "@/components/pdf/PdfLink";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { getPublicCalendarData, getPublicSeasonRecord, getPublicStandings } from "@/lib/publicCalendarData";
@@ -162,15 +161,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <FileDown className="h-[18px] w-[18px]" />
                 Scarica le partite (PDF)
               </PdfLink>
-              <SharePdfButton
-                href={pdfHref}
-                title={pdfTitle}
-                text="Le partite di Volley Lignano."
-                prefetch
-                size="lg"
-                label="Condividi le partite (PDF)"
-                data-share-pdf="calendario-partite"
-              />
             </div>
           </div>
 

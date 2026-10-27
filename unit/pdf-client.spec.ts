@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isAppleTouchDevice } from "@/lib/pdf/client";
+import { isAppleTouchDevice, pdfOpensInSheet } from "@/lib/pdf/client";
 
 /**
  * Su iPhone e iPad un PDF non si apre mai come pagina (con il sito sulla schermata Home non c'è «indietro» né un modo per
@@ -21,4 +21,17 @@ test("si riconoscono iPhone, iPad e iPad che si presenta come un Mac; il resto n
   expect(isAppleTouchDevice({ userAgent: MAC, platform: "MacIntel", maxTouchPoints: 0 })).toBe(false);
   expect(isAppleTouchDevice({ userAgent: ANDROID, platform: "Linux armv81", maxTouchPoints: 5 })).toBe(false);
   expect(isAppleTouchDevice({ userAgent: WINDOWS, platform: "Win32", maxTouchPoints: 10 })).toBe(false);
+});
+
+test("il PDF si apre in un foglio sui telefoni e sui tablet, in una scheda sul computer", () => {
+  // iPhone e iPad: sempre nel foglio, anche senza condivisione di file e senza schermo «a tocco» dichiarato.
+  expect(pdfOpensInSheet({ apple: true, canShareFiles: true, coarsePointer: true })).toBe(true);
+  expect(pdfOpensInSheet({ apple: true, canShareFiles: false, coarsePointer: false })).toBe(true);
+  // Android e simili: schermo a tocco e condivisione di file.
+  expect(pdfOpensInSheet({ apple: false, canShareFiles: true, coarsePointer: true })).toBe(true);
+  // Il computer, anche se il browser sa condividere file (Chrome su Windows): si usa con il mouse, il PDF si apre in una scheda.
+  expect(pdfOpensInSheet({ apple: false, canShareFiles: true, coarsePointer: false })).toBe(false);
+  // Uno schermo a tocco senza condivisione di file (un computer a tocco, un browser vecchio): il link normale.
+  expect(pdfOpensInSheet({ apple: false, canShareFiles: false, coarsePointer: true })).toBe(false);
+  expect(pdfOpensInSheet({ apple: false, canShareFiles: false, coarsePointer: false })).toBe(false);
 });

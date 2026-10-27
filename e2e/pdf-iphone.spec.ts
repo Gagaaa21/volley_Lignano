@@ -1,12 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "./helpers";
 
 /**
- * Su iPhone e iPad (con il sito sulla schermata Home) un link a un PDF lo apre dentro la stessa finestra dell'app, senza «indietro»
- * e senza un modo per salvarlo o mandarlo su WhatsApp: non si torna più al sito. Qui si finge un iPhone: i pulsanti «PDF» non
- * portano più al file ma aprono un foglio dentro la pagina (con «Chiudi» e «Condividi / Salva su File»), e se la condivisione non
- * parte (rifiutata, o non c'è) «Condividi PDF» apre lo stesso foglio invece di scaricare il file con un link. Mai nuove pagine né
- * download: la pagina di prima resta lì.
+ * I PDF del sito da iPhone. Un solo pulsante «PDF» per ogni file, senza un secondo «Condividi»: si tocca, il PDF si apre in un foglio
+ * dentro la pagina, con l'anteprima, «Condividi / Salva su File» (WhatsApp, e-mail…) e «Chiudi». Mai un link al file: con il sito
+ * sulla schermata Home dell'iPhone un PDF aperto come pagina lascia senza «indietro» e senza modo di salvarlo o mandarlo, e non si
+ * torna più al sito. Qui si finge un iPhone: la condivisione funziona, rifiuta (tocco scaduto) o non c'è (sistema vecchio), e in tutti
+ * i casi la pagina di prima resta lì: nessuna nuova scheda, nessun download.
  */
 
 const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
@@ -81,7 +81,60 @@ async function expectSheetThenClose(page: Page, url: string) {
   expect(page.url()).toBe(url);
 }
 
-test("sito pubblico, da iPhone: «PDF» non porta più al file, apre un foglio con «Condividi» e «Chiudi»", async ({ page }) => {
+/** Un solo pulsante: lo si tocca, si apre il foglio con il PDF, «Condividi» lo manda. Poi si chiude e si è dove si era. */
+async function openAndShare(page: Page, trigger: Locator, expected: { name: string | RegExp; title: RegExp }) {
+  const before = (await sharedFiles(page)).length;
+  const url = page.url();
+  await trigger.click();
+  await expect(sheet(page)).toBeVisible();
+  await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+  await sheet(page).locator("[data-pdf-sheet-share]").click();
+  await expect.poll(async () => (await sharedFiles(page)).length).toBe(before + 1);
+  const shared = (await sharedFiles(page))[before];
+  expect(shared.type).toBe("application/pdf");
+  expect(shared.size).toBeGreaterThan(1_000);
+  expect(shared.name).toMatch(expected.name);
+  expect(shared.title).toMatch(expected.title);
+  await sheet(page).locator("[data-pdf-sheet-close]").click();
+  await expect(sheet(page)).toHaveCount(0);
+  expect(page.url()).toBe(url);
+}
+
+async function createMatch(page: Page, category: "Under 14" | "Under 15", opponent: string): Promise<string> {
+  await page.goto("/admin/partite/nuovo");
+  await page.waitForLoadState("networkidle");
+  await page.getByText(category, { exact: true }).click();
+  await page.getByLabel("Squadra avversaria").fill(opponent);
+  await page.getByLabel("Luogo della partita").fill("Palestra iPhone e2e");
+  await page.getByLabel("Data e ora").fill(`${localDate()}T18:00`);
+  await page.getByRole("button", { name: /salva partita/i }).click();
+  await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
+  const href = await page.locator('a[href^="/admin/partite/"]', { hasText: opponent }).first().getAttribute("href");
+  return href!.split("/").pop()!;
+}
+
+/** Uno scout con qualche scambio, scritto direttamente (come fa il sito mentre si segna): il tabellino ha il suo PDF. */
+async function seedScout(page: Page, matchId: string) {
+  const base = Date.now() - 3_600_000;
+  const events = Array.from({ length: 4 }, (_, i) => ({
+    type: "rally",
+    id: `seed-${i}`,
+    at: base + i * 30_000,
+    actor: i % 2 === 0 ? "us" : "opp",
+    how: "attack",
+    player: null,
+    victim: null,
+  }));
+  const data = { settings: { format: "bo5", setPoints: 25, lastSetPoints: 15, firstServer: "us" }, roster: { us: [], opp: [] }, events, finished: false };
+  const status = await page.evaluate(
+    async ({ matchId, data }) =>
+      (await fetch(`/api/scout/${matchId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data, baseVersion: null }) })).status,
+    { matchId, data },
+  );
+  expect(status).toBe(200);
+}
+
+test("sito pubblico, da iPhone: un solo pulsante «PDF», che apre un foglio con «Condividi» e «Chiudi»", async ({ page }) => {
   test.setTimeout(90_000);
   await withShare(page, "works");
   const leaks = watchLeaks(page);
@@ -89,156 +142,174 @@ test("sito pubblico, da iPhone: «PDF» non porta più al file, apre un foglio c
   const url = page.url();
   const pdf = page.locator("[data-public-matches-pdf]");
 
-  // Su iPhone non è un link al file (altrimenti l'app resterebbe sul PDF): è un pulsante.
+  // Su iPhone non è un link al file (altrimenti l'app resterebbe sul PDF): è un pulsante. E non ce n'è un secondo «Condividi».
   await expect(pdf).toHaveJSProperty("tagName", "BUTTON");
   await expect(pdf).not.toHaveAttribute("href", /.*/);
+  await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
 
-  await pdf.click();
-  await expect(sheet(page)).toBeVisible();
-  await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
-  // «Condividi / Salva su File»: il foglio di condivisione riceve il PDF, già pronto (basta un tocco).
-  await sheet(page).locator("[data-pdf-sheet-share]").click();
-  await expect.poll(async () => (await sharedFiles(page)).length).toBe(1);
-  const [shared] = await sharedFiles(page);
-  expect(shared.type).toBe("application/pdf");
-  expect(shared.name).toBe("calendario-partite-under-14-volley-lignano.pdf");
-  expect(shared.size).toBeGreaterThan(1_000);
-
-  // Si torna alla pagina di prima: «Chiudi», o il tasto Esc.
-  await sheet(page).locator("[data-pdf-sheet-close]").click();
-  await expect(sheet(page)).toHaveCount(0);
+  // Un tocco apre il PDF; da lì «Condividi / Salva su File» manda il file (già pronto, basta un tocco).
+  await openAndShare(page, pdf, { name: "calendario-partite-under-14-volley-lignano.pdf", title: /Calendario partite Under 14/ });
   expect(page.url()).toBe(url);
   await expect(pdf).toBeVisible();
+
+  // Si torna alla pagina di prima anche con il tasto Esc.
   await pdf.click();
   await expect(sheet(page)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sheet(page)).toHaveCount(0);
-  await sheet(page).waitFor({ state: "detached" });
   leaks.expectNone();
 });
 
-test("da iPhone, se la condivisione rifiuta: «Condividi PDF» apre il foglio dentro il sito, non scarica un file con un link", async ({ page }) => {
+test("da iPhone, se la condivisione rifiuta (tocco scaduto): lo dice nel foglio, senza uscire dalla pagina", async ({ page }) => {
   test.setTimeout(90_000);
   await withShare(page, "refuses");
   const leaks = watchLeaks(page);
   await page.goto("/?cat=U14");
   const url = page.url();
-  const share = page.locator('[data-share-pdf="calendario-partite"]');
-  await expect(share).toHaveAttribute("data-share-ready", "true", { timeout: 30_000 });
+  // La pagina è pronta quando il link è diventato il pulsante che apre il foglio.
+  await expect(page.locator("[data-public-matches-pdf]")).toHaveJSProperty("tagName", "BUTTON");
 
-  await share.click();
-  await expectSheetThenClose(page, url);
-  await expect(share).toHaveAttribute("data-share-status", "idle");
-
-  // Dal foglio un altro tentativo rifiutato lo dice, senza uscire dalla pagina.
-  await share.click();
+  await page.locator("[data-public-matches-pdf]").click();
   await expect(sheet(page)).toBeVisible();
   await sheet(page).locator("[data-pdf-sheet-share]").click();
   await expect(sheet(page).locator("[data-pdf-sheet-message]")).toContainText("Non riesco ad aprire la condivisione");
-  await sheet(page).locator("[data-pdf-sheet-close]").click();
-  leaks.expectNone();
-});
-
-test("da iPhone senza condivisione di file (sistema vecchio): «Condividi PDF» apre comunque il foglio, senza scaricare", async ({ page }) => {
-  test.setTimeout(90_000);
-  await withShare(page, "none");
-  const leaks = watchLeaks(page);
-  await page.goto("/?cat=U14");
-  const url = page.url();
-
-  await page.locator('[data-share-pdf="calendario-partite"]').click();
-  await expectSheetThenClose(page, url);
-
-  // E il pulsante «PDF» fa lo stesso: anteprima dentro il sito, senza il pulsante di condivisione che qui non può funzionare.
-  await page.locator("[data-public-matches-pdf]").click();
-  await expect(sheet(page)).toBeVisible();
-  await expect(sheet(page).locator("[data-pdf-sheet-share]")).toHaveCount(0);
+  // Il foglio resta aperto (c'è sempre «Chiudi» o «Torna al sito»), l'anteprima c'è ancora e la pagina non si è mossa.
+  await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
   await sheet(page).getByRole("button", { name: "Torna al sito" }).click();
   await expect(sheet(page)).toHaveCount(0);
   expect(page.url()).toBe(url);
   leaks.expectNone();
 });
 
-test("area tecnici, da iPhone: tabellino e convocazioni non portano più fuori dalla pagina", async ({ page }) => {
-  test.setTimeout(240_000);
+test("da iPhone senza condivisione di file (sistema vecchio): il PDF si vede lo stesso nel foglio, senza scaricare né uscire", async ({ page }) => {
+  test.setTimeout(90_000);
+  await withShare(page, "none");
+  const leaks = watchLeaks(page);
+  await page.goto("/?cat=U14");
+  const url = page.url();
+  await expect(page.locator("[data-public-matches-pdf]")).toHaveJSProperty("tagName", "BUTTON");
+
+  await page.locator("[data-public-matches-pdf]").click();
+  await expectSheetThenClose(page, url);
+  await page.locator("[data-public-matches-pdf]").click();
+  await expect(sheet(page)).toBeVisible();
+  await expect(sheet(page).locator("[data-pdf-sheet-share]")).toHaveCount(0);
+  await sheet(page).getByRole("button", { name: "Torna al sito" }).click();
+  await expect(sheet(page)).toHaveCount(0);
+  leaks.expectNone();
+});
+
+test("area tecnici, da iPhone: partite, convocazioni, formazioni e tabellino, un solo pulsante «PDF» e nessuna uscita dalla pagina", async ({ page }) => {
+  test.setTimeout(300_000);
   await withShare(page, "works");
   const leaks = watchLeaks(page);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
 
   const opponent = uniqueName("Iphone ");
-  await page.goto("/admin/partite/nuovo");
-  await page.waitForLoadState("networkidle");
-  await page.getByText("Under 14", { exact: true }).click();
-  await page.getByLabel("Squadra avversaria").fill(opponent);
-  await page.getByLabel("Luogo della partita").fill("Palestra iPhone e2e");
-  await page.getByLabel("Data e ora").fill(`${localDate()}T18:00`);
-  await page.getByRole("button", { name: /salva partita/i }).click();
-  await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
-  const href = await page.locator('a[href^="/admin/partite/"]', { hasText: opponent }).first().getAttribute("href");
-  const matchId = href!.split("/").pop()!;
+  const matchId = await createMatch(page, "Under 14", opponent);
+  const date = localDate();
+  const slug = opponent.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   try {
-    // Uno scout con qualche scambio (come lo scrive il sito mentre si segna): il tabellino ha il suo PDF.
-    const base = Date.now() - 3_600_000;
-    const events = Array.from({ length: 4 }, (_, i) => ({
-      type: "rally",
-      id: `seed-${i}`,
-      at: base + i * 30_000,
-      actor: i % 2 === 0 ? "us" : "opp",
-      how: "attack",
-      player: null,
-      victim: null,
-    }));
-    const data = { settings: { format: "bo5", setPoints: 25, lastSetPoints: 15, firstServer: "us" }, roster: { us: [], opp: [] }, events, finished: false };
-    const status = await page.evaluate(
-      async ({ matchId, data }) =>
-        (await fetch(`/api/scout/${matchId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data, baseVersion: null }) })).status,
-      { matchId, data },
-    );
-    expect(status).toBe(200);
+    await seedScout(page, matchId);
 
-    // Il tabellino: «Scarica PDF» era un link che portava sul file, senza ritorno.
-    await page.goto(`/admin/scout/${matchId}/tabellino`);
-    const tabellinoUrl = page.url();
-    // (L'intestazione della pagina ripete i pulsanti per lo schermo stretto e per quello largo: conta quello che si vede.)
-    const tabellinoPdf = page.locator("[data-scout-pdf]:visible");
-    await expect(tabellinoPdf).toHaveJSProperty("tagName", "BUTTON");
-    await tabellinoPdf.click();
-    await expectSheetThenClose(page, tabellinoUrl);
-    await expect(tabellinoPdf).toBeVisible();
-    // E «Condividi PDF» è pronto e basta un tocco.
-    const share = page.locator('[data-share-pdf="tabellino"]:visible');
-    await expect(share).toHaveAttribute("data-share-ready", "true", { timeout: 30_000 });
-    await share.click();
-    await expect.poll(async () => (await sharedFiles(page)).length).toBe(1);
+    // Elenco partite: il PDF dello staff, che segue il filtro di categoria.
+    await page.goto("/admin/partite");
+    const staffPdf = page.getByRole("button", { name: "Esporta PDF" });
+    await expect(staffPdf).toHaveAttribute("data-pdf-href", "/api/partite/pdf");
+    await openAndShare(page, staffPdf, { name: "calendario-partite-staff-volley-lignano.pdf", title: /Calendario partite/ });
+    await page.goto("/admin/partite?cat=U15");
+    await expect(page.getByRole("button", { name: "Esporta PDF" })).toHaveAttribute("data-pdf-href", "/api/partite/pdf?cat=U15");
+    await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
 
-    // L'elenco dello Scout: il «PDF» accanto a ogni partita.
-    await page.goto("/admin/scout");
-    const listUrl = page.url();
-    const row = page.locator(`[data-scout-match="${matchId}"]`);
-    await expect(row.locator('a[href$="/pdf"]')).toHaveCount(0);
-    await row.getByRole("button", { name: "Scarica il tabellino in PDF" }).click();
-    await expectSheetThenClose(page, listUrl);
-
-    // La partita: convocazioni e formazioni (anche dalla finestra «Convocazioni e formazioni»).
+    // La partita: convocazioni e formazioni, ognuna con il suo solo pulsante.
     await page.goto(`/admin/partite/${matchId}`);
     await page.waitForLoadState("networkidle");
     const matchUrl = page.url();
     await expect(page.locator('a[href$="/convocazioni/pdf"], a[href$="/formazioni/pdf"]')).toHaveCount(0);
-    await page.locator("[data-convocations-pdf]").click();
-    await expectSheetThenClose(page, matchUrl);
-    await page.locator("[data-lineups-pdf]").click();
-    await expectSheetThenClose(page, matchUrl);
+    await expect(page.locator('[data-match-pdfs] button')).toHaveCount(2);
+    await openAndShare(page, page.locator("[data-convocations-pdf]"), {
+      name: new RegExp(`^convocazioni-u14-${slug}-${date}\\.pdf$`),
+      title: /Convocazioni/,
+    });
+    await openAndShare(page, page.locator("[data-lineups-pdf]"), {
+      name: new RegExp(`^formazioni-u14-${slug}-${date}\\.pdf$`),
+      title: /Formazioni/,
+    });
+
+    // La stessa cosa dalla finestra «Convocazioni e formazioni»: chiuso il foglio, la finestra è com'era.
     await page.getByRole("button", { name: "Apri", exact: true }).click();
-    await page.locator("[data-convocations-pdf-dialog]").click();
-    await expect(sheet(page)).toBeVisible();
-    // Sopra la finestra, che resta lì sotto: chiuso il foglio si ritrova com'era.
-    await sheet(page).locator("[data-pdf-sheet-close]").click();
-    await expect(sheet(page)).toHaveCount(0);
-    await expect(page.locator('[aria-label="Convocazioni e formazioni"]')).toBeVisible();
+    const dialog = page.locator('[aria-label="Convocazioni e formazioni"]');
+    await expect(dialog.locator("[data-convocations-pdf-dialog]")).toHaveAttribute("data-pdf-href", `/api/partite/${matchId}/convocazioni/pdf?ids=`);
+    await openAndShare(page, dialog.locator("[data-convocations-pdf-dialog]"), {
+      name: new RegExp(`^convocazioni-u14-${slug}-${date}\\.pdf$`),
+      title: /Convocazioni/,
+    });
+    await expect(dialog).toBeVisible();
+    await openAndShare(page, dialog.locator("[data-lineups-pdf-dialog]"), {
+      name: new RegExp(`^formazioni-u14-${slug}-${date}\\.pdf$`),
+      title: /Formazioni/,
+    });
+    await expect(dialog).toBeVisible();
     expect(page.url()).toBe(matchUrl);
+
+    // Il tabellino: «PDF» era un link che portava sul file, senza ritorno.
+    await page.goto(`/admin/scout/${matchId}/tabellino`);
+    // (L'intestazione della pagina ripete i pulsanti per lo schermo stretto e per quello largo: conta quello che si vede.)
+    const tabellinoPdf = page.locator("[data-scout-pdf]:visible");
+    await expect(tabellinoPdf).toHaveJSProperty("tagName", "BUTTON");
+    await openAndShare(page, tabellinoPdf, { name: new RegExp(`^tabellino-u14-.*${date}\\.pdf$`), title: /Tabellino/ });
+    await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
+
+    // L'elenco dello Scout: il «PDF» accanto a ogni partita.
+    await page.goto("/admin/scout");
+    const row = page.locator(`[data-scout-match="${matchId}"]`);
+    await expect(row.locator('a[href$="/pdf"]')).toHaveCount(0);
+    await openAndShare(page, row.getByRole("button", { name: "Scarica il tabellino in PDF" }), {
+      name: new RegExp(`^tabellino-u14-.*${date}\\.pdf$`),
+      title: /Tabellino/,
+    });
     leaks.expectNone();
   } finally {
     await deleteMatchById(page, matchId).catch(() => {});
   }
+});
+
+test("area tecnici, da iPhone: riepilogo presenze e riepilogo test fisici", async ({ page }) => {
+  test.setTimeout(240_000);
+  await withShare(page, "works");
+  const leaks = watchLeaks(page);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+
+  // Un'atleta con un test, perché l'elenco e la tabella non siano vuoti.
+  const unique = uniqueName("Iphone ");
+  const name = `${unique} Anna`;
+  await page.goto("/admin/presenze/atlete/nuova");
+  await page.getByLabel("Nome e cognome").fill(name);
+  await page.getByLabel(/Categoria/i).selectOption("U14");
+  await page.getByRole("button", { name: /salva atleta/i }).click();
+  await page.waitForURL(/\/admin\/presenze\/atlete$/, { timeout: 20_000 });
+
+  // Riepilogo presenze (nell'elenco delle atlete).
+  const presenze = page.getByRole("button", { name: "Riepilogo presenze" });
+  await expect(presenze).toHaveAttribute("data-pdf-href", "/api/presenze/riepilogo/pdf");
+  await openAndShare(page, presenze, { name: "riepilogo-presenze-u14u15.pdf", title: /Riepilogo presenze/ });
+
+  await page.goto("/admin/test-fisici/nuovo");
+  await page.getByRole("link", { name }).click();
+  await page.waitForURL(/\/admin\/test-fisici\/nuovo\/[^/]+$/, { timeout: 20_000 });
+  await page.getByLabel("Data della sessione").fill("2026-04-02");
+  await page.getByLabel("Peso in kg").fill("50.5");
+  await page.getByRole("button", { name: /salva test/i }).click();
+  await page.waitForURL(/\/admin\/test-fisici\/atleta\/[^/]+$/, { timeout: 20_000 });
+
+  // Test fisici: il pulsante segue i filtri che si vedono a schermo.
+  await page.goto("/admin/test-fisici/riepilogo");
+  const testFisici = page.locator("[data-riepilogo-pdf]");
+  await page.getByRole("button", { name: "Tutte le sessioni" }).click();
+  await page.getByLabel("Cerca un'atleta").fill(unique);
+  await expect(testFisici).toHaveAttribute("data-pdf-href", /view=tutte/);
+  await openAndShare(page, testFisici, { name: "test-fisici-tutte.pdf", title: /test fisici/i });
+  leaks.expectNone();
 });

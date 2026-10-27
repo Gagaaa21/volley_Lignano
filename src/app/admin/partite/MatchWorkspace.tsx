@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Download, ShieldHalf } from "lucide-react";
 import { PdfLink } from "@/components/pdf/PdfLink";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CallUpsAndLineupsDialog } from "./CallUpsAndLineupsDialog";
@@ -75,14 +74,6 @@ export function MatchWorkspace({
               <Download className="h-4 w-4" />
               PDF
             </PdfLink>
-            <SharePdfButton
-              href={`/api/partite/${matchId}/convocazioni/pdf`}
-              title={`Convocazioni ${title}`}
-              label="Condividi"
-              size="sm"
-              prefetch
-              data-share-pdf="convocazioni-partita"
-            />
           </div>
           <div role="group" aria-label="Formazioni in PDF" className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-semibold text-muted-foreground">Formazioni</span>
@@ -96,14 +87,6 @@ export function MatchWorkspace({
               <Download className="h-4 w-4" />
               PDF
             </PdfLink>
-            <SharePdfButton
-              href={`/api/partite/${matchId}/formazioni/pdf`}
-              title={`Formazioni ${title}`}
-              label="Condividi"
-              size="sm"
-              prefetch
-              data-share-pdf="formazioni-partita"
-            />
           </div>
         </div>
       </div>

@@ -21,7 +21,6 @@ import { lineupSummary } from "@/lib/scout/court";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { PdfLink } from "@/components/pdf/PdfLink";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -101,9 +100,6 @@ export default async function ScoutTabellinoPage({
               <FileDown className="h-4 w-4" />
               Scarica PDF
             </PdfLink>
-          )}
-          {summary.state !== "none" && (
-            <SharePdfButton href={pdfHref} title={`Tabellino ${matchTitle(match)}`} prefetch data-share-pdf="tabellino" />
           )}
         </>
       }

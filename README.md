@@ -98,18 +98,22 @@ staff (Developer e Admin).
   fisici (`/api/test-fisici/riepilogo/pdf`). Elenco atlete e storico presenze
   restano solo in CSV (sono dati da elaborare, non da stampare). Ogni PDF del
   sito (anche il tabellino e il manuale dello Scout, le formazioni di gara e le convocazioni) ha
-  «Scarica» e «Condividi PDF» (`src/components/pdf/SharePdfButton.tsx`): dal
-  telefono apre il foglio di condivisione con il file già allegato, altrove
-  scarica; il file si prepara in anticipo (`prefetch`) o al primo tocco.
-  **iPhone e iPad**: con il sito sulla schermata Home un link a un PDF lo apre nella
-  stessa finestra dell'app, senza «indietro» e senza un modo per salvarlo o mandarlo su
-  WhatsApp. Perciò nessun PDF si apre mai come pagina: i link «PDF» / «Scarica PDF» sono
-  `PdfLink` (`src/components/pdf/PdfLink.tsx`), un normale link dal computer e da Android
-  e, su iPhone e iPad (`isAppleTouchDevice` in `src/lib/pdf/client.ts`), un pulsante che
-  apre il PDF in un foglio dentro la pagina (`PdfSheet`: anteprima, «Condividi / Salva su
-  File», «Chiudi» e Esc). Lo stesso foglio si apre se «Condividi PDF» non riesce (tocco
-  scaduto, nessuna condivisione di file) al posto del download con un link, che su
-  iPhone lascerebbe sul file. Prova nel browser con un iPhone finto: `e2e/pdf-iphone.spec.ts`.
+  **un solo pulsante** (`PdfLink`, `src/components/pdf/PdfLink.tsx`: «PDF», «Scarica PDF»,
+  «Esporta PDF»…), senza un secondo «Condividi»: si guarda e si manda dallo stesso.
+  Dal computer è un normale link (il PDF si apre in una scheda, con il visualizzatore del
+  browser; anche con un browser che sa condividere file, come Chrome su Windows). Da
+  telefono e tablet (`pdfOpensInSheet` in `src/lib/pdf/client.ts`: iPhone e iPad, oppure
+  schermo a tocco con condivisione di file) è un pulsante che scarica il PDF e lo apre in
+  un foglio dentro la pagina (`PdfSheet`): anteprima, **«Condividi»** (`navigator.share`
+  con il file già in mano, quindi parte al primo tocco: WhatsApp, «Salva su File»,
+  e-mail…), «Scarica» su Android e «Chiudi» (anche Esc e «Torna al sito»); la pagina di
+  prima resta lì sotto. Perché su **iPhone e iPad** nessun PDF si apre mai come pagina: con
+  il sito sulla schermata Home un link a un PDF lo apre nella stessa finestra dell'app, senza
+  «indietro» e senza un modo per salvarlo o mandarlo su WhatsApp (e il download con un link
+  lascerebbe sul file allo stesso modo). Il PDF si prende al tocco, con quello che c'è a
+  schermo in quel momento (le convocate scelte, i filtri). Prove nel browser:
+  `e2e/pdf-iphone.spec.ts` (iPhone finto: condivisione che funziona, che rifiuta, assente),
+  `e2e/pdf-android.spec.ts` (Android e computer).
   Il calendario partite ha nel PDF una colonna con «U14»/«U15» su riquadro
   pieno e una barra del colore della categoria sulla riga; i nomi dei file di
   tabellino, formazioni e convocazioni portano la categoria. Le **convocazioni**
@@ -141,8 +145,7 @@ staff (Developer e Admin).
   atleta, scritti una volta e ripresi in ogni trasferta con il link `tel:`;
   chi guida senza numero scritto lo prende dalla rubrica se il nome c'è una
   volta sola. Il **riepilogo PDF**
-  (`/api/trasferte/[matchId]/pdf`, `src/lib/pdf/tripPdf.ts`, «Scarica» e
-  «Condividi PDF») dice partita, ritrovo, mezzi e chi viaggia con chi, e chi è
+  (`/api/trasferte/[matchId]/pdf`, `src/lib/pdf/tripPdf.ts`, pulsante «Riepilogo PDF») dice partita, ritrovo, mezzi e chi viaggia con chi, e chi è
   ancora senza passaggio: mai i numeri dei genitori né le note riservate, i
   numeri degli autisti solo con `?numeri=autisti`. Dati personali di
   minorenni, quindi: serve il permesso pagina `trasferte`, che **nessun
@@ -602,7 +605,7 @@ staff (Developer e Admin).
     (`src/components/tour/scoutSteps.ts`, schede ricche con capitolo, esempio,
     consiglio, attenzione; parte da sola con `?guida=1` dal riquadro «Prima
     volta con lo Scout?»). Il **manuale d'uso in PDF** (`/api/scout/manuale`,
-    solo con il permesso «Scout»; il pulsante «Condividi PDF», `ShareManualButton`, lo manda come file con il foglio di condivisione del telefono e sul computer lo scarica) è impaginato da `src/lib/pdf/scoutManualPdf.ts`
+    solo con il permesso «Scout»; il pulsante «Manuale d'uso (PDF)» lo scarica dal computer e lo apre nel foglio con «Condividi» dal telefono) è impaginato da `src/lib/pdf/scoutManualPdf.ts`
     sul testo di `src/lib/scout/manual.ts`, con le schermate commentate in
     `src/assets/pdf/scout-manual/`. I voti e le colonne del tabellino nel
     manuale non sono scritti a mano: i blocchi `grades` e `legend` li ricavano

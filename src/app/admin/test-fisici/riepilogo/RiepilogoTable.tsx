@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Download, FileDown } from "lucide-react";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Button } from "@/components/ui/Button";
@@ -276,7 +275,6 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
                 <FileDown className="h-4 w-4" />
                 Scarica PDF
               </PdfLink>
-              <SharePdfButton href={pdfHref} title="Riepilogo test fisici · Volley Lignano" size="sm" data-share-pdf="test-fisici" />
             </>
           )}
           <Button type="button" variant="outline" size="sm" onClick={downloadCsv} disabled={rows.length === 0}>

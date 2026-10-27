@@ -22,8 +22,6 @@ import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { DirettaCard } from "./DirettaCard";
 import { PdfLink } from "@/components/pdf/PdfLink";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
-import { ShareManualButton } from "@/components/scout/ShareManualButton";
 import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
 import { Badge } from "@/components/ui/Badge";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -84,16 +82,6 @@ function MatchRow({ match, summary, first }: { match: Match; summary: ScoutSumma
           <FileDown className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only">PDF</span>
         </PdfLink>
-        <SharePdfButton
-          href={`/api/scout/${match.id}/pdf`}
-          title={`Tabellino ${matchTitle(match)}`}
-          label="Condividi il tabellino in PDF"
-          iconOnly
-          variant="quiet"
-          size="sm"
-          className="w-9 px-0"
-          data-share-pdf="tabellino"
-        />
       </div>
     );
 
@@ -202,7 +190,6 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
             <BookOpen className="h-4 w-4" />
             Manuale d&apos;uso (PDF)
           </PdfLink>
-          <ShareManualButton />
         </>
       }
     />

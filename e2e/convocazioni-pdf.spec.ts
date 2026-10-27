@@ -108,8 +108,7 @@ test("le convocazioni in PDF: dalla pagina e dalla finestra, con la selezione ch
     expect(selected.status()).toBe(200);
     expect(selected.headers()["content-type"]).toBe("application/pdf");
     expect((await selected.body()).equals(emptyBytes)).toBe(false);
-    // Anche «Condividi» usa la selezione di adesso; le formazioni restano quelle salvate e la finestra lo dice.
-    await expect(dialog.locator('[data-share-pdf="convocazioni"]')).toHaveAttribute("data-share-href", selectedHref);
+    // Le formazioni restano quelle salvate e la finestra lo dice.
     await expect(dialog.locator("[data-lineups-stale]")).toBeVisible();
     await expect(dialog.locator("[data-lineups-pdf-dialog]")).toHaveAttribute("href", `/api/partite/${matchId}/formazioni/pdf`);
 

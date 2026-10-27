@@ -104,7 +104,7 @@ export function getScoutHubTourSteps({ showMatches, season = false }: { showMatc
       target: "scout-manual",
       chapter: C_WELCOME,
       title: "Il manuale in PDF",
-      body: "Se preferisci leggere con calma, o stampare, c'è il manuale d'uso completo: schermate commentate, tutti i casi particolari, il significato di ogni sigla e uno schema da tenere a bordo campo.\n\nCon «Condividi PDF» lo mandi come file a chi vuoi (dal telefono si apre WhatsApp, e-mail e simili; dal computer il file si scarica).",
+      body: "Se preferisci leggere con calma, o stampare, c'è il manuale d'uso completo: schermate commentate, tutti i casi particolari, il significato di ogni sigla e uno schema da tenere a bordo campo.\n\nIl pulsante «Manuale d'uso (PDF)» lo apre: dal telefono lo leggi qui sul sito e lo mandi come file a chi vuoi con «Condividi» (WhatsApp, e-mail e simili); dal computer si apre in una scheda e lo scarichi.",
     },
     {
       id: "scout-hub-before",
@@ -625,7 +625,7 @@ export function getScoutTabellinoTourSteps(matchId: string, context: ScoutTabell
       target: "scout-tab-pdf",
       chapter: C_TAB,
       title: "Il PDF",
-      body: "Scarica il tabellino in PDF, da stampare o condividere: è il foglio come quello delle leghe, in A4 verticale, sempre su tutta la partita. Le analisi restano qui nella pagina.",
+      body: "Apri il tabellino in PDF, da stampare o mandare (dal telefono con «Condividi»): è il foglio come quello delle leghe, in A4 verticale, sempre su tutta la partita. Le analisi restano qui nella pagina.",
     },
   ];
 }

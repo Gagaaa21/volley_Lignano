@@ -13,6 +13,28 @@ export function isAppleTouchDevice(info: { userAgent: string; platform: string; 
   return /iPad|iPhone|iPod/.test(info.userAgent) || (info.platform === "MacIntel" && info.maxTouchPoints > 1);
 }
 
+/**
+ * Il PDF si apre in un foglio dentro la pagina (con «Condividi») invece che in una scheda nuova? Su iPhone e iPad sempre (dove una
+ * scheda nuova è una trappola); su Android e sugli altri telefoni e tablet, dove si può mandare un file con il foglio di
+ * condivisione e si usa il dito (schermo a tocco). Sul computer no: lì il PDF si apre in una scheda e il browser ha già il suo
+ * visualizzatore con «Scarica» e «Stampa».
+ */
+export function pdfOpensInSheet(info: { apple: boolean; canShareFiles: boolean; coarsePointer: boolean }): boolean {
+  return info.apple || (info.canShareFiles && info.coarsePointer);
+}
+
+export function detectSheetMode(): boolean {
+  try {
+    return pdfOpensInSheet({
+      apple: detectAppleDevice(),
+      canShareFiles: detectFileShare(),
+      coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function detectAppleDevice(): boolean {
   try {
     return isAppleTouchDevice({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });

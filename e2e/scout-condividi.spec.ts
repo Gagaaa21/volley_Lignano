@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { loginAsDev, switchTeam } from "./helpers";
 
 /**
- * Il manuale dello Scout si esporta come file PDF: dal computer si scarica (dal
- * link «Manuale d'uso» e da «Condividi PDF»); dal telefono «Condividi PDF» apre
- * il foglio di condivisione con il PDF già allegato, senza nessun link pubblico.
+ * Il manuale dello Scout è un file PDF con un solo pulsante: dal computer «Manuale d'uso (PDF)» lo scarica; dal telefono lo apre in un
+ * foglio dentro la pagina, da cui «Condividi» lo manda come file (WhatsApp, e-mail…) con il foglio di condivisione del telefono. Nessun
+ * secondo pulsante «Condividi PDF» e nessun link pubblico.
  */
 
 test.use({ serviceWorkers: "block" });
@@ -18,6 +18,7 @@ declare global {
 }
 
 const FILE_NAME = "volley-lignano-scout-manuale-d-uso.pdf";
+const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
 async function openHub(page: Page, options: { phone?: boolean } = {}) {
   await page.addInitScript((phone) => {
@@ -46,72 +47,70 @@ async function openHub(page: Page, options: { phone?: boolean } = {}) {
   await page.goto("/admin/scout");
 }
 
-const shareButton = (page: Page) => page.locator("[data-scout-share-manual]");
+const manualButton = (page: Page) => page.locator("[data-scout-manual-link]").first();
+const sheet = (page: Page) => page.locator("[data-pdf-sheet]");
 
-test("manuale: dal computer si scarica come file PDF, dal link e da «Condividi PDF»", async ({ page, request }) => {
+test("manuale: dal computer un solo pulsante scarica il file PDF", async ({ page, request }) => {
   test.setTimeout(120_000);
   await openHub(page);
 
-  // Il link «Manuale d'uso (PDF)» scarica il file.
-  const [linkDownload] = await Promise.all([page.waitForEvent("download"), page.locator("[data-scout-manual-link]").first().click()]);
-  expect(linkDownload.suggestedFilename()).toBe(FILE_NAME);
-  const linkBytes = readFileSync((await linkDownload.path())!);
-  expect(linkBytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
-  expect(linkBytes.length).toBeGreaterThan(200_000);
-
-  // «Condividi PDF», senza foglio di condivisione, scarica lo stesso file e lo dice.
-  await expect(shareButton(page)).toContainText("Condividi PDF");
-  const [shareDownload] = await Promise.all([page.waitForEvent("download"), shareButton(page).click()]);
-  expect(shareDownload.suggestedFilename()).toBe(FILE_NAME);
-  const shareBytes = readFileSync((await shareDownload.path())!);
-  expect(shareBytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
-  expect(shareBytes.length).toBe(linkBytes.length);
-  await expect(shareButton(page)).toContainText("PDF scaricato");
-  await expect(shareButton(page)).toContainText("Condividi PDF", { timeout: 8_000 });
+  // Il pulsante «Manuale d'uso (PDF)» scarica il file; non ce n'è un secondo «Condividi».
+  await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
+  const [download] = await Promise.all([page.waitForEvent("download"), manualButton(page).click()]);
+  expect(download.suggestedFilename()).toBe(FILE_NAME);
+  const bytes = readFileSync((await download.path())!);
+  expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  expect(bytes.length).toBeGreaterThan(200_000);
 
   // Niente link pubblico: il manuale è solo per chi ha l'accesso.
   expect((await request.get("/api/scout/manuale")).status()).toBe(401);
   expect((await request.get("/manuale-scout.pdf")).status()).toBe(404);
 });
 
-test("manuale: dal telefono «Condividi PDF» apre il foglio di condivisione con il file allegato", async ({ page }) => {
-  test.setTimeout(120_000);
-  let downloads = 0;
-  page.on("download", () => (downloads += 1));
-  await openHub(page, { phone: true });
+test.describe("dal telefono", () => {
+  test.use({ userAgent: IPHONE_UA, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  // Il file si prepara da solo appena si apre la pagina; poi un solo tocco basta.
-  await expect(shareButton(page)).toHaveAttribute("data-share-ready", "true", { timeout: 20_000 });
-  await shareButton(page).click();
-  await expect.poll(async () => (await page.evaluate(() => window.__shared))?.length).toBe(1);
-  const [shared] = (await page.evaluate(() => window.__shared))!;
-  expect(shared.name).toBe(FILE_NAME);
-  expect(shared.type).toBe("application/pdf");
-  expect(shared.size).toBeGreaterThan(200_000);
-  expect(shared.title).toContain("Manuale");
-  expect(downloads).toBe(0);
-  await expect(shareButton(page)).toContainText("Condividi PDF");
-});
+  test("manuale: «Manuale d'uso (PDF)» apre il foglio e «Condividi» manda il file allegato", async ({ page }) => {
+    test.setTimeout(120_000);
+    let downloads = 0;
+    page.on("download", () => (downloads += 1));
+    await openHub(page, { phone: true });
+    const url = page.url();
 
-test("manuale: se la rete è lenta il pulsante prepara il PDF e al tocco dopo apre il foglio di condivisione", async ({ page }) => {
-  test.setTimeout(120_000);
-  // La prima richiesta del PDF (quella che parte da sola) viene tenuta ferma qualche secondo; anche la seconda (quella del tocco)
-  // ha un po' di ritardo, sennò con il manuale già pronto sul server «Preparo il PDF» durerebbe troppo poco per essere visto.
-  let first = true;
-  await page.route("**/api/scout/manuale", async (route) => {
-    const wait = first ? 4_000 : 1_500;
-    first = false;
-    await new Promise((resolve) => setTimeout(resolve, wait));
-    await route.continue();
+    // Un pulsante, non un link al file: con il sito sulla schermata Home dell'iPhone non si tornerebbe più indietro.
+    await expect(manualButton(page)).toHaveJSProperty("tagName", "BUTTON");
+    await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
+    await manualButton(page).click();
+    await expect(sheet(page)).toBeVisible();
+    await expect(sheet(page).locator("[data-pdf-sheet-preview]")).toHaveAttribute("src", /^blob:/);
+    await sheet(page).locator("[data-pdf-sheet-share]").click();
+    await expect.poll(async () => (await page.evaluate(() => window.__shared))?.length).toBe(1);
+    const [shared] = (await page.evaluate(() => window.__shared))!;
+    expect(shared.name).toBe(FILE_NAME);
+    expect(shared.type).toBe("application/pdf");
+    expect(shared.size).toBeGreaterThan(200_000);
+    expect(shared.title).toContain("Manuale");
+    await sheet(page).locator("[data-pdf-sheet-close]").click();
+    await expect(sheet(page)).toHaveCount(0);
+    expect(page.url()).toBe(url);
+    expect(downloads).toBe(0);
   });
-  await openHub(page, { phone: true });
 
-  await expect(shareButton(page)).toBeVisible();
-  await shareButton(page).click();
-  await expect(shareButton(page)).toContainText("Preparo il PDF");
-  await expect(shareButton(page)).toContainText("Pronto: tocca per condividere", { timeout: 20_000 });
-  expect(await page.evaluate(() => window.__shared?.length)).toBe(0);
-  await shareButton(page).click();
-  await expect.poll(async () => (await page.evaluate(() => window.__shared))?.length).toBe(1);
-  await expect(shareButton(page)).toContainText("Condividi PDF");
+  test("manuale: se la rete è lenta il pulsante mostra che prepara il PDF e poi si apre il foglio", async ({ page }) => {
+    test.setTimeout(120_000);
+    // La richiesta del PDF viene tenuta ferma qualche secondo, perché si veda che il pulsante sta lavorando.
+    await page.route("**/api/scout/manuale", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2_500));
+      await route.continue();
+    });
+    await openHub(page, { phone: true });
+
+    await manualButton(page).click();
+    await expect(manualButton(page)).toHaveAttribute("aria-busy", "true");
+    await expect(manualButton(page)).toBeDisabled();
+    await expect(sheet(page)).toBeVisible({ timeout: 20_000 });
+    await expect(manualButton(page)).toHaveAttribute("aria-busy", "false");
+    await sheet(page).locator("[data-pdf-sheet-close]").click();
+    await expect(sheet(page)).toHaveCount(0);
+  });
 });

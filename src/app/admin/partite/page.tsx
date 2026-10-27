@@ -5,7 +5,6 @@ import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { CATEGORY_LABELS } from "@/lib/category";
 import { PdfLink } from "@/components/pdf/PdfLink";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Badge } from "@/components/ui/Badge";
@@ -81,16 +80,11 @@ export default async function MatchesListPage({
         help={<SectionTour steps={SECTION_PARTITE_STEPS} />}
         actions={
           <>
-            <PdfLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle="Calendario partite · Volley Lignano">
+            <PdfLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
+            >
               <FileDown className="h-4 w-4" />
               Esporta PDF
             </PdfLink>
-            <SharePdfButton
-              href={pdfHref}
-              title={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
-              prefetch
-              data-share-pdf="partite-staff"
-            />
             <LinkButton href="/api/partite/csv" variant="outline">
               <Download className="h-4 w-4" />
               Esporta CSV

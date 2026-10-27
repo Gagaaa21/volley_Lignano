@@ -43,7 +43,7 @@ const PUBLIC_TOUR_STEPS_U14U15: BaseTourStep[] = [
     path: "/",
     target: "public-pdf",
     title: "Le partite in PDF",
-    body: "«Scarica» salva il calendario delle partite in PDF; «Condividi» lo manda a chi vuoi (dal telefono si apre WhatsApp, e-mail e simili). Segue la categoria scelta.",
+    body: "Il pulsante apre il calendario delle partite in PDF: dal computer lo guardi e lo scarichi, dal telefono si apre qui sul sito e da lì lo mandi a chi vuoi con «Condividi» (WhatsApp, e-mail e simili). Segue la categoria scelta.",
   },
   {
     id: "public-nav-area-tecnici",

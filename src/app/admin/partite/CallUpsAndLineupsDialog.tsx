@@ -4,7 +4,6 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Download, Save, X } from "lucide-react";
 import { PdfLink } from "@/components/pdf/PdfLink";
-import { SharePdfButton } from "@/components/pdf/SharePdfButton";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { FieldError } from "@/components/ui/Field";
@@ -151,7 +150,6 @@ export function CallUpsAndLineupsDialog({
                     <Download className="h-4 w-4" />
                     Convocazioni PDF
                   </PdfLink>
-                  <SharePdfButton href={convocationsHref} title={`Convocazioni ${title}`} size="sm" prefetch data-share-pdf="convocazioni" />
                 </div>
               </div>
               <CallUpsSection
@@ -186,7 +184,6 @@ export function CallUpsAndLineupsDialog({
                     <Download className="h-4 w-4" />
                     Formazioni PDF
                   </PdfLink>
-                  <SharePdfButton href={lineupsHref} title={`Formazioni ${title}`} size="sm" prefetch data-share-pdf="formazioni" />
                 </div>
               </div>
               {calledUpAthletes.length === 0 ? (
