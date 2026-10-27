@@ -51,12 +51,22 @@ async function deleteAthletes(page: Page, names: string[]) {
   }
 }
 
+/**
+ * Sceglie una voce di un controllo a pallini toccando la sua etichetta, come farebbe chi usa il sito: il pallino vero è nascosto, e un
+ * clic forzato su di lui cade dove capita (con la pagina scorsa sotto la barra del menu, sulla voce «Trasferte» che porta all'elenco).
+ */
+async function chooseSegment(page: Page, name: string, within?: Locator) {
+  const scope = within ?? page;
+  await scope.locator("label").filter({ has: page.getByRole("radio", { name }) }).click();
+  await expect(scope.getByRole("radio", { name })).toBeChecked();
+}
+
 /** Una partita fuori casa fra qualche giorno, con ritrovo. */
 async function createAwayMatch(page: Page, opponent: string): Promise<string> {
   await page.goto("/admin/partite/nuovo");
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Squadra avversaria").fill(opponent);
-  await page.getByRole("radio", { name: "Trasferta" }).check({ force: true });
+  await chooseSegment(page, "Trasferta");
   await page.getByLabel("Luogo della partita").fill("Palestra trasferta e2e");
   await page.getByLabel("Data e ora").fill(`${localDate(3)}T18:00`);
   await page.getByLabel("Ora ritrovo").fill("1630");
@@ -91,7 +101,7 @@ async function addVehicle(
   fields: { kind?: string; owner?: string; driver: string; phone?: string; seats: string; time?: string; place?: string; notes?: string },
 ) {
   const form = newVehicleForm(page);
-  if (fields.kind) await form.getByRole("radio", { name: fields.kind }).check({ force: true });
+  if (fields.kind) await chooseSegment(page, fields.kind, form);
   await form.getByLabel("Di chi è il mezzo").fill(fields.owner ?? "");
   await form.getByLabel("Chi guida", { exact: true }).fill(fields.driver);
   await form.getByLabel("Numero di chi guida").fill(fields.phone ?? "");
@@ -100,8 +110,10 @@ async function addVehicle(
   await form.getByLabel("Partenza, luogo").fill(fields.place ?? "");
   await form.getByLabel("Note sul mezzo").fill(fields.notes ?? "");
   await form.locator("[data-vehicle-submit]").click();
-  // Il mezzo è arrivato (il modulo si rimonta vuoto): solo allora si può compilare il prossimo.
+  // Il mezzo è arrivato (il modulo si rimonta vuoto): solo allora si può compilare il prossimo. La scheda compare subito, ma il modulo
+  // si svuota quando risponde il server: finché ha ancora i vecchi valori, compilare il prossimo mezzo perderebbe quello che si scrive.
   await expect(vehicleCard(page, fields.driver.replace(/\s+/g, " "))).toBeVisible();
+  await expect(form.getByLabel("Chi guida", { exact: true })).toHaveValue("");
 }
 
 /** Sceglie nel menù di una riga «Senza passaggio» il mezzo il cui testo contiene `vehicleText`. */
