@@ -1,5 +1,6 @@
 import { addYears, differenceInCalendarDays, format, parseISO, subMonths, subYears } from "date-fns";
 import { it } from "date-fns/locale";
+import { parsePhoto, type CertificatePhoto } from "./photo";
 
 /**
  * Il certificato medico di ogni atleta (solo U14/U15): non si carica il documento, si scrive solo il giorno della visita. Lo scrive
@@ -18,6 +19,8 @@ export interface MedicalCertificate {
   by: "parent" | "staff";
   updatedBy: string | null;
   updatedAt: string;
+  /** La foto del certificato, se c'è (i suoi byte stanno a parte: vedi photo.ts). */
+  photo: CertificatePhoto | null;
 }
 
 /** Dove stanno, tra le impostazioni del sito (tabella app_settings): una chiave per atleta, nessuna tabella in più. */
@@ -185,25 +188,30 @@ export function parseCertificate(athleteId: string, raw: string | null | undefin
     by: record.by === "staff" ? "staff" : "parent",
     updatedBy: typeof record.updatedBy === "string" && record.updatedBy ? record.updatedBy : null,
     updatedAt: typeof record.updatedAt === "string" && record.updatedAt ? record.updatedAt : new Date(0).toISOString(),
+    photo: parsePhoto(record.photo),
   };
 }
 
-/** Solo la visita e chi l'ha scritta: la scadenza si ricalcola a ogni lettura. */
+/** La visita, chi l'ha scritta e la foto (solo i suoi dati): la scadenza si ricalcola a ogni lettura. */
 export function serializeCertificate(certificate: MedicalCertificate): string {
-  const { issuedOn, by, updatedBy, updatedAt } = certificate;
-  return JSON.stringify({ issuedOn, by, updatedBy, updatedAt });
+  const { issuedOn, by, updatedBy, updatedAt, photo } = certificate;
+  return JSON.stringify({ issuedOn, by, updatedBy, updatedAt, photo });
 }
 
 /**
- * Il messaggio da mandare al genitore quando il certificato scade, è scaduto o manca la data: che cosa succede e, se c'è, il link
- * personale da cui scrivere il giorno della visita nuova. Null se è in regola.
+ * Il messaggio da mandare al genitore quando il certificato scade, è scaduto, manca la data o (in regola) manca la foto: che cosa
+ * succede e, se c'è, il link personale da cui scrivere il giorno della visita e caricare la foto. Null se è tutto a posto.
  */
-export function parentReminder(athleteName: string, status: CertificateStatus, link: string | null): string | null {
+export function parentReminder(athleteName: string, status: CertificateStatus, link: string | null, hasPhoto = true): string | null {
   const first = athleteName.trim().split(/\s+/)[0] ?? athleteName;
   let what: string;
   switch (status.kind) {
     case "valid":
-      return null;
+      if (hasPhoto) return null;
+      return [
+        `Ciao! Per il certificato medico di ${first} ci manca la foto.`,
+        link ? `Potete caricarla qui (basta una foto leggibile del certificato): ${link}` : "Quando potete, mandateci una foto del certificato.",
+      ].join("\n");
     case "missing":
       what = `ci manca la data del certificato medico di ${first}.`;
       break;
@@ -217,7 +225,7 @@ export function parentReminder(athleteName: string, status: CertificateStatus, l
   return [
     `Ciao! ${what.charAt(0).toUpperCase()}${what.slice(1)}`,
     link
-      ? `Quando avete fatto la visita, scegliete qui il giorno (la scadenza la calcola il sito, e non serve mandare il certificato): ${link}`
-      : "Quando avete fatto la visita, diteci il giorno.",
+      ? `Quando avete fatto la visita, scegliete qui il giorno e caricate una foto del certificato (la scadenza la calcola il sito): ${link}`
+      : "Quando avete fatto la visita, diteci il giorno e mandateci una foto del certificato.",
   ].join("\n");
 }

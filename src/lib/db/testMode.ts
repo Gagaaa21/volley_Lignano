@@ -157,6 +157,8 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "clearMatchReporting",
   "saveMedicalCertificate",
   "clearMedicalCertificate",
+  "saveCertificatePhoto",
+  "deleteCertificatePhoto",
   "upsertPrediction",
   "createTrainingPlan",
   "updateTrainingPlan",
@@ -208,6 +210,11 @@ export async function getTestRepo(realRepo: Repo): Promise<Repo> {
   for (const key of Object.keys(sandboxed) as (keyof Repo)[]) {
     if (ALWAYS_REAL_METHODS.has(key)) {
       result[key] = realRepo[key];
+      continue;
+    }
+    // Le foto dei certificati non si copiano nella prova (pesano): quella caricata nella prova, se c'è, altrimenti quella vera.
+    if (key === "getCertificatePhoto") {
+      result[key] = async (athleteId: string) => (await sandboxed.getCertificatePhoto(athleteId)) ?? realRepo.getCertificatePhoto(athleteId);
       continue;
     }
     const original = sandboxed[key] as (...args: unknown[]) => Promise<unknown>;

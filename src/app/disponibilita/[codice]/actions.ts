@@ -7,7 +7,8 @@ import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availabi
 import { DEFAULT_REPORTING_RULES, type MatchReporting, type ReportingRules } from "@/lib/availability/reporting";
 import { appliesToAthlete, canParentChange, canUseFamilyLink, normalizeAbsence } from "@/lib/availability/rules";
 import { familyLinkPath, isFamilyToken } from "@/lib/availability/token";
-import { certificateFromInput, type CertificateSaveResult } from "@/lib/medical/certificate";
+import type { CertificateSaveResult } from "@/lib/medical/certificate";
+import { saveCertificateFromForm } from "@/lib/medical/save";
 import { nowLocalIso, todayIso } from "@/lib/today";
 import type { Athlete, Match } from "@/lib/types";
 
@@ -96,25 +97,18 @@ export async function clearAbsenceAction(token: string, matchId: string): Promis
 }
 
 /**
- * Il giorno della visita del certificato medico, dal genitore (il documento non si manda; la scadenza la calcola il sito, un anno
- * dopo). Si può scrivere e correggere sempre; i controlli sono gli stessi dello staff (vedi certificateFromInput).
+ * Il certificato medico, dal genitore: il giorno della visita (la scadenza la calcola il sito, un anno dopo) e, se vuole, la foto
+ * del certificato («issuedOn» e «photo» nel modulo; la foto la vede solo lo staff). Si può scrivere e correggere sempre; i
+ * controlli sono gli stessi dello staff (vedi saveCertificateFromForm).
  */
-export async function saveFamilyCertificateAction(token: string, issuedOn: string): Promise<CertificateSaveResult> {
+export async function saveFamilyCertificateAction(token: string, formData: FormData): Promise<CertificateSaveResult> {
   try {
     if (!isFamilyToken(token)) return { ok: false, error: INVALID_LINK };
     const repo = await getRepo();
     const athlete = await repo.findAthleteByFamilyToken(token);
     if (!athlete || !canUseFamilyLink(athlete)) return { ok: false, error: INVALID_LINK };
-    const input = certificateFromInput(issuedOn, todayIso());
-    if (!input.ok) return input;
-    await repo.saveMedicalCertificate({
-      athleteId: athlete.id,
-      issuedOn: input.issuedOn,
-      validUntil: input.validUntil,
-      by: "parent",
-      updatedBy: null,
-      updatedAt: new Date().toISOString(),
-    });
+    const result = await saveCertificateFromForm(repo, athlete.id, formData, { by: "parent", updatedBy: null }, todayIso());
+    if (!result.ok) return result;
     revalidatePath(familyLinkPath(token));
     revalidatePath("/admin/certificati");
     revalidatePath("/admin");

@@ -86,6 +86,8 @@ export interface MemoryStore {
   federationSnapshots: FederationSnapshot[];
   federationDecisions: FederationDecision[];
   appSettings: Record<string, string>;
+  /** Le foto dei certificati medici, per atleta, in base64 (l'archivio della modalità prova si salva come JSON). */
+  certificatePhotos: Record<string, { contentType: string; base64: string }>;
   pushSubscriptions: PushSubscriptionRecord[];
   staff: StaffMember[];
   staffSeeded: boolean;
@@ -112,6 +114,7 @@ export function createEmptyStore(): MemoryStore {
     federationSnapshots: [],
     federationDecisions: [],
     appSettings: {},
+    certificatePhotos: {},
     pushSubscriptions: [],
     staff: [],
     staffSeeded: false,
@@ -156,6 +159,7 @@ export function createMemoryRepo(store: MemoryStore): Repo {
   store.federationSnapshots ??= [];
   store.federationDecisions ??= [];
   store.appSettings ??= {};
+  store.certificatePhotos ??= {};
   const federationSources = store.federationSources;
   const federationSnapshots = store.federationSnapshots;
   const federationDecisions = store.federationDecisions;
@@ -503,6 +507,16 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     },
     async clearMedicalCertificate(athleteId) {
       delete store.appSettings[certificateKey(athleteId)];
+    },
+    async saveCertificatePhoto(athleteId, data, contentType) {
+      store.certificatePhotos[athleteId] = { contentType, base64: Buffer.from(data).toString("base64") };
+    },
+    async getCertificatePhoto(athleteId) {
+      const photo = store.certificatePhotos[athleteId];
+      return photo ? { contentType: photo.contentType, data: new Uint8Array(Buffer.from(photo.base64, "base64")) } : null;
+    },
+    async deleteCertificatePhoto(athleteId) {
+      delete store.certificatePhotos[athleteId];
     },
     async getPublicLiveScout() {
       const recent = Date.now() - LIVE_SCORE_TTL_MS;

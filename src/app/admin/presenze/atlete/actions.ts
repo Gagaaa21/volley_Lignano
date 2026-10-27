@@ -256,8 +256,10 @@ export async function deleteAthleteAction(formData: FormData): Promise<void> {
   if (!id) return;
   const repo = await getActiveRepo();
   await repo.deleteAthlete(id);
-  // Il certificato medico sta tra le impostazioni, senza legame con l'atleta nel database: va tolto qui (se la tabella manca, non c'è).
+  // Il certificato medico (tra le impostazioni) e la sua foto (nello Storage) non hanno legame con l'atleta nel database: vanno tolti
+  // qui (se mancano, non c'è niente da togliere).
   await repo.clearMedicalCertificate(id).catch(() => undefined);
+  await repo.deleteCertificatePhoto(id).catch(() => undefined);
   revalidateAthletes();
   revalidatePath("/admin/certificati");
   redirect("/admin/presenze/atlete");

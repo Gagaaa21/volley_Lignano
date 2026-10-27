@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClock, CalendarPlus, CheckCircle2, PencilLine, ShieldAlert, ShieldCheck, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarPlus, Camera, CheckCircle2, ImageIcon, PencilLine, ShieldAlert, ShieldCheck, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { CertificateSaveResult, CertificateStatus, StatusLabel } from "@/lib/medical/certificate";
 import { Button } from "@/components/ui/Button";
-import { CertificateDateForm } from "./CertificateDateForm";
+import { CertificateForm } from "./CertificateForm";
 import { ValidityBar } from "./ValidityBar";
 
 const LOOK: Record<CertificateStatus["kind"], { icon: LucideIcon; band: string; badge: string; title: string; border: string }> = {
@@ -41,8 +41,9 @@ const LOOK: Record<CertificateStatus["kind"], { icon: LucideIcon; band: string; 
 
 /**
  * Il certificato medico sulla pagina del genitore, sempre in cima: lo stato in grande, fino a quando vale con la barra della
- * validità e chi ha scritto la data. Se manca, scade entro un mese (in rosso) o è scaduto, il giorno della visita da scegliere è già
- * lì, da zero (è la visita nuova); se è in regola si cambia a richiesta. Salvata la data, il riquadro si aggiorna da solo.
+ * validità, chi ha scritto la data e se c'è la foto. Se manca, scade entro un mese (in rosso) o è scaduto, il modulo è già aperto e
+ * parte da zero (è la visita nuova, con la sua foto); se è in regola si cambia a richiesta, e se manca la foto lo dice. Salvato, il
+ * riquadro si aggiorna da solo. La foto il genitore non la rivede qui: la vede solo lo staff.
  */
 export function FamilyCertificateCard({
   status,
@@ -50,6 +51,7 @@ export function FamilyCertificateCard({
   issuedOn,
   validUntil,
   author,
+  photo,
   today,
   save,
 }: {
@@ -59,8 +61,10 @@ export function FamilyCertificateCard({
   validUntil: string | null;
   /** «Data scritta da voi · 13 mar, 10:02» / «… da Gaga · …»; null senza data. */
   author: string | null;
+  /** La foto caricata, con quando («27 ott, 12:50»). */
+  photo: { uploadedAt: string; when: string } | null;
   today: string;
-  save: (issuedOn: string) => Promise<CertificateSaveResult>;
+  save: (formData: FormData) => Promise<CertificateSaveResult>;
 }) {
   const look = LOOK[status.kind];
   const Icon = look.icon;
@@ -96,10 +100,27 @@ export function FamilyCertificateCard({
           </div>
         )}
 
+        {issuedOn && status.kind !== "missing" && !open && (
+          photo ? (
+            <p className="flex items-center gap-2 text-[13px] font-semibold text-success" data-family-certificate-photo="yes">
+              <ImageIcon className="h-4 w-4 shrink-0" aria-hidden />
+              Foto del certificato caricata · {photo.when}
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-warning/35 bg-warning-soft/60 px-3.5 py-2.5" data-family-certificate-photo="no">
+              <Camera className="h-4 w-4 shrink-0 text-warning" aria-hidden />
+              <p className="min-w-0 flex-1 text-[13px] font-semibold text-foreground">Manca la foto del certificato.</p>
+              <Button type="button" size="xs" variant="soft" onClick={() => setOpen(true)} data-family-certificate-add-photo>
+                Aggiungi la foto
+              </Button>
+            </div>
+          )
+        )}
+
         {saved && !open && (
           <p className="flex items-center gap-1.5 rounded-xl bg-success-soft px-3 py-2 text-sm font-semibold text-success" role="status" data-family-certificate-saved>
             <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-            Grazie, data salvata: lo staff la vede subito.
+            Grazie, salvato: lo staff lo vede subito.
           </p>
         )}
 
@@ -107,25 +128,26 @@ export function FamilyCertificateCard({
           <div className={cn(issuedOn && status.kind !== "missing" && "border-t border-border pt-4")}>
             <p className="mb-3 text-sm leading-relaxed text-foreground/80">
               {status.kind === "valid"
-                ? "Scegliete il giorno giusto della visita: la scadenza si ricalcola da sola."
-                : "Quando avete fatto la visita, scegliete qui il giorno: la scadenza la calcola il sito, un anno dopo."}
+                ? "Correggete il giorno della visita o aggiungete la foto del certificato: la scadenza si ricalcola da sola."
+                : "Quando avete fatto la visita, scegliete qui il giorno e aggiungete una foto del certificato: la scadenza la calcola il sito, un anno dopo."}
             </p>
-            {/* Da rinnovare o da inserire si parte da zero: è il giorno della visita nuova. */}
-            <CertificateDateForm
+            {/* Da rinnovare o da inserire si parte da zero: è il giorno della visita nuova, con la sua foto. */}
+            <CertificateForm
               issuedOn={status.kind === "valid" ? issuedOn : null}
+              photo={status.kind === "valid" ? photo : null}
               today={today}
               save={save}
               onSaved={() => {
                 setSaved(true);
                 setOpen(false);
               }}
-              submitLabel="Salva la data"
+              submitLabel="Salva"
             />
           </div>
         ) : (
           <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)} data-family-certificate-change>
             <PencilLine className="h-4 w-4" />
-            {status.kind === "valid" ? "Cambia la data" : "Scrivi la data della visita nuova"}
+            {status.kind === "valid" ? "Cambia data o foto" : "Scrivi la visita nuova"}
           </Button>
         )}
       </div>

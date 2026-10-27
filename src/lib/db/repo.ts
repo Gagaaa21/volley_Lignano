@@ -9,6 +9,7 @@ import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/sc
 import type { AthleteFamilyLink, MatchAvailability, MatchAvailabilityInput } from "@/lib/availability/types";
 import type { MatchReporting, ReportingRules } from "@/lib/availability/reporting";
 import type { MedicalCertificate } from "@/lib/medical/certificate";
+import type { PhotoType } from "@/lib/medical/photo";
 import type { AthleteContact, AthleteContacts, MatchTrip, MatchTripData, SaveMatchTripResult } from "@/lib/trips/types";
 import type {
   AdminPage,
@@ -180,6 +181,11 @@ export interface Repo {
   getMedicalCertificate(athleteId: string): Promise<MedicalCertificate | null>;
   saveMedicalCertificate(certificate: MedicalCertificate): Promise<void>;
   clearMedicalCertificate(athleteId: string): Promise<void>;
+  // La foto del certificato, una per atleta (i suoi dati stanno nel certificato): su Supabase in un contenitore privato dello
+  // Storage, creato alla prima foto; in memoria in demo e in modalità prova.
+  saveCertificatePhoto(athleteId: string, data: Uint8Array, contentType: PhotoType): Promise<void>;
+  getCertificatePhoto(athleteId: string): Promise<{ data: Uint8Array; contentType: string } | null>;
+  deleteCertificatePhoto(athleteId: string): Promise<void>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

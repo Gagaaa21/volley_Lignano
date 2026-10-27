@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // La foto del certificato medico arriva con un'azione del modulo: il telefono la rimpicciolisce prima (di solito qualche
+  // centinaio di KB, al massimo 2,5 MB: vedi src/lib/medical/photo.ts), ma il limite di serie di 1 MB non basterebbe.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "3mb",
+    },
+  },
   // Il manuale dello Scout legge dal disco le sue schermate, i font e lo stemma:
   // si dice a Next di portarli nella funzione che genera il PDF.
   outputFileTracingIncludes: {

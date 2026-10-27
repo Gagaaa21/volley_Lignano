@@ -3,6 +3,7 @@ import {
   CalendarClock,
   CalendarPlus,
   FlaskConical,
+  ImageIcon,
   Info,
   MessageCircle,
   ShieldAlert,
@@ -150,7 +151,7 @@ export default async function CertificatiPage() {
     <div>
       <PageHeader
         title="Certificati medici"
-        description="Per ogni atleta se il certificato medico è valido. Il genitore sceglie dal suo link personale il giorno della visita (il certificato non si manda) e il sito calcola la scadenza, un anno dopo; un mese prima diventa rosso, così lo avvisi in tempo."
+        description="Per ogni atleta se il certificato medico è valido. Il genitore, dal suo link personale, sceglie il giorno della visita e carica una foto del certificato; il sito calcola la scadenza, un anno dopo, e un mese prima diventa rosso, così lo avvisi in tempo."
       />
 
       <AvailabilityDatabaseNotice
@@ -192,7 +193,8 @@ export default async function CertificatiPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
         <span>
           Il link del genitore è lo stesso delle assenze (lo prepari in <b>Assenze → Link per i genitori</b>). <b>Avvisa il genitore</b> apre WhatsApp con
-          il messaggio già scritto e il link. La data la puoi scrivere o correggere anche tu: si vede chi l&apos;ha scritta.
+          il messaggio già scritto e il link. <b>Vedi la foto</b> apre la foto del certificato: la vede solo chi ha questo permesso, mai il sito
+          pubblico. Data e foto le puoi mettere o correggere anche tu: si vede chi le ha scritte.
         </span>
       </p>
 
@@ -273,7 +275,10 @@ function CertificateRow({
   const label = statusLabel(status);
   const red = label.tone === "danger";
   const url = link ? `${SITE_URL}${familyLinkPath(link.token)}#certificato` : null;
-  const reminder = parentReminder(athlete.fullName, status, url);
+  const photo = certificate?.photo ?? null;
+  const reminder = parentReminder(athlete.fullName, status, url, photo !== null);
+  // In regola ma senza foto: il messaggio chiede solo quella.
+  const remindLabel = status.kind === "valid" ? "Chiedi la foto" : null;
   const reachable = contacts.filter((contact) => whatsappPhone(contact.phone) !== null);
 
   return (
@@ -295,6 +300,15 @@ function CertificateRow({
             {certificate && (
               <p className="text-[12px] text-muted-foreground" data-certificate-author>
                 Data scritta {author} · {answerWhen(certificate.updatedAt)}
+              </p>
+            )}
+            {certificate && (
+              <p
+                className={cn("flex items-center gap-1 text-[12px] font-semibold", photo ? "text-success" : "text-warning")}
+                data-certificate-photo={photo ? "yes" : "no"}
+              >
+                <ImageIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {photo ? `Foto caricata ${photo.by === "parent" ? "dal genitore" : "dallo staff"} · ${answerWhen(photo.uploadedAt)}` : "Senza foto"}
               </p>
             )}
           </div>
@@ -324,7 +338,27 @@ function CertificateRow({
       </p>
 
       <div className="mt-3 sm:pl-[3.25rem]">
-        <CertificateEditor athleteId={athlete.id} athleteName={athlete.fullName} issuedOn={certificate?.issuedOn ?? null} today={today}>
+        <CertificateEditor
+          athleteId={athlete.id}
+          athleteName={athlete.fullName}
+          issuedOn={certificate?.issuedOn ?? null}
+          photo={photo}
+          today={today}
+        >
+          {photo && (
+            <LinkButton
+              href={`/api/certificati/${athlete.id}/foto`}
+              target="_blank"
+              rel="noopener noreferrer"
+              prefetch={false}
+              size="sm"
+              variant="outline"
+              data-certificate-photo-link
+            >
+              <ImageIcon className="h-4 w-4" />
+              Vedi la foto
+            </LinkButton>
+          )}
           {reminder &&
             (reachable.length > 0 ? (
               reachable.map((contact, index) => (
@@ -338,7 +372,7 @@ function CertificateRow({
                   data-certificate-remind
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Avvisa {contact.relation || firstName(contact.name)}
+                  {remindLabel ? "Chiedi la foto a" : "Avvisa"} {contact.relation || firstName(contact.name)}
                 </LinkButton>
               ))
             ) : (
@@ -351,7 +385,7 @@ function CertificateRow({
                 data-certificate-remind
               >
                 <MessageCircle className="h-4 w-4" />
-                Avvisa il genitore
+                {remindLabel ?? "Avvisa il genitore"}
               </LinkButton>
             ))}
           {reminder && (
@@ -367,7 +401,7 @@ function CertificateRow({
         </CertificateEditor>
         {reminder && !link && (
           <p className="mt-2 text-[12px] text-muted-foreground" data-certificate-no-link>
-            Non ha ancora il link personale: il messaggio chiede la data a voce.
+            Non ha ancora il link personale: nel messaggio non c&apos;è il link.
           </p>
         )}
       </div>

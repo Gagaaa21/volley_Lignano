@@ -77,6 +77,9 @@ async function createLink(page: Page, name: string): Promise<string> {
   return (await row.getAttribute("data-family-path"))!;
 }
 
+/** Una foto vera da caricare (lo stemma): il telefono la rimpicciolisce e la manda come JPEG. */
+const PHOTO = "src/assets/lignano-crest.png";
+
 const row = (page: Page, name: string) => page.locator("[data-certificate-row]").filter({ hasText: name });
 const group = (page: Page, key: "attention" | "missing" | "valid") => page.locator(`[data-certificate-group="${key}"]`);
 const familyCard = (page: Page) => page.locator("[data-family-certificate]");
@@ -129,8 +132,12 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     await expect(card.locator('input[type="date"]')).toHaveCount(1);
     await chooseVisit(card, localDate(-10));
     await expect(card.locator("[data-certificate-preview]")).toHaveAttribute("data-certificate-preview", "valid");
+    // E la foto del certificato: si vede l'anteprima, già rimpicciolita, prima di salvare.
+    await card.locator("[data-certificate-photo-input]").setInputFiles(PHOTO);
+    await expect(card.locator("[data-certificate-photo-chosen]")).toContainText("Foto pronta");
     await card.locator("[data-certificate-save]").click();
-    await expect(card.locator("[data-family-certificate-saved]")).toContainText("Grazie, data salvata");
+    await expect(card.locator("[data-family-certificate-saved]")).toContainText("Grazie, salvato");
+    await expect(card.locator('[data-family-certificate-photo="yes"]')).toContainText("Foto del certificato caricata");
     await expect(card).toHaveAttribute("data-family-certificate", "success");
     await expect(card.locator("[data-family-certificate-badge]")).toHaveText("Valido");
     await expect(card.locator("[data-family-certificate-detail]")).toHaveText(`Valido fino al ${longDay(oneYearAfter(localDate(-10)))}.`);
@@ -142,8 +149,20 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     await expect(group(page, "valid").locator("[data-certificate-row]").filter({ hasText: anna })).toBeVisible();
     await expect(row(page, anna).locator("[data-certificate-author]")).toContainText("Data scritta dal genitore");
     await expect(row(page, anna).locator('[data-validity-bar="valid"]')).toBeVisible();
-    // In regola: niente da mandare.
+    // In regola e con la foto: niente da mandare.
     await expect(row(page, anna).locator("[data-certificate-remind]")).toHaveCount(0);
+    // La foto la vede lo staff, e solo lui: dal server arriva un JPEG che non resta in nessuna cache.
+    await expect(row(page, anna).locator('[data-certificate-photo="yes"]')).toContainText("Foto caricata dal genitore");
+    const photoUrl = (await row(page, anna).locator("[data-certificate-photo-link]").getAttribute("href"))!;
+    expect(photoUrl).toMatch(/^\/api\/certificati\/[^/]+\/foto$/);
+    const photo = await page.request.get(photoUrl);
+    expect(photo.status()).toBe(200);
+    expect(photo.headers()["content-type"]).toBe("image/jpeg");
+    expect(photo.headers()["cache-control"]).toContain("no-store");
+    expect(Array.from((await photo.body()).subarray(0, 3))).toEqual([0xff, 0xd8, 0xff]);
+    const anonymous = await browser.newContext();
+    expect((await anonymous.request.get(photoUrl)).status()).toBe(401);
+    await anonymous.close();
 
     // Una visita di più di due anni fa è quasi sicuramente l'anno sbagliato: lo dice e non salva.
     await parent.reload();
@@ -162,6 +181,9 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     await expect(card.locator("[data-family-certificate-badge]")).toHaveText(`Scade tra ${left} giorni`);
     await expect(card.locator("[data-family-certificate-detail]")).toContainText("va rinnovato");
     await expect(card.locator('[data-validity-bar="expiring"]')).toBeVisible();
+    // Visita nuova senza foto nuova: la foto di prima era del certificato vecchio, e va via.
+    await expect(card.locator('[data-family-certificate-photo="no"]')).toContainText("Manca la foto del certificato");
+    expect((await page.request.get(photoUrl)).status()).toBe(404);
 
     // Lo staff: in cima, in rosso, con il messaggio pronto (nome, scadenza e link al riquadro del certificato).
     await page.goto("/admin/certificati");
@@ -173,7 +195,7 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     const text = decodeURIComponent(href!.split("?text=")[1]);
     expect(text).toContain(`Il certificato medico di Anna scade il ${longDay(oneYearAfter(visit))}`);
     expect(text).toContain(`${path}#certificato`);
-    expect(text).toContain("non serve mandare il certificato");
+    expect(text).toContain("caricate una foto del certificato");
     // E lo dice la dashboard.
     await page.goto("/admin");
     await expect(page.locator("[data-dashboard-certificates]")).toContainText("1 in scadenza");
@@ -204,15 +226,28 @@ test("il genitore sceglie il giorno della visita dal suo link e la scadenza vien
     await row(page, bea).locator("[data-certificate-clear]").click();
     await expect(group(page, "missing").locator("[data-certificate-row]").filter({ hasText: bea })).toBeVisible();
 
-    // Il genitore rinnova: si parte da zero, con il giorno della visita nuova; torna verde e resta in cima.
+    // Il genitore rinnova: si parte da zero, con il giorno della visita nuova e la sua foto; torna verde e resta in cima.
     await parent.reload();
     await expect(familyCard(parent).locator("[data-certificate-issued]")).toHaveValue("");
     await chooseVisit(familyCard(parent), localDate(-2));
+    await familyCard(parent).locator("[data-certificate-photo-input]").setInputFiles(PHOTO);
+    await expect(familyCard(parent).locator("[data-certificate-photo-chosen]")).toBeVisible();
     await familyCard(parent).locator("[data-certificate-save]").click();
     await expect(familyCard(parent)).toHaveAttribute("data-family-certificate", "success");
     await parent.reload();
     expect(await cardAfterAbsences(parent)).toBe(false);
     await expect(familyCard(parent).locator("[data-certificate-form]")).toHaveCount(0);
+    await expect(familyCard(parent).locator('[data-family-certificate-photo="yes"]')).toBeVisible();
+
+    // Lo staff toglie la sola foto: la data resta, e il messaggio pronto chiede solo la foto.
+    await page.goto("/admin/certificati");
+    await row(page, anna).locator("[data-certificate-edit]").click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await row(page, anna).locator("[data-certificate-photo-remove]").click();
+    await expect(row(page, anna).locator('[data-certificate-photo="no"]')).toHaveText("Senza foto");
+    await expect(row(page, anna)).toHaveAttribute("data-certificate-status", "valid");
+    await expect(row(page, anna).locator("[data-certificate-remind]")).toContainText("Chiedi la foto");
+    expect((await page.request.get(photoUrl)).status()).toBe(404);
   } finally {
     await parent.close();
     await deleteAthletes(page, [anna, bea]);
@@ -252,6 +287,8 @@ test("la sezione ha un permesso a sé: un nuovo Admin non la vede finché il Dev
   await expect(page.getByRole("link", { name: "Certificati", exact: true })).toHaveCount(0);
   await page.goto("/admin/certificati");
   await expect(page).toHaveURL(/\/admin\/?$/);
+  // Nemmeno le foto dei certificati: il permesso si controlla prima di cercare l'atleta.
+  expect((await page.request.get("/api/certificati/qualsiasi/foto")).status()).toBe(403);
 
   await logout(page);
   await loginAsDev(page);

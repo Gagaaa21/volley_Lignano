@@ -50,6 +50,7 @@ import {
   serializeReportingRules,
   type MatchReporting,
 } from "@/lib/availability/reporting";
+import { PHOTO_BUCKET, PHOTO_MAX_BYTES, PHOTO_TYPES } from "@/lib/medical/photo";
 import {
   CERTIFICATE_PREFIX,
   certificateKey,
@@ -1502,6 +1503,39 @@ export const supabaseRepo: Repo = {
     const db = getSupabaseAdmin();
     const { error } = await db.from("app_settings").delete().eq("key", certificateKey(athleteId));
     if (error) throw new Error(error.message);
+  },
+
+  // Foto dei certificati: un contenitore privato dello Storage (mai pubblico: si leggono solo da qui, con la chiave di servizio),
+  // un file per atleta. Il contenitore lo crea il sito alla prima foto, così non serve niente da fare su Supabase.
+  async saveCertificatePhoto(athleteId, data, contentType) {
+    const db = getSupabaseAdmin();
+    const upload = () => db.storage.from(PHOTO_BUCKET).upload(athleteId, data, { contentType, upsert: true, cacheControl: "0" });
+    let { error } = await upload();
+    if (error && /bucket not found/i.test(error.message)) {
+      const created = await db.storage.createBucket(PHOTO_BUCKET, {
+        public: false,
+        fileSizeLimit: PHOTO_MAX_BYTES,
+        allowedMimeTypes: [...PHOTO_TYPES],
+      });
+      if (created.error && !/already exists/i.test(created.error.message)) throw new Error(created.error.message);
+      ({ error } = await upload());
+    }
+    if (error) throw new Error(error.message);
+  },
+  async getCertificatePhoto(athleteId) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.storage.from(PHOTO_BUCKET).download(athleteId);
+    if (error) {
+      // Né il contenitore né il file: nessuna foto.
+      if (/not found/i.test(error.message) || (error as { status?: number }).status === 404) return null;
+      throw new Error(error.message);
+    }
+    return { contentType: data.type || "image/jpeg", data: new Uint8Array(await data.arrayBuffer()) };
+  },
+  async deleteCertificatePhoto(athleteId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.storage.from(PHOTO_BUCKET).remove([athleteId]);
+    if (error && !/not found/i.test(error.message)) throw new Error(error.message);
   },
 
   async listPushSubscriptions() {

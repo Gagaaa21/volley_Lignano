@@ -119,6 +119,7 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
               } · ${answerWhen(certificate.updatedAt)}`
             : null
         }
+        photo={certificate?.photo ? { uploadedAt: certificate.photo.uploadedAt, when: answerWhen(certificate.photo.uploadedAt) } : null}
         today={today}
         save={saveFamilyCertificateAction.bind(null, codice)}
       />

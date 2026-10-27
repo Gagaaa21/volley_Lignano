@@ -6,7 +6,7 @@ import { REPORT_CLOSES_DAYS_BEFORE } from "./types";
 export function familyLinkMessage(athleteName: string, url: string, daysBefore: number = REPORT_CLOSES_DAYS_BEFORE): string {
   const until = daysBefore === 0 ? "fino all'inizio della partita" : `fino a ${daysBeforePhrase(daysBefore)}`;
   return [
-    `Ciao! Questo è il link personale di ${athleteName} per avvisarci se non può esserci a una partita (${until}) e per scriverci la data del certificato medico:`,
+    `Ciao! Questo è il link personale di ${athleteName} per avvisarci se non può esserci a una partita (${until}) e per il certificato medico (giorno della visita e foto):`,
     url,
     "È solo per voi: non condividerlo con altri.",
   ].join("\n");

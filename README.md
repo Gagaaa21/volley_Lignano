@@ -211,29 +211,39 @@ staff (Developer e Admin).
   uguale a `supabase/schema.sql`: lo controlla una prova).
 - **Certificati medici** (`/admin/certificati`, solo U14/U15, permesso a sé
   «Certificati medici») — per ogni atleta se il certificato medico è valido. Il
-  documento non si carica mai: il genitore, dal suo link personale (lo stesso delle
-  assenze, riquadro «Certificato medico» in cima, `id="certificato"`), sceglie con il
-  calendario del telefono (`type="date"`) **solo il giorno della visita**. Il
-  certificato dura sempre un anno: la scadenza la calcola il sito (`expiryFor`, lo
-  stesso giorno l'anno dopo; il 29 febbraio → 28) e si ricalcola a ogni lettura, mai
-  salvata. Lo stato si calcola da solo (`src/lib/medical/certificate.ts`, funzioni
-  pure con le loro prove): «Valido», «Scade tra N giorni» in rosso **da un mese
-  prima** della scadenza (`warningFrom`: un mese di calendario, scadenza il 31 marzo
-  → dal 28 febbraio; ancora valido), «Scaduto» e «Da inserire» (senza la data non
-  risulta valido). Una barra (`ValidityBar`, `validityTimeline`) mostra l'anno di
-  validità con l'ultimo mese in rosso e un punto su oggi, anche nell'anteprima del
-  modulo prima di salvare. La pagina dello staff ha i riquadri di riepilogo e mette
+  genitore, dal suo link personale (lo stesso delle assenze, riquadro «Certificato
+  medico» in cima, `id="certificato"`), sceglie con il calendario del telefono
+  (`type="date"`) **il giorno della visita** e carica **una foto del certificato**
+  (`CertificateForm`). Il certificato dura sempre un anno: la scadenza la calcola il
+  sito (`expiryFor`, lo stesso giorno l'anno dopo; il 29 febbraio → 28) e si ricalcola
+  a ogni lettura, mai salvata. Lo stato si calcola da solo
+  (`src/lib/medical/certificate.ts`, funzioni pure con le loro prove): «Valido», «Scade
+  tra N giorni» in rosso **da un mese prima** della scadenza (`warningFrom`: un mese di
+  calendario, scadenza il 31 marzo → dal 28 febbraio; ancora valido), «Scaduto» e «Da
+  inserire» (senza la data non risulta valido). Una barra (`ValidityBar`,
+  `validityTimeline`) mostra l'anno di validità con l'ultimo mese in rosso e un punto
+  su oggi, anche nell'anteprima del modulo prima di salvare. **La foto**: il telefono
+  la rimpicciolisce prima dell'invio (`compressPhoto`: lato lungo 2000 px, JPEG di
+  qualche centinaio di KB) e il server la ricontrolla dai primi byte (`checkPhoto` in
+  `src/lib/medical/photo.ts`: solo JPEG, PNG o WebP, al massimo 2,5 MB; il limite delle
+  azioni è portato a 3 MB in `next.config.ts`). Su Supabase sta in un contenitore
+  **privato** dello Storage (`medical-certificates`, creato dal sito alla prima foto:
+  niente da fare a mano), un file per atleta; nel certificato solo tipo, peso, chi e
+  quando. La vede solo lo staff con il permesso, da `/api/certificati/[athleteId]/foto`
+  (401/403 altrimenti, `Cache-Control: private, no-store`, `nosniff`); il genitore vede
+  solo che c'è. Con una visita nuova la foto di prima va via (`keepPhoto`), e va via
+  anche eliminando l'atleta. La pagina dello staff ha i riquadri di riepilogo e mette
   in cima, in rosso, scaduti e in scadenza (`compareUrgency`), poi senza data e in
-  regola; «Avvisa il genitore» apre WhatsApp con il messaggio pronto e il link
-  (`parentReminder`; sul numero della rubrica con il permesso Trasferte); lo staff
-  può scrivere, correggere o togliere la data, e si vede chi l'ha scritta («dal
-  genitore», «da Gaga»). La dashboard avvisa quando ce n'è almeno uno da rinnovare.
-  La data si controlla da entrambe le parti (`certificateFromInput`: un giorno vero,
-  non nel futuro e non di più di due anni fa). Il permesso non ce l'ha nessuno di
-  partenza (escluso da `DEFAULT_NEW_ADMIN_PAGES`, come Trasferte): il Developer lo dà
-  dal Centro di controllo. Nessuna tabella nuova: una chiave
-  `medical_certificate:<id atleta>` in `app_settings` (visita e chi l'ha scritta); in
-  modalità prova resta nella prova, e la pagina del genitore usa sempre il database
+  regola; «Avvisa il genitore» (o «Chiedi la foto» se manca solo quella) apre WhatsApp
+  con il messaggio pronto e il link (`parentReminder`; sul numero della rubrica con il
+  permesso Trasferte); lo staff può mettere, correggere o togliere data e foto, e si
+  vede chi le ha scritte («dal genitore», «da Gaga»). La dashboard avvisa quando ce
+  n'è almeno uno da rinnovare. La data si controlla da entrambe le parti
+  (`certificateFromInput`: un giorno vero, non nel futuro e non di più di due anni fa).
+  Il permesso non ce l'ha nessuno di partenza (escluso da `DEFAULT_NEW_ADMIN_PAGES`,
+  come Trasferte): il Developer lo dà dal Centro di controllo. Nessuna tabella nuova:
+  una chiave `medical_certificate:<id atleta>` in `app_settings`; in modalità prova
+  data e foto restano nella prova, e la pagina del genitore usa sempre il database
   reale.
 - **Live score** (`/admin/livescore`, regole in `src/lib/liveScore.ts`) —
   tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
@@ -810,6 +820,7 @@ src/
     api/livescore/         Tabellone live (staff) e diretta pubblica (pubblico/)
     api/scout/             Scout di una partita: lettura, salvataggio con controllo di versione, PDF, manuale d'uso (manuale/)
     api/trasferte/         Riepilogo PDF di una trasferta (solo con il permesso «trasferte»)
+    api/certificati/       Foto del certificato medico di un'atleta (solo con il permesso «certificati»)
     api/federation/refresh/ Aggiornamento classifiche dalla federazione (cron)
     api/federation/logo/   Loghi delle squadre in classifica (solo dal portale FIPAV)
   components/              Componenti UI, layout, calendario, form, PWA
@@ -822,7 +833,7 @@ src/
     scout/                 Regole, calcolo del tabellino, salvataggio e manuale d'uso (manual.ts) dello scout
     trips/                 Trasferte: tipi, regole dei posti e delle assegnazioni, rubrica, telefoni, accesso
     availability/          Link dei genitori e assenze alle partite: codice, regole (quali partite, fino a quando, come si contano), messaggi WhatsApp
-    medical/               Certificati medici: scadenza a un anno dalla visita, stato (valido, in scadenza da un mese prima, scaduto), controlli, messaggio al genitore
+    medical/               Certificati medici: scadenza a un anno dalla visita, stato (valido, in scadenza da un mese prima, scaduto), foto (controlli, compressione), messaggio al genitore
     jersey.ts              Numero di maglia: lettura dei numeri nelle righe incollate, avvisi sui doppioni
     liveScore.ts           Stato e regole del tabellone live (set, cambio campo, battuta)
     volleyRules.ts         Regole dei set e delle formule di gara, comuni a Live score e Scout

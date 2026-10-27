@@ -809,9 +809,10 @@ alter table federation_decisions enable row level security;
 -- `availability_rules` e `availability_match:<id partita>`: le regole delle
 -- segnalazioni dei genitori e le scelte fatte a mano partita per partita (JSON,
 -- vedi src/lib/availability/reporting.ts).
--- `medical_certificate:<id atleta>`: il giorno della visita del certificato medico
--- e chi l'ha scritto (JSON; la scadenza, un anno dopo, la calcola il sito: vedi
--- src/lib/medical/certificate.ts).
+-- `medical_certificate:<id atleta>`: il giorno della visita del certificato medico,
+-- chi l'ha scritto e i dati della foto (JSON; la scadenza, un anno dopo, la calcola
+-- il sito: vedi src/lib/medical/certificate.ts). La foto vera sta nello Storage, nel
+-- contenitore privato `medical-certificates`, creato dal sito alla prima foto.
 -- =========================================================
 create table if not exists app_settings (
   key text primary key,
