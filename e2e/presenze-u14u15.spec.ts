@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { loginAsDev, switchTeam, uniqueName, localDate } from "./helpers";
 
 test.describe("Presenze U14/U15", () => {
@@ -48,8 +48,15 @@ test.describe("Presenze U14/U15", () => {
     // con nome+badge categoria), che non include i pulsanti Presente/Assente
     // — sono un div fratello, non un discendente.
     const row = page.locator("div.rounded-xl", { hasText: fullName });
-    await row.getByRole("button", { name: "Assente" }).click({ force: true });
-    await page.getByRole("button", { name: /assenza non giustificata/i }).click({ force: true });
+    // Ogni pulsante al centro dello schermo prima del clic: in fondo finirebbe sotto la barra fissa con «Salva presenze», e il clic
+    // forzato salverebbe il registro invece di scegliere l'assenza e il motivo.
+    const toCenter = (button: Locator) => button.evaluate((element) => element.scrollIntoView({ block: "center" }));
+    const absent = row.getByRole("button", { name: "Assente" });
+    await toCenter(absent);
+    await absent.click({ force: true });
+    const unjustified = page.getByRole("button", { name: /assenza non giustificata/i });
+    await toCenter(unjustified);
+    await unjustified.click({ force: true });
     await page.getByRole("button", { name: /salva presenze/i }).click({ force: true });
     await page.waitForURL(/\/admin\/presenze\/storico/, { timeout: 20_000 });
   });
