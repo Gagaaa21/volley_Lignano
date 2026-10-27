@@ -28,14 +28,14 @@ async function chooseSegment(page: Page, name: string, within?: Locator) {
   await expect(scope.getByRole("radio", { name })).toBeChecked();
 }
 
-/** Una partita fuori casa domani, la prossima in calendario. */
+/** Una partita fuori casa oggi a mezzanotte e un minuto: la prossima in calendario anche se un'altra prova ha lasciato una partita di oggi. */
 async function createAwayMatch(page: Page, opponent: string): Promise<string> {
   await page.goto("/admin/partite/nuovo");
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Squadra avversaria").fill(opponent);
   await chooseSegment(page, "Trasferta");
   await page.getByLabel("Luogo della partita").fill("Palestra scorciatoie e2e");
-  await page.getByLabel("Data e ora").fill(`${localDate(1)}T18:00`);
+  await page.getByLabel("Data e ora").fill(`${localDate(0)}T00:01`);
   await page.getByRole("button", { name: /salva partita/i }).click();
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
   const href = await page.locator('a[href^="/admin/partite/"]', { hasText: opponent }).first().getAttribute("href");
