@@ -90,6 +90,14 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Registro presenze collegato al calendario allenamenti, con storico e percentuale di presenza per ogni atleta.",
   },
   {
+    id: "nav-certificati",
+    path: "/admin/certificati",
+    target: "nav-certificati",
+    page: "certificati",
+    title: "Certificati medici",
+    body: "Per ogni atleta se il certificato medico è valido: le date le scrive il genitore dal suo link. Un mese prima della scadenza diventa rosso, con il messaggio pronto per avvisarlo.",
+  },
+  {
     id: "nav-livescore",
     path: "/admin/livescore",
     target: "nav-livescore",

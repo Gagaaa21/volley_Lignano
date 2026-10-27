@@ -7,7 +7,19 @@ import { CopyTextButton } from "@/components/ui/CopyTextButton";
  * nell'SQL Editor di Supabase; agli altri dice di chiederglielo. Il sito si aggiorna da solo a ogni pubblicazione, le tabelle no: così
  * non resta nascosto (i genitori vedrebbero solo «Il servizio non è ancora attivo»).
  */
-export function AvailabilityDatabaseNotice({ missing, isDev }: { missing: readonly AvailabilityTable[]; isDev: boolean }) {
+export function AvailabilityDatabaseNotice({
+  missing,
+  isDev,
+  effect,
+  othersEffect,
+}: {
+  missing: readonly AvailabilityTable[];
+  isDev: boolean;
+  /** Cosa non funziona finché manca, per il Developer (di serie: la pagina dei genitori). */
+  effect?: string;
+  /** Lo stesso per gli altri, che non possono sistemarlo da soli. */
+  othersEffect?: string;
+}) {
   if (missing.length === 0) return null;
   const sql = setupSqlFor(missing);
 
@@ -23,7 +35,7 @@ export function AvailabilityDatabaseNotice({ missing, isDev }: { missing: readon
       {isDev ? (
         <>
           <p className="mt-2 leading-relaxed text-foreground/80">
-            Finché non c&apos;è, i genitori vedono «Il servizio non è ancora attivo». Apri Supabase → <b>SQL Editor</b> → <b>New query</b>, incolla
+            {effect ?? "Finché non c'è, i genitori vedono «Il servizio non è ancora attivo»."} Apri Supabase → <b>SQL Editor</b> → <b>New query</b>, incolla
             questo SQL, premi <b>Run</b> (deve dire «Success») e ricarica la pagina. Si può rieseguire senza danni.
           </p>
           <pre
@@ -40,7 +52,8 @@ export function AvailabilityDatabaseNotice({ missing, isDev }: { missing: readon
         </>
       ) : (
         <p className="mt-2 leading-relaxed text-foreground/80">
-          Finché non c&apos;è, i genitori non possono segnalare le assenze: chiedi al Developer di completare la configurazione del database.
+          {othersEffect ?? "Finché non c'è, i genitori non possono segnalare le assenze."} Chiedi al Developer di completare la configurazione del
+          database.
         </p>
       )}
     </section>

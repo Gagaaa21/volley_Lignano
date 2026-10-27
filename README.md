@@ -209,6 +209,27 @@ staff (Developer e Admin).
   database manca una tabella delle assenze, le pagine dello staff lo dicono e al
   Developer mostrano l'SQL già pronto da copiare (`src/lib/availability/setupSql.ts`,
   uguale a `supabase/schema.sql`: lo controlla una prova).
+- **Certificati medici** (`/admin/certificati`, solo U14/U15, permesso a sé
+  «Certificati medici») — per ogni atleta se il certificato medico è valido. Il
+  documento non si carica mai: il genitore, dal suo link personale (lo stesso delle
+  assenze, riquadro «Certificato medico» con `id="certificato"`), sceglie con il
+  calendario del telefono (`type="date"`) il giorno della visita e fino a quando vale
+  (la scadenza si propone un anno dopo). Lo stato si calcola da solo
+  (`src/lib/medical/certificate.ts`, funzioni pure con le loro prove): «Valido»,
+  «Scade tra N giorni» in rosso **da un mese prima** della scadenza (`warningFrom`:
+  un mese di calendario, scadenza il 31 marzo → dal 28 febbraio; ancora valido),
+  «Scaduto» e «Da inserire» (senza date non risulta valido). La pagina dello staff
+  mette in cima, in rosso, scaduti e in scadenza (`compareUrgency`), poi senza date e
+  in regola; «Avvisa il genitore» apre WhatsApp con il messaggio pronto e il link
+  (`parentReminder`; sul numero della rubrica con il permesso Trasferte); lo staff
+  può scrivere, correggere o togliere le date, e si vede chi le ha scritte («dal
+  genitore», «da Gaga»). La dashboard avvisa quando ce n'è almeno uno da rinnovare.
+  Le date si controllano da entrambe le parti (`certificateFromInput`: giorni veri,
+  visita non nel futuro, scadenza dopo la visita e al massimo due anni dopo). Il
+  permesso non ce l'ha nessuno di partenza (escluso da `DEFAULT_NEW_ADMIN_PAGES`, come
+  Trasferte): il Developer lo dà dal Centro di controllo. Nessuna tabella nuova: una
+  chiave `medical_certificate:<id atleta>` in `app_settings`; in modalità prova resta
+  nella prova, e la pagina del genitore usa sempre il database reale.
 - **Live score** (`/admin/livescore`, regole in `src/lib/liveScore.ts`) —
   tabellone dal 2 contro 2 al 6 contro 6, con o senza libero, oppure «solo
   punteggio» senza formazione (e senza seguire chi batte); rotazione e libero
@@ -775,6 +796,7 @@ src/
       presenze/            Registro presenze, anagrafica atlete, storico
       scout/               Scout partita: elenco, inserimento punto per punto, tabellino
       trasferte/           Trasferte: mezzi e passeggeri per partita, rubrica genitori (riservata)
+      certificati/         Certificati medici: valido / in scadenza / scaduto per ogni atleta, avviso al genitore
       staff/               Creazione/modifica account admin
       guida/               Guida all'area riservata
       cambia-password/    Cambio password (obbligatorio al primo accesso)
@@ -795,6 +817,7 @@ src/
     scout/                 Regole, calcolo del tabellino, salvataggio e manuale d'uso (manual.ts) dello scout
     trips/                 Trasferte: tipi, regole dei posti e delle assegnazioni, rubrica, telefoni, accesso
     availability/          Link dei genitori e assenze alle partite: codice, regole (quali partite, fino a quando, come si contano), messaggi WhatsApp
+    medical/               Certificati medici: stato (valido, in scadenza da un mese prima, scaduto), controlli sulle date, messaggio al genitore
     jersey.ts              Numero di maglia: lettura dei numeri nelle righe incollate, avvisi sui doppioni
     liveScore.ts           Stato e regole del tabellone live (set, cambio campo, battuta)
     volleyRules.ts         Regole dei set e delle formule di gara, comuni a Live score e Scout

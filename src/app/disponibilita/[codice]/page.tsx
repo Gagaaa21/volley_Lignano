@@ -5,15 +5,17 @@ import { Info, Link2Off, PauseCircle, Wrench } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
-import { DEFAULT_REPORTING_POLICY, fromLabel, parentClosedNote, type ReportingPolicy } from "@/lib/availability/reporting";
+import { DEFAULT_REPORTING_POLICY, byPhrase, fromLabel, parentClosedNote, type ReportingPolicy } from "@/lib/availability/reporting";
 import { canUseFamilyLink, isAbsence, matchesForAthlete, staffNamesById } from "@/lib/availability/rules";
 import { answerWhen, deadlineLabel } from "@/lib/availability/format";
 import { isFamilyToken } from "@/lib/availability/token";
-import type { MatchAvailability } from "@/lib/availability/types";
-import { nowLocalIso } from "@/lib/today";
+import { certificateStatus, dayLabel, statusLabel, type MedicalCertificate } from "@/lib/medical/certificate";
+import { nowLocalIso, todayIso } from "@/lib/today";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityPanel, type FamilyMatchItem } from "@/components/availability/AvailabilityPanel";
 import { FamilyShell } from "@/components/availability/FamilyShell";
+import { FamilyCertificateCard } from "@/components/medical/FamilyCertificateCard";
+import { saveFamilyCertificateAction } from "./actions";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -82,17 +84,44 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
     if (!isAppSettingsMissing(error)) throw error;
   }
   const options = matchesForAthlete(athlete, upcoming, now, 12, policy);
-  // Chi aveva già un link ma non ha ancora creato la tabella delle assenze: niente pagina d'errore, si spiega che non è pronto.
-  let answers: MatchAvailability[];
-  try {
-    answers = await repo.listMatchAvailability({ athleteId: athlete.id, matchIds: options.map(({ match }) => match.id) });
-  } catch (error) {
-    if (!isAvailabilityTableMissing(error)) throw error;
-    return <NotReady />;
-  }
-  const absenceByMatch = new Map(answers.filter(isAbsence).map((row) => [row.matchId, row] as const));
-  // Chi dello staff ha segnato un'assenza si vede con il suo nome («Segnata da Gaga»): solo il nome, niente altro dell'account.
-  const staffNames = [...absenceByMatch.values()].some((row) => row.updatedBy) ? staffNamesById(await repo.listStaff()) : new Map<string, string>();
+  // Senza la tabella delle assenze (null) o quella delle impostazioni, dove sta il certificato (undefined), quella parte si spiega da
+  // sola e il resto funziona; senza entrambe, niente pagina d'errore: si dice che non è pronto.
+  const [answers, certificate] = await Promise.all([
+    repo.listMatchAvailability({ athleteId: athlete.id, matchIds: options.map(({ match }) => match.id) }).catch((error: unknown) => {
+      if (!isAvailabilityTableMissing(error)) throw error;
+      return null;
+    }),
+    repo.getMedicalCertificate(athlete.id).catch((error: unknown): MedicalCertificate | null | undefined => {
+      if (!isAppSettingsMissing(error)) throw error;
+      return undefined;
+    }),
+  ]);
+  if (answers === null && certificate === undefined) return <NotReady />;
+  const absenceByMatch = new Map((answers ?? []).filter(isAbsence).map((row) => [row.matchId, row] as const));
+  // Chi dello staff ha scritto qualcosa si vede con il suo nome («Segnata da Gaga»): solo il nome, niente altro dell'account.
+  const staffNames =
+    [...absenceByMatch.values()].some((row) => row.updatedBy) || certificate?.updatedBy
+      ? staffNamesById(await repo.listStaff())
+      : new Map<string, string>();
+  const today = todayIso();
+  const status = certificate === undefined ? null : certificateStatus(certificate, today);
+  const certificateCard =
+    status && certificate !== undefined ? (
+      <FamilyCertificateCard
+        label={statusLabel(status)}
+        issuedOn={certificate?.issuedOn ?? null}
+        validUntil={certificate?.validUntil ?? null}
+        author={
+          certificate
+            ? `Visita del ${dayLabel(certificate.issuedOn)} · date scritte ${
+                certificate.by === "parent" ? "da voi" : byPhrase(certificate.updatedBy ? staffNames.get(certificate.updatedBy) : null)
+              } · ${answerWhen(certificate.updatedAt)}`
+            : null
+        }
+        today={today}
+        save={saveFamilyCertificateAction.bind(null, codice)}
+      />
+    ) : null;
 
   // Solo quello che serve a mostrare le partite: mai chi è convocata né altri dati.
   const items: FamilyMatchItem[] = options.map(({ match, open, state, setting }) => {
@@ -126,34 +155,47 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
 
   return (
     <FamilyShell>
-      <p className="eyebrow">Assenze alle partite</p>
+      <p className="eyebrow">{certificateCard ? "Assenze e certificato medico" : "Assenze alle partite"}</p>
       <h1 className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-display text-2xl font-extrabold text-foreground sm:text-3xl" data-family-athlete>
         {athlete.fullName}
         <CategoryTag category={athlete.category} size="md" long />
       </h1>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground/80">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
-        sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino alla scadenza scritta sotto ogni partita; dopo, scrivi all&apos;allenatore.
-      </p>
 
-      {policy.rules.paused && (
-        <p className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm font-semibold text-foreground" data-family-paused>
-          <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
-          Le segnalazioni sono sospese: per avvisare, scrivi all&apos;allenatore.
-        </p>
-      )}
-      {policy.rules.notice && (
-        <p className="mt-4 flex items-start gap-2.5 rounded-xl bg-primary-soft/70 px-4 py-3 text-sm text-foreground" data-family-notice>
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-          <span>
-            <b className="font-semibold">{fromLabel(policy.rules.noticeBy)}:</b> {policy.rules.notice}
-          </span>
-        </p>
-      )}
+      {/* Sempre qui in cima, piccolo quando è in regola: salvando le date non si sposta (chi arriva dal messaggio lo trova subito). */}
+      {certificateCard && <div className="mt-6">{certificateCard}</div>}
 
-      <div className="mt-6">
-        <AvailabilityPanel token={codice} items={items} />
-      </div>
+      <section className="mt-8" data-family-absences>
+        <h2 className="font-display text-lg font-bold text-foreground">Assenze alle partite</h2>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground/80">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
+          sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino alla scadenza scritta sotto ogni partita; dopo, scrivi all&apos;allenatore.
+        </p>
+
+        {policy.rules.paused && (
+          <p className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm font-semibold text-foreground" data-family-paused>
+            <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+            Le segnalazioni sono sospese: per avvisare, scrivi all&apos;allenatore.
+          </p>
+        )}
+        {policy.rules.notice && (
+          <p className="mt-4 flex items-start gap-2.5 rounded-xl bg-primary-soft/70 px-4 py-3 text-sm text-foreground" data-family-notice>
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <span>
+              <b className="font-semibold">{fromLabel(policy.rules.noticeBy)}:</b> {policy.rules.notice}
+            </span>
+          </p>
+        )}
+
+        <div className="mt-6">
+          {answers ? (
+            <AvailabilityPanel token={codice} items={items} />
+          ) : (
+            <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted-foreground" data-family-absences-not-ready>
+              Le assenze alle partite non sono ancora attive: per avvisare, sentite l&apos;allenatore.
+            </p>
+          )}
+        </div>
+      </section>
 
       <p className="mt-8 text-[13px] leading-relaxed text-muted-foreground">
         Questo link è personale: non condividerlo con altri. Se lo perdi o pensi che sia finito in mani sbagliate, dillo all&apos;allenatore: ne prepara uno

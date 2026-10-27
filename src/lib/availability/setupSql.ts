@@ -51,7 +51,7 @@ alter table app_settings enable row level security;`,
 export const AVAILABILITY_TABLE_PURPOSE: Record<AvailabilityTable, string> = {
   athlete_family_links: "i link personali dei genitori",
   match_availability: "le assenze segnalate («Non ci sarà»)",
-  app_settings: "le regole e le chiusure decise a mano",
+  app_settings: "le impostazioni del sito (regole delle assenze, certificati medici)",
 };
 
 /** L'SQL da incollare per le tabelle che mancano, nell'ordine giusto, con la riga che le fa vedere subito al sito. */

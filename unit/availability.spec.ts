@@ -254,11 +254,12 @@ test.describe("WhatsApp", () => {
     expect(whatsappPhone("123")).toBeNull();
   });
 
-  test("il messaggio contiene il nome, il link, fino a quando si può avvisare e l'invito a non condividerlo", () => {
+  test("il messaggio contiene il nome, il link, fino a quando si può avvisare, il certificato e l'invito a non condividerlo", () => {
     const text = familyLinkMessage("Anna Bianchi", "https://esempio.it/disponibilita/abc");
     expect(text).toContain("Anna Bianchi");
     expect(text).toMatch(/non può esserci/);
     expect(text).toMatch(/5 giorni prima/);
+    expect(text).toMatch(/date del certificato medico/);
     expect(text).toContain("https://esempio.it/disponibilita/abc");
     expect(text).toMatch(/non condividerlo/);
   });

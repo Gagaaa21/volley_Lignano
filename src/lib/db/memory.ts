@@ -27,6 +27,13 @@ import type { MatchScout, MatchScoutInput } from "@/lib/scout/types";
 import type { AthleteContacts, MatchTrip } from "@/lib/trips/types";
 import type { AthleteFamilyLink, MatchAvailability } from "@/lib/availability/types";
 import {
+  CERTIFICATE_PREFIX,
+  certificateKey,
+  parseCertificate,
+  serializeCertificate,
+  type MedicalCertificate,
+} from "@/lib/medical/certificate";
+import {
   MATCH_REPORTING_PREFIX,
   REPORTING_RULES_KEY,
   matchReportingKey,
@@ -480,6 +487,22 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     },
     async clearMatchReporting(matchId) {
       delete store.appSettings[matchReportingKey(matchId)];
+    },
+    // Come su Supabase: tra le impostazioni del sito, una chiave per atleta.
+    async listMedicalCertificates() {
+      return Object.entries(store.appSettings)
+        .filter(([key]) => key.startsWith(CERTIFICATE_PREFIX))
+        .map(([key, value]) => parseCertificate(key.slice(CERTIFICATE_PREFIX.length), value))
+        .filter((certificate): certificate is MedicalCertificate => certificate !== null);
+    },
+    async getMedicalCertificate(athleteId) {
+      return parseCertificate(athleteId, store.appSettings[certificateKey(athleteId)]);
+    },
+    async saveMedicalCertificate(certificate) {
+      store.appSettings[certificateKey(certificate.athleteId)] = serializeCertificate(certificate);
+    },
+    async clearMedicalCertificate(athleteId) {
+      delete store.appSettings[certificateKey(athleteId)];
     },
     async getPublicLiveScout() {
       const recent = Date.now() - LIVE_SCORE_TTL_MS;

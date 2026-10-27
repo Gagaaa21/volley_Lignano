@@ -50,6 +50,13 @@ import {
   serializeReportingRules,
   type MatchReporting,
 } from "@/lib/availability/reporting";
+import {
+  CERTIFICATE_PREFIX,
+  certificateKey,
+  parseCertificate,
+  serializeCertificate,
+  type MedicalCertificate,
+} from "@/lib/medical/certificate";
 import { isJerseyColumnMissing } from "@/lib/jersey";
 import {
   DEFAULT_FEDERATION_SOURCES,
@@ -1472,6 +1479,28 @@ export const supabaseRepo: Repo = {
   async clearMatchReporting(matchId) {
     const db = getSupabaseAdmin();
     const { error } = await db.from("app_settings").delete().eq("key", matchReportingKey(matchId));
+    if (error) throw new Error(error.message);
+  },
+
+  // Certificati medici: tra le impostazioni del sito, una chiave per atleta.
+  async listMedicalCertificates() {
+    const db = getSupabaseAdmin();
+    // Nel LIKE il «_» del prefisso vale «un carattere qualsiasi»: innocuo, ogni chiave trovata si rilegge e si controlla comunque.
+    const { data, error } = await db.from("app_settings").select("key, value").like("key", `${CERTIFICATE_PREFIX}%`);
+    if (error) throw new Error(error.message);
+    return (data as { key: string; value: string }[])
+      .map((row) => parseCertificate(row.key.slice(CERTIFICATE_PREFIX.length), row.value))
+      .filter((certificate): certificate is MedicalCertificate => certificate !== null);
+  },
+  async getMedicalCertificate(athleteId) {
+    return parseCertificate(athleteId, await supabaseRepo.getAppSetting(certificateKey(athleteId)));
+  },
+  async saveMedicalCertificate(certificate) {
+    await supabaseRepo.setAppSetting(certificateKey(certificate.athleteId), serializeCertificate(certificate));
+  },
+  async clearMedicalCertificate(athleteId) {
+    const db = getSupabaseAdmin();
+    const { error } = await db.from("app_settings").delete().eq("key", certificateKey(athleteId));
     if (error) throw new Error(error.message);
   },
 

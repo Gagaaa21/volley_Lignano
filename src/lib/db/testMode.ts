@@ -120,6 +120,8 @@ export async function seedTestStoreFromRepo(realRepo: Repo): Promise<void> {
   const sandbox = createMemoryRepo(store);
   if (reportingRules?.updatedAt) await sandbox.saveReportingRules(reportingRules);
   for (const setting of matchReporting) await sandbox.saveMatchReporting(setting);
+  // Idem i certificati medici: la prova parte con le date vere, e quello che si cambia resta nella prova.
+  for (const certificate of await realRepo.listMedicalCertificates().catch(() => [])) await sandbox.saveMedicalCertificate(certificate);
 
   if (!isSupabaseConfigured()) {
     Object.assign(getLocalStore(), store);
@@ -153,6 +155,8 @@ const WRITE_METHODS = new Set<keyof Repo>([
   "saveReportingRules",
   "saveMatchReporting",
   "clearMatchReporting",
+  "saveMedicalCertificate",
+  "clearMedicalCertificate",
   "upsertPrediction",
   "createTrainingPlan",
   "updateTrainingPlan",

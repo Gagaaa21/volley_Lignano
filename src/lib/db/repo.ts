@@ -8,6 +8,7 @@ import type {
 import type { MatchScout, MatchScoutInput, SaveMatchScoutResult } from "@/lib/scout/types";
 import type { AthleteFamilyLink, MatchAvailability, MatchAvailabilityInput } from "@/lib/availability/types";
 import type { MatchReporting, ReportingRules } from "@/lib/availability/reporting";
+import type { MedicalCertificate } from "@/lib/medical/certificate";
 import type { AthleteContact, AthleteContacts, MatchTrip, MatchTripData, SaveMatchTripResult } from "@/lib/trips/types";
 import type {
   AdminPage,
@@ -172,6 +173,13 @@ export interface Repo {
   saveMatchReporting(setting: MatchReporting): Promise<void>;
   /** Toglie la scelta a mano: per la partita tornano a valere le regole. */
   clearMatchReporting(matchId: string): Promise<void>;
+
+  // Certificati medici (solo U14/U15): per ogni atleta le due date, visita e scadenza (vedi src/lib/medical/certificate.ts). Stanno
+  // tra le impostazioni del sito (app_settings), senza tabelle in più; in modalità prova restano nella prova.
+  listMedicalCertificates(): Promise<MedicalCertificate[]>;
+  getMedicalCertificate(athleteId: string): Promise<MedicalCertificate | null>;
+  saveMedicalCertificate(certificate: MedicalCertificate): Promise<void>;
+  clearMedicalCertificate(athleteId: string): Promise<void>;
 
   // Pronostici partita: un pronostico per (matchId, staffId), sovrascritto
   // modificandolo (vedi src/lib/predictions.ts per come viene giudicato).

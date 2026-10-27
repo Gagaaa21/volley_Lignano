@@ -11,6 +11,7 @@ import {
   ClipboardList,
   MapPin,
   Plus,
+  Stethoscope,
   Swords,
   Users,
 } from "lucide-react";
@@ -29,6 +30,9 @@ import { ADMIN_PAGES, isPageAvailableForTeam, type AdminPage, type CalendarEvent
 import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 import { scheduleFederationRefresh } from "@/lib/federation/auto";
 import { loadOfficialResults, officialTodoCount, officialTodoParts } from "@/lib/federation/load";
+import { certificateStatus } from "@/lib/medical/certificate";
+import { loadCertificates } from "@/lib/medical/load";
+import { canUseFamilyLink } from "@/lib/availability/rules";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -83,8 +87,10 @@ export default async function AdminDashboardPage({
   // chi ha accesso a Partite): lette insieme al resto, non dopo.
   const showOfficial = team === "u14u15" && showMatches && allowedPages.includes("partite");
   if (showOfficial) scheduleFederationRefresh();
+  // Certificati medici scaduti o in scadenza (solo U14/U15 e solo per chi ha il permesso).
+  const showCertificates = isPageAvailableForTeam("certificati", team) && allowedPages.includes("certificati");
   const matchesPromise = showMatches ? repo.listMatches({ team }) : Promise.resolve([]);
-  const [trainings, matches, athletes, attendanceSessions, officialData, answers] = await Promise.all([
+  const [trainings, matches, athletes, attendanceSessions, officialData, answers, certificates] = await Promise.all([
     repo.listTrainings({ team }),
     matchesPromise,
     repo.listAthletes({ team }),
@@ -97,6 +103,7 @@ export default async function AdminDashboardPage({
           throw error;
         })
       : Promise.resolve([]),
+    showCertificates ? loadCertificates(repo) : Promise.resolve(null),
   ]);
   const portalTodo = officialTodoCount(officialData);
 
@@ -105,6 +112,11 @@ export default async function AdminDashboardPage({
 
   const activeTrainings = trainings.filter((t) => t.isActive);
   const activeAthletes = athletes.filter((a) => a.isActive);
+  const certificateKinds = certificates
+    ? athletes.filter((athlete) => canUseFamilyLink(athlete)).map((athlete) => certificateStatus(certificates.get(athlete.id), todayStr).kind)
+    : [];
+  const certificatesExpired = certificateKinds.filter((kind) => kind === "expired").length;
+  const certificatesExpiring = certificateKinds.filter((kind) => kind === "expiring").length;
 
   const recordedKeys = new Set(attendanceSessions.map((s) => `${s.trainingRuleId}_${s.sessionDate}`));
   const pendingOccurrences = showPresenze
@@ -164,6 +176,27 @@ export default async function AdminDashboardPage({
           <Swords className="h-4 w-4 shrink-0" />
           <span className="flex-1">
             Portale FIPAV, da sistemare: {officialTodoParts(officialData).join(" · ")}.
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
+
+      {certificatesExpired + certificatesExpiring > 0 && (
+        <Link
+          href="/admin/certificati"
+          data-dashboard-certificates
+          className="group mb-6 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm font-semibold text-destructive transition-colors hover:border-destructive/50"
+        >
+          <Stethoscope className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            Certificati medici da rinnovare:{" "}
+            {[
+              certificatesExpired > 0 ? (certificatesExpired === 1 ? "1 scaduto" : `${certificatesExpired} scaduti`) : null,
+              certificatesExpiring > 0 ? `${certificatesExpiring} in scadenza` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            . Avvisa i genitori.
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>

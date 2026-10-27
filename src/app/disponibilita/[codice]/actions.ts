@@ -7,14 +7,16 @@ import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availabi
 import { DEFAULT_REPORTING_RULES, type MatchReporting, type ReportingRules } from "@/lib/availability/reporting";
 import { appliesToAthlete, canParentChange, canUseFamilyLink, normalizeAbsence } from "@/lib/availability/rules";
 import { familyLinkPath, isFamilyToken } from "@/lib/availability/token";
-import { nowLocalIso } from "@/lib/today";
+import { certificateFromInput, type CertificateSaveResult } from "@/lib/medical/certificate";
+import { nowLocalIso, todayIso } from "@/lib/today";
 import type { Athlete, Match } from "@/lib/types";
 
 /**
- * Le azioni della pagina del genitore. Sono raggiungibili da chiunque, quindi ricontrollano tutto da sole: il codice del link (è
- * l'unica chiave: dice di quale atleta si parla), che la partita sia della sua squadra e categoria e che le segnalazioni siano
- * ancora aperte (le regole e le scelte dello staff per quella partita: scadenza, chiusura a mano, pausa, partita non chiesta). Tutto
- * quello che arriva dal browser si considera non fidato; la risposta non dice mai altro che se è andata bene.
+ * Le azioni della pagina del genitore (assenze alle partite e date del certificato medico). Sono raggiungibili da chiunque, quindi
+ * ricontrollano tutto da sole: il codice del link (è l'unica chiave: dice di quale atleta si parla), che la partita sia della sua
+ * squadra e categoria e che le segnalazioni siano ancora aperte (le regole e le scelte dello staff per quella partita: scadenza,
+ * chiusura a mano, pausa, partita non chiesta). Tutto quello che arriva dal browser si considera non fidato; la risposta non dice mai
+ * altro che se è andata bene.
  */
 
 export type AvailabilityActionResult = { ok: true } | { ok: false; error: string };
@@ -89,6 +91,36 @@ export async function clearAbsenceAction(token: string, matchId: string): Promis
     revalidatePath(familyLinkPath(token));
     return { ok: true };
   } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Le due date del certificato medico, dal genitore: il giorno della visita e fino a quando vale (il documento non si manda). Si
+ * possono scrivere e correggere sempre; i controlli sono gli stessi dello staff (vedi certificateFromInput).
+ */
+export async function saveFamilyCertificateAction(token: string, issuedOn: string, validUntil: string): Promise<CertificateSaveResult> {
+  try {
+    if (!isFamilyToken(token)) return { ok: false, error: INVALID_LINK };
+    const repo = await getRepo();
+    const athlete = await repo.findAthleteByFamilyToken(token);
+    if (!athlete || !canUseFamilyLink(athlete)) return { ok: false, error: INVALID_LINK };
+    const input = certificateFromInput(issuedOn, validUntil, todayIso());
+    if (!input.ok) return input;
+    await repo.saveMedicalCertificate({
+      athleteId: athlete.id,
+      issuedOn: input.issuedOn,
+      validUntil: input.validUntil,
+      by: "parent",
+      updatedBy: null,
+      updatedAt: new Date().toISOString(),
+    });
+    revalidatePath(familyLinkPath(token));
+    revalidatePath("/admin/certificati");
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (error) {
+    if (isAppSettingsMissing(error)) return { ok: false, error: NOT_READY };
     return failure(error);
   }
 }
