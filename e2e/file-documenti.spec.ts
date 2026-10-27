@@ -142,8 +142,9 @@ test.describe("dall'iPhone", () => {
       await page.locator("[data-summary-csv]").click();
       await expect(sheet(page).locator("[data-file-sheet-text]")).toBeVisible();
       await sheet(page).locator("[data-file-sheet-share]").click();
-      await expect.poll(async () => (await shared(page)).length).toBe(2);
-      expect((await shared(page))[1].name).toMatch(/^riepilogo-presenze-.*\.csv$/);
+      // La pagina è nuova: il telefono finto riparte da zero.
+      await expect.poll(async () => (await shared(page)).length).toBe(1);
+      expect((await shared(page))[0].name).toMatch(/^riepilogo-presenze-.*\.csv$/);
       await sheet(page).locator("[data-file-sheet-close]").click();
     } finally {
       page.once("dialog", (dialog) => void dialog.accept());
