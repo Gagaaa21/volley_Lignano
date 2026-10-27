@@ -87,7 +87,9 @@ test("riquadro «Prima volta con lo Scout?»: avvia la guida su una partita vera
   const welcome = page.locator("[data-scout-welcome]");
   await expect(welcome).toBeVisible();
   await expect(welcome).toContainText("Prima volta con lo Scout?");
-  await expect(welcome.locator("[data-scout-manual-link]")).toHaveAttribute("href", "/api/scout/manuale");
+  // Il manuale è un pulsante solo, quello in cima alla pagina: la scheda di benvenuto ci rimanda, non ne ripete uno uguale.
+  await expect(welcome.locator("[data-scout-manual-link]")).toHaveCount(0);
+  await expect(page.locator("[data-scout-manual-link]")).toHaveCount(1);
   // «Avvia la guida» porta alla prossima partita ancora da segnare, con la guida che parte da sola.
   const start = welcome.locator("[data-scout-guide-start]");
   await expect(start).toHaveAttribute("href", /^\/admin\/scout\/[0-9a-f-]+\?guida=1$/);

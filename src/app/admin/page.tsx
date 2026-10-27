@@ -5,12 +5,16 @@ import { it } from "date-fns/locale";
 import {
   CalendarClock,
   CalendarPlus,
+  Binoculars,
+  CalendarX2,
+  Car,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
   ClipboardList,
   MapPin,
   Plus,
+  ShieldCheck,
   Stethoscope,
   Swords,
   Users,
@@ -33,6 +37,7 @@ import { loadOfficialResults, officialTodoCount, officialTodoParts } from "@/lib
 import { certificateStatus } from "@/lib/medical/certificate";
 import { loadCertificates } from "@/lib/medical/load";
 import { canUseFamilyLink } from "@/lib/availability/rules";
+import { isScoutable } from "@/lib/scout/match";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -141,6 +146,15 @@ export default async function AdminDashboardPage({
   const nextMatchAbsent = nextMatchRow
     ? answers.filter((row) => row.matchId === nextMatchRow.id && row.status === "absent").length
     : 0;
+  // Le scorciatoie della prossima partita ci sono solo dove la sezione esiste e a chi ha il permesso.
+  const nextMatchShortcuts =
+    nextMatchRow && showMatches && allowedPages.includes("partite")
+      ? {
+          absences: team === "u14u15",
+          trip: team === "u14u15" && !nextMatchRow.isHome && allowedPages.includes("trasferte"),
+          scout: isScoutable(nextMatchRow) && allowedPages.includes("scout"),
+        }
+      : null;
 
   const summary = showPresenze
     ? pendingOccurrences.length === 0
@@ -166,6 +180,20 @@ export default async function AdminDashboardPage({
         </h1>
         <p className="mt-2 text-[15px] text-muted-foreground">{summary}</p>
       </header>
+
+      {quickActions.length > 0 && (
+        <div className="-mt-2 mb-6 flex flex-wrap gap-2" data-dashboard-quick>
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <LinkButton key={action.href} href={action.href} variant="outline" size="sm">
+                <Icon className="h-4 w-4" />
+                {action.label}
+              </LinkButton>
+            );
+          })}
+        </div>
+      )}
 
       {portalTodo > 0 && (
         <Link
@@ -200,6 +228,46 @@ export default async function AdminDashboardPage({
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>
+      )}
+
+      {nextMatchRow && nextMatchShortcuts && (
+        <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5" data-dashboard-next-match>
+          <p className="eyebrow">Prossima partita</p>
+          <Link href={`/admin/partite/${nextMatchRow.id}`} className="mt-1 block font-display text-xl font-bold text-foreground hover:text-primary">
+            {matchTitle(nextMatchRow)}
+          </Link>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            <span className="first-letter:uppercase">{format(parseISO(nextMatchRow.matchDate.slice(0, 10)), "EEEE d MMMM", { locale: it })}</span>
+            {" · "}
+            <span className="tabular font-semibold text-foreground/75">{nextMatchRow.matchDate.slice(11, 16)}</span>
+            {" · "}
+            {nextMatchRow.location}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <LinkButton href={`/admin/partite/${nextMatchRow.id}`} size="sm" variant="soft" data-next-match-callups>
+              <ShieldCheck className="h-4 w-4" />
+              Convocazioni
+            </LinkButton>
+            {nextMatchShortcuts.absences && (
+              <LinkButton href={`/admin/assenze/partita/${nextMatchRow.id}`} size="sm" variant="outline" data-next-match-absences>
+                <CalendarX2 className="h-4 w-4" />
+                Assenze{nextMatchAbsent > 0 ? ` (${nextMatchAbsent})` : ""}
+              </LinkButton>
+            )}
+            {nextMatchShortcuts.trip && (
+              <LinkButton href={`/admin/trasferte/${nextMatchRow.id}`} size="sm" variant="outline" data-next-match-trip>
+                <Car className="h-4 w-4" />
+                Trasferta
+              </LinkButton>
+            )}
+            {nextMatchShortcuts.scout && (
+              <LinkButton href={`/admin/scout/${nextMatchRow.id}`} size="sm" variant="outline" data-next-match-scout>
+                <Binoculars className="h-4 w-4" />
+                Scout
+              </LinkButton>
+            )}
+          </div>
+        </section>
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-tour="dashboard-stats">
@@ -327,73 +395,41 @@ export default async function AdminDashboardPage({
         </section>
 
         <div className="space-y-8">
-          {showPresenze && (
+          {showPresenze && pendingOccurrences.length > 0 && (
             <section>
               <SectionHeading
                 title="Da registrare"
                 action={<span className="text-[13px] text-muted-foreground">Ultimi 21 giorni</span>}
               />
-              {pendingOccurrences.length === 0 ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-card">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </span>
-                  <p className="text-sm font-medium text-foreground/80">Tutto registrato. Ottimo lavoro!</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-                  {pendingOccurrences.slice(0, 4).map((occ) =>
-                    occ.kind === "training" ? (
-                      <div key={occ.id} className="flex items-center gap-3 px-4 py-3">
-                        <span className={cn("h-2 w-2 shrink-0 rounded-full", trainingDotClass(occ.color))} aria-hidden />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">{occ.title}</p>
-                          <p className="text-xs text-muted-foreground first-letter:uppercase">
-                            {format(parseISO(occ.date), "EEEE d MMMM", { locale: it })}
-                          </p>
-                        </div>
-                        <LinkButton href={`/admin/presenze/registra/${occ.ruleId}/${occ.date}`} variant="soft" size="xs">
-                          Registra
-                        </LinkButton>
+              <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                {pendingOccurrences.slice(0, 4).map((occ) =>
+                  occ.kind === "training" ? (
+                    <div key={occ.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className={cn("h-2 w-2 shrink-0 rounded-full", trainingDotClass(occ.color))} aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{occ.title}</p>
+                        <p className="text-xs text-muted-foreground first-letter:uppercase">
+                          {format(parseISO(occ.date), "EEEE d MMMM", { locale: it })}
+                        </p>
                       </div>
-                    ) : null,
-                  )}
-                  {pendingOccurrences.length > 4 && (
-                    <Link
-                      href="/admin/presenze"
-                      className="block px-4 py-2.5 text-center text-[13px] font-semibold text-primary hover:bg-surface-muted"
-                    >
-                      Vedi tutti ({pendingOccurrences.length})
-                    </Link>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
-
-          {quickActions.length > 0 && (
-            <section>
-              <SectionHeading title="Azioni rapide" />
-              <div className="grid gap-2">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
-                  return (
-                    <Link
-                      key={action.href}
-                      href={action.href}
-                      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-xs transition-colors hover:border-border-strong hover:bg-surface-muted"
-                    >
-                      <span className="icon-chip h-8 w-8 rounded-lg shadow-none">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="flex-1">{action.label}</span>
-                      <Plus className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
-                    </Link>
-                  );
-                })}
+                      <LinkButton href={`/admin/presenze/registra/${occ.ruleId}/${occ.date}`} variant="soft" size="xs">
+                        Registra
+                      </LinkButton>
+                    </div>
+                  ) : null,
+                )}
+                {pendingOccurrences.length > 4 && (
+                  <Link
+                    href="/admin/presenze"
+                    className="block px-4 py-2.5 text-center text-[13px] font-semibold text-primary hover:bg-surface-muted"
+                  >
+                    Vedi tutti ({pendingOccurrences.length})
+                  </Link>
+                )}
               </div>
             </section>
           )}
+
         </div>
       </div>
     </div>

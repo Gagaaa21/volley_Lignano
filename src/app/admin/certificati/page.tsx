@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   CalendarClock,
   CalendarPlus,
@@ -48,7 +49,6 @@ import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatTile } from "@/components/ui/StatTile";
 import { CertificateEditor } from "./CertificateEditor";
 
 export const metadata: Metadata = {
@@ -111,6 +111,39 @@ const GROUPS: {
  * scadenza la calcola il sito, un anno dopo). Un mese prima della scadenza diventa rosso e va in cima, con il messaggio già pronto
  * per avvisare il genitore. Il documento non si carica mai: solo la data.
  */
+const SUMMARY_TONES = {
+  neutral: "border-border bg-card text-muted-foreground",
+  danger: "border-destructive/40 bg-destructive/[0.06] text-destructive",
+  warning: "border-warning/40 bg-warning-soft text-warning",
+  success: "border-success/30 bg-success-soft text-success",
+} as const;
+
+/** Un numero con la sua etichetta, piccolo: il riepilogo sta in poche righe e la lista delle atlete resta in vista. */
+function SummaryChip({
+  href,
+  label,
+  value,
+  tone,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  value: number;
+  tone: keyof typeof SUMMARY_TONES;
+  icon: typeof ShieldCheck;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn("inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors hover:border-border-strong", SUMMARY_TONES[tone])}
+    >
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="tabular text-base font-bold leading-none">{value}</span>
+      <span className="text-foreground/75">{label}</span>
+    </Link>
+  );
+}
+
 export default async function CertificatiPage() {
   const session = await requireStaffPage("certificati");
   const repo = await getActiveRepo();
@@ -153,7 +186,7 @@ export default async function CertificatiPage() {
     <div>
       <PageHeader
         title="Certificati medici"
-        description="Per ogni atleta se il certificato medico è valido. Il genitore, dal suo link personale, sceglie il giorno della visita e carica una foto del certificato; il sito calcola la scadenza, un anno dopo, e un mese prima diventa rosso, così lo avvisi in tempo."
+        description="Chi ha il certificato valido e chi no. Il genitore scrive il giorno della visita dal suo link; la scadenza (un anno dopo) la calcola il sito e un mese prima diventa rossa."
       />
 
       <AvailabilityDatabaseNotice
@@ -170,33 +203,18 @@ export default async function CertificatiPage() {
         </p>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-certificate-summary>
-        <StatTile
-          href="#da-rinnovare"
-          label="Scaduti"
-          value={expired}
-          icon={ShieldAlert}
-          tone={expired > 0 ? "danger" : "primary"}
-          className={cn(expired > 0 && "border-destructive/40 bg-destructive/[0.04]")}
-        />
-        <StatTile
-          href="#da-rinnovare"
-          label="In scadenza entro un mese"
-          value={expiring}
-          icon={CalendarClock}
-          tone={expiring > 0 ? "danger" : "primary"}
-          className={cn(expiring > 0 && "border-destructive/40 bg-destructive/[0.04]")}
-        />
-        <StatTile href="#senza-data" label="Senza data" value={without} icon={CalendarPlus} tone={without > 0 ? "warning" : "primary"} />
-        <StatTile href="#in-regola" label="Validi" value={valid} icon={ShieldCheck} tone="success" />
+      <div className="mb-6 flex flex-wrap gap-2" data-certificate-summary>
+        <SummaryChip href="#da-rinnovare" label="Scaduti" value={expired} tone={expired > 0 ? "danger" : "neutral"} icon={ShieldAlert} />
+        <SummaryChip href="#da-rinnovare" label="In scadenza entro un mese" value={expiring} tone={expiring > 0 ? "danger" : "neutral"} icon={CalendarClock} />
+        <SummaryChip href="#senza-data" label="Senza data" value={without} tone={without > 0 ? "warning" : "neutral"} icon={CalendarPlus} />
+        <SummaryChip href="#in-regola" label="Validi" value={valid} tone="success" icon={ShieldCheck} />
       </div>
 
       <p className="mb-8 flex items-start gap-2.5 rounded-xl bg-primary-soft/60 px-4 py-3 text-sm leading-relaxed text-foreground/80">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
         <span>
-          Il link del genitore è lo stesso delle assenze (lo prepari in <b>Assenze → Link per i genitori</b>). <b>Avvisa il genitore</b> apre WhatsApp con
-          il messaggio già scritto e il link. <b>Vedi la foto</b> apre la foto del certificato: la vede solo chi ha questo permesso, mai il sito
-          pubblico. Data e foto le puoi mettere o correggere anche tu: si vede chi le ha scritte.
+          Il link del genitore è quello delle assenze (<b>Assenze → Link per i genitori</b>). <b>Avvisa il genitore</b> apre WhatsApp con il messaggio già
+          scritto. La foto del certificato la vede solo chi ha questo permesso.
         </span>
       </p>
 

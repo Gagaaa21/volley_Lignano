@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { BellRing, CalendarX2, ChevronRight, History, MessageCircle, Settings2, UserX } from "lucide-react";
+import { BellRing, CalendarX2, ChevronRight, History, MessageCircle, UserX } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
@@ -199,24 +199,6 @@ export default async function AssenzePage() {
               ) : (
                 <p className="text-sm text-muted-foreground">Nessuna partita con le segnalazioni aperte: per ora non c&apos;è niente da ricordare.</p>
               )}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-primary" aria-hidden />
-                Regole
-              </CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-3 text-sm text-foreground/80">
-              <p>
-                Le segnalazioni si chiudono da sole <b className="font-semibold text-foreground">{rulesSummary(rules)}</b>
-                {rules.paused ? ", ma ora sono sospese per tutte le partite" : ""}.
-              </p>
-              <LinkButton href="/admin/assenze/regole" size="sm" variant="outline">
-                Cambia le regole
-              </LinkButton>
             </CardBody>
           </Card>
         </aside>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Binoculars, Car } from "lucide-react";
+import { Binoculars, CalendarX2, Car } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { getOwnStaff, requireStaff } from "@/lib/auth/guard";
 import { isScoutable } from "@/lib/scout/match";
@@ -43,6 +43,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     match.team === "u14u15" &&
     !match.isHome &&
     (session.role === "dev" || ((await getOwnStaff(session.sub))?.allowedPages.includes("trasferte") ?? false));
+  // Le assenze di questa partita (solo U14/U15) stanno nella sezione Assenze: il collegamento evita di cercarla fra le altre.
+  const canAbsences = match.team === "u14u15";
   // Solo atlete della stessa squadra della partita.
   const [allAthletes, lineup] = await Promise.all([
     repo.listAthletes({ team: match.team }),
@@ -76,8 +78,14 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         title={matchTitle(match)}
         description={`${formatDateLong(match.matchDate.slice(0, 10))} · ${match.matchDate.slice(11, 16)} · ${match.location}`}
         actions={
-          canScout || canTrip ? (
+          canScout || canTrip || canAbsences ? (
             <>
+              {canAbsences && (
+                <LinkButton href={`/admin/assenze/partita/${match.id}`} variant="outline" data-match-absences-link>
+                  <CalendarX2 className="h-4 w-4" />
+                  Assenze
+                </LinkButton>
+              )}
               {canTrip && (
                 <LinkButton href={`/admin/trasferte/${match.id}`} variant="outline" data-match-trip-link>
                   <Car className="h-4 w-4" />

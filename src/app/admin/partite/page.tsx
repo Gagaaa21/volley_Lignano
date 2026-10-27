@@ -80,6 +80,10 @@ export default async function MatchesListPage({
         help={<SectionTour steps={SECTION_PARTITE_STEPS} />}
         actions={
           <>
+            <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
+              <Plus className="h-4 w-4" />
+              Nuova partita
+            </LinkButton>
             <FileLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
             >
               <FileDown className="h-4 w-4" />
@@ -89,10 +93,6 @@ export default async function MatchesListPage({
               <Download className="h-4 w-4" />
               Esporta CSV
             </FileLink>
-            <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
-              <Plus className="h-4 w-4" />
-              Nuova partita
-            </LinkButton>
           </>
         }
       />

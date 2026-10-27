@@ -1,10 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { BookOpen, FileDown, ListChecks } from "lucide-react";
+import { BookOpen, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { FileLink } from "@/components/files/FileLink";
-import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardBody } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 
@@ -59,7 +57,7 @@ export function ScoutWelcome({ guideHref }: { guideHref: string | null }) {
           <p className="font-display text-base font-bold text-foreground">Prima volta con lo Scout?</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Lo Scout si impara in pochi minuti. La guida ti accompagna passo passo con una partita vera davanti, dalla preparazione al tabellino, e spiega ogni
-            pulsante. Se preferisci, scarica il manuale con le schermate commentate.
+            pulsante. Se preferisci, il manuale con le schermate commentate è il pulsante «Manuale d&apos;uso (PDF)» qui sopra.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -69,10 +67,6 @@ export function ScoutWelcome({ guideHref }: { guideHref: string | null }) {
               Avvia la guida
             </LinkButton>
           )}
-          <FileLink href="/api/scout/manuale" download className={buttonVariants({ variant: "outline" })} sheetTitle="Scout · Manuale d'uso" data-scout-manual-link>
-            <FileDown className="h-4 w-4" />
-            Manuale (PDF)
-          </FileLink>
           <Button variant="quiet" size="sm" onClick={dismiss} data-scout-welcome-dismiss>
             Non mostrare più
           </Button>
