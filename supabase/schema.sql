@@ -809,8 +809,9 @@ alter table federation_decisions enable row level security;
 -- `availability_rules` e `availability_match:<id partita>`: le regole delle
 -- segnalazioni dei genitori e le scelte fatte a mano partita per partita (JSON,
 -- vedi src/lib/availability/reporting.ts).
--- `medical_certificate:<id atleta>`: le due date del certificato medico (visita e
--- scadenza) e chi le ha scritte (JSON, vedi src/lib/medical/certificate.ts).
+-- `medical_certificate:<id atleta>`: il giorno della visita del certificato medico
+-- e chi l'ha scritto (JSON; la scadenza, un anno dopo, la calcola il sito: vedi
+-- src/lib/medical/certificate.ts).
 -- =========================================================
 create table if not exists app_settings (
   key text primary key,

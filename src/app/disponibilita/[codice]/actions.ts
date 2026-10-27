@@ -96,16 +96,16 @@ export async function clearAbsenceAction(token: string, matchId: string): Promis
 }
 
 /**
- * Le due date del certificato medico, dal genitore: il giorno della visita e fino a quando vale (il documento non si manda). Si
- * possono scrivere e correggere sempre; i controlli sono gli stessi dello staff (vedi certificateFromInput).
+ * Il giorno della visita del certificato medico, dal genitore (il documento non si manda; la scadenza la calcola il sito, un anno
+ * dopo). Si può scrivere e correggere sempre; i controlli sono gli stessi dello staff (vedi certificateFromInput).
  */
-export async function saveFamilyCertificateAction(token: string, issuedOn: string, validUntil: string): Promise<CertificateSaveResult> {
+export async function saveFamilyCertificateAction(token: string, issuedOn: string): Promise<CertificateSaveResult> {
   try {
     if (!isFamilyToken(token)) return { ok: false, error: INVALID_LINK };
     const repo = await getRepo();
     const athlete = await repo.findAthleteByFamilyToken(token);
     if (!athlete || !canUseFamilyLink(athlete)) return { ok: false, error: INVALID_LINK };
-    const input = certificateFromInput(issuedOn, validUntil, todayIso());
+    const input = certificateFromInput(issuedOn, todayIso());
     if (!input.ok) return input;
     await repo.saveMedicalCertificate({
       athleteId: athlete.id,

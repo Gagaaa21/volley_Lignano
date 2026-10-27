@@ -259,7 +259,7 @@ test.describe("WhatsApp", () => {
     expect(text).toContain("Anna Bianchi");
     expect(text).toMatch(/non può esserci/);
     expect(text).toMatch(/5 giorni prima/);
-    expect(text).toMatch(/date del certificato medico/);
+    expect(text).toMatch(/data del certificato medico/);
     expect(text).toContain("https://esempio.it/disponibilita/abc");
     expect(text).toMatch(/non condividerlo/);
   });

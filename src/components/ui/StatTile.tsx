@@ -8,6 +8,7 @@ const toneClass = {
   gold: "bg-accent text-accent-foreground",
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",
+  danger: "bg-destructive/10 text-destructive",
   u14: "bg-[var(--color-u14-soft)] text-[var(--color-u14-strong)]",
   u15: "bg-[var(--color-u15-soft)] text-[var(--color-u15-strong)]",
 } as const;

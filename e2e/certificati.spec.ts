@@ -2,10 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { dismissTourIfShown, localDate, login, loginAsDev, logout, uniqueName } from "./helpers";
 
 /**
- * Certificati medici. Il genitore, dal suo link personale, sceglie con il calendario il giorno della visita e fino a quando vale (la
- * scadenza si propone un anno dopo); il sito dice se è valido. Un mese prima della scadenza diventa rosso, per lo staff (in cima alla
- * sezione e in dashboard, con il messaggio pronto per avvisare il genitore) e per il genitore. Lo staff scrive, corregge e toglie le
- * date, e si vede chi le ha scritte. La sezione ha un permesso a sé, che un nuovo Admin non ha.
+ * Certificati medici. Il genitore, dal suo link personale, sceglie con il calendario il giorno della visita; la scadenza la calcola il
+ * sito, un anno dopo, e dice se è valido. Un mese prima della scadenza diventa rosso, per lo staff (in cima alla sezione e in
+ * dashboard, con il messaggio pronto per avvisare il genitore) e per il genitore. Lo staff scrive, corregge e toglie la data, e si
+ * vede chi l'ha scritta. La sezione ha un permesso a sé, che un nuovo Admin non ha.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -27,11 +27,23 @@ function lettersTag(): string {
     .replace(/\d/g, (digit) => "abcdefghij"[Number(digit)]);
 }
 
-/** Lo stesso giorno, un anno dopo (come propone il sito; il 29 febbraio diventa il 28). */
+/** Lo stesso giorno, un anno dopo (come calcola il sito; il 29 febbraio diventa il 28). */
 function oneYearAfter(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   const day = m === 2 && d === 29 ? 28 : d;
   return `${y + 1}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** «17 ottobre 2027», come il sito scrive la scadenza. */
+function longDay(date: string): string {
+  return new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00`));
+}
+
+/** Giorni da oggi a `date` (negativo se è passato), nel calendario. */
+function daysFromToday(date: string): number {
+  const [y, m, d] = date.split("-").map(Number);
+  const now = new Date();
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86_400_000);
 }
 
 async function addAthletes(page: Page, names: string[]) {
@@ -76,13 +88,15 @@ const cardAfterAbsences = (page: Page) =>
     return card && absences ? Boolean(absences.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING) : null;
   });
 
-/** Le due date nel modulo (lo stesso per genitore e staff), poi «Salva». */
-async function fillDates(scope: ReturnType<Page["locator"]>, issued: string, until: string | null) {
-  await scope.locator("[data-certificate-issued]").fill(issued);
-  if (until !== null) await scope.locator("[data-certificate-until]").fill(until);
+/** Il giorno della visita nel modulo (lo stesso per genitore e staff): accanto compare subito la scadenza, un anno dopo. */
+async function chooseVisit(scope: ReturnType<Page["locator"]>, issued: string) {
+  await expect(async () => {
+    await scope.locator("[data-certificate-issued]").fill(issued);
+    await expect(scope.locator("[data-certificate-until]")).toHaveText(longDay(oneYearAfter(issued)), { timeout: 1500 });
+  }).toPass({ timeout: 20_000 });
 }
 
-test("il genitore scrive le date dal suo link; valido, in scadenza da un mese prima (rosso) o scaduto; lo staff avvisa e corregge", async ({
+test("il genitore sceglie il giorno della visita dal suo link e la scadenza viene da sé; in rosso un mese prima; lo staff avvisa e corregge", async ({
   page,
   browser,
 }) => {
@@ -96,7 +110,7 @@ test("il genitore scrive le date dal suo link; valido, in scadenza da un mese pr
   try {
     const path = await createLink(page, anna);
 
-    // All'inizio nessuna ha le date: «Da inserire», non valido.
+    // All'inizio nessuna ha la data: «Da inserire», non valido.
     await page.goto("/admin/certificati");
     await expect(page.getByRole("heading", { name: "Certificati medici", level: 1 })).toBeVisible();
     for (const name of [anna, bea]) {
@@ -104,73 +118,78 @@ test("il genitore scrive le date dal suo link; valido, in scadenza da un mese pr
       await expect(row(page, name).locator("[data-certificate-badge]")).toHaveText("Da inserire");
     }
 
-    // Il genitore: il riquadro è in cima (prima delle partite), con il modulo già aperto. Scelta la visita, la scadenza si propone un anno dopo.
+    // Il genitore: il riquadro è in cima, prima delle partite, con il calendario già aperto. Scelta la visita, la scadenza è un anno dopo.
     await parent.goto(path);
     await expect(parent.locator("[data-family-athlete]")).toContainText(anna);
     const card = familyCard(parent);
     await expect(card).toHaveAttribute("data-family-certificate", "warning");
     await expect(card.locator("[data-family-certificate-badge]")).toHaveText("Da inserire");
     expect(await cardAfterAbsences(parent)).toBe(false);
-    const issued = localDate(-10);
-    await expect(async () => {
-      await fillDates(card, issued, null);
-      await expect(card.locator("[data-certificate-until]")).toHaveValue(oneYearAfter(issued), { timeout: 1500 });
-    }).toPass({ timeout: 20_000 });
+    // Un solo campo da scegliere: la scadenza non si scrive.
+    await expect(card.locator('input[type="date"]')).toHaveCount(1);
+    await chooseVisit(card, localDate(-10));
+    await expect(card.locator("[data-certificate-preview]")).toHaveAttribute("data-certificate-preview", "valid");
     await card.locator("[data-certificate-save]").click();
-    await expect(card.locator("[data-family-certificate-saved]")).toHaveText("Grazie, date salvate.");
+    await expect(card.locator("[data-family-certificate-saved]")).toContainText("Grazie, data salvata");
     await expect(card).toHaveAttribute("data-family-certificate", "success");
     await expect(card.locator("[data-family-certificate-badge]")).toHaveText("Valido");
-    await expect(card).toContainText("date scritte da voi");
+    await expect(card.locator("[data-family-certificate-detail]")).toHaveText(`Valido fino al ${longDay(oneYearAfter(localDate(-10)))}.`);
+    await expect(card.locator('[data-validity-bar="valid"]')).toBeVisible();
+    await expect(card).toContainText("Data scritta da voi");
 
-    // Lo staff lo vede valido, scritto dal genitore.
+    // Lo staff lo vede valido, scritto dal genitore, con la barra della validità.
     await page.goto("/admin/certificati");
     await expect(group(page, "valid").locator("[data-certificate-row]").filter({ hasText: anna })).toBeVisible();
-    await expect(row(page, anna).locator("[data-certificate-author]")).toContainText("date scritte dal genitore");
+    await expect(row(page, anna).locator("[data-certificate-author]")).toContainText("Data scritta dal genitore");
+    await expect(row(page, anna).locator('[data-validity-bar="valid"]')).toBeVisible();
     // In regola: niente da mandare.
     await expect(row(page, anna).locator("[data-certificate-remind]")).toHaveCount(0);
 
-    // Una scadenza troppo lontana non passa: lo dice e non salva.
+    // Una visita di più di due anni fa è quasi sicuramente l'anno sbagliato: lo dice e non salva.
     await parent.reload();
     await card.locator("[data-family-certificate-change]").click();
-    await fillDates(card, localDate(-1), localDate(800));
+    await chooseVisit(card, localDate(-800));
     await card.locator("[data-certificate-save]").click();
-    await expect(card).toContainText("Controlla la scadenza: un certificato vale di solito un anno dalla visita.");
+    await expect(card).toContainText("Controlla l'anno: la visita risulta di più di due anni fa.");
 
-    // Un certificato che scade fra 20 giorni: ancora valido, ma rosso.
-    await fillDates(card, localDate(-340), localDate(20));
+    // Una visita di 345 giorni fa: scade fra una ventina di giorni, ancora valido ma rosso (già nell'anteprima).
+    const visit = localDate(-345);
+    const left = daysFromToday(oneYearAfter(visit));
+    await chooseVisit(card, visit);
+    await expect(card.locator("[data-certificate-preview]")).toHaveAttribute("data-certificate-preview", "expiring");
     await card.locator("[data-certificate-save]").click();
     await expect(card).toHaveAttribute("data-family-certificate", "danger");
-    await expect(card.locator("[data-family-certificate-badge]")).toHaveText("Scade tra 20 giorni");
+    await expect(card.locator("[data-family-certificate-badge]")).toHaveText(`Scade tra ${left} giorni`);
     await expect(card.locator("[data-family-certificate-detail]")).toContainText("va rinnovato");
+    await expect(card.locator('[data-validity-bar="expiring"]')).toBeVisible();
 
     // Lo staff: in cima, in rosso, con il messaggio pronto (nome, scadenza e link al riquadro del certificato).
     await page.goto("/admin/certificati");
     const annaRow = group(page, "attention").locator("[data-certificate-row]").filter({ hasText: anna });
     await expect(annaRow).toHaveAttribute("data-certificate-status", "expiring");
-    await expect(annaRow.locator("[data-certificate-badge]")).toHaveText("Scade tra 20 giorni");
+    await expect(annaRow.locator("[data-certificate-badge]")).toHaveText(`Scade tra ${left} giorni`);
+    await expect(annaRow.locator('[data-validity-bar="expiring"]')).toBeVisible();
     const href = await annaRow.locator("[data-certificate-remind]").first().getAttribute("href");
     const text = decodeURIComponent(href!.split("?text=")[1]);
-    expect(text).toContain("Il certificato medico di Anna scade il");
+    expect(text).toContain(`Il certificato medico di Anna scade il ${longDay(oneYearAfter(visit))}`);
     expect(text).toContain(`${path}#certificato`);
     expect(text).toContain("non serve mandare il certificato");
     // E lo dice la dashboard.
     await page.goto("/admin");
     await expect(page.locator("[data-dashboard-certificates]")).toContainText("1 in scadenza");
 
-    // Lo staff scrive le date di Bea (senza link): già scaduto, «da Gaga»; il messaggio le chiede a voce.
+    // Lo staff scrive la visita di Bea (senza link): già scaduto, «da Gaga»; il messaggio chiede la data a voce.
     await page.goto("/admin/certificati");
     await row(page, bea).locator("[data-certificate-edit]").click();
     const editor = row(page, bea).locator("[data-certificate-editor]");
-    await expect(async () => {
-      await fillDates(editor, localDate(-400), localDate(-5));
-      await expect(editor.locator("[data-certificate-until]")).toHaveValue(localDate(-5), { timeout: 1500 });
-    }).toPass({ timeout: 20_000 });
+    await chooseVisit(editor, localDate(-400));
+    await expect(editor.locator("[data-certificate-preview]")).toHaveAttribute("data-certificate-preview", "expired");
     await editor.locator("[data-certificate-save]").click();
     const beaRow = group(page, "attention").locator("[data-certificate-row]").filter({ hasText: bea });
     await expect(beaRow).toHaveAttribute("data-certificate-status", "expired");
     await expect(beaRow.locator("[data-certificate-badge]")).toHaveText("Scaduto");
     await expect(beaRow.locator("[data-certificate-detail]")).toContainText("Non valido: scaduto il");
-    await expect(beaRow.locator("[data-certificate-author]")).toContainText("date scritte da Gaga");
+    await expect(beaRow.locator("[data-certificate-author]")).toContainText("Data scritta da Gaga");
     await expect(beaRow.locator("[data-certificate-no-link]")).toBeVisible();
     // Prima chi è già scaduto, poi chi scade.
     const order = await group(page, "attention").locator("[data-certificate-row]").evaluateAll((rows) => rows.map((r) => r.textContent ?? ""));
@@ -178,24 +197,20 @@ test("il genitore scrive le date dal suo link; valido, in scadenza da un mese pr
     await page.goto("/admin");
     await expect(page.locator("[data-dashboard-certificates]")).toContainText("1 scaduto · 1 in scadenza");
 
-    // Togliendo le date si torna a «Da inserire».
+    // Togliendo la data si torna a «Da inserire».
     await page.goto("/admin/certificati");
     await row(page, bea).locator("[data-certificate-edit]").click();
     page.once("dialog", (dialog) => dialog.accept());
     await row(page, bea).locator("[data-certificate-clear]").click();
     await expect(group(page, "missing").locator("[data-certificate-row]").filter({ hasText: bea })).toBeVisible();
 
-    // Il genitore rinnova: si parte da zero, con le date del certificato nuovo; torna verde.
+    // Il genitore rinnova: si parte da zero, con il giorno della visita nuova; torna verde e resta in cima.
     await parent.reload();
     await expect(familyCard(parent).locator("[data-certificate-issued]")).toHaveValue("");
-    await expect(async () => {
-      await fillDates(familyCard(parent), localDate(-2), null);
-      await expect(familyCard(parent).locator("[data-certificate-until]")).toHaveValue(oneYearAfter(localDate(-2)), { timeout: 1500 });
-    }).toPass({ timeout: 20_000 });
+    await chooseVisit(familyCard(parent), localDate(-2));
     await familyCard(parent).locator("[data-certificate-save]").click();
     await expect(familyCard(parent)).toHaveAttribute("data-family-certificate", "success");
     await parent.reload();
-    // In regola resta in cima, piccolo: salvando non si sposta.
     expect(await cardAfterAbsences(parent)).toBe(false);
     await expect(familyCard(parent).locator("[data-certificate-form]")).toHaveCount(0);
   } finally {

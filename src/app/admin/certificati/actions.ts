@@ -8,7 +8,8 @@ import { certificateFromInput, type CertificateSaveResult } from "@/lib/medical/
 import { todayIso } from "@/lib/today";
 
 /**
- * Le date del certificato medico scritte dallo staff (permesso «Certificati medici»): al posto del genitore, o per correggerle.
+ * Il giorno della visita del certificato medico scritto dallo staff (permesso «Certificati medici»): al posto del genitore, o per
+ * correggerlo.
  * Solo per un'atleta attiva di U14/U15; chi le scrive resta segnato con il suo account e si vede con il suo nome.
  */
 
@@ -27,11 +28,12 @@ function revalidate() {
   revalidatePath("/admin");
 }
 
-export async function saveStaffCertificateAction(athleteId: string, issuedOn: string, validUntil: string): Promise<CertificateSaveResult> {
+/** Il giorno della visita; la scadenza viene da sé, un anno dopo. */
+export async function saveStaffCertificateAction(athleteId: string, issuedOn: string): Promise<CertificateSaveResult> {
   const session = await requireStaffPage("certificati");
   const target = await activeAthlete(athleteId);
   if (!target) return { ok: false, error: "Atleta non trovata." };
-  const input = certificateFromInput(issuedOn, validUntil, todayIso());
+  const input = certificateFromInput(issuedOn, todayIso());
   if (!input.ok) return input;
   try {
     await target.repo.saveMedicalCertificate({
@@ -50,7 +52,7 @@ export async function saveStaffCertificateAction(athleteId: string, issuedOn: st
   return { ok: true };
 }
 
-/** Toglie le date (per esempio scritte per l'atleta sbagliata): il certificato torna «da inserire». */
+/** Toglie la data (per esempio scritta per l'atleta sbagliata): il certificato torna «da inserire». */
 export async function clearStaffCertificateAction(formData: FormData): Promise<void> {
   await requireStaffPage("certificati");
   const target = await activeAthlete(formData.get("athleteId"));

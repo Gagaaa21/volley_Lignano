@@ -95,7 +95,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "nav-certificati",
     page: "certificati",
     title: "Certificati medici",
-    body: "Per ogni atleta se il certificato medico è valido: le date le scrive il genitore dal suo link. Un mese prima della scadenza diventa rosso, con il messaggio pronto per avvisarlo.",
+    body: "Per ogni atleta se il certificato medico è valido: il genitore sceglie dal suo link il giorno della visita e la scadenza la calcola il sito, un anno dopo. Un mese prima diventa rosso, con il messaggio pronto per avvisarlo.",
   },
   {
     id: "nav-livescore",

@@ -9,7 +9,7 @@ import { DEFAULT_REPORTING_POLICY, byPhrase, fromLabel, parentClosedNote, type R
 import { canUseFamilyLink, isAbsence, matchesForAthlete, staffNamesById } from "@/lib/availability/rules";
 import { answerWhen, deadlineLabel } from "@/lib/availability/format";
 import { isFamilyToken } from "@/lib/availability/token";
-import { certificateStatus, dayLabel, statusLabel, type MedicalCertificate } from "@/lib/medical/certificate";
+import { certificateStatus, statusLabel, type MedicalCertificate } from "@/lib/medical/certificate";
 import { nowLocalIso, todayIso } from "@/lib/today";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityPanel, type FamilyMatchItem } from "@/components/availability/AvailabilityPanel";
@@ -108,12 +108,13 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
   const certificateCard =
     status && certificate !== undefined ? (
       <FamilyCertificateCard
+        status={status}
         label={statusLabel(status)}
         issuedOn={certificate?.issuedOn ?? null}
         validUntil={certificate?.validUntil ?? null}
         author={
           certificate
-            ? `Visita del ${dayLabel(certificate.issuedOn)} · date scritte ${
+            ? `Data scritta ${
                 certificate.by === "parent" ? "da voi" : byPhrase(certificate.updatedBy ? staffNames.get(certificate.updatedBy) : null)
               } · ${answerWhen(certificate.updatedAt)}`
             : null
@@ -161,7 +162,7 @@ export default async function FamilyAvailabilityPage({ params }: { params: Promi
         <CategoryTag category={athlete.category} size="md" long />
       </h1>
 
-      {/* Sempre qui in cima, piccolo quando è in regola: salvando le date non si sposta (chi arriva dal messaggio lo trova subito). */}
+      {/* Sempre qui in cima, piccolo quando è in regola: salvando la data non si sposta (chi arriva dal messaggio lo trova subito). */}
       {certificateCard && <div className="mt-6">{certificateCard}</div>}
 
       <section className="mt-8" data-family-absences>

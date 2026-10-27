@@ -2,25 +2,26 @@ import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
 import { ADMIN_PAGES, ADMIN_PAGE_LABELS, DEFAULT_NEW_ADMIN_PAGES, isPageAvailableForTeam } from "@/lib/types";
 import {
-  MAX_VALIDITY_YEARS,
+  MAX_VISIT_AGE_YEARS,
   certificateFromInput,
   certificateKey,
   certificateStatus,
   compareUrgency,
   isCertificateValid,
   isIsoDate,
+  expiryFor,
   needsAttention,
-  oneYearAfter,
   parentReminder,
   parseCertificate,
   serializeCertificate,
   statusLabel,
+  validityTimeline,
   warningFrom,
   type CertificateStatus,
   type MedicalCertificate,
 } from "@/lib/medical/certificate";
 
-/** I certificati medici: valido, in scadenza (rosso da un mese prima), scaduto o senza date; le date che si possono scrivere. */
+/** I certificati medici: valido, in scadenza (rosso da un mese prima), scaduto o senza data; la scadenza sempre un anno dopo la visita. */
 
 const cert = (validUntil: string, overrides: Partial<MedicalCertificate> = {}): MedicalCertificate => ({
   athleteId: "a1",
@@ -33,7 +34,7 @@ const cert = (validUntil: string, overrides: Partial<MedicalCertificate> = {}): 
 });
 
 test.describe("stato del certificato", () => {
-  test("senza date non è valido: «Da inserire»", () => {
+  test("senza la data della visita non è valido: «Da inserire»", () => {
     const status = certificateStatus(null, "2026-10-27");
     expect(status).toEqual({ kind: "missing" });
     expect(isCertificateValid(status)).toBe(false);
@@ -102,48 +103,44 @@ test.describe("stato del certificato", () => {
   });
 });
 
-test.describe("date scritte dal genitore o dallo staff", () => {
+test.describe("il giorno della visita, scritto dal genitore o dallo staff", () => {
   const today = "2026-10-27";
 
-  test("due giorni veri, la visita non nel futuro e la scadenza dopo la visita", () => {
-    expect(certificateFromInput("2026-10-20", "2027-10-20", today)).toEqual({ ok: true, issuedOn: "2026-10-20", validUntil: "2027-10-20" });
+  test("la scadenza la calcola il sito: sempre un anno dopo la visita", () => {
+    expect(certificateFromInput("2026-10-20", today)).toEqual({ ok: true, issuedOn: "2026-10-20", validUntil: "2027-10-20" });
+    expect(expiryFor("2026-10-20")).toBe("2027-10-20");
+    // Visita il 29 febbraio: l'anno dopo non c'è, vale fino al 28.
+    expect(expiryFor("2028-02-29")).toBe("2029-02-28");
     // Visita oggi: si può.
-    expect(certificateFromInput(today, "2027-10-27", today).ok).toBe(true);
+    expect(certificateFromInput(today, today)).toMatchObject({ ok: true, validUntil: "2027-10-27" });
     // Un certificato già scaduto si può scrivere lo stesso (il sito dirà «Scaduto»).
-    expect(certificateFromInput("2025-09-01", "2026-09-01", today).ok).toBe(true);
+    expect(certificateFromInput("2025-09-01", today)).toMatchObject({ ok: true, validUntil: "2026-09-01" });
   });
 
   test("ogni errore dice cosa correggere", () => {
-    expect(certificateFromInput("", "2027-10-20", today)).toEqual({ ok: false, error: "Scegli il giorno in cui è stata fatta la visita." });
-    expect(certificateFromInput("2026-10-20", "", today)).toEqual({ ok: false, error: "Scegli fino a quando vale il certificato." });
-    expect(certificateFromInput("2026-02-30", "2027-02-28", today).ok).toBe(false);
-    expect(certificateFromInput(null, undefined, today).ok).toBe(false);
-    expect(certificateFromInput("2026-10-28", "2027-10-28", today)).toEqual({
-      ok: false,
-      error: "La visita non può essere in un giorno che deve ancora venire.",
-    });
-    expect(certificateFromInput("2026-10-20", "2026-10-20", today)).toEqual({
-      ok: false,
-      error: "Il certificato deve valere fino a un giorno dopo la visita.",
-    });
-    expect(certificateFromInput("2026-10-20", "2026-09-20", today).ok).toBe(false);
+    expect(certificateFromInput("", today)).toEqual({ ok: false, error: "Scegli il giorno in cui è stata fatta la visita." });
+    expect(certificateFromInput("2026-02-30", today).ok).toBe(false);
+    expect(certificateFromInput(null, today).ok).toBe(false);
+    expect(certificateFromInput("2026-10-28", today)).toEqual({ ok: false, error: "La visita non può essere in un giorno che deve ancora venire." });
   });
 
-  test(`la scadenza al massimo ${MAX_VALIDITY_YEARS} anni dopo la visita: oltre è quasi sicuramente un errore`, () => {
-    expect(certificateFromInput("2026-10-20", "2028-10-20", today).ok).toBe(true);
-    expect(certificateFromInput("2026-10-20", "2028-10-21", today)).toEqual({
-      ok: false,
-      error: "Controlla la scadenza: un certificato vale di solito un anno dalla visita.",
-    });
+  test(`una visita di più di ${MAX_VISIT_AGE_YEARS} anni fa è quasi sicuramente l'anno sbagliato`, () => {
+    expect(certificateFromInput("2024-10-27", today).ok).toBe(true);
+    expect(certificateFromInput("2024-10-26", today)).toEqual({ ok: false, error: "Controlla l'anno: la visita risulta di più di due anni fa." });
   });
 
-  test("gli spazi attorno alle date non contano", () => {
-    expect(certificateFromInput(" 2026-10-20 ", "2027-10-20\n", today)).toEqual({ ok: true, issuedOn: "2026-10-20", validUntil: "2027-10-20" });
+  test("gli spazi attorno alla data non contano", () => {
+    expect(certificateFromInput(" 2026-10-20\n", today)).toEqual({ ok: true, issuedOn: "2026-10-20", validUntil: "2027-10-20" });
   });
 
-  test("un anno dopo la visita: la scadenza da proporre", () => {
-    expect(oneYearAfter("2026-10-20")).toBe("2027-10-20");
-    expect(oneYearAfter("2028-02-29")).toBe("2029-02-28");
+  test("la barra della validità: dove si è oggi tra la visita e la scadenza, e da dove è rossa", () => {
+    const c = { issuedOn: "2026-01-01", validUntil: "2027-01-01" };
+    expect(validityTimeline(c, "2026-01-01")).toEqual({ today: 0, warning: 334 / 365 });
+    expect(validityTimeline(c, "2026-07-02").today).toBeCloseTo(182 / 365);
+    expect(validityTimeline(c, "2027-01-01").today).toBe(1);
+    // Fuori dall'anno si ferma ai bordi.
+    expect(validityTimeline(c, "2027-03-01").today).toBe(1);
+    expect(validityTimeline(c, "2025-12-01").today).toBe(0);
   });
 
   test("solo giorni veri nel formato AAAA-MM-GG", () => {
@@ -157,25 +154,25 @@ test.describe("date scritte dal genitore o dallo staff", () => {
 });
 
 test.describe("come si salva", () => {
-  test("si rilegge uguale", () => {
+  test("si rilegge uguale; si salvano solo la visita e chi l'ha scritta", () => {
     const c = cert("2027-03-12", { by: "staff", updatedBy: "staff-1" });
     expect(parseCertificate("a1", serializeCertificate(c))).toEqual(c);
-    // L'id dell'atleta sta nella chiave, non nel valore.
-    expect(JSON.parse(serializeCertificate(c))).not.toHaveProperty("athleteId");
+    // L'id dell'atleta sta nella chiave; la scadenza si ricalcola a ogni lettura.
+    expect(Object.keys(JSON.parse(serializeCertificate(c))).sort()).toEqual(["by", "issuedOn", "updatedAt", "updatedBy"]);
     expect(certificateKey("a1")).toBe("medical_certificate:a1");
   });
 
-  test("un valore rotto o senza date vere non è un certificato", () => {
+  test("un valore rotto o senza una visita vera non è un certificato", () => {
     expect(parseCertificate("a1", null)).toBeNull();
     expect(parseCertificate("a1", "")).toBeNull();
     expect(parseCertificate("a1", "non json")).toBeNull();
     expect(parseCertificate("a1", "[]")).toBeNull();
-    expect(parseCertificate("a1", JSON.stringify({ issuedOn: "2026-03-12" }))).toBeNull();
-    expect(parseCertificate("a1", JSON.stringify({ issuedOn: "2026-03-12", validUntil: "2027-02-30" }))).toBeNull();
+    expect(parseCertificate("a1", JSON.stringify({ validUntil: "2027-03-12" }))).toBeNull();
+    expect(parseCertificate("a1", JSON.stringify({ issuedOn: "2026-02-30" }))).toBeNull();
   });
 
-  test("i campi che mancano prendono un valore sicuro: scritto dal genitore, senza autore", () => {
-    expect(parseCertificate("a1", JSON.stringify({ issuedOn: "2026-03-12", validUntil: "2027-03-12", by: "altro", updatedBy: "" }))).toEqual({
+  test("i campi che mancano prendono un valore sicuro: scritto dal genitore, senza autore; la scadenza è sempre un anno dopo", () => {
+    expect(parseCertificate("a1", JSON.stringify({ issuedOn: "2026-03-12", validUntil: "2030-01-01", by: "altro", updatedBy: "" }))).toEqual({
       athleteId: "a1",
       issuedOn: "2026-03-12",
       validUntil: "2027-03-12",
@@ -192,12 +189,12 @@ test.describe("come si salva", () => {
     expect(await repo.getMedicalCertificate("a1")).toBeNull();
 
     await repo.saveMedicalCertificate(cert("2027-03-12"));
-    await repo.saveMedicalCertificate(cert("2027-05-01", { athleteId: "a2" }));
-    await repo.saveMedicalCertificate(cert("2027-04-01", { by: "staff", updatedBy: "staff-1" }));
+    await repo.saveMedicalCertificate(cert("2027-05-01", { athleteId: "a2", issuedOn: "2026-05-01" }));
+    await repo.saveMedicalCertificate(cert("2027-04-01", { issuedOn: "2026-04-01", by: "staff", updatedBy: "staff-1" }));
     const all = await repo.listMedicalCertificates();
-    expect(all.map((c) => [c.athleteId, c.validUntil, c.by]).sort()).toEqual([
-      ["a1", "2027-04-01", "staff"],
-      ["a2", "2027-05-01", "parent"],
+    expect(all.map((c) => [c.athleteId, c.issuedOn, c.validUntil, c.by]).sort()).toEqual([
+      ["a1", "2026-04-01", "2027-04-01", "staff"],
+      ["a2", "2026-05-01", "2027-05-01", "parent"],
     ]);
     expect((await repo.getMedicalCertificate("a1"))?.updatedBy).toBe("staff-1");
 
@@ -216,24 +213,24 @@ test.describe("il messaggio per il genitore", () => {
     expect(parentReminder("Anna Bianchi", certificateStatus(cert("2027-09-01"), "2026-10-27"), link)).toBeNull();
   });
 
-  test("dice cosa succede, col nome, e da dove scrivere le date nuove (senza mandare il certificato)", () => {
+  test("dice cosa succede, col nome, e da dove scrivere il giorno della visita nuova (senza mandare il certificato)", () => {
     const expiring = parentReminder("Anna Bianchi", certificateStatus(cert("2026-11-16"), "2026-10-27"), link);
     expect(expiring).toBe(
       [
         "Ciao! Il certificato medico di Anna scade il 16 novembre 2026: va rinnovato.",
-        `Quando avete fatto la visita, scrivete qui il giorno e fino a quando vale (non serve mandare il certificato): ${link}`,
+        `Quando avete fatto la visita, scegliete qui il giorno (la scadenza la calcola il sito, e non serve mandare il certificato): ${link}`,
       ].join("\n"),
     );
     expect(parentReminder("Anna Bianchi", certificateStatus(cert("2026-10-27"), "2026-10-27"), link)).toContain("di Anna scade oggi");
     expect(parentReminder("Anna Bianchi", certificateStatus(cert("2026-10-03"), "2026-10-27"), link)).toContain(
       "Il certificato medico di Anna è scaduto il 3 ottobre 2026: va rinnovato al più presto.",
     );
-    expect(parentReminder("Anna Bianchi", certificateStatus(null, "2026-10-27"), link)).toContain("Ciao! Ci mancano le date del certificato medico di Anna.");
+    expect(parentReminder("Anna Bianchi", certificateStatus(null, "2026-10-27"), link)).toContain("Ciao! Ci manca la data del certificato medico di Anna.");
   });
 
-  test("senza link chiede di dirle a voce", () => {
+  test("senza link chiede di dirla a voce", () => {
     const text = parentReminder("Anna", certificateStatus(null, "2026-10-27"), null);
-    expect(text).toContain("diteci il giorno e fino a quando vale");
+    expect(text).toContain("Quando avete fatto la visita, diteci il giorno.");
     expect(text).not.toContain("http");
   });
 });

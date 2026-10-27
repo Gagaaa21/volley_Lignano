@@ -1,19 +1,51 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, CheckCircle2, Stethoscope } from "lucide-react";
+import { CalendarClock, CalendarPlus, CheckCircle2, PencilLine, ShieldAlert, ShieldCheck, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { CertificateSaveResult, StatusLabel } from "@/lib/medical/certificate";
-import { Badge } from "@/components/ui/Badge";
+import type { CertificateSaveResult, CertificateStatus, StatusLabel } from "@/lib/medical/certificate";
 import { Button } from "@/components/ui/Button";
-import { CertificateDatesForm } from "./CertificateDatesForm";
+import { CertificateDateForm } from "./CertificateDateForm";
+import { ValidityBar } from "./ValidityBar";
+
+const LOOK: Record<CertificateStatus["kind"], { icon: LucideIcon; band: string; badge: string; title: string; border: string }> = {
+  valid: {
+    icon: ShieldCheck,
+    band: "bg-success-soft/55",
+    badge: "bg-success text-success-foreground",
+    title: "text-foreground",
+    border: "border-border",
+  },
+  expiring: {
+    icon: CalendarClock,
+    band: "bg-destructive/[0.07]",
+    badge: "bg-destructive text-destructive-foreground",
+    title: "text-destructive",
+    border: "border-destructive/45",
+  },
+  expired: {
+    icon: ShieldAlert,
+    band: "bg-destructive/[0.07]",
+    badge: "bg-destructive text-destructive-foreground",
+    title: "text-destructive",
+    border: "border-destructive/45",
+  },
+  missing: {
+    icon: CalendarPlus,
+    band: "bg-warning-soft/70",
+    badge: "bg-warning text-warning-foreground",
+    title: "text-foreground",
+    border: "border-warning/40",
+  },
+};
 
 /**
- * Il certificato medico sulla pagina del genitore: se è valido e, se non lo è o scade entro un mese (in rosso), le due date da
- * scrivere subito, quelle del certificato nuovo. Se è in regola le date si cambiano a richiesta. Salvate, il riquadro si aggiorna
- * da solo.
+ * Il certificato medico sulla pagina del genitore, sempre in cima: lo stato in grande, fino a quando vale con la barra della
+ * validità e chi ha scritto la data. Se manca, scade entro un mese (in rosso) o è scaduto, il giorno della visita da scegliere è già
+ * lì, da zero (è la visita nuova); se è in regola si cambia a richiesta. Salvata la data, il riquadro si aggiorna da solo.
  */
 export function FamilyCertificateCard({
+  status,
   label,
   issuedOn,
   validUntil,
@@ -21,76 +53,82 @@ export function FamilyCertificateCard({
   today,
   save,
 }: {
+  status: CertificateStatus;
   label: StatusLabel;
   issuedOn: string | null;
   validUntil: string | null;
-  /** «Scritte da voi · 13 mar, 10:02» / «Scritte da Gaga · …»; null senza date. */
+  /** «Data scritta da voi · 13 mar, 10:02» / «… da Gaga · …»; null senza data. */
   author: string | null;
   today: string;
-  save: (issuedOn: string, validUntil: string) => Promise<CertificateSaveResult>;
+  save: (issuedOn: string) => Promise<CertificateSaveResult>;
 }) {
-  const inOrder = label.tone === "success";
-  const red = label.tone === "danger";
-  const [open, setOpen] = useState(!inOrder);
+  const look = LOOK[status.kind];
+  const Icon = look.icon;
+  const [open, setOpen] = useState(status.kind !== "valid");
   const [saved, setSaved] = useState(false);
 
   return (
     <section
       id="certificato"
-      className={cn(
-        "scroll-mt-6 rounded-2xl border bg-card px-4 py-4 shadow-card sm:px-5",
-        red ? "border-destructive/50 bg-destructive/[0.04]" : "border-border",
-      )}
+      className={cn("scroll-mt-6 overflow-hidden rounded-2xl border bg-card shadow-card", look.border)}
       data-family-certificate={label.tone}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 font-display text-lg font-bold text-foreground">
-          <Stethoscope className={cn("h-5 w-5", red ? "text-destructive" : "text-primary")} aria-hidden />
-          Certificato medico
-        </h2>
-        <Badge tone={label.tone} className={cn(red && "bg-destructive text-destructive-foreground")} data-family-certificate-badge>
-          {label.badge}
-        </Badge>
+      <div className={cn("flex items-start gap-3.5 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5", look.band)}>
+        <span className={cn("grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-[0_1px_2px_rgba(15,30,50,0.12)]", look.badge)}>
+          <Icon className="h-6 w-6" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11.5px] font-bold uppercase tracking-[0.09em] text-muted-foreground">Certificato medico</p>
+          <p className={cn("mt-0.5 font-display text-[1.375rem] font-extrabold leading-tight", look.title)} data-family-certificate-badge>
+            {label.badge}
+          </p>
+          <p className={cn("mt-1 text-sm leading-snug", status.kind === "valid" ? "text-foreground/75" : "font-semibold " + look.title)} data-family-certificate-detail>
+            {label.detail}
+          </p>
+        </div>
       </div>
-      <p className={cn("mt-2 text-sm", red ? "font-semibold text-destructive" : "text-foreground/80")} data-family-certificate-detail>
-        {label.detail}
-      </p>
-      {author && <p className="mt-1 text-[12px] text-muted-foreground">{author}</p>}
-      {saved && !open && (
-        <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-success" role="status" data-family-certificate-saved>
-          <CheckCircle2 className="h-4 w-4" aria-hidden />
-          Grazie, date salvate.
-        </p>
-      )}
 
-      {open ? (
-        <div className="mt-4">
-          {red || validUntil === null ? (
-            <p className="mb-3 text-sm text-foreground/80">
-              Quando avete fatto la visita, scegliete qui il giorno e fino a quando vale il certificato: lo staff lo vede subito.
+      <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
+        {issuedOn && validUntil && status.kind !== "missing" && (
+          <div>
+            <ValidityBar issuedOn={issuedOn} validUntil={validUntil} today={today} kind={status.kind} />
+            {author && <p className="mt-2.5 text-[12px] text-muted-foreground">{author}</p>}
+          </div>
+        )}
+
+        {saved && !open && (
+          <p className="flex items-center gap-1.5 rounded-xl bg-success-soft px-3 py-2 text-sm font-semibold text-success" role="status" data-family-certificate-saved>
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+            Grazie, data salvata: lo staff la vede subito.
+          </p>
+        )}
+
+        {open ? (
+          <div className={cn(issuedOn && status.kind !== "missing" && "border-t border-border pt-4")}>
+            <p className="mb-3 text-sm leading-relaxed text-foreground/80">
+              {status.kind === "valid"
+                ? "Scegliete il giorno giusto della visita: la scadenza si ricalcola da sola."
+                : "Quando avete fatto la visita, scegliete qui il giorno: la scadenza la calcola il sito, un anno dopo."}
             </p>
-          ) : null}
-          {/* Da rinnovare: si parte da zero (le date sono quelle del certificato nuovo, e la scadenza si propone da sola). */}
-          <CertificateDatesForm
-            issuedOn={red ? null : issuedOn}
-            validUntil={red ? null : validUntil}
-            today={today}
-            save={save}
-            onSaved={() => {
-              setSaved(true);
-              setOpen(false);
-            }}
-            submitLabel="Salva le date"
-          />
-        </div>
-      ) : (
-        <div className="mt-3">
+            {/* Da rinnovare o da inserire si parte da zero: è il giorno della visita nuova. */}
+            <CertificateDateForm
+              issuedOn={status.kind === "valid" ? issuedOn : null}
+              today={today}
+              save={save}
+              onSaved={() => {
+                setSaved(true);
+                setOpen(false);
+              }}
+              submitLabel="Salva la data"
+            />
+          </div>
+        ) : (
           <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)} data-family-certificate-change>
-            <CalendarDays className="h-4 w-4" />
-            {validUntil === null ? "Scrivi le date" : "Cambia le date"}
+            <PencilLine className="h-4 w-4" />
+            {status.kind === "valid" ? "Cambia la data" : "Scrivi la data della visita nuova"}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

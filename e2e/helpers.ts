@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export const DEV_USERNAME = "Gaga";
 
@@ -79,9 +79,14 @@ export async function loginAsDev(page: Page) {
  * page.goto("/login") atterra silenziosamente su /admin invece di mostrare
  * il form. */
 export async function logout(page: Page) {
-  // "Esci" vive nel menu account dell'header: va aperto prima.
-  await page.getByRole("button", { name: "Menu account" }).click();
-  await page.getByRole("menuitem", { name: "Esci" }).click();
+  // "Esci" vive nel menu account dell'header: va aperto prima. Subito dopo un redirect il pulsante c'è ma la pagina non è ancora
+  // pronta e il tocco va perso: si riprova finché il menu si apre.
+  const exit = page.getByRole("menuitem", { name: "Esci" });
+  await expect(async () => {
+    if (!(await exit.isVisible())) await page.getByRole("button", { name: "Menu account" }).click();
+    await expect(exit).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await exit.click();
   await page.waitForURL(/\/login/, { timeout: 20_000 });
 }
 
