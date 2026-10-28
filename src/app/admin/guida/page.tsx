@@ -25,13 +25,26 @@ import {
 } from "lucide-react";
 import { requireStaff, resolveActiveTeam, getOwnStaff } from "@/lib/auth/guard";
 import { isPageAvailableForTeam, type AdminPage } from "@/lib/types";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { GuideBrowser, type GuideItem } from "./GuideBrowser";
 
 export const metadata: Metadata = {
   title: "Guida",
 };
+
+/** L'indirizzo di una sezione (`/admin/guida#partite`): il titolo senza accenti né spazi. */
+function guideId(title: string): string {
+  return `guida-${title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
+}
+
+const BULLETS =
+  "space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']";
 
 interface Section {
   /** Assente per una sezione senza permesso dedicato (es. "Sito pubblico e
@@ -289,11 +302,112 @@ export default async function GuidaPage() {
     visibleSections = visibleSections.filter((section) => !section.page || allowedPages.includes(section.page));
   }
 
+  const items: GuideItem[] = visibleSections.map((section) => {
+    const Icon = section.icon;
+    return {
+      id: guideId(section.title),
+      icon: <Icon className="h-4 w-4" />,
+      title: section.title,
+      intro: section.intro,
+      points: section.points,
+    };
+  });
+
+  if (session.role === "dev") {
+    items.push(
+      {
+        id: guideId("Manutenzione"),
+        icon: <Gauge className="h-4 w-4" />,
+        title: "Manutenzione",
+        intro: "Solo Developer.",
+        searchText: "Manutenzione righe e spazio occupato per ogni tabella su Supabase, cache della homepage pubblica, limiti mensili del piano.",
+        body: (
+          <p className="text-sm text-foreground/80">
+            La pagina{" "}
+            <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
+              Manutenzione
+            </Link>{" "}
+            mostra righe e spazio occupato per ogni tabella su Supabase, e spiega la cache della homepage pubblica introdotta per restare entro i limiti
+            mensili del piano.
+          </p>
+        ),
+      },
+      {
+        id: guideId("Modalità prova"),
+        icon: <FlaskConical className="h-4 w-4" />,
+        title: "Modalità prova",
+        intro: "Solo Developer.",
+        searchText:
+          "Modalità prova copia separata dei dati allenamenti partite formazioni schede presenze atlete notifiche push calendario pubblico uscire banner modifiche spariscono account staff iscrizioni",
+        body: (
+          <ul className={BULLETS}>
+            <li>
+              La voce &quot;Modalità prova&quot; nel menu del tuo account (in alto a destra) apre una copia separata dei dati (allenamenti, partite, formazioni, schede,
+              presenze, atlete): puoi creare, modificare o eliminare qualsiasi cosa per provare lo strumento senza rischi.
+            </li>
+            <li>
+              Mentre sei in modalità prova non viene inviata nessuna notifica push, e nessuno di quei cambiamenti compare mai sul calendario pubblico.
+            </li>
+            <li>
+              Uscendo (dal banner in alto) tutte le modifiche fatte in prova spariscono e torni ai dati reali esattamente come li avevi lasciati. Account staff e
+              iscrizioni alle notifiche non sono mai coinvolti dalla modalità prova.
+            </li>
+          </ul>
+        ),
+      },
+      {
+        id: guideId("Classifiche e risultati ufficiali"),
+        icon: <Trophy className="h-4 w-4" />,
+        title: "Classifiche e risultati ufficiali",
+        intro: "Solo Developer.",
+        searchText:
+          "Classifiche risultati ufficiali Centro di controllo indirizzo del girone portale della federazione nome squadra classifica rilegge il portale ogni 30 minuti Manutenzione errore",
+        body: (
+          <ul className={BULLETS}>
+            <li>
+              Dal{" "}
+              <Link href="/admin/centro-controllo" className="font-semibold text-primary hover:underline">
+                Centro di controllo
+              </Link>{" "}
+              imposti, per ogni categoria, l&apos;indirizzo del girone sul portale della federazione e il nome con cui la nostra squadra compare in classifica.
+              Lascia l&apos;indirizzo vuoto finché il girone non è pubblicato: la categoria resta nascosta.
+            </li>
+            <li>
+              Il sito rilegge il portale in secondo piano quando i dati hanno più di 30 minuti (e una volta al giorno in automatico). Se il portale non risponde o
+              cambia pagina, restano gli ultimi dati validi con la loro data e l&apos;errore compare in{" "}
+              <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
+                Manutenzione
+              </Link>
+              .
+            </li>
+          </ul>
+        ),
+      },
+    );
+  }
+
+  items.push({
+    id: guideId("Il tuo account"),
+    icon: <KeyRound className="h-4 w-4" />,
+    title: "Il tuo account",
+    intro: "Password e accesso.",
+    searchText: "Account password accesso cambia password",
+    body: (
+      <p className="text-sm text-foreground/80">
+        Puoi cambiare la tua password in qualsiasi momento dalla pagina{" "}
+        <Link href="/admin/cambia-password" className="font-semibold text-primary hover:underline">
+          Cambia password
+        </Link>
+        .
+      </p>
+    ),
+  });
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Guida al sito"
-        description="Come funzionano le sezioni dell'area tecnici. Questa pagina resta sempre consultabile dal menu."
+        description="Come funzionano le sezioni dell'area tecnici: apri quella che ti serve, oppure cerca una parola. Questa pagina resta sempre consultabile dal menu."
         actions={
           <LinkButton href="/admin?tour=restart" variant="outline">
             <Compass className="h-4 w-4" />
@@ -302,152 +416,7 @@ export default async function GuidaPage() {
         }
       />
 
-      <div className="space-y-4">
-        {visibleSections.map((section) => {
-          const Icon = section.icon;
-          return (
-            <Card key={section.title}>
-              <CardHeader className="flex flex-row items-center gap-3.5">
-                <span className="icon-chip shrink-0">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div>
-                  <h2 className="font-display text-base font-bold text-foreground">
-                    {section.title}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">{section.intro}</p>
-                </div>
-              </CardHeader>
-              <CardBody className="pt-0">
-                <ul className="space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']">
-                  {section.points.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-          );
-        })}
-
-        {session.role === "dev" && (
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-3.5">
-              <span className="icon-chip shrink-0">
-                <Gauge className="h-4 w-4" />
-              </span>
-              <div>
-                <h2 className="font-display text-base font-bold text-foreground">
-                  Manutenzione
-                </h2>
-                <p className="text-sm text-muted-foreground">Solo Developer.</p>
-              </div>
-            </CardHeader>
-            <CardBody className="pt-0">
-              <p className="text-sm text-foreground/80">
-                La pagina{" "}
-                <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
-                  Manutenzione
-                </Link>{" "}
-                mostra righe e spazio occupato per ogni tabella su Supabase, e spiega la cache
-                della homepage pubblica introdotta per restare entro i limiti mensili del piano.
-              </p>
-            </CardBody>
-          </Card>
-        )}
-
-        {session.role === "dev" && (
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-3.5">
-              <span className="icon-chip shrink-0">
-                <FlaskConical className="h-4 w-4" />
-              </span>
-              <div>
-                <h2 className="font-display text-base font-bold text-foreground">
-                  Modalità prova
-                </h2>
-                <p className="text-sm text-muted-foreground">Solo Developer.</p>
-              </div>
-            </CardHeader>
-            <CardBody className="pt-0">
-              <ul className="space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']">
-                <li>
-                  La voce &quot;Modalità prova&quot; nel menu del tuo account (in alto a destra) apre una copia separata
-                  dei dati (allenamenti, partite, formazioni, schede, presenze, atlete): puoi creare,
-                  modificare o eliminare qualsiasi cosa per provare lo strumento senza rischi.
-                </li>
-                <li>
-                  Mentre sei in modalità prova non viene inviata nessuna notifica push, e nessuno di
-                  quei cambiamenti compare mai sul calendario pubblico.
-                </li>
-                <li>
-                  Uscendo (dal banner in alto) tutte le modifiche fatte in prova spariscono e torni
-                  ai dati reali esattamente come li avevi lasciati. Account staff e iscrizioni alle
-                  notifiche non sono mai coinvolti dalla modalità prova.
-                </li>
-              </ul>
-            </CardBody>
-          </Card>
-        )}
-
-        {session.role === "dev" && (
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-3.5">
-              <span className="icon-chip shrink-0">
-                <Trophy className="h-4 w-4" />
-              </span>
-              <div>
-                <h2 className="font-display text-base font-bold text-foreground">
-                  Classifiche e risultati ufficiali
-                </h2>
-                <p className="text-sm text-muted-foreground">Solo Developer.</p>
-              </div>
-            </CardHeader>
-            <CardBody className="pt-0">
-              <ul className="space-y-2 text-sm leading-relaxed text-foreground/80 [&>li]:relative [&>li]:pl-5 [&>li]:before:absolute [&>li]:before:left-1 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:bg-primary/45 [&>li]:before:content-['']">
-                <li>
-                  Dal{" "}
-                  <Link href="/admin/centro-controllo" className="font-semibold text-primary hover:underline">
-                    Centro di controllo
-                  </Link>{" "}
-                  imposti, per ogni categoria, l&apos;indirizzo del girone sul portale della federazione e il nome con
-                  cui la nostra squadra compare in classifica. Lascia l&apos;indirizzo vuoto finché il girone non è
-                  pubblicato: la categoria resta nascosta.
-                </li>
-                <li>
-                  Il sito rilegge il portale in secondo piano quando i dati hanno più di 30 minuti (e una volta al
-                  giorno in automatico). Se il portale non risponde o cambia pagina, restano gli ultimi dati validi con
-                  la loro data e l&apos;errore compare in{" "}
-                  <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
-                    Manutenzione
-                  </Link>
-                  .
-                </li>
-              </ul>
-            </CardBody>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-3.5">
-            <span className="icon-chip shrink-0">
-              <KeyRound className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="font-display text-base font-bold text-foreground">Il tuo account</h2>
-              <p className="text-sm text-muted-foreground">Password e accesso.</p>
-            </div>
-          </CardHeader>
-          <CardBody className="pt-0">
-            <p className="text-sm text-foreground/80">
-              Puoi cambiare la tua password in qualsiasi momento dalla pagina{" "}
-              <Link href="/admin/cambia-password" className="font-semibold text-primary hover:underline">
-                Cambia password
-              </Link>
-              .
-            </p>
-          </CardBody>
-        </Card>
-      </div>
+      <GuideBrowser items={items} />
     </div>
   );
 }

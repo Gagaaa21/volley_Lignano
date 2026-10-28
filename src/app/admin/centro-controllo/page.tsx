@@ -6,6 +6,7 @@ import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_SHORT } from "@/lib/category";
 import { formatDateShort, formatDateTime } from "@/lib/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { endpointService, endpointTail } from "@/lib/pwa/teamPush";
 import { NotificationForm } from "./NotificationForm";
@@ -163,8 +164,23 @@ export default async function CentroControlloPage() {
         help={<SectionTour steps={SECTION_CENTRO_CONTROLLO_STEPS} />}
       />
 
+      {/* La pagina è lunga: da qui si salta alla parte che serve. */}
+      <nav aria-label="Vai a" className="-mt-3 mb-6 flex flex-wrap gap-2" data-cc-nav>
+        {[
+          { id: "notifiche", label: "Notifiche", icon: Bell },
+          { id: "permessi", label: "Permessi", icon: KeyRound },
+          { id: "classifiche", label: "Classifiche", icon: Trophy },
+          { id: "attivita", label: "Attività", icon: Clock },
+        ].map(({ id, label, icon: Icon }) => (
+          <a key={id} href={`#${id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <Icon className="h-4 w-4" />
+            {label}
+          </a>
+        ))}
+      </nav>
+
       {/* Notifica manuale */}
-      <Card data-tour="section-cc-notification">
+      <Card id="notifiche" className="scroll-mt-24" data-tour="section-cc-notification">
         <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <Bell className="h-4 w-4" />
@@ -267,7 +283,7 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Permessi pagine */}
-      <Card className="mt-5" data-tour="section-cc-permissions">
+      <Card id="permessi" className="mt-5 scroll-mt-24" data-tour="section-cc-permissions">
         <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <KeyRound className="h-4 w-4" />
@@ -286,7 +302,7 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Classifiche e risultati ufficiali */}
-      <Card className="mt-5" data-tour="section-cc-federation">
+      <Card id="classifiche" className="mt-5 scroll-mt-24" data-tour="section-cc-federation">
         <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <Trophy className="h-4 w-4" />
@@ -312,7 +328,7 @@ export default async function CentroControlloPage() {
       </Card>
 
       {/* Attività recenti */}
-      <Card className="mt-5" data-tour="section-cc-activity">
+      <Card id="attivita" className="mt-5 scroll-mt-24" data-tour="section-cc-activity">
         <CardHeader className="flex flex-row items-start gap-3.5">
           <span className="icon-chip shrink-0">
             <ListChecks className="h-4 w-4" />

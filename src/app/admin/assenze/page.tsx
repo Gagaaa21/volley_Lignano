@@ -266,7 +266,7 @@ function MatchReportingCard({
         </div>
 
         <div className="border-t border-border pt-4">
-          <ReportingControls view={view} />
+          <ReportingControls view={view} collapsible />
         </div>
       </CardBody>
     </Card>

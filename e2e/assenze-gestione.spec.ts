@@ -73,6 +73,12 @@ const PAGE = "/admin/assenze";
 const RULES = "/admin/assenze/regole";
 const card = (page: Page, matchId: string) => page.locator(`[data-reporting-match="${matchId}"]`);
 const controls = (page: Page, matchId: string) => card(page, matchId).locator("[data-reporting]");
+/** Nell'elenco i comandi di ogni partita stanno chiusi sotto Â«GestisciÂ»: si aprono prima di usarli. */
+async function manageControls(page: Page, matchId: string) {
+  const toggle = controls(page, matchId).locator("[data-reporting-manage]");
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
 const expectState = (page: Page, matchId: string, state: string) => expect(controls(page, matchId)).toHaveAttribute("data-reporting-state", state, { timeout: 20_000 });
 
 // La pagina del genitore.
@@ -131,6 +137,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e Â
     await expectState(page, near, "closed");
 
     // Â«Chiudi adessoÂ»: chiusa a mano, con chi e quando.
+    await manageControls(page, far);
     await controls(page, far).locator("[data-reporting-close]").click();
     await expectState(page, far, "closed");
     await expect(controls(page, far).locator("[data-reporting-status]")).toContainText("Chiuse a mano");
@@ -141,6 +148,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e Â
     await expect(farCard.locator("[data-availability-closed]")).toHaveText("Segnalazioni chiuse da Gaga: per avvisare, scrivi all'allenatore.");
 
     // Â«Riapri fino all'inizioÂ» su quella vicina: il genitore puÃ² segnalare fino all'ora della partita, e segnala.
+    await manageControls(page, near);
     await controls(page, near).locator("[data-reporting-reopen]").click();
     await expectState(page, near, "open");
     await parent.reload();
@@ -159,6 +167,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e Â
     await expect(page.locator("[data-reporting-recent-row]").filter({ hasText: dora }).first()).toContainText("dal genitore");
 
     // Un messaggio ai genitori sotto la partita lontana.
+    await manageControls(page, far);
     await controls(page, far).locator("[data-reporting-message-toggle]").click();
     await controls(page, far).locator("[data-reporting-message-input]").fill("  Partenza in pullman   alle 14:30 ");
     await controls(page, far).locator("[data-reporting-message-save]").click();
@@ -180,6 +189,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e Â
 
     // La pagina del genitore resta aperta mentre lo staff chiude: il tocco arriva al server, che rifiuta e lo dice.
     await page.goto(PAGE);
+    await manageControls(page, far);
     await controls(page, far).locator("[data-reporting-close]").click();
     await expectState(page, far, "closed");
     await reopened.locator("[data-absence-report]").click();
@@ -196,6 +206,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e Â
 
     // Â«Non chiedere ai genitoriÂ»: dal link la partita sparisce.
     await page.goto(PAGE);
+    await manageControls(page, far);
     await controls(page, far).locator("[data-reporting-ask]").uncheck();
     await expectState(page, far, "hidden");
     await expect(controls(page, far).locator("[data-reporting-status]")).toHaveText("Non chieste ai genitori");
@@ -203,6 +214,7 @@ test("partita per partita: chiudi adesso, riapri, scadenza scelta, messaggio e Â
     await expect(familyCard(parent, farOpponent)).toHaveCount(0);
     await expect(familyCard(parent, nearOpponent)).toBeVisible();
     await page.goto(PAGE);
+    await manageControls(page, far);
     await controls(page, far).locator("[data-reporting-ask]").check();
     await expectState(page, far, "open");
   } finally {

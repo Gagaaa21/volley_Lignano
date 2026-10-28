@@ -99,14 +99,16 @@ function FamilyRow({
             )}
             <form action={rotateFamilyLinkAction}>
               <input type="hidden" name="athleteId" value={athlete.id} />
+              {/* Si usa di rado (link finito nelle mani sbagliate): solo l'icona, per non appesantire ogni riga. */}
               <ConfirmSubmitButton
                 confirmMessage={`Rigenerare il link di ${athlete.fullName}? Quello vecchio smette di funzionare subito e il nuovo va mandato di nuovo.`}
-                size="sm"
+                size="icon-sm"
                 variant="quiet"
+                aria-label={`Rigenera il link di ${athlete.fullName}`}
+                title="Rigenera il link"
                 data-family-rotate
               >
                 <RefreshCw className="h-4 w-4" />
-                Rigenera
               </ConfirmSubmitButton>
             </form>
           </>
@@ -171,7 +173,7 @@ export default async function FamilyLinksPage() {
     <div>
       <PageHeader
         title="Assenze"
-        description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì segnala le partite a cui la figlia non ci sarà, fino alla scadenza di ogni partita. Niente account, niente elenco di nomi sul sito."
+        description="Ogni atleta ha un link personale e segreto: lo mandi al genitore e da lì segnala le partite a cui non ci sarà."
         actions={
           <>
             <Badge tone={missing === 0 && active.length > 0 ? "success" : "neutral"} data-family-count>
@@ -203,8 +205,9 @@ export default async function FamilyLinksPage() {
       <p className="mb-6 flex items-start gap-2.5 rounded-xl bg-primary-soft/60 px-4 py-3 text-sm text-foreground/80">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
         <span>
-          Il link è solo di quella famiglia: se finisce dove non deve (per esempio in un gruppo), tocca <b>Rigenera</b> e il vecchio smette di funzionare. Le
-          assenze le vedi qui in «Partite» (e nelle convocazioni), e le puoi segnare o togliere anche tu, sempre; non compaiono mai sul sito pubblico.
+          Il link è solo di quella famiglia: se finisce dove non deve (per esempio in un gruppo), tocca <RefreshCw className="inline h-3.5 w-3.5 align-text-bottom" aria-hidden />{" "}
+          <b>Rigenera</b> e il vecchio smette di funzionare. Le assenze le vedi in «Partite» e nelle convocazioni, e le puoi segnare o togliere anche tu, sempre;
+          non compaiono mai sul sito pubblico.
         </span>
       </p>
 

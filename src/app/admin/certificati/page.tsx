@@ -39,7 +39,7 @@ import { whatsappPhone } from "@/lib/trips/phone";
 import type { AthleteContacts } from "@/lib/trips/types";
 import type { Athlete } from "@/lib/types";
 import { AvailabilityDatabaseNotice } from "@/components/availability/AvailabilityDatabaseNotice";
-import { EmptyValidityBar, ValidityBar } from "@/components/medical/ValidityBar";
+import { ValidityBar } from "@/components/medical/ValidityBar";
 import { Avatar, type AvatarTone } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { CategoryTag } from "@/components/ui/CategoryTag";
@@ -336,10 +336,8 @@ function CertificateRow({
         </div>
 
         <div className="col-span-2 row-start-2 min-w-0 sm:pl-[3.25rem] lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:pl-0">
-          {certificate && status.kind !== "missing" ? (
+          {certificate && status.kind !== "missing" && (
             <ValidityBar issuedOn={certificate.issuedOn} validUntil={certificate.validUntil} today={today} kind={status.kind} />
-          ) : (
-            <EmptyValidityBar />
           )}
         </div>
 
