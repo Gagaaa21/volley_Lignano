@@ -719,6 +719,17 @@ staff (Developer e Admin).
   dell'area riservata. Compare automaticamente al primo accesso di un nuovo
   account e resta sempre consultabile dal menu.
 
+- **Riordino dell'interfaccia (telefono per primo)**: ogni cosa si fa con un solo pulsante, senza doppioni. Dashboard
+  con azioni rapide in cima e «Prossima partita» con i pulsanti per convocazioni, assenze, trasferta e Scout; sul
+  telefono «Tutte le sezioni» (`SectionsMenu` in `AdminHeader`) apre tutte le voci raggruppate (Ogni giorno,
+  Allenare, In partita, Gestione); le convocazioni hanno un solo interruttore per atleta e il registro presenze nome e
+  scelta nella stessa riga (sul telefono solo ✓/✕); in Assenze i comandi di ogni partita stanno sotto «Gestisci»; la
+  Guida (`GuideBrowser`) è un indice con ricerca e un indirizzo `#sezione` che la apre; il Centro di controllo ha una riga
+  di salti (Notifiche, Permessi, Classifiche, Attività); il Live score su telefono mette le due metà campo una sopra
+  l'altra (`stackOnPhone` in `LiveScoreCourt`). La pagina dei genitori ha il riquadro con la data per ogni partita e lo
+  stato «Non ci sarà» come fascia (non come pulsante). Prove: `e2e/semplifica-pagine.spec.ts`, `e2e/menu-sezioni.spec.ts`,
+  `e2e/guida.spec.ts`.
+
 ## Stack tecnico
 
 - [Next.js 16](https://nextjs.org) (App Router, Server Actions, Turbopack)

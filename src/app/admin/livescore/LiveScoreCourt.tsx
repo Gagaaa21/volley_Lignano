@@ -67,12 +67,13 @@ function HalfCourt({
  * e il bordo del campo si fondevano in un'unica linea, come se la rete si
  * allungasse per tutta la larghezza del campo invece di restare una
  * striscia verticale isolata al centro. */
-function Net({ large }: { large: boolean }) {
+function Net({ large, className }: { large: boolean; className?: string }) {
   return (
     <div
       className={cn(
         "pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 overflow-hidden rounded-[1px] shadow-[0_0_0_1px_rgba(0,0,0,0.15),0_3px_10px_rgba(9,26,38,0.35)]",
         large ? "inset-y-1.5 w-4 sm:inset-y-2 sm:w-5" : "inset-y-1 w-2.5 sm:w-3",
+        className,
       )}
     >
       <div
@@ -85,6 +86,20 @@ function Net({ large }: { large: boolean }) {
       <div className={cn("absolute inset-x-0 top-0 bg-white", large ? "h-3 sm:h-3.5" : "h-2 sm:h-2.5")} />
       <div className={cn("absolute inset-x-0 bottom-0 bg-white", large ? "h-3 sm:h-3.5" : "h-2 sm:h-2.5")} />
     </div>
+  );
+}
+
+/** Il nome di una squadra sopra la sua metà campo, solo quando le due metà stanno una sopra l'altra (telefono). */
+function StackedLabel({ text, separated = false }: { text: string; separated?: boolean }) {
+  return (
+    <p
+      className={cn(
+        "hidden bg-sea-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white max-sm:block",
+        separated && "border-t-2 border-white",
+      )}
+    >
+      {text}
+    </p>
   );
 }
 
@@ -105,6 +120,7 @@ export function DualLiveScoreCourt({
   players = 6,
   large = false,
   fitHeight = false,
+  stackOnPhone = false,
   className,
 }: {
   /** Giocatrici per squadra (2–6): quante posizioni ha ogni metà campo. */
@@ -128,6 +144,9 @@ export function DualLiveScoreCourt({
    * flessibile con altezza definita (`flex-1 min-h-0`), altrimenti non
    * c'è nessun limite reale da rispettare. */
   fitHeight?: boolean;
+  /** Sul telefono le due metà campo stanno una sopra l'altra, ognuna a tutta larghezza e col nome della sua squadra: quando ci si
+   * scrivono i nomi, in quattro colonne strette i campi si riducono a una lettera. Da tablet in su il campo è quello di sempre. */
+  stackOnPhone?: boolean;
   className?: string;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -168,7 +187,7 @@ export function DualLiveScoreCourt({
     >
       <div className="mx-auto" style={maxWidth !== undefined ? { maxWidth } : undefined}>
         {(labelA || labelB) && (
-          <div ref={labelRef} className={cn("flex items-center justify-between gap-2 px-1", large ? "pb-2 sm:pb-2.5" : "pb-1.5")}>
+          <div ref={labelRef} className={cn("flex items-center justify-between gap-2 px-1", large ? "pb-2 sm:pb-2.5" : "pb-1.5", stackOnPhone && "max-sm:hidden")}>
             <span
               className={cn(
                 "truncate font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(6,16,26,0.35)]",
@@ -192,11 +211,13 @@ export function DualLiveScoreCourt({
          * tutta la larghezza disponibile finché l'altezza risultante ci
          * sta, altrimenti (fitHeight) si restringe quel tanto che basta a
          * stare nello spazio verticale reale. */}
-        <div className="relative flex aspect-[2/1] w-full items-stretch">
-          <div className="relative flex flex-1 overflow-hidden rounded-md border-2 border-white bg-sand-500 sm:border-[3px]">
+        <div className={cn("relative flex w-full items-stretch", stackOnPhone ? "sm:aspect-[2/1]" : "aspect-[2/1]")}>
+          <div className={cn("relative flex flex-1 overflow-hidden rounded-md border-2 border-white bg-sand-500 sm:border-[3px]", stackOnPhone && "max-sm:flex-col")}>
+            {stackOnPhone && labelA && <StackedLabel text={labelA} />}
             <HalfCourt side="left" players={players} renderCell={renderCellA} large={large} />
+            {stackOnPhone && labelB && <StackedLabel text={labelB} separated />}
             <HalfCourt side="right" players={players} renderCell={renderCellB} large={large} />
-            <Net large={large} />
+            <Net large={large} className={stackOnPhone ? "max-sm:hidden" : undefined} />
           </div>
         </div>
       </div>

@@ -18,6 +18,7 @@ import {
   Globe,
   KeyRound,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Puzzle,
   Shield,
@@ -61,6 +62,14 @@ const NAV_ITEMS: {
   { href: "/admin/trasferte", label: "Trasferte", icon: Car, exact: false, page: "trasferte", tourId: "nav-trasferte" },
   { href: "/admin/staff", label: "Staff", icon: Users, exact: false, page: "staff", tourId: "nav-staff" },
   { href: "/admin/guida", label: "Guida", icon: BookOpen, exact: false, page: "guida", tourId: "nav-guida" },
+];
+
+/** Le sezioni raggruppate per quello che si fa, per il menu «Tutte le sezioni» (sul telefono la barra scorre di lato e molte restano nascoste). */
+const NAV_GROUPS: { title: string; hrefs: string[] }[] = [
+  { title: "Ogni giorno", hrefs: ["/admin", "/admin/allenamenti", "/admin/partite", "/admin/assenze", "/admin/presenze"] },
+  { title: "Allenare", hrefs: ["/admin/schede", "/admin/test-fisici"] },
+  { title: "In partita", hrefs: ["/admin/scout", "/admin/livescore", "/admin/pronostici", "/admin/trasferte"] },
+  { title: "Gestione", hrefs: ["/admin/certificati", "/admin/staff", "/admin/guida"] },
 ];
 
 const DEV_NAV_ITEMS = [
@@ -123,6 +132,84 @@ function TeamSwitcher({
           </form>
         );
       })}
+    </div>
+  );
+}
+
+/** «Tutte le sezioni»: un pannello con tutte le voci raggruppate, per chi sul telefono non vede la barra intera. Si chiude toccando fuori, con Esc o scegliendo. */
+function SectionsMenu({ items, pathname }: { items: typeof NAV_ITEMS; pathname: string }) {
+  // Aperto «su questa pagina»: cambiando pagina il pannello si chiude da solo.
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt === pathname;
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpenAt(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenAt(null);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const groups = NAV_GROUPS.map((group) => ({
+    title: group.title,
+    items: group.hrefs.map((href) => items.find((item) => item.href === href)).filter((item): item is (typeof NAV_ITEMS)[number] => Boolean(item)),
+  })).filter((group) => group.items.length > 0);
+
+  return (
+    <div ref={ref} className="relative flex shrink-0 items-stretch lg:hidden" data-sections-menu>
+      <button
+        type="button"
+        onClick={() => setOpenAt(open ? null : pathname)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label="Tutte le sezioni"
+        className="mb-2 mt-0.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+        data-sections-toggle
+      >
+        <LayoutGrid className="h-4 w-4" aria-hidden />
+        <span className="sr-only">Tutte le sezioni</span>
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full z-50 mt-1 w-[min(92vw,22rem)] space-y-3 rounded-2xl border border-border bg-popover p-3 shadow-pop"
+          data-sections-panel
+        >
+          {groups.map((group) => (
+            <div key={group.title}>
+              <p className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-[0.09em] text-muted-foreground">{group.title}</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(pathname, item.href, item.exact);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                        active ? "bg-primary-soft text-primary" : "text-foreground hover:bg-muted",
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-foreground/50")} aria-hidden />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -329,11 +416,12 @@ export function AdminHeader({
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-2 sm:px-4">
+      <div className="mx-auto flex max-w-6xl items-stretch px-2 sm:px-4">
+        <SectionsMenu items={visibleNavItems} pathname={pathname} />
         <nav
           ref={navRef}
           aria-label="Sezioni area tecnici"
-          className="no-scrollbar scroll-fade-x flex items-stretch gap-0.5 overflow-x-auto pr-6"
+          className="no-scrollbar scroll-fade-x flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto pr-6"
         >
           {visibleNavItems.map((item) => {
             const Icon = item.icon;

@@ -1362,6 +1362,7 @@ export function LiveScoreClient({
         renderCellA={renderTeamCell(leftTeam, leftKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices, checks[leftKey])}
         renderCellB={renderTeamCell(rightTeam, rightKey, true, athleteNames, false, dispatch, isFullscreen, numeric, false, undefined, numberChoices, checks[rightKey])}
         large={isFullscreen}
+        stackOnPhone
       />
       {lineupBlocked && (
         <div className="mt-2.5">

@@ -81,8 +81,9 @@ export default async function RubricaPage({ searchParams }: { searchParams: Prom
                   {contacts.length === 0 && <span className="text-xs font-semibold text-muted-foreground">Nessun numero</span>}
                 </div>
                 <ContactLinks contacts={contacts} />
-                <details className="mt-3 rounded-xl border border-border bg-surface px-4 py-3" data-rubrica-edit={athlete.id}>
-                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                {/* Chiuso è una riga di testo: il riquadro compare solo quando si scrive, così l'elenco di tutte le atlete resta corto. */}
+                <details className="mt-1.5 rounded-xl open:mt-3 open:border open:border-border open:bg-surface open:px-4 open:py-3" data-rubrica-edit={athlete.id}>
+                  <summary className="w-fit cursor-pointer rounded-lg py-1 text-sm font-semibold text-primary hover:underline">
                     {contacts.length === 0 ? "Aggiungi i numeri" : "Modifica i numeri"}
                   </summary>
                   <div className="mt-4">
