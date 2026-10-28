@@ -14,7 +14,6 @@ import { VEHICLE_KIND_LABELS, type MatchTripData, type TripVehicle } from "@/lib
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
 import { SectionHeading } from "@/components/ui/PageHeader";
-import { StatTile } from "@/components/ui/StatTile";
 import { BoardContext, type BoardApi, type BoardPerson } from "./boardTypes";
 import { UnplacedList } from "./UnplacedList";
 import { VehicleCard } from "./VehicleCard";
@@ -52,6 +51,26 @@ const suggestionLabel = (suggestion: VehicleSuggestion) =>
  * accanto il modulo per un mezzo nuovo con i mezzi già usati altre volte. Quello che si sposta (un'atleta, un posto in più o in
  * meno, un mezzo tolto) cambia subito sullo schermo e intanto va al server; se il server lo rifiuta torna com'era e lo dice.
  */
+const MINI_STAT_TONES = {
+  neutral: "border-border bg-card",
+  success: "border-success/30 bg-success-soft/50",
+  warning: "border-warning/40 bg-warning-soft/70",
+} as const;
+
+function miniStatClass(tone: keyof typeof MINI_STAT_TONES): string {
+  return `rounded-xl border px-3.5 py-2.5 ${MINI_STAT_TONES[tone]}`;
+}
+
+/** Numero e etichetta (il numero è il primo paragrafo: le prove lo leggono da lì). */
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <p className="display-wide tabular text-[1.5rem] leading-none text-foreground">{value}</p>
+      <p className="text-[12px] font-semibold leading-tight text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
 export function TripBoard({
   matchId,
   vehicles,
@@ -125,18 +144,19 @@ export function TripBoard({
   return (
     <BoardContext.Provider value={api}>
       <div data-trip-board data-saving={saving ? "true" : "false"} aria-busy={saving}>
-        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div data-trip-stat="called">
-            <StatTile label="Convocate" value={summary.calledUp} tone="primary" />
+        {/* I quattro numeri della trasferta, piccoli: il numero e la sua etichetta sulla stessa riga, per lasciare in vista i mezzi. */}
+        <div className="mb-8 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <div data-trip-stat="called" className={miniStatClass("neutral")}>
+            <MiniStat label="Convocate" value={summary.calledUp} />
           </div>
-          <div data-trip-stat="placed">
-            <StatTile label="Con un passaggio" value={summary.placed} tone="success" />
+          <div data-trip-stat="placed" className={miniStatClass("success")}>
+            <MiniStat label="Con un passaggio" value={summary.placed} />
           </div>
-          <div data-trip-stat="unplaced">
-            <StatTile label="Senza passaggio" value={summary.unplaced.length} tone={summary.unplaced.length > 0 ? "warning" : "success"} />
+          <div data-trip-stat="unplaced" className={miniStatClass(summary.unplaced.length > 0 ? "warning" : "success")}>
+            <MiniStat label="Senza passaggio" value={summary.unplaced.length} />
           </div>
-          <div data-trip-stat="free">
-            <StatTile label="Posti liberi" value={summary.seatsFree} tone="gold" />
+          <div data-trip-stat="free" className={miniStatClass("neutral")}>
+            <MiniStat label="Posti liberi" value={summary.seatsFree} />
           </div>
         </div>
 

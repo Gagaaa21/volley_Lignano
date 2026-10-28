@@ -149,27 +149,26 @@ export default async function MatchesListPage({
             }
           />
         ) : (
-          <>
-            <MatchList matches={matches} absent={absent} />
-            {/* Le esportazioni non sono il gesto di ogni giorno: stanno in fondo, un pulsante per ogni formato. */}
-            <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-4" data-matches-export>
-              <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta il calendario</span>
-              <FileLink
-                href={pdfHref}
-                className={buttonVariants({ variant: "quiet", size: "sm" })}
-                sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
-                data-matches-pdf
-              >
-                <FileDown className="h-4 w-4" />
-                PDF
-              </FileLink>
-              <FileLink href="/api/partite/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Partite · Volley Lignano (CSV)" data-matches-csv>
-                <Download className="h-4 w-4" />
-                CSV
-              </FileLink>
-            </div>
-          </>
+          <MatchList matches={matches} absent={absent} />
         )}
+
+        {/* Le esportazioni non sono il gesto di ogni giorno: stanno in fondo, un pulsante per ogni formato. */}
+        <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-4" data-matches-export>
+          <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta il calendario</span>
+          <FileLink
+            href={pdfHref}
+            className={buttonVariants({ variant: "quiet", size: "sm" })}
+            sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
+            data-matches-pdf
+          >
+            <FileDown className="h-4 w-4" />
+            PDF
+          </FileLink>
+          <FileLink href="/api/partite/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Partite · Volley Lignano (CSV)" data-matches-csv>
+            <Download className="h-4 w-4" />
+            CSV
+          </FileLink>
+        </div>
       </section>
 
     </div>

@@ -28,11 +28,14 @@ function SegmentButton({
   onClick,
   children,
   tone = "success",
+  label,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   tone?: "success" | "danger" | "warning";
+  /** Il nome per chi non vede le scritte: sul telefono il pulsante ha solo l'icona. */
+  label?: string;
 }) {
   const activeClass =
     tone === "danger"
@@ -45,6 +48,7 @@ function SegmentButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-label={label}
       className={cn(
         "inline-flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors",
         active ? activeClass : "text-muted-foreground hover:text-foreground",
@@ -115,7 +119,7 @@ export function AttendanceForm({
               )}
             >
               <input type="hidden" name={`status_${athlete.id}`} value={status} />
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar
                     name={athlete.fullName}
@@ -127,14 +131,15 @@ export function AttendanceForm({
                     <p className="text-xs text-muted-foreground">{categoryLabel(athlete.category)}</p>
                   </div>
                 </div>
-                <div className="flex w-full gap-1 rounded-xl bg-muted p-1 sm:w-auto">
-                  <SegmentButton active={isPresent} onClick={() => setStatus(athlete.id, "present")}>
-                    <Check className="h-3.5 w-3.5" />
-                    Presente
+                {/* Nome a sinistra e scelta a destra, nella stessa riga: sul telefono i pulsanti hanno solo l'icona (✓ presente, ✕ assente). */}
+                <div className="flex shrink-0 gap-1 rounded-xl bg-muted p-1">
+                  <SegmentButton active={isPresent} label="Presente" onClick={() => setStatus(athlete.id, "present")}>
+                    <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Presente</span>
                   </SegmentButton>
-                  <SegmentButton active={!isPresent} tone="danger" onClick={() => setStatus(athlete.id, "unexcused")}>
-                    <X className="h-3.5 w-3.5" />
-                    Assente
+                  <SegmentButton active={!isPresent} tone="danger" label="Assente" onClick={() => setStatus(athlete.id, "unexcused")}>
+                    <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">Assente</span>
                   </SegmentButton>
                 </div>
               </div>

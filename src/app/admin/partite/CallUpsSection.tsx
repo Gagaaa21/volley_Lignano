@@ -5,37 +5,8 @@ import { cn } from "@/lib/cn";
 import { categoryBadgeClass, categoryLabel } from "@/lib/category";
 import type { Athlete } from "@/lib/types";
 
-function ToggleButton({
-  active,
-  onClick,
-  children,
-  tone = "default",
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  tone?: "default" | "danger";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
-        active
-          ? tone === "danger"
-            ? "bg-destructive text-destructive-foreground"
-            : "bg-primary text-primary-foreground"
-          : "bg-muted text-muted-foreground hover:bg-muted/70",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 /** Elenco convocazioni nello stesso stile della pagina Presenze: righe con
- * nome, categoria e un toggle Convocata/Non convocata. Sotto il nome di chi
+ * nome, categoria e un solo interruttore (convocata sì/no). Sotto il nome di chi
  * non ci sarà c'è l'assenza («Non ci sarà · motivo · nota»), più forte se è
  * convocata: non la toglie da sola, decide lo staff. */
 export function CallUpsSection({
@@ -81,8 +52,8 @@ export function CallUpsSection({
             const isCalledUp = calledUp.has(athlete.id);
             const absence = absences[athlete.id];
             return (
-              <div key={athlete.id} className="rounded-xl border border-border-subtle bg-surface px-4 py-3.5" data-call-up-row={athlete.id}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
+              <div key={athlete.id} className="rounded-xl border border-border-subtle bg-surface px-4 py-2.5" data-call-up-row={athlete.id}>
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate font-medium text-foreground">{athlete.fullName}</p>
                     <span
@@ -94,20 +65,21 @@ export function CallUpsSection({
                       {categoryLabel(athlete.category)}
                     </span>
                   </div>
-                  <div className="flex w-full max-w-[220px] gap-1.5 sm:w-auto">
-                    <ToggleButton active={isCalledUp} onClick={() => onToggle(athlete.id)}>
-                      <span className="flex items-center justify-center gap-1">
-                        <Check className="h-3.5 w-3.5" />
-                        Convocata
-                      </span>
-                    </ToggleButton>
-                    <ToggleButton active={!isCalledUp} tone="danger" onClick={() => onToggle(athlete.id)}>
-                      <span className="flex items-center justify-center gap-1">
-                        <X className="h-3.5 w-3.5" />
-                        Non convocata
-                      </span>
-                    </ToggleButton>
-                  </div>
+                  {/* Un solo pulsante per una scelta sì/no: acceso è «Convocata», spento è «Non convocata». */}
+                  <button
+                    type="button"
+                    onClick={() => onToggle(athlete.id)}
+                    aria-pressed={isCalledUp}
+                    aria-label="Convocata"
+                    className={cn(
+                      "inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold transition-colors",
+                      isCalledUp ? "bg-primary text-primary-foreground" : "border border-dashed border-border-strong bg-surface text-muted-foreground hover:bg-muted",
+                    )}
+                    data-call-up-toggle
+                  >
+                    {isCalledUp ? <Check className="h-4 w-4" aria-hidden /> : <X className="h-4 w-4" aria-hidden />}
+                    {isCalledUp ? "Convocata" : "Non convocata"}
+                  </button>
                 </div>
                 {absence && (
                   <p
