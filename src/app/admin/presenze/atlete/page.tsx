@@ -63,22 +63,20 @@ export default async function AthletesPage({ searchParams }: { searchParams: Pro
       ) : (
         <>
           <AthleteList athletes={athletes} team={team} />
-          <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-4">
-            <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta CSV</span>
+          {/* Tutte le esportazioni insieme, ognuna con il suo formato nel nome. */}
+          <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-4" data-athletes-export>
+            <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta</span>
             <FileLink href="/api/presenze/atlete/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Anagrafica atlete (CSV)" data-athletes-csv>
               <Download className="h-4 w-4" />
-              Anagrafica
+              Anagrafica (CSV)
             </FileLink>
             <FileLink href="/api/presenze/riepilogo/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze (CSV)" data-summary-csv>
               <Download className="h-4 w-4" />
-              Riepilogo presenze
+              Presenze (CSV)
             </FileLink>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1">
-            <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta PDF</span>
-            <FileLink href="/api/presenze/riepilogo/pdf" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze · Volley Lignano">
+            <FileLink href="/api/presenze/riepilogo/pdf" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Riepilogo presenze · Volley Lignano" data-summary-pdf>
               <FileDown className="h-4 w-4" />
-              Riepilogo presenze
+              Presenze (PDF)
             </FileLink>
           </div>
         </>

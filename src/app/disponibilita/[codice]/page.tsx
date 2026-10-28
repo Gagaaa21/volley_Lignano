@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { CalendarX2, Info, Link2Off, PauseCircle, Wrench } from "lucide-react";
+import { CalendarX2, Info, KeyRound, Link2Off, PauseCircle, Wrench } from "lucide-react";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { isAppSettingsMissing, isAvailabilityTableMissing } from "@/lib/availability/missing";
@@ -143,6 +143,11 @@ export default async function FamilyAvailabilityPage({
       matchId: match.id,
       title: matchTitle(match),
       dateLabel: capitalize(format(parseISO(match.matchDate.slice(0, 10)), "EEEE d MMMM", { locale: it })),
+      dateParts: {
+        weekday: format(parseISO(match.matchDate.slice(0, 10)), "EEE", { locale: it }),
+        day: format(parseISO(match.matchDate.slice(0, 10)), "d"),
+        month: format(parseISO(match.matchDate.slice(0, 10)), "MMM", { locale: it }),
+      },
       timeLabel: match.matchDate.slice(11, 16),
       place: match.location,
       homeAway: match.isHome ? "Casa" : "Trasferta",
@@ -169,8 +174,8 @@ export default async function FamilyAvailabilityPage({
   const absences = (
     <section data-family-absences>
       <FamilySectionHeader icon={CalendarX2} eyebrow="Assenze alle partite" title="Segnala chi non ci sarà">
-        Se non potrà esserci a una partita tocca <b className="font-semibold text-foreground">Non ci sarà</b>: l&apos;allenatore lo vede subito. Se ci
-        sarà non devi fare niente. Puoi segnalarlo (o annullarlo) fino alla scadenza scritta sotto ogni partita; dopo, scrivi all&apos;allenatore.
+        Tocca <b className="font-semibold text-foreground">Non ci sarà</b> sulle partite a cui {athlete.fullName.split(" ")[0]} non potrà esserci:
+        l&apos;allenatore lo vede subito. Se ci sarà non devi fare niente.
       </FamilySectionHeader>
 
       {policy.rules.paused && (
@@ -242,9 +247,12 @@ export default async function FamilyAvailabilityPage({
         {certificateTab ? <FamilyTabs tabs={[absencesTab, certificateTab]} initial={parseFamilySection(sezione)} /> : absences}
       </div>
 
-      <p className="mt-8 text-[13px] leading-relaxed text-muted-foreground">
-        Questo link è personale: non condividerlo con altri. Se lo perdi o pensi che sia finito in mani sbagliate, dillo all&apos;allenatore: ne prepara uno
-        nuovo e questo smette di funzionare.
+      <p className="mt-8 flex items-start gap-2.5 rounded-xl bg-surface-muted/70 px-3.5 py-3 text-[13px] leading-relaxed text-muted-foreground">
+        <KeyRound className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <span>
+          Questo link è solo vostro: non condividerlo con altri. Se lo perdi o pensi che sia finito in mani sbagliate, dillo all&apos;allenatore: ne prepara
+          uno nuovo e questo smette di funzionare.
+        </span>
       </p>
     </FamilyShell>
   );

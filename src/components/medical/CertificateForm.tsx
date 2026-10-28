@@ -159,7 +159,7 @@ export function CertificateForm({
             <p className="text-[13px] leading-relaxed text-muted-foreground">
               {future
                 ? "La visita non può essere in un giorno che deve ancora venire."
-                : "La scadenza la calcola il sito: il certificato vale un anno dalla visita."}
+                : "La scadenza compare qui: il certificato vale un anno dalla visita."}
             </p>
           )}
         </div>

@@ -162,7 +162,7 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
 
   // --- 3. Partite: un riquadro in alto dice cosa c'è da sistemare e apre la pagina del portale. ---
   await page.goto("/admin/partite");
-  const registered = page.getByRole("region", { name: "Partite registrate" });
+  const registered = page.getByRole("region", { name: "Partite", exact: true });
   await expect(registered).toContainText("Farravolo");
   const alert = page.locator("[data-portal-alert]");
   await expect(alert).toContainText("1 risultato da confermare");

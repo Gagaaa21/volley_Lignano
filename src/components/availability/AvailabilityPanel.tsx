@@ -26,7 +26,10 @@ export interface FamilyAbsence {
 export interface FamilyMatchItem {
   matchId: string;
   title: string;
+  /** «Sabato 31 ottobre»: per chi legge con lo screen reader; sul riquadro della data ci sono le sue parti. */
   dateLabel: string;
+  /** Il riquadro della data: «sab», «31», «ott». */
+  dateParts: { weekday: string; day: string; month: string };
   timeLabel: string;
   place: string;
   homeAway: "Casa" | "Trasferta";
@@ -106,6 +109,25 @@ export function AvailabilityPanel({ token, items }: { token: string; items: Fami
   );
 }
 
+/** Il riquadro della data, come nel calendario del sito: il giorno si trova a colpo d'occhio. */
+function DateTile({ parts, tone }: { parts: FamilyMatchItem["dateParts"]; tone: "open" | "absent" | "closed" }) {
+  return (
+    <div
+      className={cn(
+        "flex h-[4.5rem] w-14 shrink-0 flex-col items-center justify-center rounded-2xl border text-center",
+        tone === "absent" && "border-destructive/30 bg-destructive/[0.07] text-destructive",
+        tone === "open" && "border-border bg-surface text-foreground",
+        tone === "closed" && "border-border/70 bg-muted/60 text-muted-foreground",
+      )}
+      aria-hidden
+    >
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-80">{parts.weekday}</span>
+      <span className="display-wide tabular text-[1.5rem] leading-7">{parts.day}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-80">{parts.month}</span>
+    </div>
+  );
+}
+
 function MatchCard({
   item,
   error,
@@ -118,28 +140,36 @@ function MatchCard({
   onClear: () => void;
 }) {
   const absence = item.absence;
+  const tone = absence ? "absent" : item.open ? "open" : "closed";
 
   return (
     <li data-availability-match={item.matchId} data-availability-state={absence ? "absent" : "none"}>
-      <Card className={cn("px-4 py-4 sm:px-5", absence && "border-destructive/40")}>
-        <p className="font-display text-base font-bold leading-snug text-foreground">
-          {item.dateLabel} · {item.timeLabel}
-        </p>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-foreground/85">
-          {item.title}
-          <Badge tone={item.homeAway === "Casa" ? "primary" : "neutral"}>{item.homeAway}</Badge>
-          {item.kind && <Badge tone="gold">{item.kind}</Badge>}
-        </p>
-        <p className="mt-1.5 flex items-start gap-1.5 text-[13px] text-muted-foreground">
-          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          {item.place}
-        </p>
-        {item.meeting && (
-          <p className="mt-1 flex items-start gap-1.5 text-[13px] text-muted-foreground">
-            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            Ritrovo {item.meeting}
-          </p>
-        )}
+      <Card className={cn("px-4 py-4 sm:px-5", absence && "border-destructive/40", tone === "closed" && "bg-surface-muted/50 shadow-none")}>
+        <div className="flex gap-3.5">
+          <DateTile parts={item.dateParts} tone={tone} />
+          <div className="min-w-0 flex-1">
+            <h3 className="font-display text-[1.0625rem] font-bold leading-snug text-foreground">
+              {item.title}
+              <span className="sr-only">, {item.dateLabel}</span>
+            </h3>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5">
+              <Badge tone={item.homeAway === "Casa" ? "primary" : "neutral"}>{item.homeAway}</Badge>
+              {item.kind && <Badge tone="gold">{item.kind}</Badge>}
+            </p>
+            <p className="mt-2 flex items-start gap-1.5 text-[13px] text-muted-foreground">
+              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                <span className="tabular font-semibold text-foreground/80">{item.timeLabel}</span> · {item.place}
+              </span>
+            </p>
+            {item.meeting && (
+              <p className="mt-1 flex items-start gap-1.5 text-[13px] text-muted-foreground">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                Ritrovo {item.meeting}
+              </p>
+            )}
+          </div>
+        </div>
         {item.message && (
           <p className="mt-3 flex items-start gap-2 rounded-xl bg-primary-soft/70 px-3.5 py-2.5 text-[13px] text-foreground" data-availability-message>
             <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
@@ -151,18 +181,23 @@ function MatchCard({
 
         {absence ? (
           <div className="mt-4">
-            <p className="flex items-center gap-2 rounded-xl bg-destructive px-3.5 py-2.5 text-[15px] font-bold text-white">
-              <X className="h-5 w-5 shrink-0" aria-hidden />
-              Non ci sarà
-            </p>
-            <p className="mt-2 text-[13px] text-muted-foreground" data-availability-status>
-              {absence.by === "parent" ? "Segnalata da te" : `Segnata ${byPhrase(absence.byName)}`} · {absence.when}
-            </p>
+            {/* Lo stato, non un pulsante: la partita è segnata come assenza, e per tornare indietro c'è «Annulla». */}
+            <div className="flex items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/[0.07] px-3.5 py-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-destructive text-white">
+                <X className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[15px] font-bold leading-tight text-destructive">Non ci sarà</p>
+                <p className="mt-0.5 text-[13px] text-muted-foreground" data-availability-status>
+                  {absence.by === "parent" ? "Segnalata da te" : `Segnata ${byPhrase(absence.byName)}`} · {absence.when}
+                </p>
+              </div>
+            </div>
             {item.open ? (
               <>
                 {/* Il campo della nota riparte da quella salvata quando cambia (per esempio se la cambia qualcuno dello staff). */}
                 <AbsenceDetails key={absence.note ?? ""} absence={absence} onChange={onReport} />
-                <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={onClear} data-absence-clear>
+                <Button type="button" variant="ghost" size="sm" className="mt-2 -ml-2" onClick={onClear} data-absence-clear>
                   <Undo2 className="h-4 w-4" />
                   Annulla: ci sarà
                 </Button>
@@ -191,18 +226,18 @@ function MatchCard({
             </p>
           </div>
         ) : (
-          <p className="mt-4 text-[13px] text-muted-foreground" data-availability-status>
+          <p className="mt-3 text-[13px] text-muted-foreground" data-availability-status>
             Nessuna assenza segnalata.
           </p>
         )}
 
         {item.open && item.deadline ? (
-          <p className="mt-3 text-[13px] text-muted-foreground" data-availability-deadline>
+          <p className="mt-1.5 flex items-start gap-1.5 text-[13px] text-muted-foreground" data-availability-deadline>
             Puoi segnalarlo fino a {item.deadline}.
           </p>
         ) : (
           item.closedNote && (
-            <p className="mt-3 flex items-start gap-1.5 text-[13px] text-muted-foreground" data-availability-closed>
+            <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-muted/70 px-3 py-2 text-[13px] text-muted-foreground" data-availability-closed>
               <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               {item.closedNote}
             </p>

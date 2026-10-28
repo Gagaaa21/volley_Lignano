@@ -128,8 +128,8 @@ export function FamilyCertificateCard({
           <div className={cn(issuedOn && status.kind !== "missing" && "border-t border-border pt-4")}>
             <p className="mb-3 text-sm leading-relaxed text-foreground/80">
               {status.kind === "valid"
-                ? "Correggete il giorno della visita o aggiungete la foto del certificato: la scadenza si ricalcola da sola."
-                : "Quando avete fatto la visita, scegliete qui il giorno e aggiungete una foto del certificato: la scadenza la calcola il sito, un anno dopo."}
+                ? "Correggete il giorno della visita o aggiungete la foto del certificato."
+                : "Quando avete fatto la visita, scegliete qui il giorno e aggiungete la foto del certificato."}
             </p>
             {/* Da rinnovare o da inserire si parte da zero: è il giorno della visita nuova, con la sua foto. */}
             <CertificateForm

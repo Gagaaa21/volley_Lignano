@@ -7,7 +7,6 @@ import { CATEGORY_LABELS } from "@/lib/category";
 import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { LinkButton } from "@/components/ui/LinkButton";
-import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedLinks } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -79,21 +78,10 @@ export default async function MatchesListPage({
         description={isU14U15 ? "Campionato e amichevoli di Under 14 e Under 15." : "Squadra Minivolley."}
         help={<SectionTour steps={SECTION_PARTITE_STEPS} />}
         actions={
-          <>
-            <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
-              <Plus className="h-4 w-4" />
-              Nuova partita
-            </LinkButton>
-            <FileLink href={pdfHref} className={buttonVariants({ variant: "outline" })} sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
-            >
-              <FileDown className="h-4 w-4" />
-              Esporta PDF
-            </FileLink>
-            <FileLink href="/api/partite/csv" className={buttonVariants({ variant: "outline" })} sheetTitle="Partite · Volley Lignano (CSV)" data-matches-csv>
-              <Download className="h-4 w-4" />
-              Esporta CSV
-            </FileLink>
-          </>
+          <LinkButton href="/admin/partite/nuovo" data-tour="section-partite-new">
+            <Plus className="h-4 w-4" />
+            Nuova partita
+          </LinkButton>
         }
       />
 
@@ -147,17 +135,7 @@ export default async function MatchesListPage({
         </Link>
       )}
 
-      <section aria-labelledby="partite-registrate">
-        <div className="mb-1.5 flex items-center gap-3">
-          <h2 id="partite-registrate" className="display-wide text-[1.375rem] leading-tight text-foreground">
-            Partite registrate
-          </h2>
-          <Badge tone="neutral">{matches.length}</Badge>
-        </div>
-        <p className="mb-5 max-w-2xl text-sm text-muted-foreground">
-          Sono le partite del calendario del sito, quelle che vedono anche genitori e atlete.
-        </p>
-
+      <section aria-label="Partite">
         {matches.length === 0 ? (
           <EmptyState
             icon={Swords}
@@ -171,7 +149,26 @@ export default async function MatchesListPage({
             }
           />
         ) : (
-          <MatchList matches={matches} absent={absent} />
+          <>
+            <MatchList matches={matches} absent={absent} />
+            {/* Le esportazioni non sono il gesto di ogni giorno: stanno in fondo, un pulsante per ogni formato. */}
+            <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-4" data-matches-export>
+              <span className="mr-2 text-[13px] font-semibold text-muted-foreground">Esporta il calendario</span>
+              <FileLink
+                href={pdfHref}
+                className={buttonVariants({ variant: "quiet", size: "sm" })}
+                sheetTitle={activeCategory === "all" ? "Calendario partite · Volley Lignano" : `Calendario partite ${CATEGORY_LABELS[activeCategory]} · Volley Lignano`}
+                data-matches-pdf
+              >
+                <FileDown className="h-4 w-4" />
+                PDF
+              </FileLink>
+              <FileLink href="/api/partite/csv" className={buttonVariants({ variant: "quiet", size: "sm" })} sheetTitle="Partite · Volley Lignano (CSV)" data-matches-csv>
+                <Download className="h-4 w-4" />
+                CSV
+              </FileLink>
+            </div>
+          </>
         )}
       </section>
 

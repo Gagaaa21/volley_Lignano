@@ -215,11 +215,11 @@ test("area tecnici, da iPhone: partite, convocazioni, formazioni e tabellino, un
 
     // Elenco partite: il PDF dello staff, che segue il filtro di categoria.
     await page.goto("/admin/partite");
-    const staffPdf = page.getByRole("button", { name: "Esporta PDF" });
+    const staffPdf = page.locator("[data-matches-pdf]");
     await expect(staffPdf).toHaveAttribute("data-file-href", "/api/partite/pdf");
     await openAndShare(page, staffPdf, { name: "calendario-partite-staff-volley-lignano.pdf", title: /Calendario partite/ });
     await page.goto("/admin/partite?cat=U15");
-    await expect(page.getByRole("button", { name: "Esporta PDF" })).toHaveAttribute("data-file-href", "/api/partite/pdf?cat=U15");
+    await expect(page.locator("[data-matches-pdf]")).toHaveAttribute("data-file-href", "/api/partite/pdf?cat=U15");
     await expect(page.getByRole("button", { name: /condividi/i })).toHaveCount(0);
 
     // La partita: convocazioni e formazioni, ognuna con il suo solo pulsante.
@@ -294,7 +294,7 @@ test("area tecnici, da iPhone: riepilogo presenze e riepilogo test fisici", asyn
   // Riepilogo presenze (nell'elenco delle atlete).
   // Accanto c'è anche il CSV con lo stesso nome: il PDF si riconosce dal suo indirizzo.
   const presenze = page.locator('[data-file-href="/api/presenze/riepilogo/pdf"]');
-  await expect(presenze).toHaveText("Riepilogo presenze");
+  await expect(presenze).toHaveText("Presenze (PDF)");
   await openAndShare(page, presenze, { name: "riepilogo-presenze-u14u15.pdf", title: /Riepilogo presenze/ });
 
   await page.goto("/admin/test-fisici/nuovo");

@@ -83,13 +83,13 @@ test("area staff: PDF delle partite, del riepilogo presenze e dei test fisici; s
 
   // Partite: il pulsante scarica il PDF dello staff.
   await page.goto("/admin/partite");
-  const matches = await downloadBytes(page, () => page.getByRole("link", { name: "Esporta PDF" }).click());
+  const matches = await downloadBytes(page, () => page.locator("[data-matches-pdf]").click());
   expect(matches.name).toBe("calendario-partite-staff-volley-lignano.pdf");
   expect(pdfHeader(matches.body)).toBe("%PDF-");
 
   // Con il filtro di categoria, lo stesso.
   await page.goto("/admin/partite?cat=U15");
-  await expect(page.getByRole("link", { name: "Esporta PDF" })).toHaveAttribute("href", "/api/partite/pdf?cat=U15");
+  await expect(page.locator("[data-matches-pdf]")).toHaveAttribute("href", "/api/partite/pdf?cat=U15");
 
   // Riepilogo presenze e test fisici (anche con filtri strani nell'indirizzo).
   for (const [url, filename] of [

@@ -12,7 +12,6 @@ import { CategoryTag } from "@/components/ui/CategoryTag";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
-import { formatDateLong } from "@/lib/format";
 import { todayIso } from "@/lib/today";
 import { MatchDetailsCard } from "../MatchDetailsCard";
 import { MatchResultCard } from "../MatchResultCard";
@@ -76,7 +75,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         back={{ href: "/admin/partite", label: "Partite" }}
         eyebrow={match.category ? <CategoryTag category={match.category} size="md" long /> : MATCH_NO_CATEGORY_LABEL}
         title={matchTitle(match)}
-        description={`${formatDateLong(match.matchDate.slice(0, 10))} · ${match.matchDate.slice(11, 16)} · ${match.location}`}
         actions={
           canScout || canTrip || canAbsences ? (
             <>

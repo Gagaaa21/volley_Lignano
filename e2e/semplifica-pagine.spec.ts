@@ -91,14 +91,20 @@ test("dashboard: azioni rapide in cima e la prossima partita con le scorciatoie;
   }
 });
 
-test("Partite: «Nuova partita» è il primo pulsante, prima delle esportazioni", async ({ page }) => {
+test("Partite: in alto solo «Nuova partita»; PDF e CSV stanno in fondo, dopo l'elenco", async ({ page }) => {
   test.setTimeout(90_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
   await page.goto("/admin/partite");
   const newMatch = page.locator('[data-tour="section-partite-new"]').first();
   await expect(newMatch).toBeVisible();
-  expect(await isBefore(newMatch, page.getByText("Esporta PDF").first())).toBe(true);
+  // Con almeno una partita in calendario le esportazioni compaiono in fondo, una per formato, e non più accanto al titolo.
+  const exports = page.locator("[data-matches-export]");
+  await expect(exports).toBeVisible();
+  await expect(exports.locator("[data-matches-pdf]")).toBeVisible();
+  await expect(exports.locator("[data-matches-csv]")).toBeVisible();
+  expect(await isBefore(newMatch, exports)).toBe(true);
+  expect(await isBefore(page.locator("[data-tour=\"section-partite-cards\"]"), exports)).toBe(true);
 });
 
 test("Assenze: le regole si cambiano dalla scheda «Regole» o dal riepilogo, senza una scheda che le ripete", async ({ page }) => {

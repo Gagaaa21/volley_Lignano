@@ -15,7 +15,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionHeading } from "@/components/ui/PageHeader";
 import type { Match } from "@/lib/types";
 
-function ResultBlock({ match, isPast }: { match: Match; isPast: boolean }) {
+function ResultBlock({ match }: { match: Match }) {
   if (match.resultSetsWon !== null && match.resultSetsLost !== null && !match.isTournament) {
     const won = match.resultSetsWon > match.resultSetsLost;
     return (
@@ -32,10 +32,14 @@ function ResultBlock({ match, isPast }: { match: Match; isPast: boolean }) {
   if (match.isTournament && match.tournamentGames?.some((g) => g.setScores.length > 0)) {
     return <Badge tone="neutral">Risultati inseriti</Badge>;
   }
-  if (isPast) {
-    return <span className="shrink-0 text-xs font-semibold text-warning">Risultato da inserire</span>;
-  }
   return null;
+}
+
+/** Una partita giocata senza risultato: lo dice sotto il titolo, tra le etichette, senza togliere spazio al nome dell'avversario. */
+function needsResult(match: Match, isPast: boolean): boolean {
+  const hasResult = match.resultSetsWon !== null && match.resultSetsLost !== null && !match.isTournament;
+  const hasTournamentResult = match.isTournament && Boolean(match.tournamentGames?.some((g) => g.setScores.length > 0));
+  return isPast && !hasResult && !hasTournamentResult;
 }
 
 function MatchRow({ match, isPast, absentCount = 0 }: { match: Match; isPast: boolean; absentCount?: number }) {
@@ -82,6 +86,11 @@ function MatchRow({ match, isPast, absentCount = 0 }: { match: Match; isPast: bo
               {absentLabel(absentCount)}
             </Badge>
           )}
+          {needsResult(match, isPast) && (
+            <Badge tone="warning" className="py-0 text-[11px]" data-match-needs-result>
+              Risultato da inserire
+            </Badge>
+          )}
         </span>
         <span className="mt-0.5 block truncate font-semibold text-foreground group-hover:text-primary">
           {matchTitle(match)}
@@ -93,7 +102,7 @@ function MatchRow({ match, isPast, absentCount = 0 }: { match: Match; isPast: bo
         </span>
         {setScores && <span className="tabular mt-1 block text-xs text-muted-foreground">Parziali: {setScores}</span>}
       </span>
-      <ResultBlock match={match} isPast={isPast} />
+      <ResultBlock match={match} />
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
