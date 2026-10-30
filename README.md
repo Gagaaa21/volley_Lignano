@@ -515,22 +515,35 @@ staff (Developer e Admin).
     del salvataggio (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
     `live/…`, `embed/…`, accetta solo identificativi di 11 caratteri, scade dopo 12 ore).
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
-    anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080 (la grafica
-    entra nel video e ai genitori basta il link di YouTube: i passi sono nella Guida). Legge
-    `/api/livescore/pubblico?prima=1` (stesso punteggio del banner) e disegna due barre: la piccola
-    in un angolo (`src/components/diretta/Scorebug.tsx`: battuta, time-out, set vinti, punti,
-    parziali, SET/MATCH POINT) e la larga in basso al centro come in TV (`ScorebugWide.tsx`:
-    stemma e nome, «SETS», punti del set in un riquadro scuro, linguetta con il set), più le
-    schede di time-out e finale sotto la piccola (`Cards.tsx`) e, a fine set e a fine partita, il
-    resoconto con i numeri di squadra (`SetRecapPanel.tsx`). Il logo delle squadre è sempre
-    `TeamMark.tsx` (stemma nostro; per l'avversaria `away.logo` o le iniziali). Le misure sono in
-    `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi scala con
-    qualunque dimensione. Cosa è cambiato tra due letture è logica pura in
-    `src/lib/diretta/overlayEvents.ts` (`diffLive`, `feedReducer`: la scheda di fine set porta il
-    resoconto se `live.recap` è quello del set appena chiuso, e dura 14 s invece di 9). Opzioni
-    nell'indirizzo: `?stile=piccola|larga|entrambe` (di partenza entrambe; con la sola larga le
-    schede stanno sopra la barra), `?prova=1` (partita finta, `demo.ts`, con i numeri di squadra),
-    `?posizione=` (la piccola), `?scala=`, `?ritardo=` (secondi: le
+    anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080, con
+    «Adatta allo schermo» (la grafica entra nel video e ai genitori basta il link di YouTube: i
+    passi sono nella Guida). Legge `/api/livescore/pubblico?prima=1` (stesso punteggio del
+    banner) e fa da sola la regia di una partita di Serie A: la barra del punteggio in alto a
+    sinistra (`src/components/diretta/Scorebug.tsx`: categoria e set, nomi corti delle squadre
+    con `teamShortName` in `liveScore.ts`, battuta, tacche dei time-out, set vinti, punti,
+    parziali; sotto, la striscia SET/MATCH POINT o la serie in corso «Parziale 4-0»); in basso a
+    sinistra i sottopancia (`LowerThird.tsx`: time-out con i 30 secondi e i punti del set per
+    fondamentale, cambio con chi entra e chi esce; se capitano insieme il cambio sta sopra il
+    time-out); a schermo intero, con la transizione a bande diagonali (`FullScreen.tsx`):
+    presentazione (squadre, data, palazzetto) e formazione di partenza prima del via,
+    formazione a ogni set nuovo, riepilogo di fine set (parziale, tabella dei set, numeri del
+    set) e risultato finale (numeri della partita). Durante le grafiche a schermo intero la barra
+    si nasconde. La barra larga in basso al centro (`ScorebugWide.tsx`) si sceglie con
+    `?stile=larga` (o `entrambe`). Colori e caratteri del pacchetto: `theme.ts` e l'utility
+    `grafica-type` in `globals.css` (Archivo stretto e maiuscolo, come in TV). Il logo delle
+    squadre è sempre `TeamMark.tsx` (stemma nostro; per l'avversaria `away.logo` o le iniziali).
+    Le misure sono in `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi
+    scala con qualunque dimensione; nitida solo se la fonte è davvero 1920×1080 (con la misura
+    di partenza dei programmi, 800×600, viene ingrandita e si sgrana): `?verifica=1`
+    (`VerifyFrame.tsx`, `checkSource`) mostra la misura vera della fonte, gli angoli, l'area
+    sicura e cosa correggere, sopra la partita finta. Cosa va in onda e quando è logica pura in
+    `src/lib/diretta/overlayEvents.ts` (`diffLive`, `feedReducer`): schermi interi in coda uno
+    alla volta (una grafica in coda che non serve più, come la formazione a set cominciato, si
+    salta), time-out subito, cambi in coda tra loro; alla prima lettura di una partita già
+    cominciata non va in onda niente, prima del via sì (presentazione e formazione). Opzioni
+    nell'indirizzo: `?stile=piccola|larga|entrambe` (di partenza la barra in alto), `?prova=1`
+    (partita finta, `demo.ts`, con tutte le grafiche), `?verifica=1`, `?posizione=` (la barra),
+    `?scala=`, `?ritardo=` (secondi: le
     letture si tengono in coda, `delay.ts`, e si mostrano dopo il ritardo, per allinearle al
     video di YouTube che arriva con 10–20 s di ritardo) e `?intervallo=` (secondi tra due
     letture, e si ferma a scheda nascosta: lo usa la pagina `/diretta`, 8 s). La pagina dei
@@ -539,12 +552,14 @@ staff (Developer e Admin).
     (un messaggio mandato prima andrebbe perso). Lo schema colori è sempre «chiaro» sia per il
     riquadro sia per il documento: se non coincidono (tema scuro del sito) il browser dipinge il
     riquadro con uno sfondo pieno (provato con un confronto di pixel in
-    `e2e/diretta-pagina.spec.ts`). Mostra solo U14/U15, mai nomi né numeri di maglia.
+    `e2e/diretta-pagina.spec.ts`). Mostra solo U14/U15. Delle giocatrici solo i numeri di maglia
+    nei cambi e nella formazione; i nomi solo con `settings.publicNames` dello Scout
+    («Nomi delle nostre giocatrici nella grafica della diretta», spento di partenza).
     `PwaClient` non mostra avvisi su `/diretta*`.
     **Copia compatta del punteggio**: a ogni salvataggio dello Scout (`PUT` e `DELETE` di
     `/api/scout/[matchId]`, e la cancellazione della partita) si aggiorna, dopo la risposta
     (`after()`), `app_settings.public_live_scout` (`src/lib/scout/publicSnapshot.ts`: il
-    punteggio pubblico, mai nomi, poche centinaia di byte) e l'endpoint pubblico la legge
+    punteggio pubblico, uno o due KB al più) e l'endpoint pubblico la legge
     invece dell'intera riga dello scout; se non c'è una copia «in diretta» ripiega sulla
     lettura completa, come prima. Mai in modalità prova. Nessuna migrazione: `app_settings`
     esiste già. Il campo opzionale `PublicLiveScore.point` (SET/MATCH POINT) lo calcola
@@ -562,8 +577,16 @@ staff (Developer e Admin).
     muri, ace, `gifts` = punti da errori dell'avversaria, serie più lunga e time-out del set)
     per l'ultimo set chiuso, ricavato da `setRecapCounts` in `stats.ts` (stessa regola del
     tabellino: attacchi + muri + ace + regali fanno il punteggio del set). Solo totali di
-    squadra, mai nomi né numeri di maglia; compare dopo il primo set chiuso e col Live score
-    non c'è (resta la striscia «Fine set»). Il banner del sito non lo mostra.
+    squadra; compare dopo il primo set chiuso e col Live score non c'è (resta il fine set
+    senza numeri). Il banner del sito non lo mostra.
+    **Grafica della diretta, il resto** (solo dallo Scout, tutto facoltativo in `PublicLiveScore`):
+    `setStats` (gli stessi numeri del set in corso, per il time-out), `matchStats` (somma dei
+    set, per il finale), `run` (serie in corso da `RUN_MIN` = 4 punti), `subs` (i nostri cambi
+    del set in corso, gli ultimi 6, con `id` per annunciare solo quelli nuovi), `lineup` (la
+    nostra formazione del set: a 0–0 quella della preparazione o, dal 2° set, quella confermata;
+    a set cominciato quella di partenza) e `info` (data, palazzetto, casa, amichevole: quello che
+    il calendario già mostra). Giocatrici come `PublicPlayer`: `number` e `name` solo con
+    `publicNames`; mai gli id della rosa.
   - **Schermo intero**: il pulsante in alto (`useStageFullscreen`, lo stesso del
     Live score: schermo intero vero dove il browser lo dà, altrimenti il
     riquadro ricopre la finestra, e si esce con «Esci» o Esc) mette lo Scout a
@@ -607,8 +630,10 @@ staff (Developer e Admin).
   - **Punteggio live pubblico**: lo Scout ha `settings.publicLive` (interruttore
     nella preparazione e pulsante «Punteggio live sul sito»). `/api/livescore/
     pubblico` unisce il Live score e lo Scout acceso (`getPublicLiveScout`,
-    `src/lib/scout/publicScore.ts`): mai nomi né numeri, solo squadre, punti,
-    set, chi batte e time-out usati; se sono accesi entrambi vince il più recente.
+    `src/lib/scout/publicScore.ts`): squadre, punti, set, chi batte e time-out
+    usati per il banner; per la grafica della diretta video anche numeri di
+    squadra, cambi e formazione con i numeri di maglia (i nomi solo con
+    `settings.publicNames`); se sono accesi entrambi vince il più recente.
   - **Guida e manuale**: la guida passo passo è il tour dello Scout
     (`src/components/tour/scoutSteps.ts`, schede ricche con capitolo, esempio,
     consiglio, attenzione; parte da sola con `?guida=1` dal riquadro «Prima

@@ -539,11 +539,20 @@ export function ScoutSetup({
         <CardBody>
           <Toggle
             label="Mostra il punteggio sul sito pubblico"
-            description="Solo le due squadre, i punti, i set e chi batte (risultato non ufficiale): mai nomi, numeri di maglia o dettagli degli scambi. Compare dal primo punto segnato e lo spegni quando vuoi."
+            description="Sul sito: le due squadre, i punti, i set e chi batte (risultato non ufficiale), dal primo punto segnato. Nella grafica della diretta video anche i numeri di squadra, i nostri cambi e la nostra formazione con i numeri di maglia. Mai chi ha fatto punto né i dettagli degli scambi. Lo spegni quando vuoi."
             checked={data.settings.publicLive}
             onChange={(e) => dispatch({ type: "settings", patch: { publicLive: e.target.checked } })}
             data-scout-public-live
           />
+          <div className="mt-4">
+            <Toggle
+              label="Nomi delle nostre giocatrici nella grafica della diretta"
+              description="Come in Serie A: nei cambi e nella formazione, accanto al numero di maglia, anche il nome. Accendilo solo se i genitori hanno firmato la liberatoria; spento si vede solo il numero."
+              checked={data.settings.publicNames === true}
+              onChange={(e) => dispatch({ type: "settings", patch: { publicNames: e.target.checked } })}
+              data-scout-public-names
+            />
+          </div>
         </CardBody>
       </Card>
     </div>

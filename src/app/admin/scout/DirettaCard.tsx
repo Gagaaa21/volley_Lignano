@@ -12,7 +12,7 @@ const initialState: DirettaState = {};
 const NAME_HINTS = ["Campo", "Dietro", "Panchina"];
 
 /** Copia negli appunti un indirizzo di questo sito: la pagina dei genitori o la grafica da mettere in Streamlabs / OBS. */
-function CopyAddressButton({ path, label, kind }: { path: string; label: string; kind: "parents" | "graphic" }) {
+function CopyAddressButton({ path, label, kind }: { path: string; label: string; kind: "parents" | "graphic" | "verify" }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -24,7 +24,12 @@ function CopyAddressButton({ path, label, kind }: { path: string; label: string;
     }
   }
   return (
-    <Button type="button" variant="outline" onClick={copy} {...(kind === "parents" ? { "data-diretta-copy": true } : { "data-diretta-copy-graphic": true })}>
+    <Button
+      type="button"
+      variant="outline"
+      onClick={copy}
+      {...(kind === "parents" ? { "data-diretta-copy": true } : kind === "graphic" ? { "data-diretta-copy-graphic": true } : { "data-diretta-copy-verify": true })}
+    >
       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       {copied ? "Copiato" : label}
     </Button>
@@ -134,12 +139,31 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             Apri la pagina dei genitori
           </a>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-muted/60 px-3.5 py-2.5" data-diretta-computer>
-          <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">
-            Dal computer con Streamlabs Desktop (o OBS) la grafica entra nel video: aggiungi una «Browser Source» con questo indirizzo, 1920×1080, e ai genitori
-            mandi direttamente il link di YouTube. I passi sono nella Guida.
+        <div className="space-y-2.5 rounded-xl bg-muted/60 px-3.5 py-3" data-diretta-computer>
+          <p className="text-sm text-muted-foreground">
+            Dal computer con Streamlabs Desktop (o OBS) la grafica entra nel video, come in Serie A: barra del punteggio, time-out, cambi, presentazione,
+            formazione, fine set e finale. Aggiungi una «Browser Source» con questo indirizzo, <b className="font-semibold text-foreground">larghezza 1920 e altezza 1080</b>,
+            poi tasto destro → Trasforma → <b className="font-semibold text-foreground">Adatta allo schermo</b>: con la misura di partenza (800×600) la grafica si sgrana
+            o finisce spostata. Ai genitori mandi direttamente il link di YouTube. I passi sono nella Guida.
           </p>
-          <CopyAddressButton path="/diretta/grafica" label="Copia l'indirizzo della grafica" kind="graphic" />
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyAddressButton path="/diretta/grafica" label="Copia l'indirizzo della grafica" kind="graphic" />
+            <CopyAddressButton path="/diretta/grafica?verifica=1" label="Copia l'indirizzo di verifica" kind="verify" />
+            <a
+              href="/diretta/grafica?prova=1"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-primary hover:underline"
+              data-diretta-try
+            >
+              <ExternalLink className="h-4 w-4" />
+              Guarda la partita finta
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            L&apos;indirizzo di verifica mostra nell&apos;anteprima la misura vera della fonte e cosa correggere (verde = a posto). Usalo per controllare, poi metti quello
+            della grafica.
+          </p>
         </div>
         {state.error && (
           <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5" data-diretta-error>

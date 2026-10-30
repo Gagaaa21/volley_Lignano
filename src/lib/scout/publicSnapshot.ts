@@ -9,8 +9,9 @@ import type { MatchScout } from "./types";
  *
  * Senza di lei, ogni lettura del punteggio scaricava da Supabase l'intera riga dello scout (tutti gli scambi e i tocchi:
  * decine o centinaia di KB) per poi tenerne tre righe. Con la diretta video il punteggio resta acceso per tutta la
- * partita, quindi a ogni salvataggio dello Scout se ne ricava la versione pubblica (qualche centinaio di byte, mai nomi né
- * numeri di maglia, vedi toPublicScoutScore) e la si tiene in `app_settings`; la lettura pubblica rilegge solo quella.
+ * partita, quindi a ogni salvataggio dello Scout se ne ricava la versione pubblica (un paio di KB al più: punteggio, numeri di
+ * squadra, nostri cambi e formazione con i numeri di maglia, i nomi solo se accesi, vedi toPublicScoutScore) e la si tiene in
+ * `app_settings`; la lettura pubblica rilegge solo quella.
  *
  * Valore salvato: `{ matchId, live }`. `live` è null quando quella partita ha spento il punteggio: serve a dire «non c'è
  * niente» senza ripiegare sulla lettura completa. Acceso ma senza ancora un punto, `live` è la partita «non iniziata»
@@ -36,6 +37,25 @@ const recapTeamSchema = z.object({
   timeouts: z.number().int().min(0),
 });
 
+const statsSchema = z.object({ home: recapTeamSchema, away: recapTeamSchema });
+
+const playerSchema = z.object({ number: z.string().max(10).nullable(), name: z.string().max(200).optional() });
+
+const subSchema = z.object({ id: z.string().min(1).max(100), in: playerSchema, out: playerSchema, score: scoreSchema });
+
+const lineupSchema = z.object({
+  set: z.number().int().min(1).max(9),
+  positions: z.array(playerSchema.nullable()).max(6),
+  libero: playerSchema.nullable(),
+});
+
+const infoSchema = z.object({
+  date: z.string().max(40),
+  venue: z.string().max(300).nullable(),
+  home: z.boolean(),
+  friendly: z.boolean(),
+});
+
 export const publicLiveScoreSchema = z.object({
   team: z.enum(["u14u15", "minivolley"]),
   category: z.enum(["U14", "U15"]).nullable(),
@@ -59,6 +79,12 @@ export const publicLiveScoreSchema = z.object({
       away: recapTeamSchema,
     })
     .optional(),
+  setStats: statsSchema.optional(),
+  matchStats: statsSchema.optional(),
+  run: z.object({ side: z.enum(["home", "away"]), points: z.number().int().min(1) }).optional(),
+  subs: z.array(subSchema).max(20).optional(),
+  lineup: lineupSchema.optional(),
+  info: infoSchema.optional(),
 }) satisfies z.ZodType<PublicLiveScore>;
 
 const storedSchema = z.object({ matchId: z.string().min(1), live: publicLiveScoreSchema.nullable() });

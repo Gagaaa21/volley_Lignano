@@ -693,6 +693,97 @@
   }
 }
 
+/* Il pacchetto della diretta in stile Serie A (src/components/diretta): caratteri stretti e maiuscoli come in TV, la
+   transizione a bande diagonali prima e dopo le grafiche a schermo intero, i sottopancia che si aprono con una tendina, le
+   strisce che scendono da sotto la barra. Tutto in rem (1 rem = 1/120 della larghezza della sorgente). */
+@utility grafica-type {
+  font-family: var(--font-display);
+  font-stretch: 72%;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+@keyframes grafica-stinger {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(140%) skewX(-18deg);
+  }
+}
+@keyframes grafica-full-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes grafica-full-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes grafica-wipe-in {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes grafica-wipe-out {
+  0% {
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+@keyframes grafica-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(1.2rem);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes grafica-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes grafica-sheen {
+  0%,
+  70% {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(360%) skewX(-20deg);
+  }
+}
+@keyframes grafica-grow {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
 /* Tour guidato (src/components/tour/Tour.tsx): dissolvenza della scheda a
    ogni nuovo passo. Stessa convenzione delle animazioni live score sopra. */
 @keyframes tour-fade-in {

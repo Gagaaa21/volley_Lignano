@@ -2,12 +2,13 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { FullScreen } from "@/components/diretta/FullScreen";
+import { LowerThird } from "@/components/diretta/LowerThird";
 import { Scorebug } from "@/components/diretta/Scorebug";
 import { ScorebugWide } from "@/components/diretta/ScorebugWide";
-import { SetRecapPanel } from "@/components/diretta/SetRecapPanel";
-import { FADE_MS, GraficaCard } from "@/components/diretta/Cards";
+import { VerifyFrame } from "@/components/diretta/VerifyFrame";
 import { cn } from "@/lib/cn";
-import { demoScript } from "@/lib/diretta/demo";
+import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
 import { clampDelaySeconds, takeDue, type Reading } from "@/lib/diretta/delay";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
@@ -18,9 +19,7 @@ const ENDPOINT = "/api/livescore/pubblico?prima=1";
 const LIVE_POLL_MS = 2_000;
 /** …altrimenti ogni 15, per accorgersi di una partita che comincia. */
 const IDLE_POLL_MS = 15_000;
-/** Ogni quanto avanza la partita finta (`?prova=1`). */
-const DEMO_STEP_MS = 1_500;
-/** Con una scheda aperta si aggiorna l'ora ogni decimo di secondo: conto alla rovescia e dissolvenza. */
+/** Con una grafica in onda (o in coda) si aggiorna l'ora ogni decimo di secondo: conto alla rovescia, transizioni, coda. */
 const TICK_MS = 100;
 /** Ogni quanto si guarda la coda del ritardo. */
 const QUEUE_MS = 250;
@@ -37,9 +36,12 @@ type Position = keyof typeof POSITIONS;
 
 const parsePosition = (value: string | null): Position => (value && value in POSITIONS ? (value as Position) : "alto-sinistra");
 
-/** Quali barre mostrare: la piccola in un angolo, la larga in basso al centro (come in TV), o tutte e due (di partenza). */
+/**
+ * Quali barre mostrare: di partenza la barra in alto a sinistra, come in SuperLega; oppure la larga in basso al centro, o tutte
+ * e due (come prima: le stesse informazioni due volte).
+ */
 type BarStyle = "piccola" | "larga" | "entrambe";
-const parseStyle = (value: string | null): BarStyle => (value === "piccola" || value === "larga" ? value : "entrambe");
+const parseStyle = (value: string | null): BarStyle => (value === "larga" || value === "entrambe" ? value : "piccola");
 /** La scala in percentuale (50–200), 100 se manca o non è un numero. */
 const parseScale = (value: string | null): number => {
   const scale = Number(value);
@@ -52,22 +54,25 @@ const parseInterval = (value: string | null): number => {
 };
 
 /**
- * La grafica della diretta video: si mette sopra il video, in OBS come «Sorgente browser» (1920×1080) oppure, come fa la
- * pagina /diretta dei genitori, in un riquadro trasparente sopra il lettore YouTube. Sfondo trasparente, barra del punteggio in
- * un angolo e, sotto, le schede di time-out, fine set e finale. Legge lo stesso punteggio pubblico del banner del sito
- * (squadre, punti, set, battuta, time-out: mai nomi né numeri di maglia).
+ * La grafica della diretta video, come una regia di Serie A: si mette sopra il video, in OBS / Streamlabs come «Sorgente
+ * browser» (1920×1080) oppure, come fa la pagina /diretta dei genitori, in un riquadro trasparente sopra il lettore YouTube.
+ * Sfondo trasparente; legge lo stesso punteggio pubblico del banner del sito e da solo, senza nessuno in regia, manda in onda:
+ * - la barra del punteggio in alto a sinistra, con SET POINT / MATCH POINT e la serie di punti in corso;
+ * - in basso a sinistra i sottopancia: time-out (conto alla rovescia e punti del set) e cambi della nostra squadra;
+ * - a schermo intero, con la transizione: presentazione e formazione prima del via, fine set, risultato finale.
  *
- * Due barre di partenza: la piccola in un angolo (con le schede di time-out e finale sotto) e la larga in basso al centro,
- * con i due loghi; a fine set un resoconto al centro, sopra la larga. Opzioni nell'indirizzo: `?stile=piccola|larga` (una
- * barra sola; di partenza tutte e due), `?prova=1` (partita finta in ciclo, per provare senza Scout), `?posizione=alto-destra|
- * basso-sinistra|basso-destra` (default alto-sinistra, vale per la piccola), `?scala=120` (percentuale), `?ritardo=15` (secondi: il punteggio si mostra dopo tanto,
+ * Opzioni nell'indirizzo: `?stile=larga|entrambe` (la barra larga in basso al centro, da sola o insieme a quella in alto),
+ * `?prova=1` (partita finta in ciclo, per provare senza Scout), `?verifica=1` (la partita finta con la verifica delle misure
+ * della sorgente: angoli, area sicura e cosa correggere), `?posizione=alto-destra|basso-sinistra|basso-destra` (default
+ * alto-sinistra, vale per la barra), `?scala=120` (percentuale), `?ritardo=15` (secondi: il punteggio si mostra dopo tanto,
  * per allinearlo al video di YouTube, che arriva con 10–20 secondi di ritardo; la pagina /diretta lo cambia con un messaggio,
- * come la scala),
- * `?intervallo=8` (secondi tra una lettura e l'altra, e si ferma a scheda nascosta: per chi guarda dalla pagina /diretta).
+ * come la scala), `?intervallo=8` (secondi tra una lettura e l'altra, e si ferma a scheda nascosta: per chi guarda dalla pagina
+ * /diretta).
  */
 export function GraficaClient() {
   const params = useSearchParams();
-  const demo = params.get("prova") === "1";
+  const verify = params.get("verifica") === "1";
+  const demo = verify || params.get("prova") === "1";
   const position = parsePosition(params.get("posizione"));
   const style = parseStyle(params.get("stile"));
   const viewer = params.get("intervallo") !== null;
@@ -171,65 +176,50 @@ export function GraficaClient() {
     return () => clearInterval(timer);
   }, [demo]);
 
-  // Con una scheda aperta l'ora corre: conto alla rovescia e chiusura.
-  const hasCard = feed.card !== null;
+  // Con una grafica in onda o in coda l'ora corre: conto alla rovescia, transizioni, la prossima della coda.
+  const busy = feed.full !== null || feed.timeout !== null || feed.sub !== null || feed.fullQueue.length > 0 || feed.subQueue.length > 0;
   useEffect(() => {
-    if (!hasCard) return;
+    if (!busy) return;
     const timer = setInterval(() => dispatch({ type: "tick", now: clock() }), TICK_MS);
     return () => clearInterval(timer);
-  }, [hasCard]);
+  }, [busy]);
 
-  const { live, card, now } = feed;
-  const bottom = position.startsWith("basso");
+  const { live, full, timeout, sub, now } = feed;
   const showSmall = style !== "larga";
   const showWide = style !== "piccola";
-  // Il resoconto (fine set o finale con i numeri di squadra) sta al centro, sopra la barra larga; time-out e le altre strisce
-  // sotto la piccola, o sopra la larga se la piccola non c'è.
-  const recapCard = card && (card.kind === "set" || card.kind === "final") && card.recap ? card : null;
-  const stripCard = card && !recapCard ? card : null;
-  const leaving = card ? card.until - now < FADE_MS : false;
-  const recapPanel =
-    live && recapCard?.recap ? (
-      <SetRecapPanel
-        live={live}
-        recap={recapCard.recap}
-        kind={recapCard.kind === "final" ? "final" : "set"}
-        score={recapCard.kind === "set" ? { home: recapCard.home, away: recapCard.away } : { home: 0, away: 0 }}
-        leaving={leaving}
-      />
-    ) : null;
+  // A schermo intero la barra si nasconde (la transizione la copre), e torna quando la grafica se ne va.
+  const fullOn = full !== null;
+  // I sottopancia in basso a sinistra; a destra se in basso a sinistra c'è la barra, più in alto se c'è la barra larga.
+  const stripRight = showSmall && position === "basso-sinistra";
 
   return (
     <>
-      <style>{`html{font-size:calc(100vw / 120 * ${scale / 100}) !important}`}</style>
+      <style>{`html{font-size:calc(100vw / 120 * ${scale / 100}) !important;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}`}</style>
       <main
-        className="fixed inset-0"
+        className="fixed inset-0 overflow-hidden"
         data-grafica={live ? "live" : "idle"}
         data-grafica-demo={demo ? "" : undefined}
         data-grafica-delay={delaySeconds}
         data-grafica-style={style}
       >
         {live && showSmall && (
-          <div className={cn("absolute inset-0 flex p-[4rem]", POSITIONS[position])}>
-            <div className={cn("flex w-[40rem] gap-[0.5rem]", bottom ? "flex-col-reverse" : "flex-col")} style={{ "--card-from": bottom ? "40%" : "-40%" } as React.CSSProperties}>
-              <Scorebug live={live} />
-              {stripCard && <GraficaCard card={stripCard} live={live} now={now} />}
-            </div>
+          <div className={cn("absolute inset-0 flex px-[4rem] py-[3.4rem] transition-opacity duration-300", POSITIONS[position], fullOn && "opacity-0")}>
+            <Scorebug live={live} />
           </div>
         )}
         {live && showWide && (
-          <div className="absolute inset-x-0 bottom-[2.5rem] flex flex-col items-center gap-[0.8rem] px-[2rem]" style={{ "--card-from": "40%" } as React.CSSProperties}>
-            {recapPanel}
-            {!showSmall && stripCard && <GraficaCard card={stripCard} live={live} now={now} />}
+          <div className={cn("absolute inset-x-0 bottom-[2.5rem] flex justify-center px-[2rem] transition-opacity duration-300", fullOn && "opacity-0")}>
             <ScorebugWide live={live} />
           </div>
         )}
-        {/* Con la sola barra piccola il resoconto sta lo stesso al centro, in basso. */}
-        {live && !showWide && recapPanel && (
-          <div className="absolute inset-x-0 bottom-[4rem] flex justify-center px-[2rem]" style={{ "--card-from": "40%" } as React.CSSProperties}>
-            {recapPanel}
+        {live && (timeout || sub) && !fullOn && (
+          <div className={cn("absolute flex flex-col gap-[0.8rem]", stripRight ? "right-[4rem] items-end" : "left-[4rem] items-start", showWide ? "bottom-[12.5rem]" : "bottom-[3.6rem]")}>
+            {sub && <LowerThird card={sub} live={live} now={now} />}
+            {timeout && <LowerThird card={timeout} live={live} now={now} />}
           </div>
         )}
+        {live && full && <FullScreen card={full} live={live} now={now} />}
+        {verify && <VerifyFrame />}
       </main>
     </>
   );

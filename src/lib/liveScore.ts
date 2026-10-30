@@ -127,6 +127,32 @@ export function teamMonogram(name: string): string {
   return letters.toUpperCase();
 }
 
+/** Oltre alle parole delle iniziali, quelle che nel nome corto di una squadra non servono: forma societaria e categoria. */
+const SHORT_NAME_NOISE = new Set([...NAME_NOISE, "club", "associazione", "sportiva", "dilettantistica", "societa", "società", "srl", "under", "femminile"]);
+
+/**
+ * Il nome corto di una squadra per la barra del punteggio della diretta video, come in Serie A («PERUGIA», «TRENTO»): senza
+ * forma societaria, «Volley», «Pallavolo» e categoria. «Volley Lignano» → «Lignano», «A.S.D. Pallavolo Latisana» → «Latisana»,
+ * «Pol. Città Bella» → «Città Bella». Si tengono le prime parole che stanno in `max` lettere; se non resta niente, il nome intero.
+ */
+export function teamShortName(name: string, max = 14): string {
+  const words = name
+    .replace(/[.'’_]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 0 && !SHORT_NAME_NOISE.has(word.toLowerCase()) && !/^\d+$/.test(word) && !/^u\d{2}$/i.test(word));
+  if (words.length === 0) return name.trim();
+  const kept = [words[0]];
+  for (const word of words.slice(1)) {
+    if (kept.join(" ").length + 1 + word.length > max) break;
+    kept.push(word);
+  }
+  // Non si finisce con «di», «del», «al»…: «Pallavolo San Giorgio di Nogaro» → «San Giorgio».
+  while (kept.length > 1 && SHORT_NAME_LINKS.has(kept[kept.length - 1].toLowerCase())) kept.pop();
+  return kept.join(" ");
+}
+
+const SHORT_NAME_LINKS = new Set(["di", "de", "del", "della", "dei", "delle", "da", "a", "al", "alla", "e", "in", "sul", "sulla", "san", "s"]);
+
 // ── Stato iniziale ─────────────────────────────────────────────────────
 
 export function emptyTeam(label: string, players: LiveScorePlayers = 6): LiveScoreTeamState {

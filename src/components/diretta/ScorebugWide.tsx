@@ -1,6 +1,7 @@
 import { Timer, Trophy, Volleyball } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { Side } from "@/lib/diretta/overlayEvents";
+import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import { accent, TeamMark } from "./TeamMark";
@@ -9,8 +10,9 @@ import { accent, TeamMark } from "./TeamMark";
  * La barra larga della diretta video, in basso al centro, come nelle partite di SuperLega: a sinistra Lignano (stemma e nome),
  * a destra l'avversaria (nome e logo), in mezzo i punti del set in un riquadro scuro; «SETS» e i set vinti accanto ai punti,
  * i time-out usati sotto, il pallone su chi batte; sotto il riquadro la linguetta con il set in corso (e «Set point» /
- * «Match point» che pulsa). Stesse regole della barra piccola: misure in rem (1 rem = 1/120 della larghezza), mai nomi né
- * numeri di maglia. A partita finita nel riquadro vanno i set vinti.
+ * «Match point» che pulsa). Si sceglie con `?stile=larga` (o `entrambe`); di partenza c'è la barra in alto a sinistra.
+ * Stesse regole della barra in alto: misure in rem (1 rem = 1/120 della larghezza), nomi corti. A partita finita nel
+ * riquadro vanno i set vinti.
  */
 
 const NAVY = "#06141f";
@@ -39,7 +41,7 @@ function SetsBox({ sets, timeouts, side }: { sets: number; timeouts: number | nu
   return (
     <span className="flex w-[5rem] shrink-0 flex-col items-center justify-center gap-[0.1rem] bg-black/25" data-grafica-wide-sets-box={side}>
       <span className="text-[0.75rem] font-extrabold uppercase leading-none tracking-[0.18em] text-white/70">Sets</span>
-      <span className="font-display text-[2.3rem] font-extrabold leading-none tabular-nums" data-grafica-wide-sets={side}>
+      <span className="grafica-type text-[2.5rem] tabular-nums" data-grafica-wide-sets={side}>
         {sets}
       </span>
       {timeouts !== null ? <Timeouts used={timeouts} side={side} /> : <span className="h-[0.8rem]" />}
@@ -70,11 +72,11 @@ function TeamSide({
   const logo = <TeamMark team={team} side={side} className={cn("h-[3.6rem] w-[3.6rem]", dimmed && "opacity-60")} />;
   const name = (
     <span
-      className={cn("min-w-0 flex-1 truncate font-display text-[1.8rem] font-extrabold uppercase leading-none tracking-wide", dimmed && "text-white/60", side === "away" && "text-right")}
+      className={cn("grafica-type min-w-0 flex-1 truncate text-[2.1rem]", dimmed && "text-white/60", side === "away" && "text-right")}
       data-grafica-wide-name={side}
     >
       {winner && <Trophy aria-label="Ha vinto" className="mr-[0.5rem] mb-[0.2rem] inline h-[1.5rem] w-[1.5rem] text-amber-300" />}
-      {team.name}
+      {teamShortName(team.name)}
     </span>
   );
   return (
@@ -120,7 +122,7 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
         <span className="flex shrink-0 items-center justify-center gap-[1rem] px-[1.4rem]" style={{ backgroundColor: NAVY }}>
           <span
             key={`h${homePoints}`}
-            className="min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center font-display text-[3.8rem] font-extrabold leading-none tabular-nums"
+            className="grafica-type min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center text-[4.2rem] tabular-nums"
             data-grafica-wide-score="home"
           >
             {homePoints}
@@ -130,7 +132,7 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
           </span>
           <span
             key={`a${awayPoints}`}
-            className="min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center font-display text-[3.8rem] font-extrabold leading-none tabular-nums"
+            className="grafica-type min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center text-[4.2rem] tabular-nums"
             data-grafica-wide-score="away"
           >
             {awayPoints}

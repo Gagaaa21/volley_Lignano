@@ -100,9 +100,9 @@ test("con una camera: il lettore giusto, senza lo schermo intero di YouTube, e i
   const bug = (await overlay(page).locator("[data-grafica-bug]").boundingBox())!;
   const frame = (await grafica.boundingBox())!;
   expect(frame.width).toBeCloseTo(stage.width, 0);
-  // Su un riquadro largo la barra è un terzo della larghezza, come in OBS.
-  expect(bug.width).toBeGreaterThan(frame.width * 0.3);
-  expect(bug.width).toBeLessThan(frame.width * 0.36);
+  // Su un riquadro largo la barra è il 30% della larghezza (36 rem su 120), come in OBS.
+  expect(bug.width).toBeGreaterThan(frame.width * 0.28);
+  expect(bug.width).toBeLessThan(frame.width * 0.32);
   await expect(page.getByText("Risultato non ufficiale")).toBeVisible();
   // Nessun avviso del sito (installa l'app, notifiche) sopra il video.
   await expect(page.getByText(/Installa l'app|Attiva le notifiche/)).toHaveCount(0);
@@ -163,45 +163,42 @@ test("su un telefono in verticale la barra si ingrandisce per restare leggibile"
   const frame = (await page.locator("[data-diretta-overlay]").boundingBox())!;
   expect(frame.width).toBeGreaterThan(300);
   await expect(overlay(page).locator('[data-grafica-score="home"]')).toHaveText("10");
-  // 180%: la barra occupa circa il 60% della larghezza (su un riquadro largo ne occupa un terzo).
+  // 180%: la barra occupa più di metà della larghezza (su un riquadro largo ne occupa poco meno di un terzo).
   await expect
     .poll(async () => ((await overlay(page).locator("[data-grafica-bug]").boundingBox())?.width ?? 0) / frame.width, { timeout: 10_000 })
-    .toBeGreaterThan(0.55);
+    .toBeGreaterThan(0.5);
   const bug = (await overlay(page).locator("[data-grafica-bug]").boundingBox())!;
-  expect(bug.width / frame.width).toBeLessThan(0.65);
+  expect(bug.width / frame.width).toBeLessThan(0.6);
   await page.screenshot(shots("diretta-telefono"));
 });
 
-test("nel lettore ci sono le due barre, e la larga resta dentro il riquadro anche su un telefono", async ({ page }) => {
+test("nel lettore c'è la barra in alto a sinistra, come in SuperLega, e resta dentro il riquadro anche su un telefono", async ({ page }) => {
   await mockSite(page, { cameras: [{ name: "Campo", id: CAMPO }] });
   await page.goto("/diretta");
   const frame = (await page.locator("[data-diretta-overlay]").boundingBox())!;
-  await expect(overlay(page).locator("[data-grafica-bug]")).toBeVisible();
-  const wide = overlay(page).locator("[data-grafica-wide]");
-  await expect(wide).toBeVisible();
-  await expect(overlay(page).locator('[data-grafica-wide-score="home"]')).toHaveText("10");
-  // Su un riquadro largo la barra larga è circa il 70% della larghezza, centrata e in basso.
-  const box = (await wide.boundingBox())!;
-  expect(box.width).toBeGreaterThan(frame.width * 0.55);
-  expect(box.width).toBeLessThan(frame.width * 0.75);
-  expect(box.x + box.width / 2).toBeCloseTo(frame.x + frame.width / 2, 0);
-  expect(box.y).toBeGreaterThan(frame.y + frame.height * 0.7);
+  const bug = overlay(page).locator("[data-grafica-bug]");
+  await expect(bug).toBeVisible();
+  await expect(overlay(page).locator("[data-grafica-wide]")).toHaveCount(0);
+  const box = (await bug.boundingBox())!;
+  expect(box.x).toBeGreaterThan(frame.x);
+  expect(box.x).toBeLessThan(frame.x + frame.width * 0.1);
+  expect(box.y).toBeLessThan(frame.y + frame.height * 0.2);
 
-  // Su un telefono in verticale (barre ingrandite) non esce dal riquadro: i nomi si accorciano.
+  // Su un telefono in verticale (barra ingrandita) non esce dal riquadro.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   const small = (await page.locator("[data-diretta-overlay]").boundingBox())!;
-  await expect(overlay(page).locator('[data-grafica-wide-score="home"]')).toHaveText("10");
+  await expect(overlay(page).locator('[data-grafica-score="home"]')).toHaveText("10");
   await expect
     .poll(async () => {
-      const b = await overlay(page).locator("[data-grafica-wide]").boundingBox();
+      const b = await overlay(page).locator("[data-grafica-bug]").boundingBox();
       return b ? b.width / small.width : 0;
     }, { timeout: 10_000 })
-    .toBeGreaterThan(0.8);
-  const phone = (await overlay(page).locator("[data-grafica-wide]").boundingBox())!;
+    .toBeGreaterThan(0.5);
+  const phone = (await overlay(page).locator("[data-grafica-bug]").boundingBox())!;
   expect(phone.x).toBeGreaterThanOrEqual(small.x - 1);
   expect(phone.x + phone.width).toBeLessThanOrEqual(small.x + small.width + 1);
-  await page.screenshot(shots("diretta-telefono-barre"));
+  await page.screenshot(shots("diretta-telefono-barra"));
 });
 
 test("lo schermo intero è del riquadro intero (video e punteggio), e si esce con lo stesso pulsante", async ({ page }) => {
@@ -248,16 +245,16 @@ test("ritardo e scala si cambiano da fuori con un messaggio, e solo dalla stessa
   const main = page.locator("[data-grafica]");
   await expect(main).toHaveAttribute("data-grafica-delay", "10");
   await expect(page.locator("[data-grafica-bug]")).toBeVisible({ timeout: 10_000 });
-  expect((await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(640, 0);
+  expect((await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(576, 0);
 
   await page.evaluate(() => window.postMessage({ type: "vl-opzioni", ritardo: 0, scala: 150 }, window.location.origin));
   await expect(main).toHaveAttribute("data-grafica-delay", "0");
-  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(960, 0);
+  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(864, 0);
 
   // Valori assurdi si ripuliscono: ritardo a 60 al massimo, scala ignorata se fuori dai limiti.
   await page.evaluate(() => window.postMessage({ type: "vl-opzioni", ritardo: 9999, scala: 5 }, window.location.origin));
   await expect(main).toHaveAttribute("data-grafica-delay", "60");
-  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(640, 0);
+  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(576, 0);
 });
 
 test("lo sfondo della grafica sopra il lettore resta trasparente anche con il tema scuro del sito", async ({ page }) => {

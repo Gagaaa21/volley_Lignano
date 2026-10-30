@@ -108,6 +108,8 @@ export const scoutDataSchema = z
       firstServer: sideSchema,
       // Gli scout salvati prima del punteggio live non lo hanno: si leggono come spento.
       publicLive: z.boolean().default(false),
+      // I nomi nella grafica della diretta video: gli scout di prima non lo hanno, si leggono come spento.
+      publicNames: z.boolean().default(false),
       // Gli scout salvati prima dei livelli non lo hanno: si leggono come «base». Quelli del vecchio livello «Completo» come «ricezioni».
       level: z.enum([...SCOUT_LEVELS, "completo"]).transform(readLevel).default("base"),
     }),

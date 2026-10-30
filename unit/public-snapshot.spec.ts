@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
-import { addPlayer, addRally, addTimeout, newScoutData, opponentPlayer, updateSettings } from "@/lib/scout/actions";
+import { addPlayer, addRally, addTimeout, newScoutData, opponentPlayer, setLineup, substitute, updateSettings } from "@/lib/scout/actions";
 import { clearPublicScore, PUBLIC_LIVE_SCOUT_KEY, publishPublicScore, readPublicScoutSnapshot } from "@/lib/scout/publicSnapshot";
 import type { MatchScout, ScoutData } from "@/lib/scout/types";
 import { LIVE_SCORE_TTL_MS } from "@/lib/types";
@@ -33,13 +33,13 @@ test.describe("copia compatta del punteggio live", () => {
     expect(await readPublicScoutSnapshot(repo)).toBeUndefined();
   });
 
-  test("andata e ritorno: poche centinaia di byte e mai nomi, numeri di maglia o scambi", async () => {
+  test("andata e ritorno: meno di un KB e mai nomi, numeri di maglia o scambi (solo i numeri di squadra)", async () => {
     const repo = createMemoryRepo(createEmptyStore());
     await publishPublicScore(repo, scoutOf("m1", addTimeout(scoutData({ us: 3, opp: 1 }), "opp", T0 + 60_000, "t1")), MATCH);
 
     const raw = (await repo.getAppSetting(PUBLIC_LIVE_SCOUT_KEY))!;
-    expect(raw.length).toBeLessThan(700);
-    for (const secret of ["Giulia", "Bianchi", "roster", "events", "player", "rally", "attack", "n. 7"]) expect(raw).not.toContain(secret);
+    expect(raw.length).toBeLessThan(1_000);
+    for (const secret of ["Giulia", "Bianchi", "roster", "events", "player", "rally", "n. 7"]) expect(raw).not.toContain(secret);
 
     expect(await readPublicScoutSnapshot(repo, Date.parse(UPDATED_AT) + 60_000)).toMatchObject({
       team: "u14u15",
@@ -52,6 +52,33 @@ test.describe("copia compatta del punteggio live", () => {
       finished: false,
       updatedAt: UPDATED_AT,
     });
+  });
+
+  test("formazione, cambi, numeri di squadra e dati della partita viaggiano nella copia (i nomi solo se accesi)", async () => {
+    for (const names of [false, true]) {
+      const repo = createMemoryRepo(createEmptyStore());
+      let data = newScoutData({ us: [], opp: [] }, { publicLive: true, publicNames: names });
+      for (const [id, number] of [["p1", "1"], ["p2", "2"], ["p3", "3"], ["p4", "4"], ["p5", "5"], ["p6", "6"], ["p7", "7"]] as const) {
+        data = addPlayer(data, "us", { id, name: `Giulia Bianchi ${number}`, number, libero: false });
+      }
+      data = setLineup(data, "us", { positions: ["p1", "p2", "p3", "p4", "p5", "p6"], libero: null, hosts: [null, null] }, T0, "l1");
+      data = addRally(data, { actor: "us", how: "attack", player: "p1" }, T0 + 1000, "r1");
+      data = substitute(data, "us", 2, "p7", T0 + 2000, "s1");
+      const match = { ...MATCH, isHome: true, location: "Palazzetto", matchDate: "2026-10-31T18:00", isFriendly: false };
+      await publishPublicScore(repo, scoutOf("m1", data), match);
+      const raw = (await repo.getAppSetting(PUBLIC_LIVE_SCOUT_KEY))!;
+      expect(raw.length).toBeLessThan(2_500);
+      expect(raw.includes("Giulia")).toBe(names);
+      expect(raw).not.toContain('"p1"');
+      const read = await readPublicScoutSnapshot(repo, Date.parse(UPDATED_AT));
+      expect(read).toMatchObject({
+        lineup: { set: 1, positions: [{ number: "1" }, { number: "2" }, { number: "3" }, { number: "4" }, { number: "5" }, { number: "6" }] },
+        subs: [{ id: "s1", in: { number: "7" }, out: { number: "2" }, score: { home: 1, away: 0 } }],
+        setStats: { home: { attack: 1 } },
+        info: { venue: "Palazzetto", home: true },
+      });
+      expect(read?.subs?.[0].in.name).toBe(names ? "Giulia Bianchi 7" : undefined);
+    }
   });
 
   test("il set point viaggia nella copia", async () => {

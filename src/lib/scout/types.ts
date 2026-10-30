@@ -84,8 +84,16 @@ export interface ScoutSettings {
   lastSetPoints: number;
   /** Chi batte per primo nel 1° set. */
   firstServer: ScoutSide;
-  /** Punteggio live sul sito pubblico, acceso a mano: solo squadre, punti e set (risultato non ufficiale), mai nomi né numeri di maglia. */
+  /**
+   * Punteggio live sul sito pubblico, acceso a mano: il banner del sito mostra solo squadre, punti e set (risultato non
+   * ufficiale); la grafica della diretta video anche i nostri cambi e la formazione, con i numeri di maglia.
+   */
   publicLive: boolean;
+  /**
+   * Nella grafica della diretta video, accanto al numero di maglia, anche il nome delle nostre giocatrici (cambi e formazione),
+   * come in Serie A. Spento di partenza: si accende solo con la liberatoria dei genitori. Gli scout di prima non lo hanno: spento.
+   */
+  publicNames?: boolean;
   /** Quanto si segna (vedi ScoutLevel). Gli scout salvati prima dei livelli non lo hanno: valgono «base». */
   level: ScoutLevel;
 }

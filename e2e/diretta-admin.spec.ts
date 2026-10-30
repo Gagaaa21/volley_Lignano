@@ -40,7 +40,7 @@ test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", as
 
   await card.locator("summary").click();
 
-  // Due indirizzi da copiare: la pagina dei genitori e la grafica da mettere in Streamlabs Desktop / OBS (dal computer).
+  // Gli indirizzi da copiare: la pagina dei genitori, la grafica da mettere in Streamlabs Desktop / OBS (dal computer) e la sua verifica.
   await expect(card.locator("[data-diretta-computer]")).toContainText("Streamlabs");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
@@ -50,6 +50,15 @@ test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", as
   await card.locator("[data-diretta-copy-graphic]").click();
   await expect(card.locator("[data-diretta-copy-graphic]")).toContainText("Copiato");
   expect(new URL(await clipboard()).pathname).toBe("/diretta/grafica");
+  // Le misure giuste e «Adatta allo schermo» (senza, la grafica si sgrana o finisce spostata), e l'indirizzo di verifica.
+  await expect(card.locator("[data-diretta-computer]")).toContainText("larghezza 1920 e altezza 1080");
+  await expect(card.locator("[data-diretta-computer]")).toContainText("Adatta allo schermo");
+  await card.locator("[data-diretta-copy-verify]").click();
+  await expect(card.locator("[data-diretta-copy-verify]")).toContainText("Copiato");
+  const verify = new URL(await clipboard());
+  expect(verify.pathname).toBe("/diretta/grafica");
+  expect(verify.searchParams.get("verifica")).toBe("1");
+  await expect(card.locator("[data-diretta-try]")).toHaveAttribute("href", "/diretta/grafica?prova=1");
 
   await page.locator("#diretta-name-0").fill("Campo");
   await page.locator("#diretta-link-0").fill("https://www.youtube.com/live/AAAAAAAAAAA?feature=share");

@@ -695,8 +695,10 @@ export interface LiveScoreState {
 
 /** Ciò che il sito pubblico vede della diretta (vedi toPublicLiveScore in
  * src/lib/liveScore.ts e toPublicScoutScore in src/lib/scout/publicScore.ts):
- * squadre, punteggio, set e chi serve. Mai nomi delle atlete, numeri di maglia
- * o formazioni. Lignano è sempre «home». */
+ * squadre, punteggio, set e chi serve. Il banner del sito non mostra altro; la
+ * grafica della diretta video mostra anche i nostri cambi e la nostra formazione,
+ * con i numeri di maglia (i nomi solo se lo staff li accende nello Scout, vedi
+ * PublicPlayer). Mai dati dell'avversaria oltre al nome. Lignano è sempre «home». */
 export interface PublicLiveScoreTeam {
   name: string;
   color: string;
@@ -733,6 +735,45 @@ export interface PublicSetRecap {
   away: PublicSetRecapTeam;
 }
 
+/**
+ * Una nostra giocatrice nella grafica della diretta video (cambi e formazione): il numero di maglia (null se non è scritto) e
+ * il nome solo se lo staff lo ha acceso nello Scout (ScoutSettings.publicNames: serve la liberatoria dei genitori).
+ */
+export interface PublicPlayer {
+  number: string | null;
+  name?: string;
+}
+
+/** Un nostro cambio nel set in corso, per la grafica «Cambio» della diretta video. */
+export interface PublicSubstitution {
+  /** Identifica il cambio: la grafica annuncia solo quelli che non aveva ancora visto. */
+  id: string;
+  in: PublicPlayer;
+  out: PublicPlayer;
+  /** Punteggio del set quando è stato fatto. */
+  score: { home: number; away: number };
+}
+
+/** La nostra formazione di partenza del set in corso, per la grafica «Formazione» della diretta video. */
+export interface PublicLineup {
+  /** Il set a cui si riferisce (1 = primo). */
+  set: number;
+  /** Chi sta nelle posizioni 1…6 (la 1 batte), null dove non c'è nessuno. */
+  positions: (PublicPlayer | null)[];
+  libero: PublicPlayer | null;
+}
+
+/** I dati pubblici della partita (gli stessi del calendario del sito), per la presentazione della diretta video. */
+export interface PublicMatchInfo {
+  /** Data e ora della partita (ISO). */
+  date: string;
+  /** Il palazzetto, come nel calendario. */
+  venue: string | null;
+  /** Giochiamo in casa. */
+  home: boolean;
+  friendly: boolean;
+}
+
 export interface PublicLiveScore {
   team: TrainingTeam;
   category: Category | null;
@@ -751,6 +792,18 @@ export interface PublicLiveScore {
   /** Il resoconto dell'ultimo set chiuso (a partita finita, dell'ultimo giocato), con i totali di squadra ricavati dallo Scout:
    * serve alla grafica di fine set della diretta video. Assente finché non si chiude un set e col Live score. */
   recap?: PublicSetRecap;
+  /** I numeri di squadra del set in corso, dal primo punto (grafica del time-out). Solo dallo Scout. */
+  setStats?: { home: PublicSetRecapTeam; away: PublicSetRecapTeam };
+  /** I numeri di squadra di tutta la partita: somma dei set (la serie è la più lunga). Grafica del finale. Solo dallo Scout. */
+  matchStats?: { home: PublicSetRecapTeam; away: PublicSetRecapTeam };
+  /** La serie di punti in corso, quando è di almeno RUN_MIN (striscia «Parziale 4-0» sotto la barra). Solo dallo Scout. */
+  run?: { side: "home" | "away"; points: number };
+  /** I nostri cambi nel set in corso, in ordine (gli ultimi). Solo dallo Scout, con la formazione seguita. */
+  subs?: PublicSubstitution[];
+  /** La nostra formazione del set in corso, quando lo Scout la conosce. */
+  lineup?: PublicLineup;
+  /** Data, palazzetto, casa/trasferta (presentazione della partita). Solo dallo Scout. */
+  info?: PublicMatchInfo;
   /** Punteggio live acceso ma ancora nessun punto: 0–0. Solo la grafica della diretta video lo riceve (con `?prima=1`), per
    * far comparire la barra appena si accende il live; il banner del sito non lo vede mai. Assente quando la partita è cominciata. */
   notStarted?: true;

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
-import { addPlayer, addRally, addTimeout, endSet, newScoutData, opponentPlayer, scoutReducer, updateSettings } from "@/lib/scout/actions";
+import { addPlayer, addRally, addTimeout, endSet, newScoutData, opponentPlayer, scoutReducer, setLineup, substitute, updateSettings } from "@/lib/scout/actions";
 import { deriveScout } from "@/lib/scout/derive";
 import { scoutDataSchema } from "@/lib/scout/schema";
 import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
@@ -129,15 +129,92 @@ test.describe("punteggio live dallo scout", () => {
     expect(toPublicScoutScore({ ...data, updatedAt: "2026-10-17T09:30:00.000Z" }, { ...MATCH, opponent: "  " })?.away.name).toBe("Avversaria");
   });
 
-  test("non esce mai niente che riguardi le giocatrici", () => {
+  test("senza formazione non esce niente che riguardi le giocatrici: solo i numeri di squadra", () => {
     const data = play(updateSettings(base(), { publicLive: true }), 8, 6);
     const json = JSON.stringify(live(data));
     expect(json).not.toContain("Giulia");
     expect(json).not.toContain("Bianchi");
     expect(json).not.toContain("a1");
     expect(json).not.toContain("roster");
-    expect(json).not.toContain("attack");
-    expect(Object.keys(live(data) ?? {}).sort()).toEqual(["away", "category", "finished", "home", "serving", "sets", "team", "timeouts", "updatedAt"]);
+    // Le ultime 6 sono loro: c'è anche la serie in corso.
+    expect(Object.keys(live(data) ?? {}).sort()).toEqual(["away", "category", "finished", "home", "matchStats", "run", "serving", "setStats", "sets", "team", "timeouts", "updatedAt"]);
+  });
+});
+
+test.describe("punteggio live dallo scout: la grafica della diretta video", () => {
+  const ROSTER = [
+    { id: "p7", name: "Anna Rossi", number: "7", libero: false },
+    { id: "p12", name: "Bea Bianchi", number: "12", libero: false },
+    { id: "p3", name: "Carla Verdi", number: "3", libero: false },
+    { id: "p9", name: "Dora Neri", number: "9", libero: false },
+    { id: "p15", name: "Eva Galli", number: "15", libero: false },
+    { id: "p4", name: "Fede Conti", number: "4", libero: false },
+    { id: "p1", name: "Gaia Riva", number: "1", libero: true },
+    { id: "p10", name: "Ilaria Costa", number: "10", libero: false },
+  ];
+  const DATED = { ...MATCH, isHome: true, location: "Palazzetto di Lignano", matchDate: "2026-10-31T18:00", isFriendly: false };
+
+  function withLineup(names = false): ScoutData {
+    let data = newScoutData({ us: [], opp: [] }, { publicLive: true, publicNames: names });
+    for (const player of ROSTER) data = addPlayer(data, "us", player);
+    return setLineup(data, "us", { positions: ["p7", "p12", "p3", "p9", "p15", "p4"], libero: "p1", hosts: ["p3", "p4"] }, T0, "l1");
+  }
+  const json = (value: unknown) => JSON.stringify(value);
+
+  test("prima del via: formazione con i soli numeri di maglia e i dati della partita; mai gli id né i nomi", () => {
+    const result = toPublicScoutScore({ ...withLineup(), updatedAt: "2026-10-17T09:30:00.000Z" }, DATED);
+    expect(result).toMatchObject({
+      notStarted: true,
+      lineup: { set: 1, positions: [{ number: "7" }, { number: "12" }, { number: "3" }, { number: "9" }, { number: "15" }, { number: "4" }], libero: { number: "1" } },
+      info: { date: "2026-10-31T18:00", venue: "Palazzetto di Lignano", home: true, friendly: false },
+    });
+    expect(json(result)).not.toMatch(/Rossi|Anna|"p7"|"p1"/);
+    // Senza data della partita (le prove, i dati di prima) non c'è la presentazione.
+    expect(toPublicScoutScore({ ...withLineup(), updatedAt: "2026-10-17T09:30:00.000Z" }, MATCH)).not.toHaveProperty("info");
+  });
+
+  test("con i nomi accesi dallo staff, accanto al numero c'è anche il nome", () => {
+    const result = toPublicScoutScore({ ...withLineup(true), updatedAt: "2026-10-17T09:30:00.000Z" }, DATED);
+    expect(result?.lineup?.positions[0]).toEqual({ number: "7", name: "Anna Rossi" });
+    expect(result?.lineup?.libero).toEqual({ number: "1", name: "Gaia Riva" });
+  });
+
+  test("i cambi del set in corso: chi entra e chi esce, con il punteggio; i nomi solo se accesi", () => {
+    for (const names of [false, true]) {
+      let data = withLineup(names);
+      data = addRally(data, { actor: "us", how: "attack", player: "p7" }, T0 + 1000, "r1");
+      data = substitute(data, "us", 2, "p10", T0 + 2000, "s1");
+      const result = live(data);
+      expect(result?.subs).toEqual([
+        { id: "s1", in: names ? { number: "10", name: "Ilaria Costa" } : { number: "10" }, out: names ? { number: "12", name: "Bea Bianchi" } : { number: "12" }, score: { home: 1, away: 0 } },
+      ]);
+      // A set cominciato la formazione è quella di partenza (il cambio non la tocca).
+      expect(result?.lineup?.positions[1]).toMatchObject({ number: "12" });
+    }
+  });
+
+  test("numeri del set in corso e della partita, e la serie di punti dalla quarta di fila", () => {
+    let data = withLineup();
+    data = play(data, 3, 0);
+    expect(live(data)).not.toHaveProperty("run");
+    data = play(data, 1, 2, 10);
+    expect(live(data)).not.toHaveProperty("run");
+    data = play(data, 4, 0, 20);
+    const result = live(data)!;
+    expect(result.run).toEqual({ side: "home", points: 4 });
+    const sum = (t: { attack: number; block: number; ace: number; gifts: number }) => t.attack + t.block + t.ace + t.gifts;
+    expect(sum(result.setStats!.home)).toBe(result.home.score);
+    expect(sum(result.setStats!.away)).toBe(result.away.score);
+    expect(result.matchStats).toEqual(result.setStats);
+  });
+
+  test("a un set nuovo la formazione compare solo quando lo staff conferma con quale si ricomincia", () => {
+    let data = play(withLineup(), 25, 20);
+    data = endSet(data, "opp", T0 + 100_000, "e1");
+    expect(live(data)).not.toHaveProperty("lineup");
+    expect(live(data)?.matchStats?.home.attack).toBe(25);
+    data = setLineup(data, "us", { positions: ["p4", "p7", "p12", "p3", "p9", "p15"], libero: "p1", hosts: ["p3", "p4"] }, T0 + 110_000, "l2");
+    expect(live(data)?.lineup).toMatchObject({ set: 2, positions: [{ number: "4" }, { number: "7" }, { number: "12" }, { number: "3" }, { number: "9" }, { number: "15" }] });
   });
 });
 

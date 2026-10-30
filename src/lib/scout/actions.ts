@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS: ScoutSettings = {
   lastSetPoints: 15,
   firstServer: "us",
   publicLive: false,
+  publicNames: false,
   level: "base",
 };
 

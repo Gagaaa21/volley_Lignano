@@ -3,7 +3,7 @@ import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "
 
 /**
  * Punteggio live sul sito pubblico, acceso dallo Scout: si vede solo il
- * punteggio (squadre, punti, set, chi batte), mai nomi o numeri delle
+ * punteggio (squadre, punti, set, chi batte, e per la grafica i numeri di squadra), mai nomi o numeri delle
  * giocatrici, e si spegne dallo stesso pulsante. Come per il Live score,
  * la prova si fa anche da un visitatore senza accesso.
  */
@@ -64,6 +64,7 @@ type PublicLive = {
   timeouts: { home: number; away: number };
   finished: boolean;
   notStarted?: true;
+  setStats?: unknown;
   updatedAt: string;
 } | null;
 
@@ -118,7 +119,8 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   await expect(score(page)).toHaveText("2–1");
   await expect(sync(page)).toContainText("Salvato");
 
-  // Un visitatore senza accesso: la API dà solo il punteggio, senza nomi, numeri né dettagli degli scambi.
+  // Un visitatore senza accesso: la API dà il punteggio, i numeri di squadra e i dati della partita (per la grafica della
+  // diretta video), mai nomi né dettagli degli scambi. Qui la formazione non si segue: niente cambi né formazione.
   // La copia pubblica si aggiorna a risposta già partita: si aspetta che arrivi.
   await expect.poll(async () => (await publicLive(page))?.home.score, { timeout: 15_000 }).toBe(2);
   const live = await publicLive(page);
@@ -131,11 +133,12 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   expect(live!.home.sets).toBe(0);
   expect(live!.finished).toBe(false);
   expect(live!.serving).toBe("home");
-  expect(Object.keys(live!).sort()).toEqual(["away", "category", "finished", "home", "serving", "sets", "team", "timeouts", "updatedAt"]);
+  expect(Object.keys(live!).sort()).toEqual(["away", "category", "finished", "home", "info", "matchStats", "serving", "setStats", "sets", "team", "timeouts", "updatedAt"]);
+  expect(live!.setStats).toEqual({ home: expect.objectContaining({ attack: 2 }), away: expect.objectContaining({ ace: 1 }) });
   expect(live!.timeouts).toEqual({ home: 0, away: 0 });
   expect(Object.keys(live!.home).sort()).toEqual(["color", "name", "score", "sets"]);
   const raw = JSON.stringify(live);
-  for (const secret of ["Segretissima", "Rossi", "attack", "ace", "rally", "roster", "events", "player"]) expect(raw).not.toContain(secret);
+  for (const secret of ["Segretissima", "Rossi", "rally", "roster", "events", "player"]) expect(raw).not.toContain(secret);
 
   const visitor = await browser.newContext();
   await visitor.addInitScript(() => {
