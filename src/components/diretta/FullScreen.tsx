@@ -10,7 +10,7 @@ import { teamShortName } from "@/lib/liveScore";
 import type { PublicLineup, PublicLiveScore, PublicPlayer, PublicSetRecapTeam } from "@/lib/types";
 import { Aurora, Confetti } from "./Effects";
 import { AZURE, INK, ORANGE, ROYAL, SKY, SUN, SUNSET } from "./theme";
-import { accent, TeamMark } from "./TeamMark";
+import { TeamMark, tone } from "./TeamMark";
 
 /**
  * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A ma allegre: presentazione della
@@ -71,14 +71,6 @@ function Frame({ card, now, children, party = false }: { card: FullCard; now: nu
   );
 }
 
-/**
- * Il colore di una squadra sullo schermo intero: per Lignano il giallo dello stemma (il suo blu, sull'azzurro del fondo, non
- * si vedrebbe), per l'avversaria il suo colore.
- */
-function tone(live: PublicLiveScore, side: Side): string {
-  return side === "home" ? SUN : accent(live.away.color);
-}
-
 /** «Under 15 femminile», con «Amichevole» quando lo è. */
 function competition(live: PublicLiveScore): string {
   const parts = [live.category ? `Under ${live.category.slice(1)} femminile` : "Pallavolo femminile"];
@@ -124,7 +116,7 @@ function TeamBlock({ live, side, dimmed = false, size = "lg", delay = 600 }: { l
   const team = side === "home" ? live.home : live.away;
   const large = size === "lg";
   return (
-    <div className={cn("flex min-w-0 flex-col items-center text-center", large ? "gap-[1.4rem]" : "gap-[1rem]", dimmed && "opacity-60")} data-grafica-full-team={side}>
+    <div className={cn("flex min-w-0 flex-col items-center text-center", large ? "gap-[1.4rem]" : "gap-[1rem]")} data-grafica-full-team={side}>
       <span style={{ animation: `grafica-bounce-in 650ms cubic-bezier(.2,.8,.2,1) ${delay}ms both` }}>
         <TeamMark
           team={team}
@@ -135,10 +127,16 @@ function TeamBlock({ live, side, dimmed = false, size = "lg", delay = 600 }: { l
           )}
         />
       </span>
-      <span className={cn("grafica-type max-w-full [text-shadow:0_0.2rem_0.6rem_rgba(11,27,77,0.5)]", large ? "text-[3.4rem]" : "truncate text-[2.6rem]")}>
+      {/* Chi ha perso resta a colori (sbiadito, il logo sull'azzurro diventava viola): si spengono solo il nome e la striscia. */}
+      <span
+        className={cn("grafica-type max-w-full [text-shadow:0_0.2rem_0.6rem_rgba(11,27,77,0.5)]", large ? "text-[3.4rem]" : "truncate text-[2.6rem]", dimmed && "text-white/60")}
+      >
         {large ? team.name : teamShortName(team.name)}
       </span>
-      <span className="h-[0.45rem] w-[6rem] rounded-full shadow-[0_0_0.8rem_rgba(255,255,255,0.6)]" style={{ background: tone(live, side) }} />
+      <span
+        className={cn("h-[0.45rem] w-[6rem] rounded-full", !dimmed && "shadow-[0_0_0.8rem_rgba(255,255,255,0.6)]")}
+        style={{ background: dimmed ? "rgba(255,255,255,0.35)" : tone(side, team.color) }}
+      />
     </div>
   );
 }
@@ -349,8 +347,10 @@ const STATS: { key: keyof PublicSetRecapTeam; label: string }[] = [
 
 /** I numeri di squadra, una barra luminosa per parte che cresce: chi ha di più è in pieno colore. */
 function StatBars({ live, stats, title }: { live: PublicLiveScore; stats: { home: PublicSetRecapTeam; away: PublicSetRecapTeam }; title: string }) {
-  const homeColor = tone(live, "home");
-  const awayColor = tone(live, "away");
+  const homeColor = tone("home", live.home.color);
+  const awayColor = tone("away", live.away.color);
+  // Chi ha di meno in bianco tenue: il colore della squadra a metà trasparenza, sull'azzurro, diventava verdognolo o viola.
+  const fill = (color: string, less: boolean) => (less ? { background: "rgba(255,255,255,0.32)" } : { background: color, boxShadow: `0 0 0.8rem ${color}` });
   return (
     <div
       className="mt-[1.4rem] w-[72rem] max-w-full rounded-[1rem] bg-white/10 px-[1.4rem] pb-[0.8rem] pt-[0.6rem] ring-[0.12rem] ring-white/30"
@@ -373,26 +373,14 @@ function StatBars({ live, stats, title }: { live: PublicLiveScore; stats: { home
             <span className="flex justify-end">
               <span
                 className="h-[0.85rem] origin-right rounded-l-full"
-                style={{
-                  width: `${(home / max) * 100}%`,
-                  background: homeColor,
-                  opacity: away > home ? 0.5 : 1,
-                  boxShadow: `0 0 0.8rem ${homeColor}`,
-                  animation: `grafica-grow 700ms ease-out ${delay} both`,
-                }}
+                style={{ width: `${(home / max) * 100}%`, ...fill(homeColor, away > home), animation: `grafica-grow 700ms ease-out ${delay} both` }}
               />
             </span>
             <span className="text-center text-[1.05rem] font-extrabold uppercase tracking-[0.12em]">{label}</span>
             <span className="flex justify-start">
               <span
                 className="h-[0.85rem] origin-left rounded-r-full"
-                style={{
-                  width: `${(away / max) * 100}%`,
-                  background: awayColor,
-                  opacity: home > away ? 0.5 : 1,
-                  boxShadow: `0 0 0.8rem ${awayColor}`,
-                  animation: `grafica-grow 700ms ease-out ${delay} both`,
-                }}
+                style={{ width: `${(away / max) * 100}%`, ...fill(awayColor, home > away), animation: `grafica-grow 700ms ease-out ${delay} both` }}
               />
             </span>
             <span className={cn("grafica-type text-[1.9rem] tabular-nums", home > away && "text-white/60")} data-grafica-recap-value={`${key}-away`}>

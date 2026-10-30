@@ -38,9 +38,16 @@ import type { PublicLiveScore } from "@/lib/types";
  * copia locale «da riconvalidare in sottofondo» mostrerebbe il punteggio con
  * un giro di ritardo. Legge sempre l'archivio vero, mai quello della modalità
  * prova.
+ *
+ * Con `?regia=1` (la grafica dentro Streamlabs / OBS: un solo computer, che
+ * rilegge ogni secondo) la risposta non passa dalla copia della CDN: con quella
+ * il punto entrava nel video fino a 8 secondi dopo il tocco nello Scout, ora
+ * circa uno. Una lettura al secondo da un computer solo il database non la sente.
  */
 export async function GET(request: Request) {
-  const withNotStarted = new URL(request.url).searchParams.get("prima") === "1";
+  const params = new URL(request.url).searchParams;
+  const withNotStarted = params.get("prima") === "1";
+  const direct = params.get("regia") === "1";
   let fromLiveScore: PublicLiveScore | null = null;
   let fromScout: PublicLiveScore | null = null;
   try {
@@ -94,11 +101,6 @@ export async function GET(request: Request) {
   }
   return Response.json(
     { live },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-        "Vercel-CDN-Cache-Control": "max-age=3, stale-while-revalidate=5",
-      },
-    },
+    { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": "max-age=3, stale-while-revalidate=5" } },
   );
 }

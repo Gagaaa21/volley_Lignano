@@ -7,11 +7,18 @@ import { cn } from "@/lib/cn";
 import { readableTextColor, teamMonogram } from "@/lib/liveScore";
 import type { Side } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScoreTeam } from "@/lib/types";
+import { SUN } from "./theme";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Il colore scelto dal coach per la squadra, solo se è un esadecimale valido. */
 export const accent = (color: string) => (HEX.test(color) ? color : "#475569");
+
+/**
+ * Il colore di una squadra sopra i riquadri azzurri della grafica: per Lignano il giallo dello stemma (il suo blu, sull'azzurro,
+ * non si vedrebbe), per l'avversaria il colore scelto dal coach.
+ */
+export const tone = (side: Side, color: string) => (side === "home" ? SUN : accent(color));
 
 /**
  * Il logo di una squadra nelle grafiche della diretta: lo stemma del sito per Lignano; per l'avversaria il logo del girone

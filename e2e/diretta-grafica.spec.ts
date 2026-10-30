@@ -165,8 +165,10 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   await expect(intro).toContainText("Pol. Esempio");
   await expect(intro.locator("[data-grafica-intro-date]")).toHaveText("Sabato 31 ottobre · ore 18:00");
   await expect(intro.locator("[data-grafica-intro-venue]")).toHaveText("Palazzetto dello Sport, Lignano");
-  // Chiede la risposta che comprende anche la partita non ancora iniziata (il banner del sito non la riceve).
+  // Chiede la risposta che comprende anche la partita non ancora iniziata (il banner del sito non la riceve), e senza la copia
+  // della CDN (`regia=1`): in Streamlabs / OBS il punto deve entrare nel video subito dopo il tocco nello Scout.
   expect(source.urls.every((url) => new URL(url).searchParams.get("prima") === "1")).toBe(true);
+  expect(source.urls.every((url) => new URL(url).searchParams.get("regia") === "1")).toBe(true);
   // A schermo intero la barra si nasconde.
   await expect(page.locator("[data-grafica-bug]").locator("xpath=..")).toHaveClass(/opacity-0/);
   await pass(page, 1_500);
@@ -544,4 +546,32 @@ test("?verifica=1 resta al centro anche nel Chrome vecchio di Streamlabs / OBS, 
   expect(Math.abs(box.y + box.height / 2 - 1080 / 2)).toBeLessThan(2);
   expect(box.x).toBeGreaterThan(0);
   expect(box.x + box.width).toBeLessThan(1920);
+});
+
+test("in Streamlabs / OBS il punto arriva in un secondo, senza la copia della CDN; chi guarda da /diretta passa dalla CDN", async ({ page }) => {
+  // L'endpoint vero: con `regia=1` niente copia della rete di Vercel, senza sì.
+  const direct = await page.request.get("/api/livescore/pubblico?prima=1&regia=1");
+  expect(direct.headers()["cache-control"]).toBe("no-store");
+  expect(direct.headers()["vercel-cdn-cache-control"]).toBeUndefined();
+  const shared = await page.request.get("/api/livescore/pubblico?prima=1");
+  expect(shared.headers()["vercel-cdn-cache-control"]).toContain("max-age=3");
+
+  // La grafica di Streamlabs / OBS rilegge ogni secondo: un punto nuovo si vede entro poco più di un secondo.
+  const source = await feed(page, live());
+  await page.clock.install();
+  await page.goto("/diretta/grafica");
+  const home = page.locator('[data-grafica-score="home"]');
+  await expect(home).toHaveText("10");
+  source.set(live(score(11, 8)));
+  await pass(page, 1_100);
+  await expect(home).toHaveText("11");
+
+  // Chi guarda dalla pagina /diretta (con `intervallo`) passa dalla CDN: sono tanti.
+  const viewer = await page.context().newPage();
+  const viewerSource = await feed(viewer, live());
+  await viewer.goto("/diretta/grafica?ritardo=0&intervallo=8");
+  await expect(viewer.locator('[data-grafica-score="home"]')).toHaveText("10");
+  expect(viewerSource.urls.length).toBeGreaterThan(0);
+  expect(viewerSource.urls.every((url) => new URL(url).searchParams.get("regia") === null)).toBe(true);
+  await viewer.close();
 });

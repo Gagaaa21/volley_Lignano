@@ -8,7 +8,7 @@ import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 import { INK, ORANGE, PANEL_BG, PINK, SHADOW, STRIPES, SUN, SUNSET, VIOLET } from "./theme";
-import { accent, TeamMark } from "./TeamMark";
+import { accent, TeamMark, tone } from "./TeamMark";
 
 /**
  * La barra del punteggio della diretta video, come nelle partite di SuperLega ma con i colori di Lignano d'estate: in alto a
@@ -67,12 +67,10 @@ function TeamRow({
   winner: boolean;
   dimmed: boolean;
 }) {
-  const color = accent(team.color);
   return (
     <div className="relative flex h-[3.1rem] items-stretch overflow-hidden" data-grafica-team={side}>
-      {/* Il colore della squadra, e una luce che lo sfuma verso il nome. */}
-      <span className="relative w-[0.55rem] shrink-0" style={{ background: color }} />
-      <span className="pointer-events-none absolute inset-y-0 left-[0.55rem] w-[14rem]" style={{ background: `linear-gradient(90deg, ${color}aa, ${color}00)` }} />
+      {/* Il colore della squadra: una striscia piena, niente velature (sull'azzurro il rosso diventava viola). */}
+      <span className="relative w-[0.55rem] shrink-0" style={{ background: tone(side, team.color) }} />
       {/* Il lampo sulla riga di chi ha appena fatto punto. */}
       {rises > 0 && (
         <span

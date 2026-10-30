@@ -115,8 +115,8 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             className="max-w-[10rem]"
           />
           <FieldHint>
-            YouTube mostra il video con 10–20 secondi di ritardo: il punteggio compare dopo altrettanto. Se arriva prima della palla a terra, aumentalo (i genitori
-            possono anche regolarlo da soli).
+            YouTube mostra il video con 10–20 secondi di ritardo: ogni punto compare altrettanto dopo essere stato segnato nello Scout, sempre lo stesso tempo. Se
+            arriva prima della palla a terra, aumentalo (i genitori possono anche regolarlo da soli).
           </FieldHint>
         </div>
 
@@ -144,7 +144,8 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             Dal computer con Streamlabs Desktop (o OBS) la grafica entra nel video, come in Serie A: barra del punteggio, time-out, cambi, presentazione,
             formazione, fine set e finale. Aggiungi una «Browser Source» con questo indirizzo, <b className="font-semibold text-foreground">larghezza 1920 e altezza 1080</b>,
             poi tasto destro → Trasforma → <b className="font-semibold text-foreground">Adatta allo schermo</b>: con la misura di partenza (800×600) la grafica si sgrana
-            o finisce spostata. Ai genitori mandi direttamente il link di YouTube. I passi sono nella Guida.
+            o finisce spostata. Il punteggio entra nel video circa un secondo dopo il tocco nello Scout: immagine e punteggio sono già allineati, senza regolare
+            niente. Ai genitori mandi direttamente il link di YouTube. I passi sono nella Guida.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <CopyAddressButton path="/diretta/grafica" label="Copia l'indirizzo della grafica" kind="graphic" />

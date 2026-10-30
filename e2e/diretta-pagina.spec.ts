@@ -238,6 +238,25 @@ test("la grafica ritarda il punteggio: la prima lettura si vede subito, le altre
   await obs.close();
 });
 
+test("il ritardo si conta dal momento del punto: una lettura arrivata tardi dalla CDN non aspetta il ritardo intero", async ({ page }) => {
+  test.setTimeout(60_000);
+  const site = await mockSite(page, { cameras: [] });
+  await page.goto("/diretta/grafica?ritardo=8&intervallo=2");
+  const home = page.locator('[data-grafica-score="home"]');
+  await expect(home).toHaveText("10", { timeout: 10_000 });
+
+  // Un punto fresco: arriva entro un paio di secondi e si vede dopo il ritardo (la pagina impara quanto ci mette una lettura).
+  site.score(live(11, 8));
+  await expect(home).toHaveText("11", { timeout: 15_000 });
+
+  // Il punto dopo esce dalla CDN 5 secondi dopo essere stato salvato: si vede 8 secondi dopo il salvataggio, cioè circa 3 dopo
+  // l'arrivo, non 8 dopo l'arrivo come prima.
+  const sent = Date.now();
+  site.score({ ...live(12, 8), updatedAt: new Date(sent - 5_000).toISOString() });
+  await expect(home).toHaveText("12", { timeout: 15_000 });
+  expect(Date.now() - sent).toBeLessThan(7_000);
+});
+
 test("ritardo e scala si cambiano da fuori con un messaggio, e solo dalla stessa pagina", async ({ page }) => {
   await mockSite(page, { cameras: [] });
   await page.setViewportSize({ width: 1920, height: 1080 });

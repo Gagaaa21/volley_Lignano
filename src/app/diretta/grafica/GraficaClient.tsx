@@ -9,13 +9,19 @@ import { ScorebugWide } from "@/components/diretta/ScorebugWide";
 import { VerifyFrame } from "@/components/diretta/VerifyFrame";
 import { cn } from "@/lib/cn";
 import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
-import { clampDelaySeconds, takeDue, type Reading } from "@/lib/diretta/delay";
+import { clampDelaySeconds, nextOffset, stampOf, takeDue, type Reading } from "@/lib/diretta/delay";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
 
 /** Con `prima=1` risponde anche la partita con il live acceso e ancora nessun punto (0–0): la barra c'è appena si accende il live. */
 const ENDPOINT = "/api/livescore/pubblico?prima=1";
-/** Con una partita in corso si rilegge il punteggio ogni 2 secondi (la rete di Vercel lo tiene 3: il database non se ne accorge)… */
+/**
+ * In Streamlabs / OBS (un computer solo) si legge senza la copia della CDN (`regia=1`) e ogni secondo: il punto entra nel video
+ * circa un secondo dopo il tocco nello Scout, invece che fino a 8. Chi guarda dalla pagina /diretta passa dalla CDN (sono tanti).
+ */
+const DIRECT_ENDPOINT = `${ENDPOINT}&regia=1`;
+const DIRECT_POLL_MS = 1_000;
+/** Chi guarda dalla pagina /diretta rilegge di partenza ogni 2 secondi (la rete di Vercel lo tiene 3: il database non se ne accorge)… */
 const LIVE_POLL_MS = 2_000;
 /** …altrimenti ogni 15, per accorgersi di una partita che comincia. */
 const IDLE_POLL_MS = 15_000;
@@ -64,10 +70,11 @@ const parseInterval = (value: string | null): number => {
  * Opzioni nell'indirizzo: `?stile=larga|entrambe` (la barra larga in basso al centro, da sola o insieme a quella in alto),
  * `?prova=1` (partita finta in ciclo, per provare senza Scout), `?verifica=1` (la partita finta con la verifica delle misure
  * della sorgente: angoli, area sicura e cosa correggere), `?posizione=alto-destra|basso-sinistra|basso-destra` (default
- * alto-sinistra, vale per la barra), `?scala=120` (percentuale), `?ritardo=15` (secondi: il punteggio si mostra dopo tanto,
- * per allinearlo al video di YouTube, che arriva con 10–20 secondi di ritardo; la pagina /diretta lo cambia con un messaggio,
- * come la scala), `?intervallo=8` (secondi tra una lettura e l'altra, e si ferma a scheda nascosta: per chi guarda dalla pagina
- * /diretta).
+ * alto-sinistra, vale per la barra), `?scala=120` (percentuale), `?ritardo=15` (secondi: ogni punto si mostra tanto dopo
+ * essere stato segnato, per allinearlo al video di YouTube, che arriva con 10–20 secondi di ritardo; la pagina /diretta lo
+ * cambia con un messaggio, come la scala), `?intervallo=8` (secondi tra una lettura e l'altra, e si ferma a scheda nascosta:
+ * per chi guarda dalla pagina /diretta). Senza `intervallo` è la grafica di Streamlabs / OBS: legge ogni secondo, senza la
+ * copia della CDN, così il punto entra nel video subito dopo il tocco nello Scout.
  */
 export function GraficaClient() {
   const params = useSearchParams();
@@ -76,7 +83,8 @@ export function GraficaClient() {
   const position = parsePosition(params.get("posizione"));
   const style = parseStyle(params.get("stile"));
   const viewer = params.get("intervallo") !== null;
-  const livePollMs = viewer ? parseInterval(params.get("intervallo")) : LIVE_POLL_MS;
+  const livePollMs = viewer ? parseInterval(params.get("intervallo")) : DIRECT_POLL_MS;
+  const endpoint = viewer ? ENDPOINT : DIRECT_ENDPOINT;
   const [feed, dispatch] = useReducer(feedReducer, INITIAL_FEED);
 
   // Ritardo e scala del punteggio: dall'indirizzo, poi dai messaggi della pagina /diretta.
@@ -100,12 +108,14 @@ export function GraficaClient() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // Le letture che aspettano il loro turno (con ritardo 0 non si passa di qui).
+  // Le letture che aspettano il loro turno (con ritardo 0 non si passa di qui), e lo scarto tra il nostro orologio e quello del
+  // server: il ritardo si conta dall'istante del punto (vedi delay.ts).
   const queue = useRef<Reading[]>([]);
+  const offset = useRef<number | null>(null);
   useEffect(() => {
     const timer = setInterval(() => {
       if (queue.current.length === 0) return;
-      const { due, rest } = takeDue(queue.current, clock(), delayMs.current);
+      const { due, rest } = takeDue(queue.current, clock(), delayMs.current, offset.current);
       queue.current = rest;
       for (const reading of due) dispatch({ type: "poll", live: reading.live, now: clock() });
     }, QUEUE_MS);
@@ -118,6 +128,7 @@ export function GraficaClient() {
     let cancelled = false;
     let inFlight = false;
     let shown = false;
+    let lastStamp: number | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     async function poll() {
       if (timer) clearTimeout(timer);
@@ -128,18 +139,22 @@ export function GraficaClient() {
       inFlight = true;
       let delay = IDLE_POLL_MS;
       try {
-        const res = await fetch(ENDPOINT);
+        const res = await fetch(endpoint);
         if (res.ok) {
           const data = (await res.json()) as { live: PublicLiveScore | null };
           const live = data.live && data.live.team === "u14u15" ? data.live : null;
           if (!cancelled) {
-            // La prima lettura si mostra subito (chi arriva a metà partita non aspetta); le altre aspettano il ritardo.
-            if (!shown || delayMs.current === 0) {
+            const reading: Reading = { at: clock(), stamp: stampOf(live), live };
+            offset.current = nextOffset(offset.current, reading);
+            // La prima lettura si mostra subito (chi arriva a metà partita non aspetta); le altre aspettano il ritardo, dopo
+            // quelle già in coda (una lettura nuova non passa mai davanti a una vecchia). La stessa lettura riletta non si accoda.
+            if (!shown || (delayMs.current === 0 && queue.current.length === 0)) {
               shown = true;
               dispatch({ type: "poll", live, now: clock() });
-            } else {
-              queue.current.push({ at: clock(), live });
+            } else if (reading.stamp === null || reading.stamp !== lastStamp) {
+              queue.current.push(reading);
             }
+            lastStamp = reading.stamp;
           }
           delay = live && !live.finished ? livePollMs : IDLE_POLL_MS;
         }
@@ -160,7 +175,7 @@ export function GraficaClient() {
       if (timer) clearTimeout(timer);
       if (viewer) document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [demo, viewer, livePollMs]);
+  }, [demo, viewer, livePollMs, endpoint]);
 
   // La partita finta: un passo ogni tanto, in ciclo.
   useEffect(() => {

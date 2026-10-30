@@ -340,7 +340,9 @@ staff (Developer e Admin).
   admin può accendere la **diretta pubblica**: `/api/livescore/pubblico`
   espone solo squadre, punti, set, chi serve e time-out usati nel set (mai
   nomi o formazioni), con cache di 3 secondi solo sulla CDN di Vercel
-  (`Vercel-CDN-Cache-Control`, mai nel browser); il riquadro «In diretta»
+  (`Vercel-CDN-Cache-Control`, mai nel browser; con `?regia=1`, la grafica di
+  Streamlabs / OBS che rilegge ogni secondo da un computer solo, niente cache:
+  il punto entra nel video circa un secondo dopo il tocco); il riquadro «In diretta»
   (`LiveScoreBanner`) sulla home U14/U15 o Minivolley lo rilegge ogni 5
   secondi mentre la pagina è visibile. Segue il tema scelto (chiaro o scuro,
   e i colori del sito): è una scheda come le altre, con i colori delle due
@@ -555,8 +557,12 @@ staff (Developer e Admin).
     (partita finta, `demo.ts`, con tutte le grafiche), `?verifica=1`, `?posizione=` (la barra),
     `?scala=`, `?ritardo=` (secondi: le
     letture si tengono in coda, `delay.ts`, e si mostrano dopo il ritardo, per allinearle al
-    video di YouTube che arriva con 10–20 s di ritardo) e `?intervallo=` (secondi tra due
-    letture, e si ferma a scheda nascosta: lo usa la pagina `/diretta`, 8 s). La pagina dei
+    video di YouTube che arriva con 10–20 s di ritardo; il ritardo si conta dal salvataggio
+    del punto, `updatedAt` del server portato sull'orologio della pagina con lo scarto più
+    piccolo visto tra arrivo e salvataggio, così la copia della CDN non lo fa ballare e un
+    orologio sbagliato non conta) e `?intervallo=` (secondi tra due letture, e si ferma a
+    scheda nascosta: lo usa la pagina `/diretta`, 8 s; senza, è la grafica di Streamlabs /
+    OBS: legge ogni secondo con `?regia=1`). La pagina dei
     genitori cambia ritardo e scala senza ricaricare la grafica con un messaggio
     (`OPTIONS_MESSAGE`, stessa origine); la grafica avvisa di essere pronta con `READY_MESSAGE`
     (un messaggio mandato prima andrebbe perso). Lo schema colori è sempre «chiaro» sia per il

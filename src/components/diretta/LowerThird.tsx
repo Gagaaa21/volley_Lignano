@@ -5,7 +5,7 @@ import { secondsLeft, TIMEOUT_CARD_MS, type StripCard } from "@/lib/diretta/over
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicPlayer, PublicSetRecapTeam } from "@/lib/types";
 import { IN_GREEN, INK, OUT_RED, PANEL_BG, SHADOW, STRIPES, SUN, SUNSET } from "./theme";
-import { accent, TeamMark } from "./TeamMark";
+import { TeamMark, tone } from "./TeamMark";
 
 /**
  * I sottopancia della diretta video, in basso a sinistra come in Serie A ma allegri: si aprono con una tendina e si
@@ -45,7 +45,7 @@ function Head({ icon, label, live, side, right }: { icon: ReactNode; label: stri
         {icon}
         {label}
       </span>
-      <span className="w-[0.5rem] shrink-0" style={{ background: accent(team.color) }} />
+      <span className="w-[0.5rem] shrink-0" style={{ background: tone(side, team.color) }} />
       <span className="flex min-w-0 flex-1 items-center gap-[0.7rem] px-[0.9rem]">
         <TeamMark team={team} side={side} className="h-[2.4rem] w-[2.4rem] shadow-[0_0.2rem_0.6rem_rgba(0,0,0,0.25)]" />
         <span className="grafica-type truncate text-[1.8rem] [text-shadow:0_0.12rem_0.3rem_rgba(11,27,77,0.45)]">{teamShortName(team.name)}</span>
@@ -108,7 +108,7 @@ function PointsTable({ live, stats, set }: { live: PublicLiveScore; stats: { hom
       {rows.map((row) => (
         <div key={row.side} className="grid h-[2.1rem] grid-cols-[1fr_repeat(4,5.6rem)_4.4rem] items-center gap-x-[0.4rem]" data-grafica-timeout-row={row.side}>
           <span className="flex min-w-0 items-center gap-[0.5rem]">
-            <span className="h-[1.2rem] w-[0.35rem] shrink-0 rounded-full" style={{ background: accent(row.team.color) }} />
+            <span className="h-[1.2rem] w-[0.35rem] shrink-0 rounded-full" style={{ background: tone(row.side, row.team.color) }} />
             <span className="grafica-type truncate text-[1.3rem]">{teamShortName(row.team.name)}</span>
           </span>
           {STAT_COLUMNS.map((column) => (
