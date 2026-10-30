@@ -531,12 +531,16 @@ staff (Developer e Admin).
     formazione a ogni set nuovo, riepilogo di fine set (parziale, tabella dei set, numeri del
     set) e risultato finale (numeri della partita). Durante le grafiche a schermo intero la barra
     si nasconde. La barra larga in basso al centro (`ScorebugWide.tsx`) si sceglie con
-    `?stile=larga` (o `entrambe`). Colori e caratteri del pacchetto: `theme.ts` (allegri: l'azzurro
-    del mare, il giallo del sole dello stemma, il tramonto giallo-arancio-rosa) e l'utility
-    `grafica-type` in `globals.css` (Archivo stretto e maiuscolo, come in TV). Effetti pochi e
-    misurati, solo CSS: in `Effects.tsx` i coriandoli e le macchie di colore lente del fondo,
-    nelle animazioni `grafica-*` di `globals.css` il lampo sulla riga di chi segna (`useRises`
-    in `Scorebug.tsx`, mai al primo disegno) e le entrate; i coriandoli cadono una volta sola,
+    `?stile=larga` (o `entrambe`). Colori, materiali e caratteri del pacchetto, come in TV:
+    `theme.ts` (riquadri blu profondi e lucidi `GLASS` con il filo di luce `EDGE` e l'ombra
+    `DROP`, tagli obliqui `cutRight` / `tag` con clip-path, accenti gialli `GOLD`, il tramonto
+    per i momenti caldi) e l'utility `grafica-type` in `globals.css` (Archivo stretto e
+    maiuscolo). Gli schermi interi stanno in uno «studio» blu notte (lastre di luce oblique,
+    righe sottili, la fascia in basso con club e «Diretta», la scritta gigante sui set e sulla
+    finale). Effetti pochi e misurati, solo CSS: in `Effects.tsx` i coriandoli, nelle
+    animazioni `grafica-*` di `globals.css` il lampo sulla riga di chi segna (`useRises` in
+    `Scorebug.tsx`, mai al primo disegno), il punto nuovo che entra da sotto, le tendine e le
+    entrate; i coriandoli cadono una volta sola,
     quando un set o la partita li vince Lignano («Vittoria!»). Niente che giri o lampeggi di
     continuo: la partita deve restare leggibile. Il browser dentro Streamlabs / OBS può essere un
     Chrome vecchio (prima del 104): niente `translate-*`, `rotate-*`, `scale-*` di Tailwind nelle

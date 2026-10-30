@@ -1,12 +1,11 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
-import { PARTY, PINK, SKY, VIOLET } from "./theme";
+import { PARTY } from "./theme";
 
 /**
- * Gli effetti della grafica della diretta, pochi e misurati: i coriandoli delle nostre vittorie e le macchie di colore che si
- * muovono piano sul fondo degli schermi interi. Solo CSS (trasformazioni e trasparenza: leggeri anche per OBS), posizioni e
- * tempi «a caso» ma sempre uguali (un numero pseudo-casuale fisso per ogni pezzo), così la pagina disegna sempre la stessa
- * cosa. Tutti decorativi: aria-hidden.
+ * Gli effetti della grafica della diretta, pochi e misurati: i coriandoli delle nostre vittorie (il fondo degli schermi interi
+ * sta in FullScreen.tsx). Solo CSS (trasformazioni e trasparenza: leggeri anche per OBS), posizioni e tempi «a caso» ma sempre
+ * uguali (un numero pseudo-casuale fisso per ogni pezzo), così la pagina disegna sempre la stessa cosa. Decorativi: aria-hidden.
  */
 
 /** Un numero tra 0 e 1 che dipende solo da `seed`: sempre lo stesso a ogni disegno. */
@@ -35,22 +34,6 @@ export function Confetti({ count = 60, seed = 1, className }: { count?: number; 
         } as CSSProperties;
         return <span key={i} className="absolute" style={style} />;
       })}
-    </div>
-  );
-}
-
-/** Il celeste chiarissimo delle macchie di luce: il giallo, sopra l'azzurro, diventerebbe verdognolo. */
-const GLOW = "#8ff0ff";
-
-/** Quattro macchie di colore (luce, rosa, cielo, viola) che si muovono piano sul fondo: il cielo che cambia, senza distrarre. */
-export function Aurora() {
-  const blob = (color: string) => `radial-gradient(closest-side, ${color}, transparent)`;
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <span className="absolute -left-[12%] -top-[25%] h-[80%] w-[60%] opacity-45" style={{ background: blob(GLOW), animation: "grafica-drift-a 20s ease-in-out infinite alternate" }} />
-      <span className="absolute -bottom-[30%] -right-[10%] h-[85%] w-[62%] opacity-35" style={{ background: blob(PINK), animation: "grafica-drift-b 24s ease-in-out infinite alternate" }} />
-      <span className="absolute left-[25%] top-[30%] h-[70%] w-[50%] opacity-35" style={{ background: blob(SKY), animation: "grafica-drift-c 26s ease-in-out infinite alternate" }} />
-      <span className="absolute -bottom-[20%] -left-[15%] h-[60%] w-[45%] opacity-25" style={{ background: blob(VIOLET), animation: "grafica-drift-b 30s ease-in-out infinite alternate-reverse" }} />
     </div>
   );
 }

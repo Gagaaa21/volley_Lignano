@@ -730,20 +730,50 @@
     opacity: 0;
   }
 }
+/* Le tendine lasciano 4rem di margine attorno, così l'ombra dei riquadri non viene tagliata. */
 @keyframes grafica-wipe-in {
   0% {
-    clip-path: inset(0 100% 0 0);
+    clip-path: inset(-4rem 100% -4rem -4rem);
   }
   100% {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(-4rem -4rem -4rem -4rem);
   }
 }
 @keyframes grafica-wipe-out {
   0% {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(-4rem -4rem -4rem -4rem);
   }
   100% {
-    clip-path: inset(0 0 0 100%);
+    clip-path: inset(-4rem -4rem -4rem 100%);
+  }
+}
+/* Il punto nuovo entra da sotto nel riquadro dei punti. */
+@keyframes grafica-roll {
+  0% {
+    opacity: 0;
+    transform: translateY(80%);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Lo studio degli schermi interi: le lastre di luce scorrono piano, un lampo attraversa lo schermo ogni tanto. */
+@keyframes grafica-slab {
+  0% {
+    transform: translateX(-3%);
+  }
+  100% {
+    transform: translateX(3%);
+  }
+}
+@keyframes grafica-streak {
+  0% {
+    transform: translateX(0) rotate(24deg);
+  }
+  35%,
+  100% {
+    transform: translateX(150rem) rotate(24deg);
   }
 }
 @keyframes grafica-rise {
@@ -783,38 +813,14 @@
     transform: scaleX(1);
   }
 }
-/* Gli effetti allegri ma misurati (src/components/diretta/Effects.tsx e dintorni): coriandoli, macchie di colore che si
-   muovono piano, il lampo sulla riga di chi segna, l'entrata con un piccolo rimbalzo. */
+/* Gli effetti misurati (src/components/diretta/Effects.tsx e dintorni): coriandoli, il lampo sulla riga di chi segna,
+   l'entrata con un piccolo rimbalzo. */
 @keyframes grafica-confetti {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
   100% {
     transform: translate3d(var(--drift, 0), 118vh, 0) rotate(var(--spin, 720deg));
-  }
-}
-@keyframes grafica-drift-a {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  100% {
-    transform: translate(18%, 22%) scale(1.15);
-  }
-}
-@keyframes grafica-drift-b {
-  0% {
-    transform: translate(0, 0) scale(1.1);
-  }
-  100% {
-    transform: translate(-20%, -18%) scale(0.95);
-  }
-}
-@keyframes grafica-drift-c {
-  0% {
-    transform: translate(-10%, 10%) scale(0.9);
-  }
-  100% {
-    transform: translate(15%, -12%) scale(1.2);
   }
 }
 @keyframes grafica-row-flash {

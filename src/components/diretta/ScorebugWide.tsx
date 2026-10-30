@@ -4,21 +4,20 @@ import type { Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
-import { INK, ROYAL, SKY } from "./theme";
-import { accent, TeamMark } from "./TeamMark";
+import { DROP, EDGE, GLASS, GLASS_DARK, GOLD, INK } from "./theme";
+import { TeamMark, tone } from "./TeamMark";
 
 /**
  * La barra larga della diretta video, in basso al centro, come nelle partite di SuperLega: a sinistra Lignano (stemma e nome),
  * a destra l'avversaria (nome e logo), in mezzo i punti del set in un riquadro scuro; «SETS» e i set vinti accanto ai punti,
  * i time-out usati sotto, il pallone su chi batte; sotto il riquadro la linguetta con il set in corso (e «Set point» /
  * «Match point» che pulsa). Si sceglie con `?stile=larga` (o `entrambe`); di partenza c'è la barra in alto a sinistra.
- * Stesse regole della barra in alto: misure in rem (1 rem = 1/120 della larghezza), nomi corti. A partita finita nel
- * riquadro vanno i set vinti.
+ * Stesse regole e stessi materiali della barra in alto: blu profondo lucido con il filo giallo in cima e le punte oblique,
+ * misure in rem (1 rem = 1/120 della larghezza), nomi corti. A partita finita nel riquadro vanno i set vinti.
  */
 
-/** Il riquadro dei punti e la linguetta: il blu scuro dei titoli, così i numeri bianchi spiccano sull'azzurro. */
-const NAVY = INK;
-const BLUE = ROYAL;
+/** Le punte oblique della barra larga. */
+const WIDE_SHAPE = "polygon(1.6rem 0, calc(100% - 1.6rem) 0, 100% 100%, 0 100%)";
 
 function Timeouts({ used, side }: { used: number; side: Side }) {
   const spent = Math.min(Math.max(used, 0), TIMEOUTS_PER_SET);
@@ -71,7 +70,7 @@ function TeamSide({
       data-grafica-wide-serving={serving ? side : undefined}
     />
   );
-  const logo = <TeamMark team={team} side={side} className={cn("h-[3.6rem] w-[3.6rem]", dimmed && "opacity-60")} />;
+  const logo = <TeamMark team={team} side={side} className="h-[3.6rem] w-[3.6rem]" />;
   const name = (
     <span
       className={cn("grafica-type min-w-0 flex-1 truncate text-[2.1rem]", dimmed && "text-white/60", side === "away" && "text-right")}
@@ -107,49 +106,53 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
   const winner: Side | null = finished && live.home.sets !== live.away.sets ? (live.home.sets > live.away.sets ? "home" : "away") : null;
   const timeouts = finished || !live.timeouts ? null : live.timeouts;
   const point = finished ? null : live.point;
-  const homeColor = accent(live.home.color);
-  const awayColor = accent(live.away.color);
 
   return (
     <div className="relative w-[84rem] max-w-[96%] pb-[1.7rem]" data-grafica-wide>
-      <div
-        className="flex h-[6.4rem] items-stretch overflow-hidden rounded-[1.2rem] text-white shadow-[0_0.6rem_1.6rem_rgba(8,20,70,0.45)] ring-[0.12rem] ring-white/40"
-        style={{
-          backgroundColor: BLUE,
-          backgroundImage: `radial-gradient(40% 160% at 0% 50%, ${homeColor}99 0%, ${homeColor}00 100%), radial-gradient(40% 160% at 100% 50%, ${awayColor}99 0%, ${awayColor}00 100%), linear-gradient(120deg, ${ROYAL}, ${SKY})`,
-        }}
-      >
-        <TeamSide team={live.home} side="home" serving={!finished && live.serving === "home"} winner={winner === "home"} dimmed={winner === "away"} />
-        <SetsBox sets={live.home.sets} timeouts={timeouts ? timeouts.home : null} side="home" />
-        <span className="flex shrink-0 items-center justify-center gap-[1rem] px-[1.4rem]" style={{ backgroundColor: NAVY }}>
-          <span
-            key={`h${homePoints}`}
-            className="grafica-type min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center text-[4.2rem] tabular-nums"
-            data-grafica-wide-score="home"
-          >
-            {homePoints}
+      <div style={{ filter: DROP }}>
+        <div className="relative flex h-[6.4rem] items-stretch overflow-hidden text-white" style={{ background: GLASS, boxShadow: EDGE, clipPath: WIDE_SHAPE }}>
+          {/* Il filo giallo in cima e, ai due lati, il colore delle squadre (giallo per Lignano). */}
+          <span aria-hidden className="absolute inset-x-0 top-0 h-[0.18rem]" style={{ background: GOLD }} />
+          <span aria-hidden className="absolute inset-y-0 left-0 w-[2.4rem]" style={{ background: tone("home", live.home.color), clipPath: "polygon(1.6rem 0, 100% 0, calc(100% - 1.6rem) 100%, 0 100%)" }} />
+          <span aria-hidden className="absolute inset-y-0 right-0 w-[2.4rem]" style={{ background: tone("away", live.away.color), clipPath: "polygon(0 0, calc(100% - 1.6rem) 0, 100% 100%, 1.6rem 100%)" }} />
+          <span className="w-[1.6rem] shrink-0" />
+          <TeamSide team={live.home} side="home" serving={!finished && live.serving === "home"} winner={winner === "home"} dimmed={winner === "away"} />
+          <SetsBox sets={live.home.sets} timeouts={timeouts ? timeouts.home : null} side="home" />
+          <span className="flex shrink-0 items-center justify-center gap-[1rem] px-[1.4rem]" style={{ background: GLASS_DARK }}>
+            <span
+              key={`h${homePoints}`}
+              className="grafica-type min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center text-[4.2rem] tabular-nums"
+              data-grafica-wide-score="home"
+            >
+              {homePoints}
+            </span>
+            <span className="grid h-[2rem] w-[2rem] place-items-center rounded-full bg-white/15" aria-hidden>
+              <Volleyball className="h-[1.2rem] w-[1.2rem] text-[#ffd23f]" />
+            </span>
+            <span
+              key={`a${awayPoints}`}
+              className="grafica-type min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center text-[4.2rem] tabular-nums"
+              data-grafica-wide-score="away"
+            >
+              {awayPoints}
+            </span>
           </span>
-          <span className="grid h-[2rem] w-[2rem] place-items-center rounded-full bg-white/15" aria-hidden>
-            <Volleyball className="h-[1.2rem] w-[1.2rem] text-[#ffd23f]" />
-          </span>
-          <span
-            key={`a${awayPoints}`}
-            className="grafica-type min-w-[3.4rem] animate-[livescore-score-pop_320ms_ease-out] text-center text-[4.2rem] tabular-nums"
-            data-grafica-wide-score="away"
-          >
-            {awayPoints}
-          </span>
-        </span>
-        <SetsBox sets={live.away.sets} timeouts={timeouts ? timeouts.away : null} side="away" />
-        <TeamSide team={live.away} side="away" serving={!finished && live.serving === "away"} winner={winner === "away"} dimmed={winner === "home"} />
+          <SetsBox sets={live.away.sets} timeouts={timeouts ? timeouts.away : null} side="away" />
+          <TeamSide team={live.away} side="away" serving={!finished && live.serving === "away"} winner={winner === "away"} dimmed={winner === "home"} />
+          <span className="w-[1.6rem] shrink-0" />
+        </div>
       </div>
       {/* La linguetta sotto il riquadro dei punti: categoria, set in corso e, quando c'è, il set point o il match point. */}
       <div
-        className="absolute bottom-0 left-1/2 flex items-center gap-[0.8rem] rounded-b-[0.7rem] px-[1.2rem] py-[0.2rem] text-[0.95rem] font-extrabold uppercase tracking-[0.14em] text-white shadow-[0_0.4rem_1rem_rgba(0,0,0,0.4)]"
-        style={{ backgroundColor: NAVY, transform: "translateX(-50%)" }}
+        className="absolute bottom-0 left-1/2 flex items-center gap-[0.8rem] px-[1.8rem] py-[0.2rem] text-[0.95rem] font-extrabold uppercase tracking-[0.14em] text-white"
+        style={{ background: GLASS_DARK, transform: "translateX(-50%)", clipPath: "polygon(0 0, 100% 0, calc(100% - 0.8rem) 100%, 0.8rem 100%)" }}
         data-grafica-wide-tab
       >
-        {live.category && <span className="rounded-[0.3rem] bg-white/15 px-[0.5rem]">{live.category}F</span>}
+        {live.category && (
+          <span className="px-[0.5rem]" style={{ background: GOLD, color: INK }}>
+            {live.category}F
+          </span>
+        )}
         <span data-grafica-wide-phase>{finished ? "Finale" : `${live.sets.length + 1}° set`}</span>
         {point && (
           <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite] text-[#ffd23f]" data-grafica-wide-point={`${point.side}-${point.kind}`}>
