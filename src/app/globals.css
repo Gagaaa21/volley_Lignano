@@ -783,6 +783,179 @@
     transform: scaleX(1);
   }
 }
+/* Gli effetti allegri (src/components/diretta/Effects.tsx e dintorni): coriandoli, macchie di colore che si muovono, raggi che
+   girano, scintille, l'esplosione sul punto, il lampo sulla riga di chi segna, la fiamma della serie, il pallone che saltella. */
+@keyframes grafica-confetti {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(var(--drift, 0), 118vh, 0) rotate(var(--spin, 720deg));
+  }
+}
+@keyframes grafica-drift-a {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(18%, 22%) scale(1.15);
+  }
+}
+@keyframes grafica-drift-b {
+  0% {
+    transform: translate(0, 0) scale(1.1);
+  }
+  100% {
+    transform: translate(-20%, -18%) scale(0.95);
+  }
+}
+@keyframes grafica-drift-c {
+  0% {
+    transform: translate(-10%, 10%) scale(0.9);
+  }
+  100% {
+    transform: translate(15%, -12%) scale(1.2);
+  }
+}
+@keyframes grafica-spin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@keyframes grafica-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@keyframes grafica-ring {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.4);
+  }
+}
+@keyframes grafica-burst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.3);
+  }
+}
+@keyframes grafica-row-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+@keyframes grafica-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  80% {
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes grafica-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+@keyframes grafica-flame {
+  0%,
+  100% {
+    transform: scale(1) rotate(-4deg);
+  }
+  50% {
+    transform: scale(1.18) rotate(5deg);
+  }
+}
+@keyframes grafica-ball {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-0.3rem) rotate(25deg);
+  }
+}
+@keyframes grafica-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0.4rem rgba(255, 210, 63, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 1.6rem rgba(255, 79, 139, 0.9);
+  }
+}
+@keyframes grafica-arrow-up {
+  0%,
+  100% {
+    transform: translateY(0.15rem);
+  }
+  50% {
+    transform: translateY(-0.2rem);
+  }
+}
+@keyframes grafica-arrow-down {
+  0%,
+  100% {
+    transform: translateY(-0.15rem);
+  }
+  50% {
+    transform: translateY(0.2rem);
+  }
+}
+@keyframes grafica-dash {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 100.53;
+  }
+}
+@keyframes grafica-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.6rem);
+  }
+}
 
 /* Tour guidato (src/components/tour/Tour.tsx): dissolvenza della scheda a
    ogni nuovo passo. Stessa convenzione delle animazioni live score sopra. */

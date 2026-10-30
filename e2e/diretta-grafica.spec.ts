@@ -160,7 +160,7 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   const intro = page.locator('[data-grafica-full="intro"]');
   await expect(intro).toBeVisible();
   await expect(intro.locator("[data-grafica-full-eyebrow]")).toHaveText("Under 15 femminile");
-  await expect(intro.locator("[data-grafica-full-title]")).toHaveText("Oggi in campo");
+  await expect(intro.locator("[data-grafica-full-title]")).toHaveText("Oggi in campo!");
   await expect(intro).toContainText("Volley Lignano");
   await expect(intro).toContainText("Pol. Esempio");
   await expect(intro.locator("[data-grafica-intro-date]")).toHaveText("Sabato 31 ottobre · ore 18:00");
@@ -191,6 +191,10 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   await pass(page, 1_000);
   await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
   await expect(page.locator('[data-grafica-score="home"]')).toHaveText("1");
+  // Il punto fa festa sulla riga di chi l'ha fatto: il lampo e la raggiera di coriandoli (solo lì).
+  await expect(page.locator('[data-grafica-flash="home"]')).toHaveCount(1);
+  await expect(page.locator('[data-grafica-flash="away"]')).toHaveCount(0);
+  await expect(page.locator("[data-grafica-burst]")).toHaveCount(1);
   await expect(page.locator('[data-grafica-serving="home"]')).toBeVisible();
   await expect(page.locator("[data-grafica-card]")).toHaveCount(0);
 });
@@ -299,6 +303,9 @@ test("time-out con il conto alla rovescia e i punti del set, set point, serie in
   await expect(setCard).toBeVisible();
   await expect(setCard.locator("[data-grafica-full-title]")).toHaveText("Fine 1° set");
   await expect(setCard.locator("[data-grafica-recap-minutes]")).toHaveText("Durata 27′");
+  // Il set l'ha vinto Lignano: festa, con i coriandoli e l'etichetta.
+  await expect(setCard.locator("[data-grafica-set-winner]")).toHaveText("Set Lignano");
+  await expect(setCard.locator("[data-grafica-confetti]")).toHaveCount(1);
   await expect(setCard.locator("[data-grafica-set-score]")).toHaveText("25–21");
   await expect(setCard.locator('[data-grafica-sets-row="home"]')).toContainText("25");
   await expect(setCard.locator('[data-grafica-sets-won="home"]')).toHaveText("1");
@@ -324,8 +331,10 @@ test("time-out con il conto alla rovescia e i punti del set, set point, serie in
   await pass(page, 2_500);
   const final = page.locator('[data-grafica-full="final"]');
   await expect(final).toBeVisible();
-  await expect(final.locator("[data-grafica-full-title]")).toHaveText("Risultato finale");
+  // Ha vinto Lignano: «Vittoria!» con i coriandoli.
+  await expect(final.locator("[data-grafica-full-title]")).toHaveText("Vittoria!");
   await expect(final.locator("[data-grafica-final-winner]")).toHaveText("Vince Lignano");
+  await expect(final.locator("[data-grafica-confetti]")).toHaveCount(1);
   await expect(final.locator("[data-grafica-final-score]")).toHaveText("2–0");
   await expect(final).toContainText("Numeri della partita");
   await expect(final.locator('[data-grafica-recap-value="attack-home"]')).toHaveText("25");
@@ -337,6 +346,26 @@ test("time-out con il conto alla rovescia e i punti del set, set point, serie in
   await expect(page.locator("[data-grafica-phase]")).toHaveText("Finale");
   await expect(page.locator('[data-grafica-score="home"]')).toHaveText("2");
   await expect(page.locator('[data-grafica-serving="home"]')).toHaveCount(0);
+});
+
+test("se il set o la partita li vince l'avversaria: niente coriandoli, «Risultato finale» con chi ha vinto", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.clock.install();
+  const source = await feed(page, live({ ...score(20, 24) }));
+  await page.goto("/diretta/grafica");
+  await expect(page.locator('[data-grafica-score="away"]')).toHaveText("24");
+  source.set(live({ ...score(0, 0, [0, 1]), sets: [{ home: 20, away: 25 }], serving: "home", recap: RECAP_1 }));
+  await pass(page, 2_500);
+  const setCard = page.locator('[data-grafica-full="set"]');
+  await expect(setCard.locator("[data-grafica-set-winner]")).toHaveText("Set Esempio");
+  await expect(setCard.locator("[data-grafica-confetti]")).toHaveCount(0);
+  await pass(page, 16_000);
+  source.set(live({ ...score(0, 0, [0, 2]), sets: [{ home: 20, away: 25 }, { home: 22, away: 25 }], serving: null, finished: true }));
+  await pass(page, 2_500);
+  const final = page.locator('[data-grafica-full="final"]');
+  await expect(final.locator("[data-grafica-full-title]")).toHaveText("Risultato finale");
+  await expect(final.locator("[data-grafica-final-winner]")).toHaveText("Vince Esempio");
+  await expect(final.locator("[data-grafica-confetti]")).toHaveCount(0);
 });
 
 test("a fine set la formazione del set nuovo va in onda dopo il riepilogo, quando lo staff la conferma", async ({ page }) => {

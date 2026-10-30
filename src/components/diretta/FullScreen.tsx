@@ -1,53 +1,50 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import { format, isValid, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
-import { MapPin, Trophy, Volleyball } from "lucide-react";
+import { MapPin, PartyPopper, Trophy, Volleyball } from "lucide-react";
 import crest from "@/assets/lignano-crest.png";
 import { cn } from "@/lib/cn";
 import { FULL_EXIT_MS, type FullCard, type Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLineup, PublicLiveScore, PublicPlayer, PublicSetRecapTeam } from "@/lib/types";
-import { CLUB_BLUE, GOLD, NAVY, NAVY_DEEP, NAVY_LIGHT } from "./theme";
+import { Aurora, Confetti, Rays, Sparkles } from "./Effects";
+import { AZURE, INK, ORANGE, PINK, ROYAL, SKY, SUN, SUNSET } from "./theme";
 import { accent, TeamMark } from "./TeamMark";
 
 /**
- * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A: presentazione della partita,
- * formazione di partenza, fine set con i parziali e i numeri del set, risultato finale con i numeri della partita. Entrano ed
- * escono con la transizione (bande diagonali nei colori del club che attraversano lo schermo); intanto la barra del punteggio
- * si nasconde. Il fondo è quasi pieno: sotto, il video si intravede appena.
+ * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A ma in festa: presentazione della
+ * partita, formazione di partenza, fine set con i parziali e i numeri del set, risultato finale con i numeri della partita.
+ * Il fondo è il cielo di Lignano (azzurro luminoso con macchie di sole e di rosa che si muovono, raggi che girano, scintille);
+ * entrano ed escono con la transizione (bande gialle, arancio, rosa e celesti che attraversano lo schermo, con lo stemma che
+ * rimbalza); quando un set o la partita li vince Lignano piovono i coriandoli. Intanto la barra del punteggio si nasconde.
  */
 
 /** Quanto dura la transizione in entrata; in uscita FULL_EXIT_MS. */
 export const STINGER_MS = 900;
 
-/** Le bande della transizione: oro, blu del club, bianco, una dopo l'altra. */
+/** Le bande della transizione, una dopo l'altra, con lo stemma che rimbalza in mezzo. */
 function Stinger({ phase }: { phase: "in" | "out" }) {
-  const bands = [
-    { color: GOLD, delay: 0 },
-    { color: CLUB_BLUE, delay: 90 },
-    { color: "#ffffff", delay: 180 },
-  ];
+  const bands = [SUN, ORANGE, PINK, SKY];
   return (
     <div key={phase} className="pointer-events-none absolute inset-0 z-20 overflow-hidden" data-grafica-stinger={phase} aria-hidden>
-      {bands.map((band) => (
+      {bands.map((color, i) => (
         <span
-          key={band.color}
-          className="absolute inset-y-[-10%] left-0 w-[70%]"
-          style={{ background: band.color, animation: `grafica-stinger 760ms cubic-bezier(.55,.05,.35,1) ${band.delay}ms both` }}
+          key={color}
+          className="absolute inset-y-[-10%] left-0 w-[62%]"
+          style={{ background: color, animation: `grafica-stinger 780ms cubic-bezier(.55,.05,.35,1) ${i * 70}ms both` }}
         />
       ))}
-      <span
-        className="absolute left-1/2 top-1/2 grid h-[16rem] w-[16rem] -translate-x-1/2 -translate-y-1/2 place-items-center"
-        style={{ animation: "grafica-full-out 300ms ease-in 520ms both" }}
-      >
-        <Image src={crest} alt="" unoptimized className="h-full w-full object-contain drop-shadow-[0_0.6rem_1.6rem_rgba(0,0,0,0.45)]" />
+      <span className="absolute left-1/2 top-1/2 h-[18rem] w-[18rem] -translate-x-1/2 -translate-y-1/2" style={{ animation: "grafica-full-out 260ms ease-in 560ms both" }}>
+        <span className="block h-full w-full" style={{ animation: "grafica-bounce-in 520ms cubic-bezier(.2,.8,.2,1) both" }}>
+          <Image src={crest} alt="" unoptimized className="h-full w-full object-contain drop-shadow-[0_0.8rem_2rem_rgba(0,0,0,0.35)]" />
+        </span>
       </span>
     </div>
   );
 }
 
-function Frame({ card, now, children }: { card: FullCard; now: number; children: ReactNode }) {
+function Frame({ card, now, children, party = false }: { card: FullCard; now: number; children: ReactNode; party?: boolean }) {
   const entering = now - card.startedAt < STINGER_MS;
   const leaving = card.until - now < FULL_EXIT_MS;
   return (
@@ -56,22 +53,30 @@ function Frame({ card, now, children }: { card: FullCard; now: number; children:
         className="absolute inset-0 overflow-hidden"
         style={{ animation: leaving ? "grafica-full-out 380ms ease-in 300ms both" : "grafica-full-in 520ms ease-out 330ms both" }}
       >
-        {/* Il fondo: blu notte con una luce in alto, due fasci diagonali e lo stemma in filigrana. */}
-        <div
-          className="absolute inset-0"
-          style={{ background: `radial-gradient(110% 80% at 50% -10%, ${NAVY_LIGHT} 0%, ${NAVY} 55%, ${NAVY_DEEP} 100%)`, opacity: 0.96 }}
-        />
-        <div className="absolute -left-[10%] top-0 h-full w-[35%] -skew-x-[18deg] bg-gradient-to-r from-white/0 via-white/[0.05] to-white/0" />
-        <div className="absolute right-[5%] top-0 h-full w-[18%] -skew-x-[18deg] bg-gradient-to-r from-white/0 via-white/[0.04] to-white/0" />
-        <div className="absolute -bottom-[8rem] -right-[6rem] h-[44rem] w-[44rem] opacity-[0.06]">
+        {/* Il cielo di Lignano: azzurro luminoso, macchie di colore che si muovono, raggi, scintille e lo stemma in filigrana. */}
+        <div className="absolute inset-0" style={{ background: `linear-gradient(150deg, ${ROYAL} 0%, ${AZURE} 45%, ${SKY} 100%)` }} />
+        <Aurora />
+        <Rays />
+        <Sparkles />
+        <div className="absolute -bottom-[6rem] -right-[5rem] h-[40rem] w-[40rem] opacity-[0.12]" style={{ animation: "grafica-float 6s ease-in-out infinite" }}>
           <Image src={crest} alt="" unoptimized className="h-full w-full object-contain" />
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-[0.5rem]" style={{ background: `linear-gradient(90deg, ${GOLD}, ${CLUB_BLUE})` }} />
+        <div className="absolute inset-x-0 bottom-0 h-[0.6rem]" style={{ background: SUNSET }} />
+        <div className="absolute inset-x-0 top-0 h-[0.6rem]" style={{ background: SUNSET }} />
+        {party && <Confetti loop seed={(card.startedAt % 97) + 1} />}
         <div className="relative flex h-full flex-col items-center justify-center px-[6rem] text-white">{children}</div>
       </div>
       {(entering || leaving) && <Stinger phase={leaving ? "out" : "in"} />}
     </div>
   );
+}
+
+/**
+ * Il colore di una squadra sullo schermo intero: per Lignano il giallo dello stemma (il suo blu, sull'azzurro del fondo, non
+ * si vedrebbe), per l'avversaria il suo colore.
+ */
+function tone(live: PublicLiveScore, side: Side): string {
+  return side === "home" ? SUN : accent(live.away.color);
 }
 
 /** «Under 15 femminile», con «Amichevole» quando lo è. */
@@ -81,14 +86,32 @@ function competition(live: PublicLiveScore): string {
   return parts.join(" · ");
 }
 
-function Heading({ eyebrow, title, right }: { eyebrow: string; title: string; right?: ReactNode }) {
+/** Il titolo che brilla: un gradiente giallo → bianco → rosa che scorre nelle lettere. */
+const SHINY: CSSProperties = {
+  backgroundImage: `linear-gradient(90deg, ${SUN}, #ffffff, ${PINK}, ${SUN})`,
+  backgroundSize: "200% 100%",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  color: "transparent",
+  animation: "grafica-shimmer 3s linear infinite",
+  filter: "drop-shadow(0 0.2rem 0.5rem rgba(11,27,77,0.45))",
+};
+
+function Heading({ eyebrow, title, right, shiny = false }: { eyebrow: string; title: string; right?: ReactNode; shiny?: boolean }) {
   return (
-    <div className="mb-[2rem] flex w-[96rem] max-w-full items-end justify-between gap-[2rem] border-b-[0.2rem] border-white/15 pb-[0.9rem]" style={{ animation: "grafica-rise 500ms ease-out 450ms both" }}>
+    <div
+      className="mb-[2rem] flex w-[96rem] max-w-full items-end justify-between gap-[2rem] border-b-[0.25rem] border-white/35 pb-[0.9rem]"
+      style={{ animation: "grafica-rise 500ms ease-out 450ms both" }}
+    >
       <div>
-        <p className="grafica-type text-[1.5rem] tracking-[0.14em]" style={{ color: GOLD }} data-grafica-full-eyebrow>
+        <p className="grafica-type text-[1.6rem] tracking-[0.14em] [text-shadow:0_0.1rem_0.3rem_rgba(11,27,77,0.5)]" style={{ color: SUN }} data-grafica-full-eyebrow>
           {eyebrow}
         </p>
-        <h2 className="grafica-type mt-[0.4rem] text-[4.6rem]" data-grafica-full-title>
+        <h2
+          className={cn("grafica-type mt-[0.4rem] text-[4.8rem]", !shiny && "[text-shadow:0_0.25rem_0.8rem_rgba(11,27,77,0.45)]")}
+          style={shiny ? SHINY : undefined}
+          data-grafica-full-title
+        >
           {title}
         </h2>
       </div>
@@ -97,15 +120,39 @@ function Heading({ eyebrow, title, right }: { eyebrow: string; title: string; ri
   );
 }
 
+/** L'etichetta colorata in alto a destra (chi ha vinto il set o la partita). */
+function Badge({ children, party = false, marker }: { children: ReactNode; party?: boolean; marker: string }) {
+  return (
+    <span
+      className="grafica-type flex items-center gap-[0.8rem] rounded-full px-[1.4rem] py-[0.6rem] text-[2.2rem] shadow-[0_0.5rem_1.4rem_rgba(11,27,77,0.35)]"
+      style={{ background: party ? SUNSET : SUN, color: INK, animation: "grafica-bounce-in 600ms cubic-bezier(.2,.8,.2,1) 700ms both" }}
+      {...{ [marker]: "" }}
+    >
+      {children}
+    </span>
+  );
+}
+
 /** Una squadra in grande: logo e nome (intero nella presentazione, corto nei riepiloghi, dove c'è poco spazio). */
-function TeamBlock({ live, side, dimmed = false, size = "lg" }: { live: PublicLiveScore; side: Side; dimmed?: boolean; size?: "lg" | "md" }) {
+function TeamBlock({ live, side, dimmed = false, size = "lg", delay = 600 }: { live: PublicLiveScore; side: Side; dimmed?: boolean; size?: "lg" | "md"; delay?: number }) {
   const team = side === "home" ? live.home : live.away;
   const large = size === "lg";
   return (
-    <div className={cn("flex min-w-0 flex-col items-center text-center", large ? "gap-[1.4rem]" : "gap-[1rem]", dimmed && "opacity-55")} data-grafica-full-team={side}>
-      <TeamMark team={team} side={side} className={large ? "h-[13rem] w-[13rem] rounded-[1.6rem] p-[1rem] text-[4rem]" : "h-[6.6rem] w-[6.6rem] rounded-[1rem] p-[0.6rem] text-[2.2rem]"} />
-      <span className={cn("grafica-type max-w-full", large ? "text-[3.4rem]" : "truncate text-[2.6rem]")}>{large ? team.name : teamShortName(team.name)}</span>
-      <span className="h-[0.4rem] w-[6rem] rounded-full" style={{ background: accent(team.color) }} />
+    <div className={cn("flex min-w-0 flex-col items-center text-center", large ? "gap-[1.4rem]" : "gap-[1rem]", dimmed && "opacity-60")} data-grafica-full-team={side}>
+      <span style={{ animation: `grafica-bounce-in 650ms cubic-bezier(.2,.8,.2,1) ${delay}ms both` }}>
+        <TeamMark
+          team={team}
+          side={side}
+          className={cn(
+            "shadow-[0_1rem_2.4rem_rgba(11,27,77,0.45)] ring-[0.35rem] ring-white/70",
+            large ? "h-[13rem] w-[13rem] rounded-[1.8rem] p-[1rem] text-[4rem]" : "h-[6.6rem] w-[6.6rem] rounded-[1.1rem] p-[0.6rem] text-[2.2rem]",
+          )}
+        />
+      </span>
+      <span className={cn("grafica-type max-w-full [text-shadow:0_0.2rem_0.6rem_rgba(11,27,77,0.5)]", large ? "text-[3.4rem]" : "truncate text-[2.6rem]")}>
+        {large ? team.name : teamShortName(team.name)}
+      </span>
+      <span className="h-[0.45rem] w-[6rem] rounded-full shadow-[0_0_0.8rem_rgba(255,255,255,0.6)]" style={{ background: tone(live, side) }} />
     </div>
   );
 }
@@ -121,24 +168,30 @@ function Intro({ live }: { live: PublicLiveScore }) {
   const when = live.info ? matchDate(live.info.date) : null;
   return (
     <>
-      <Heading eyebrow={competition(live)} title="Oggi in campo" />
-      <div className="grid w-[96rem] max-w-full grid-cols-[1fr_auto_1fr] items-center gap-[3rem]" style={{ animation: "grafica-rise 600ms ease-out 550ms both" }}>
-        <TeamBlock live={live} side="home" />
-        <span className="grafica-type grid h-[8rem] w-[8rem] place-items-center rounded-full text-[3.2rem]" style={{ background: GOLD, color: NAVY }}>
+      <Heading eyebrow={competition(live)} title="Oggi in campo!" shiny />
+      <div className="grid w-[96rem] max-w-full grid-cols-[1fr_auto_1fr] items-center gap-[3rem]">
+        <TeamBlock live={live} side="home" delay={550} />
+        <span
+          className="grafica-type grid h-[8.5rem] w-[8.5rem] place-items-center rounded-full text-[3.4rem] ring-[0.4rem] ring-white/80"
+          style={{ background: SUNSET, color: INK, animation: "grafica-bounce-in 600ms cubic-bezier(.2,.8,.2,1) 800ms both, grafica-glow 1.4s ease-in-out 1.4s infinite" }}
+        >
           VS
         </span>
-        <TeamBlock live={live} side="away" />
+        <TeamBlock live={live} side="away" delay={700} />
       </div>
       {(when || live.info?.venue) && (
-        <div className="mt-[3rem] flex flex-col items-center gap-[0.7rem]" style={{ animation: "grafica-rise 600ms ease-out 700ms both" }}>
+        <div
+          className="mt-[3rem] flex flex-col items-center gap-[0.8rem] rounded-[1.4rem] bg-white/15 px-[2.4rem] py-[1.1rem] ring-[0.12rem] ring-white/35"
+          style={{ animation: "grafica-rise 600ms ease-out 900ms both" }}
+        >
           {when && (
-            <p className="grafica-type text-[2.2rem] tracking-[0.06em]" data-grafica-intro-date>
+            <p className="grafica-type text-[2.3rem] tracking-[0.06em]" data-grafica-intro-date>
               {when}
             </p>
           )}
           {live.info?.venue && (
-            <p className="flex items-center gap-[0.6rem] text-[1.6rem] font-semibold text-white/75" data-grafica-intro-venue>
-              <MapPin className="h-[1.6rem] w-[1.6rem]" style={{ color: GOLD }} aria-hidden />
+            <p className="flex items-center gap-[0.6rem] text-[1.7rem] font-semibold" data-grafica-intro-venue>
+              <MapPin className="h-[1.7rem] w-[1.7rem]" style={{ color: SUN }} aria-hidden />
               {live.info.venue}
             </p>
           )}
@@ -149,27 +202,44 @@ function Intro({ live }: { live: PublicLiveScore }) {
 }
 
 /** Una maglia con il numero (e il nome sotto, se c'è): il disegno della formazione. */
-function Jersey({ player, libero = false, serving = false, position }: { player: PublicPlayer | null; libero?: boolean; serving?: boolean; position?: number }) {
-  const fill = libero ? GOLD : CLUB_BLUE;
+function Jersey({
+  player,
+  libero = false,
+  serving = false,
+  position,
+  delay = 0,
+}: {
+  player: PublicPlayer | null;
+  libero?: boolean;
+  serving?: boolean;
+  position?: number;
+  delay?: number;
+}) {
+  const fill = libero ? SUN : ROYAL;
   return (
-    <div className="flex w-[13rem] flex-col items-center gap-[0.6rem]" data-grafica-lineup-spot={libero ? "libero" : position}>
+    <div
+      className="flex w-[13rem] flex-col items-center gap-[0.6rem]"
+      style={{ animation: `grafica-bounce-in 560ms cubic-bezier(.2,.8,.2,1) ${delay}ms both` }}
+      data-grafica-lineup-spot={libero ? "libero" : position}
+    >
       <div className="relative h-[8.4rem] w-[8.4rem]">
-        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full drop-shadow-[0_0.4rem_0.8rem_rgba(0,0,0,0.4)]" aria-hidden>
-          <path d="M31 6 L43 2 Q50 11 57 2 L69 6 L94 21 L84 41 L73 35 L73 97 L27 97 L27 35 L16 41 L6 21 Z" fill={fill} stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
+        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full drop-shadow-[0_0.5rem_0.9rem_rgba(11,27,77,0.45)]" aria-hidden>
+          <path d="M31 6 L43 2 Q50 11 57 2 L69 6 L94 21 L84 41 L73 35 L73 97 L27 97 L27 35 L16 41 L6 21 Z" fill={fill} stroke="#ffffff" strokeWidth="2.5" />
+          <path d="M27 88 L73 88" stroke={libero ? ORANGE : SUN} strokeWidth="5" />
         </svg>
-        <span
-          className="grafica-type absolute inset-0 grid place-items-center pt-[1.2rem] text-[3.4rem] tabular-nums"
-          style={{ color: libero ? NAVY : "#ffffff" }}
-          data-grafica-lineup-number
-        >
+        <span className="grafica-type absolute inset-0 grid place-items-center pb-[0.4rem] text-[3.4rem] tabular-nums" style={{ color: libero ? INK : "#ffffff" }} data-grafica-lineup-number>
           {player?.number ?? "–"}
         </span>
         {serving && (
-          <Volleyball className="absolute -right-[0.4rem] -top-[0.2rem] h-[2rem] w-[2rem] rounded-full bg-white p-[0.15rem]" style={{ color: NAVY }} aria-label="Batte" />
+          <Volleyball
+            className="absolute -right-[0.5rem] -top-[0.3rem] h-[2.2rem] w-[2.2rem] rounded-full bg-white p-[0.15rem] shadow-[0_0_0.8rem_rgba(255,210,63,0.9)]"
+            style={{ color: INK, animation: "grafica-ball 1.1s ease-in-out infinite" }}
+            aria-label="Batte"
+          />
         )}
       </div>
       {player?.name && (
-        <span className="grafica-type max-w-full truncate text-[1.5rem]" data-grafica-lineup-name>
+        <span className="grafica-type max-w-full truncate rounded-full bg-white px-[0.8rem] py-[0.15rem] text-[1.4rem]" style={{ color: INK }} data-grafica-lineup-name>
           {player.name}
         </span>
       )}
@@ -191,32 +261,34 @@ function Lineup({ live, lineup }: { live: PublicLiveScore; lineup: PublicLineup 
         title={`Formazione · ${lineup.set}° set`}
         right={
           <span className="flex items-center gap-[1rem]">
-            <TeamMark team={live.home} side="home" className="h-[4.4rem] w-[4.4rem]" />
-            <span className="grafica-type text-[2.6rem]">{live.home.name}</span>
+            <TeamMark team={live.home} side="home" className="h-[4.4rem] w-[4.4rem] ring-[0.25rem] ring-white/70" />
+            <span className="grafica-type text-[2.6rem] [text-shadow:0_0.2rem_0.6rem_rgba(11,27,77,0.5)]">{live.home.name}</span>
           </span>
         }
       />
-      <div className="flex items-center gap-[4rem]" style={{ animation: "grafica-rise 600ms ease-out 550ms both" }} data-grafica-lineup={lineup.set}>
-        {/* Il campo: la rete in alto, la prima linea davanti. */}
-        <div className="relative w-[50rem] overflow-hidden rounded-[1.2rem] border-[0.25rem] border-white/70 px-[2rem] pb-[2rem] pt-[3.4rem]" style={{ background: `linear-gradient(180deg, ${CLUB_BLUE}55, ${NAVY}cc)` }}>
-          <span className="absolute inset-x-0 top-0 grid h-[1.6rem] place-items-center bg-white/85 text-[0.95rem] font-extrabold uppercase tracking-[0.3em]" style={{ color: NAVY }}>
-            Rete
-          </span>
-          <span className="absolute inset-x-0 top-[48%] h-[0.2rem] bg-white/40" aria-hidden />
-          {ROWS.map((row, i) => (
-            <div key={i} className={cn("relative flex justify-between", i === 0 ? "mb-[2.6rem]" : "")}>
-              {row.map((position) => (
-                <Jersey key={position} player={lineup.positions[position - 1] ?? null} serving={position === 1} position={position} />
-              ))}
-            </div>
-          ))}
+      <div className="flex items-center gap-[4rem]" data-grafica-lineup={lineup.set}>
+        {/* Il campo come in palestra: arancio con le righe bianche, la zona libera blu, la rete in alto. */}
+        <div className="relative w-[50rem] rounded-[1.2rem] p-[1.2rem] shadow-[0_1.2rem_3rem_rgba(11,27,77,0.45)]" style={{ background: ROYAL, animation: "grafica-rise 600ms ease-out 450ms both" }}>
+          <div className="relative overflow-hidden rounded-[0.4rem] border-[0.3rem] border-white px-[1.6rem] pb-[1.8rem] pt-[3rem]" style={{ background: "linear-gradient(180deg, #ffa24c, #ff7a29)" }}>
+            <span className="grafica-type absolute inset-x-0 top-0 grid h-[1.7rem] place-items-center bg-white text-[1rem] tracking-[0.35em]" style={{ color: INK }}>
+              Rete
+            </span>
+            <span className="absolute inset-x-0 top-[44%] h-[0.25rem] bg-white" aria-hidden />
+            {ROWS.map((row, i) => (
+              <div key={i} className={cn("relative flex justify-between", i === 0 ? "mb-[2.4rem]" : "")}>
+                {row.map((position, j) => (
+                  <Jersey key={position} player={lineup.positions[position - 1] ?? null} serving={position === 1} position={position} delay={650 + (i * 3 + j) * 90} />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
         {lineup.libero && (
           <div className="flex flex-col items-center gap-[1rem]">
-            <span className="grafica-type rounded-[0.5rem] px-[1rem] py-[0.4rem] text-[1.4rem] tracking-[0.14em]" style={{ background: GOLD, color: NAVY }}>
+            <span className="grafica-type rounded-full px-[1.2rem] py-[0.4rem] text-[1.5rem] tracking-[0.14em] shadow-[0_0.4rem_1rem_rgba(11,27,77,0.35)]" style={{ background: SUNSET, color: INK }}>
               Libero
             </span>
-            <Jersey player={lineup.libero} libero />
+            <Jersey player={lineup.libero} libero delay={1250} />
           </div>
         )}
       </div>
@@ -232,17 +304,22 @@ function SetsTable({ live, highlight }: { live: PublicLiveScore; highlight?: num
     { side: "away", team: live.away },
   ];
   return (
-    <div className="w-[72rem] max-w-full overflow-hidden rounded-[0.9rem] border border-white/12" style={{ background: "rgba(4,13,31,0.6)" }} data-grafica-sets-table>
-      <div className="grid items-center border-b border-white/12 px-[1.4rem] py-[0.5rem] text-[1rem] font-extrabold uppercase tracking-[0.14em] text-white/55" style={{ gridTemplateColumns: `1fr repeat(${columns}, 5.2rem) 6.4rem` }}>
+    <div
+      className="w-[72rem] max-w-full overflow-hidden rounded-[1rem] bg-white/15 shadow-[0_0.8rem_2rem_rgba(11,27,77,0.3)] ring-[0.12rem] ring-white/40"
+      style={{ animation: "grafica-rise 600ms ease-out 750ms both" }}
+      data-grafica-sets-table
+    >
+      <div
+        className="grid items-center border-b border-white/25 px-[1.4rem] py-[0.5rem] text-[1rem] font-extrabold uppercase tracking-[0.14em]"
+        style={{ gridTemplateColumns: `1fr repeat(${columns}, 5.2rem) 6.4rem`, color: SUN }}
+      >
         <span>Set</span>
         {live.sets.map((_, i) => (
-          <span key={i} className={cn("text-center", highlight === i + 1 && "text-white")}>
+          <span key={i} className="text-center">
             {i + 1}°
           </span>
         ))}
-        <span className="text-center" style={{ color: GOLD }}>
-          Vinti
-        </span>
+        <span className="text-center">Vinti</span>
       </div>
       {rows.map(({ side, team }) => (
         <div key={side} className="grid h-[3.6rem] items-center px-[1.4rem]" style={{ gridTemplateColumns: `1fr repeat(${columns}, 5.2rem) 6.4rem` }} data-grafica-sets-row={side}>
@@ -256,13 +333,17 @@ function SetsTable({ live, highlight }: { live: PublicLiveScore; highlight?: num
             return (
               <span
                 key={i}
-                className={cn("grafica-type text-center text-[2rem] tabular-nums", mine > theirs ? "text-white" : "text-white/45", highlight === i + 1 && "rounded-[0.4rem] bg-white/10")}
+                className={cn("grafica-type text-center text-[2rem] tabular-nums", mine > theirs ? "text-white" : "text-white/55", highlight === i + 1 && "rounded-[0.5rem] bg-white/20")}
               >
                 {mine}
               </span>
             );
           })}
-          <span className="grafica-type mx-auto grid h-[3.2rem] w-[4rem] place-items-center rounded-[0.5rem] text-[2.4rem] tabular-nums" style={{ background: GOLD, color: NAVY }} data-grafica-sets-won={side}>
+          <span
+            className="grafica-type mx-auto grid h-[3.2rem] w-[4rem] place-items-center rounded-[0.6rem] text-[2.4rem] tabular-nums shadow-[0_0_1rem_rgba(255,210,63,0.6)]"
+            style={{ background: SUN, color: INK }}
+            data-grafica-sets-won={side}
+          >
             {team.sets}
           </span>
         </div>
@@ -280,30 +361,55 @@ const STATS: { key: keyof PublicSetRecapTeam; label: string }[] = [
   { key: "timeouts", label: "Time-out" },
 ];
 
-/** I numeri di squadra, una barra per parte: chi ha di più è in pieno colore. */
+/** I numeri di squadra, una barra luminosa per parte che cresce: chi ha di più è in pieno colore. */
 function StatBars({ live, stats, title }: { live: PublicLiveScore; stats: { home: PublicSetRecapTeam; away: PublicSetRecapTeam }; title: string }) {
-  const homeColor = accent(live.home.color);
-  const awayColor = accent(live.away.color);
+  const homeColor = tone(live, "home");
+  const awayColor = tone(live, "away");
   return (
-    <div className="mt-[1.4rem] w-[72rem] max-w-full" data-grafica-recap-stats>
-      <p className="pb-[0.5rem] text-center text-[1rem] font-extrabold uppercase tracking-[0.18em] text-white/55">{title}</p>
-      {STATS.map(({ key, label }) => {
+    <div
+      className="mt-[1.4rem] w-[72rem] max-w-full rounded-[1rem] bg-white/10 px-[1.4rem] pb-[0.8rem] pt-[0.6rem] ring-[0.12rem] ring-white/30"
+      style={{ animation: "grafica-rise 600ms ease-out 900ms both" }}
+      data-grafica-recap-stats
+    >
+      <p className="pb-[0.4rem] text-center text-[1rem] font-extrabold uppercase tracking-[0.18em]" style={{ color: SUN }}>
+        {title}
+      </p>
+      {STATS.map(({ key, label }, i) => {
         const home = stats.home[key];
         const away = stats.away[key];
         const max = Math.max(home, away, 1);
+        const delay = `${1000 + i * 90}ms`;
         return (
           <div key={key} className="grid h-[2.4rem] grid-cols-[4rem_1fr_14rem_1fr_4rem] items-center gap-[1rem]" data-grafica-recap-row={key}>
-            <span className={cn("grafica-type text-right text-[1.9rem] tabular-nums", away > home && "text-white/50")} data-grafica-recap-value={`${key}-home`}>
+            <span className={cn("grafica-type text-right text-[1.9rem] tabular-nums", away > home && "text-white/60")} data-grafica-recap-value={`${key}-home`}>
               {home}
             </span>
             <span className="flex justify-end">
-              <span className="h-[0.8rem] origin-right animate-[grafica-grow_700ms_ease-out_700ms_both] rounded-l-full" style={{ width: `${(home / max) * 100}%`, background: homeColor, opacity: away > home ? 0.45 : 1 }} />
+              <span
+                className="h-[0.85rem] origin-right rounded-l-full"
+                style={{
+                  width: `${(home / max) * 100}%`,
+                  background: homeColor,
+                  opacity: away > home ? 0.5 : 1,
+                  boxShadow: `0 0 0.8rem ${homeColor}`,
+                  animation: `grafica-grow 700ms ease-out ${delay} both`,
+                }}
+              />
             </span>
-            <span className="text-center text-[1.05rem] font-extrabold uppercase tracking-[0.12em] text-white/80">{label}</span>
+            <span className="text-center text-[1.05rem] font-extrabold uppercase tracking-[0.12em]">{label}</span>
             <span className="flex justify-start">
-              <span className="h-[0.8rem] origin-left animate-[grafica-grow_700ms_ease-out_700ms_both] rounded-r-full" style={{ width: `${(away / max) * 100}%`, background: awayColor, opacity: home > away ? 0.45 : 1 }} />
+              <span
+                className="h-[0.85rem] origin-left rounded-r-full"
+                style={{
+                  width: `${(away / max) * 100}%`,
+                  background: awayColor,
+                  opacity: home > away ? 0.5 : 1,
+                  boxShadow: `0 0 0.8rem ${awayColor}`,
+                  animation: `grafica-grow 700ms ease-out ${delay} both`,
+                }}
+              />
             </span>
-            <span className={cn("grafica-type text-[1.9rem] tabular-nums", home > away && "text-white/50")} data-grafica-recap-value={`${key}-away`}>
+            <span className={cn("grafica-type text-[1.9rem] tabular-nums", home > away && "text-white/60")} data-grafica-recap-value={`${key}-away`}>
               {away}
             </span>
           </div>
@@ -313,17 +419,23 @@ function StatBars({ live, stats, title }: { live: PublicLiveScore; stats: { home
   );
 }
 
-/** Le due squadre con il punteggio grande in mezzo (il parziale del set o i set vinti). */
+/** Le due squadre con il punteggio grande e luminoso in mezzo (il parziale del set o i set vinti). */
 function Scoreline({ live, home, away, marker }: { live: PublicLiveScore; home: number; away: number; marker: Record<string, string> }) {
+  const glow = "[text-shadow:0_0_1.6rem_rgba(255,210,63,0.75),0_0.3rem_0.8rem_rgba(11,27,77,0.5)]";
   return (
-    <div className="mb-[1.6rem] grid w-[80rem] max-w-full grid-cols-[1fr_auto_1fr] items-center gap-[2.4rem]" style={{ animation: "grafica-rise 600ms ease-out 550ms both" }}>
-      <TeamBlock live={live} side="home" size="md" dimmed={away > home} />
-      <span className="grafica-type flex items-center gap-[1.2rem] text-[7.4rem] tabular-nums" data-grafica-recap-score {...marker}>
-        <span className={cn(away > home && "text-white/50")}>{home}</span>
-        <span className="text-white/35">–</span>
-        <span className={cn(home > away && "text-white/50")}>{away}</span>
+    <div className="mb-[1.6rem] grid w-[80rem] max-w-full grid-cols-[1fr_auto_1fr] items-center gap-[2.4rem]">
+      <TeamBlock live={live} side="home" size="md" dimmed={away > home} delay={550} />
+      <span
+        className="grafica-type flex items-center gap-[1.2rem] text-[7.6rem] tabular-nums"
+        style={{ animation: "grafica-bounce-in 650ms cubic-bezier(.2,.8,.2,1) 650ms both" }}
+        data-grafica-recap-score
+        {...marker}
+      >
+        <span className={cn(away > home ? "text-white/60" : glow)}>{home}</span>
+        <span style={{ color: SUN }}>–</span>
+        <span className={cn(home > away ? "text-white/60" : glow)}>{away}</span>
       </span>
-      <TeamBlock live={live} side="away" size="md" dimmed={home > away} />
+      <TeamBlock live={live} side="away" size="md" dimmed={home > away} delay={700} />
     </div>
   );
 }
@@ -344,17 +456,28 @@ export function FullScreen({ card, live, now }: { card: FullCard; live: PublicLi
     );
   }
   if (card.kind === "set") {
+    // Il set lo ha vinto Lignano: festa (coriandoli e titolo che brilla).
+    const ours = card.home > card.away;
+    const setWinner = ours ? live.home : live.away;
+    const minutes = card.recap?.minutes ?? null;
     return (
-      <Frame card={card} now={now}>
+      <Frame card={card} now={now} party={ours}>
         <Heading
           eyebrow={competition(live)}
           title={`Fine ${card.n}° set`}
+          shiny={ours}
           right={
-            card.recap?.minutes != null ? (
-              <span className="grafica-type text-[2rem] text-white/70" data-grafica-recap-minutes>
-                Durata {card.recap.minutes}′
-              </span>
-            ) : undefined
+            <span className="flex flex-col items-end gap-[0.6rem]">
+              <Badge party={ours} marker="data-grafica-set-winner">
+                {ours && <PartyPopper className="h-[2rem] w-[2rem]" aria-hidden />}
+                Set {teamShortName(setWinner.name)}
+              </Badge>
+              {minutes !== null && (
+                <span className="grafica-type text-[1.6rem] text-white/90" data-grafica-recap-minutes>
+                  Durata {minutes}′
+                </span>
+              )}
+            </span>
           }
         />
         {/* Gli stessi segni di prima, così chi cerca il punteggio del set lo trova. */}
@@ -368,17 +491,19 @@ export function FullScreen({ card, live, now }: { card: FullCard; live: PublicLi
   const winner: Side | null = live.home.sets === live.away.sets ? null : live.home.sets > live.away.sets ? "home" : "away";
   const winnerTeam = winner === "home" ? live.home : winner === "away" ? live.away : null;
   const stats = card.stats ?? (card.recap ? { home: card.recap.home, away: card.recap.away } : null);
+  const ours = winner === "home";
   return (
-    <Frame card={card} now={now}>
+    <Frame card={card} now={now} party={ours}>
       <Heading
         eyebrow={competition(live)}
-        title="Risultato finale"
+        title={ours ? "Vittoria!" : "Risultato finale"}
+        shiny={ours}
         right={
           winnerTeam ? (
-            <span className="grafica-type flex items-center gap-[0.8rem] rounded-[0.6rem] px-[1.2rem] py-[0.6rem] text-[2.2rem]" style={{ background: GOLD, color: NAVY }} data-grafica-final-winner>
-              <Trophy className="h-[2rem] w-[2rem]" aria-hidden />
+            <Badge party={ours} marker="data-grafica-final-winner">
+              <Trophy className="h-[2rem] w-[2rem]" style={ours ? { animation: "grafica-flame 0.9s ease-in-out infinite" } : undefined} aria-hidden />
               Vince {teamShortName(winnerTeam.name)}
-            </span>
+            </Badge>
           ) : undefined
         }
       />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
-import { GOLD, NAVY } from "./theme";
+import { INK, SUN } from "./theme";
 
 /** Le misure giuste della «Sorgente browser»: quelle del video (Full HD). */
 export const SOURCE_WIDTH = 1920;
@@ -53,8 +53,8 @@ export function VerifyFrame() {
       <span className="absolute left-1/2 top-0 h-full w-px bg-white/35" />
       <span className="absolute left-0 top-1/2 h-px w-full bg-white/35" />
 
-      <div className="absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 rounded-[1rem] px-[2.4rem] py-[2rem] text-white shadow-2xl" style={{ background: `${NAVY}ee` }}>
-        <p className="grafica-type text-[1.4rem] tracking-[0.14em]" style={{ color: GOLD }}>
+      <div className="absolute left-1/2 top-1/2 w-[64rem] -translate-x-1/2 -translate-y-1/2 rounded-[1rem] px-[2.4rem] py-[2rem] text-white shadow-2xl" style={{ background: `${INK}ee` }}>
+        <p className="grafica-type text-[1.4rem] tracking-[0.14em]" style={{ color: SUN }}>
           Verifica della grafica
         </p>
         <p className="grafica-type mt-[0.6rem] text-[4.6rem] tabular-nums" style={{ color }} data-grafica-verify-size>

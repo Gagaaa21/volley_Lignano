@@ -4,6 +4,7 @@ import type { Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
+import { INK, ROYAL, SKY } from "./theme";
 import { accent, TeamMark } from "./TeamMark";
 
 /**
@@ -15,20 +16,21 @@ import { accent, TeamMark } from "./TeamMark";
  * riquadro vanno i set vinti.
  */
 
-const NAVY = "#06141f";
-const BLUE = "#0b2a6b";
+/** Il riquadro dei punti e la linguetta: il blu scuro dei titoli, così i numeri bianchi spiccano sull'azzurro. */
+const NAVY = INK;
+const BLUE = ROYAL;
 
 function Timeouts({ used, side }: { used: number; side: Side }) {
   const spent = Math.min(Math.max(used, 0), TIMEOUTS_PER_SET);
   return (
     <span className="flex items-center gap-[0.3rem]" data-grafica-wide-timeouts={spent} data-grafica-wide-timeouts-side={side}>
-      <Timer aria-hidden className="h-[0.8rem] w-[0.8rem] text-amber-300/90" />
+      <Timer aria-hidden className="h-[0.8rem] w-[0.8rem] text-[#ffd23f]" />
       {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
         <span
           key={i}
           className={cn(
             "h-[0.6rem] w-[0.6rem] rounded-full border-[0.1rem]",
-            i < spent ? "border-amber-300 bg-amber-300 shadow-[0_0_0.5rem_rgba(252,211,77,0.8)]" : "border-white/40",
+            i < spent ? "border-[#ffd23f] bg-[#ffd23f] shadow-[0_0_0.6rem_rgba(255,210,63,0.9)]" : "border-white/40",
           )}
         />
       ))}
@@ -65,7 +67,7 @@ function TeamSide({
   const ball = (
     <Volleyball
       aria-label={serving ? "Al servizio" : undefined}
-      className={cn("h-[1.6rem] w-[1.6rem] shrink-0 text-amber-300", !serving && "invisible")}
+      className={cn("h-[1.6rem] w-[1.6rem] shrink-0 text-[#ffd23f]", !serving && "invisible")}
       data-grafica-wide-serving={serving ? side : undefined}
     />
   );
@@ -75,7 +77,7 @@ function TeamSide({
       className={cn("grafica-type min-w-0 flex-1 truncate text-[2.1rem]", dimmed && "text-white/60", side === "away" && "text-right")}
       data-grafica-wide-name={side}
     >
-      {winner && <Trophy aria-label="Ha vinto" className="mr-[0.5rem] mb-[0.2rem] inline h-[1.5rem] w-[1.5rem] text-amber-300" />}
+      {winner && <Trophy aria-label="Ha vinto" className="mr-[0.5rem] mb-[0.2rem] inline h-[1.5rem] w-[1.5rem] text-[#ffd23f]" />}
       {teamShortName(team.name)}
     </span>
   );
@@ -111,10 +113,10 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
   return (
     <div className="relative w-[84rem] max-w-[96%] pb-[1.7rem]" data-grafica-wide>
       <div
-        className="flex h-[6.4rem] items-stretch overflow-hidden rounded-[1.2rem] text-white shadow-[0_0.6rem_1.6rem_rgba(0,0,0,0.45)]"
+        className="flex h-[6.4rem] items-stretch overflow-hidden rounded-[1.2rem] text-white shadow-[0_0.6rem_1.6rem_rgba(8,20,70,0.45)] ring-[0.12rem] ring-white/40"
         style={{
           backgroundColor: BLUE,
-          backgroundImage: `radial-gradient(40% 160% at 0% 50%, ${homeColor}80 0%, ${homeColor}00 100%), radial-gradient(40% 160% at 100% 50%, ${awayColor}80 0%, ${awayColor}00 100%), linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%)`,
+          backgroundImage: `radial-gradient(40% 160% at 0% 50%, ${homeColor}99 0%, ${homeColor}00 100%), radial-gradient(40% 160% at 100% 50%, ${awayColor}99 0%, ${awayColor}00 100%), linear-gradient(120deg, ${ROYAL}, ${SKY})`,
         }}
       >
         <TeamSide team={live.home} side="home" serving={!finished && live.serving === "home"} winner={winner === "home"} dimmed={winner === "away"} />
@@ -128,7 +130,7 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
             {homePoints}
           </span>
           <span className="grid h-[2rem] w-[2rem] place-items-center rounded-full bg-white/15" aria-hidden>
-            <Volleyball className="h-[1.2rem] w-[1.2rem] text-amber-300" />
+            <Volleyball className="h-[1.2rem] w-[1.2rem] text-[#ffd23f]" />
           </span>
           <span
             key={`a${awayPoints}`}
@@ -150,7 +152,7 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
         {live.category && <span className="rounded-[0.3rem] bg-white/15 px-[0.5rem]">{live.category}F</span>}
         <span data-grafica-wide-phase>{finished ? "Finale" : `${live.sets.length + 1}° set`}</span>
         {point && (
-          <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite] text-amber-300" data-grafica-wide-point={`${point.side}-${point.kind}`}>
+          <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite] text-[#ffd23f]" data-grafica-wide-point={`${point.side}-${point.kind}`}>
             {point.kind === "match" ? "Match point" : "Set point"}
           </span>
         )}
