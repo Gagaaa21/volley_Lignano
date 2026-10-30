@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import { format, isValid, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
@@ -8,24 +8,25 @@ import { cn } from "@/lib/cn";
 import { FULL_EXIT_MS, type FullCard, type Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLineup, PublicLiveScore, PublicPlayer, PublicSetRecapTeam } from "@/lib/types";
-import { Aurora, Confetti, Rays, Sparkles } from "./Effects";
-import { AZURE, INK, ORANGE, PINK, ROYAL, SKY, SUN, SUNSET } from "./theme";
+import { Aurora, Confetti } from "./Effects";
+import { AZURE, INK, ORANGE, ROYAL, SKY, SUN, SUNSET } from "./theme";
 import { accent, TeamMark } from "./TeamMark";
 
 /**
- * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A ma in festa: presentazione della
+ * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A ma allegre: presentazione della
  * partita, formazione di partenza, fine set con i parziali e i numeri del set, risultato finale con i numeri della partita.
- * Il fondo è il cielo di Lignano (azzurro luminoso con macchie di sole e di rosa che si muovono, raggi che girano, scintille);
- * entrano ed escono con la transizione (bande gialle, arancio, rosa e celesti che attraversano lo schermo, con lo stemma che
- * rimbalza); quando un set o la partita li vince Lignano piovono i coriandoli. Intanto la barra del punteggio si nasconde.
+ * Il fondo è il cielo di Lignano (azzurro luminoso con qualche macchia di colore che si muove piano, lo stemma in filigrana);
+ * entrano ed escono con la transizione (bande gialle, arancio e celesti che attraversano lo schermo, con lo stemma in mezzo);
+ * quando un set o la partita li vince Lignano scende una pioggia di coriandoli, una volta sola. Intanto la barra del punteggio
+ * si nasconde. Gli effetti restano pochi e misurati: la partita e i numeri devono farsi leggere.
  */
 
 /** Quanto dura la transizione in entrata; in uscita FULL_EXIT_MS. */
 export const STINGER_MS = 900;
 
-/** Le bande della transizione, una dopo l'altra, con lo stemma che rimbalza in mezzo. */
+/** Le bande della transizione, una dopo l'altra, con lo stemma in mezzo. */
 function Stinger({ phase }: { phase: "in" | "out" }) {
-  const bands = [SUN, ORANGE, PINK, SKY];
+  const bands = [SUN, ORANGE, SKY];
   return (
     <div key={phase} className="pointer-events-none absolute inset-0 z-20 overflow-hidden" data-grafica-stinger={phase} aria-hidden>
       {bands.map((color, i) => (
@@ -53,17 +54,15 @@ function Frame({ card, now, children, party = false }: { card: FullCard; now: nu
         className="absolute inset-0 overflow-hidden"
         style={{ animation: leaving ? "grafica-full-out 380ms ease-in 300ms both" : "grafica-full-in 520ms ease-out 330ms both" }}
       >
-        {/* Il cielo di Lignano: azzurro luminoso, macchie di colore che si muovono, raggi, scintille e lo stemma in filigrana. */}
+        {/* Il cielo di Lignano: azzurro luminoso, qualche macchia di colore che si muove piano e lo stemma in filigrana. */}
         <div className="absolute inset-0" style={{ background: `linear-gradient(150deg, ${ROYAL} 0%, ${AZURE} 45%, ${SKY} 100%)` }} />
         <Aurora />
-        <Rays />
-        <Sparkles />
-        <div className="absolute -bottom-[6rem] -right-[5rem] h-[40rem] w-[40rem] opacity-[0.12]" style={{ animation: "grafica-float 6s ease-in-out infinite" }}>
+        <div className="absolute -bottom-[6rem] -right-[5rem] h-[40rem] w-[40rem] opacity-[0.1]">
           <Image src={crest} alt="" unoptimized className="h-full w-full object-contain" />
         </div>
         <div className="absolute inset-x-0 bottom-0 h-[0.6rem]" style={{ background: SUNSET }} />
         <div className="absolute inset-x-0 top-0 h-[0.6rem]" style={{ background: SUNSET }} />
-        {party && <Confetti loop seed={(card.startedAt % 97) + 1} />}
+        {party && <Confetti seed={(card.startedAt % 97) + 1} />}
         <div className="relative flex h-full flex-col items-center justify-center px-[6rem] text-white">{children}</div>
       </div>
       {(entering || leaving) && <Stinger phase={leaving ? "out" : "in"} />}
@@ -86,18 +85,8 @@ function competition(live: PublicLiveScore): string {
   return parts.join(" · ");
 }
 
-/** Il titolo che brilla: un gradiente giallo → bianco → rosa che scorre nelle lettere. */
-const SHINY: CSSProperties = {
-  backgroundImage: `linear-gradient(90deg, ${SUN}, #ffffff, ${PINK}, ${SUN})`,
-  backgroundSize: "200% 100%",
-  WebkitBackgroundClip: "text",
-  backgroundClip: "text",
-  color: "transparent",
-  animation: "grafica-shimmer 3s linear infinite",
-  filter: "drop-shadow(0 0.2rem 0.5rem rgba(11,27,77,0.45))",
-};
-
-function Heading({ eyebrow, title, right, shiny = false }: { eyebrow: string; title: string; right?: ReactNode; shiny?: boolean }) {
+/** Il titolo; `gold` lo colora del giallo dello stemma (la nostra vittoria). */
+function Heading({ eyebrow, title, right, gold = false }: { eyebrow: string; title: string; right?: ReactNode; gold?: boolean }) {
   return (
     <div
       className="mb-[2rem] flex w-[96rem] max-w-full items-end justify-between gap-[2rem] border-b-[0.25rem] border-white/35 pb-[0.9rem]"
@@ -107,11 +96,7 @@ function Heading({ eyebrow, title, right, shiny = false }: { eyebrow: string; ti
         <p className="grafica-type text-[1.6rem] tracking-[0.14em] [text-shadow:0_0.1rem_0.3rem_rgba(11,27,77,0.5)]" style={{ color: SUN }} data-grafica-full-eyebrow>
           {eyebrow}
         </p>
-        <h2
-          className={cn("grafica-type mt-[0.4rem] text-[4.8rem]", !shiny && "[text-shadow:0_0.25rem_0.8rem_rgba(11,27,77,0.45)]")}
-          style={shiny ? SHINY : undefined}
-          data-grafica-full-title
-        >
+        <h2 className="grafica-type mt-[0.4rem] text-[4.8rem] [text-shadow:0_0.25rem_0.8rem_rgba(11,27,77,0.45)]" style={gold ? { color: SUN } : undefined} data-grafica-full-title>
           {title}
         </h2>
       </div>
@@ -168,12 +153,12 @@ function Intro({ live }: { live: PublicLiveScore }) {
   const when = live.info ? matchDate(live.info.date) : null;
   return (
     <>
-      <Heading eyebrow={competition(live)} title="Oggi in campo!" shiny />
+      <Heading eyebrow={competition(live)} title="Oggi in campo!" />
       <div className="grid w-[96rem] max-w-full grid-cols-[1fr_auto_1fr] items-center gap-[3rem]">
         <TeamBlock live={live} side="home" delay={550} />
         <span
           className="grafica-type grid h-[8.5rem] w-[8.5rem] place-items-center rounded-full text-[3.4rem] ring-[0.4rem] ring-white/80"
-          style={{ background: SUNSET, color: INK, animation: "grafica-bounce-in 600ms cubic-bezier(.2,.8,.2,1) 800ms both, grafica-glow 1.4s ease-in-out 1.4s infinite" }}
+          style={{ background: SUNSET, color: INK, animation: "grafica-bounce-in 600ms cubic-bezier(.2,.8,.2,1) 800ms both" }}
         >
           VS
         </span>
@@ -233,7 +218,7 @@ function Jersey({
         {serving && (
           <Volleyball
             className="absolute -right-[0.5rem] -top-[0.3rem] h-[2.2rem] w-[2.2rem] rounded-full bg-white p-[0.15rem] shadow-[0_0_0.8rem_rgba(255,210,63,0.9)]"
-            style={{ color: INK, animation: "grafica-ball 1.1s ease-in-out infinite" }}
+            style={{ color: INK }}
             aria-label="Batte"
           />
         )}
@@ -456,7 +441,7 @@ export function FullScreen({ card, live, now }: { card: FullCard; live: PublicLi
     );
   }
   if (card.kind === "set") {
-    // Il set lo ha vinto Lignano: festa (coriandoli e titolo che brilla).
+    // Il set lo ha vinto Lignano: festa (coriandoli e l'etichetta al tramonto).
     const ours = card.home > card.away;
     const setWinner = ours ? live.home : live.away;
     const minutes = card.recap?.minutes ?? null;
@@ -465,7 +450,6 @@ export function FullScreen({ card, live, now }: { card: FullCard; live: PublicLi
         <Heading
           eyebrow={competition(live)}
           title={`Fine ${card.n}° set`}
-          shiny={ours}
           right={
             <span className="flex flex-col items-end gap-[0.6rem]">
               <Badge party={ours} marker="data-grafica-set-winner">
@@ -497,11 +481,11 @@ export function FullScreen({ card, live, now }: { card: FullCard; live: PublicLi
       <Heading
         eyebrow={competition(live)}
         title={ours ? "Vittoria!" : "Risultato finale"}
-        shiny={ours}
+        gold={ours}
         right={
           winnerTeam ? (
             <Badge party={ours} marker="data-grafica-final-winner">
-              <Trophy className="h-[2rem] w-[2rem]" style={ours ? { animation: "grafica-flame 0.9s ease-in-out infinite" } : undefined} aria-hidden />
+              <Trophy className="h-[2rem] w-[2rem]" aria-hidden />
               Vince {teamShortName(winnerTeam.name)}
             </Badge>
           ) : undefined

@@ -531,11 +531,12 @@ staff (Developer e Admin).
     si nasconde. La barra larga in basso al centro (`ScorebugWide.tsx`) si sceglie con
     `?stile=larga` (o `entrambe`). Colori e caratteri del pacchetto: `theme.ts` (allegri: l'azzurro
     del mare, il giallo del sole dello stemma, il tramonto giallo-arancio-rosa) e l'utility
-    `grafica-type` in `globals.css` (Archivo stretto e maiuscolo, come in TV). Effetti speciali
-    solo CSS in `Effects.tsx` (coriandoli, aurora, raggi, scintille, raggiera sul punto) e
-    nelle animazioni `grafica-*` di `globals.css`: lampo e raggiera a ogni punto (`useRises`
-    in `Scorebug.tsx`, mai al primo disegno), pallone che saltella, fiamma sulla serie, set
-    point che brilla, coriandoli quando un set o la partita li vince Lignano («Vittoria!»). Il logo delle
+    `grafica-type` in `globals.css` (Archivo stretto e maiuscolo, come in TV). Effetti pochi e
+    misurati, solo CSS: in `Effects.tsx` i coriandoli e le macchie di colore lente del fondo,
+    nelle animazioni `grafica-*` di `globals.css` il lampo sulla riga di chi segna (`useRises`
+    in `Scorebug.tsx`, mai al primo disegno) e le entrate; i coriandoli cadono una volta sola,
+    quando un set o la partita li vince Lignano («Vittoria!»). Niente che giri o lampeggi di
+    continuo: la partita deve restare leggibile. Il logo delle
     squadre è sempre `TeamMark.tsx` (stemma nostro; per l'avversaria `away.logo` o le iniziali).
     Le misure sono in `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi
     scala con qualunque dimensione; nitida solo se la fonte è davvero 1920×1080 (con la misura

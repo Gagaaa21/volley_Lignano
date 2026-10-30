@@ -21,5 +21,5 @@ export const SUNSET = `linear-gradient(90deg, ${SUN} 0%, ${ORANGE} 55%, ${PINK} 
 /** Righe sportive appena accennate sui riquadri. */
 export const STRIPES = "repeating-linear-gradient(115deg, rgba(255,255,255,0.07) 0 0.55rem, rgba(255,255,255,0) 0.55rem 1.4rem)";
 export const SHADOW = "0 0.6rem 1.8rem rgba(8, 20, 70, 0.45)";
-/** I colori dei coriandoli e delle scintille. */
+/** I colori dei coriandoli. */
 export const PARTY = [SUN, ORANGE, PINK, SKY, IN_GREEN, "#ffffff", VIOLET];

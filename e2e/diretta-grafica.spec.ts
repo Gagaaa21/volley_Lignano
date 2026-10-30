@@ -191,10 +191,9 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   await pass(page, 1_000);
   await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
   await expect(page.locator('[data-grafica-score="home"]')).toHaveText("1");
-  // Il punto fa festa sulla riga di chi l'ha fatto: il lampo e la raggiera di coriandoli (solo lì).
+  // Il punto accende il lampo sulla riga di chi l'ha fatto (solo lì).
   await expect(page.locator('[data-grafica-flash="home"]')).toHaveCount(1);
   await expect(page.locator('[data-grafica-flash="away"]')).toHaveCount(0);
-  await expect(page.locator("[data-grafica-burst]")).toHaveCount(1);
   await expect(page.locator('[data-grafica-serving="home"]')).toBeVisible();
   await expect(page.locator("[data-grafica-card]")).toHaveCount(0);
 });

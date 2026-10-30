@@ -10,8 +10,8 @@ import { accent, TeamMark } from "./TeamMark";
 /**
  * I sottopancia della diretta video, in basso a sinistra come in Serie A ma allegri: si aprono con una tendina e si
  * richiudono allo stesso modo. Il time-out ha l'anello del conto alla rovescia (parte quando la grafica se ne accorge, qualche
- * secondo dopo lo Scout: è indicativo) e i punti del set divisi per fondamentale; il cambio dice chi entra (freccia verde che
- * sale) e chi esce (freccia rossa che scende), con il numero di maglia (e il nome, se lo staff lo ha acceso nello Scout).
+ * secondo dopo lo Scout: è indicativo) e i punti del set divisi per fondamentale; il cambio dice chi entra (freccia verde in
+ * su) e chi esce (freccia rossa in giù), con il numero di maglia (e il nome, se lo staff lo ha acceso nello Scout).
  */
 
 /** Gli ultimi istanti la grafica si richiude, invece di sparire di colpo. */
@@ -29,7 +29,8 @@ function Frame({ card, now, kind, children }: { card: StripCard; now: number; ki
       data-grafica-card={kind}
     >
       <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: STRIPES }} />
-      <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[8rem] animate-[grafica-sheen_4s_ease-in-out_infinite] bg-gradient-to-r from-white/0 via-white/30 to-white/0" />
+      {/* Un riflesso solo, mentre la tendina si apre. */}
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[8rem] animate-[grafica-sheen_1.6s_ease-in-out_both] bg-gradient-to-r from-white/0 via-white/30 to-white/0" />
       <div className="relative">{children}</div>
     </div>
   );
@@ -124,7 +125,7 @@ function PointsTable({ live, stats, set }: { live: PublicLiveScore; stats: { hom
   );
 }
 
-/** «12 ROSSI» con la freccia: verde che sale chi entra, rossa che scende chi esce. Senza nome: «Entra» / «Esce». */
+/** «12 ROSSI» con la freccia: verde in su chi entra, rossa in giù chi esce. Senza nome: «Entra» / «Esce». */
 function PlayerLine({ player, direction }: { player: PublicPlayer; direction: "in" | "out" }) {
   const entering = direction === "in";
   const color = entering ? IN_GREEN : OUT_RED;
@@ -135,7 +136,6 @@ function PlayerLine({ player, direction }: { player: PublicPlayer; direction: "i
         <Arrow
           className="h-[1.45rem] w-[1.45rem] text-white"
           strokeWidth={3.2}
-          style={{ animation: `${entering ? "grafica-arrow-up" : "grafica-arrow-down"} 0.9s ease-in-out infinite` }}
           aria-label={entering ? "Entra" : "Esce"}
         />
       </span>

@@ -7,20 +7,19 @@ import type { Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
-import { PointBurst } from "./Effects";
 import { INK, ORANGE, PANEL_BG, PINK, SHADOW, STRIPES, SUN, SUNSET, VIOLET } from "./theme";
 import { accent, TeamMark } from "./TeamMark";
 
 /**
  * La barra del punteggio della diretta video, come nelle partite di SuperLega ma con i colori di Lignano d'estate: in alto a
  * sinistra, sopra la linguetta con la categoria e il set; per ogni squadra il colore, il logo, il nome corto («LIGNANO»), il
- * pallone che saltella su chi batte, i time-out usati (due tacche), i set vinti in giallo e i punti in bianco; sotto, i parziali
- * e, quando serve, la striscia che scende: SET POINT / MATCH POINT (che brilla) o la serie in corso con la fiamma. A ogni
- * punto la riga di chi segna lampeggia e dal riquadro dei punti parte una raggiera di coriandoli. Misure in rem: la pagina
+ * pallone su chi batte, i time-out usati (due tacche), i set vinti in giallo e i punti in bianco; sotto, i parziali e, quando
+ * serve, la striscia che scende: SET POINT / MATCH POINT o la serie in corso con la fiamma. A ogni punto un lampo di luce
+ * passa sulla riga di chi segna (e basta: la barra resta sempre leggibile). Misure in rem: la pagina
  * fissa 1 rem a 1/120 della larghezza (16 px su 1920), così la barra ha lo stesso aspetto con qualunque dimensione della sorgente.
  */
 
-/** Quante volte `value` è salito da quando la barra c'è (non al primo disegno): serve a far partire la festa a ogni punto. */
+/** Quante volte `value` è salito da quando la barra c'è (non al primo disegno): serve a far partire il lampo a ogni punto. */
 function useRises(value: number): number {
   const [seen, setSeen] = useState({ value, rises: 0 });
   if (seen.value !== value) {
@@ -95,7 +94,7 @@ function TeamRow({
         <Volleyball
           aria-label={serving ? "Al servizio" : undefined}
           className={cn("h-[1.35rem] w-[1.35rem] shrink-0 drop-shadow-[0_0_0.4rem_rgba(255,210,63,0.9)]", !serving && "invisible")}
-          style={{ color: SUN, animation: serving ? "grafica-ball 1.1s ease-in-out infinite" : undefined }}
+          style={{ color: SUN }}
           data-grafica-serving={serving ? side : undefined}
         />
       </span>
@@ -128,17 +127,12 @@ function Flag({ live }: { live: PublicLiveScore }) {
       <div
         key={`${point.side}-${point.kind}`}
         className="flex h-[2.3rem] w-fit items-stretch overflow-hidden rounded-b-[0.6rem]"
-        style={{ boxShadow: SHADOW, animation: "grafica-drop 420ms cubic-bezier(.2,.8,.2,1), grafica-glow 1.2s ease-in-out 420ms infinite" }}
+        style={{ boxShadow: SHADOW, animation: "grafica-drop 420ms cubic-bezier(.2,.8,.2,1)" }}
         data-grafica-flag="point"
       >
         <span
           className="grafica-type flex items-center gap-[0.45rem] px-[0.9rem] text-[1.3rem]"
-          style={{
-            background: match ? `linear-gradient(90deg, ${PINK}, ${VIOLET}, ${PINK})` : `linear-gradient(90deg, ${SUN}, ${ORANGE}, ${SUN})`,
-            backgroundSize: "200% 100%",
-            animation: "grafica-shimmer 1.6s linear infinite",
-            color: match ? "#ffffff" : INK,
-          }}
+          style={{ background: match ? `linear-gradient(90deg, ${PINK}, ${VIOLET})` : `linear-gradient(90deg, ${SUN}, ${ORANGE})`, color: match ? "#ffffff" : INK }}
         >
           <SparkIcon className="h-[1.1rem] w-[1.1rem]" aria-hidden />
           <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite]" data-grafica-point={`${point.side}-${point.kind}`}>
@@ -165,7 +159,7 @@ function Flag({ live }: { live: PublicLiveScore }) {
           {teamShortName(team.name)}
         </span>
         <span className="grafica-type flex items-center gap-[0.4rem] px-[0.9rem] text-[1.3rem] text-white" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${PINK})` }}>
-          <Flame className="h-[1.3rem] w-[1.3rem]" style={{ color: SUN, animation: "grafica-flame 0.6s ease-in-out infinite" }} aria-hidden />
+          <Flame className="h-[1.3rem] w-[1.3rem]" style={{ color: SUN }} aria-hidden />
           <span data-grafica-run={`${run.side}-${run.points}`}>Parziale {run.side === "home" ? `${run.points}–0` : `0–${run.points}`}</span>
         </span>
       </div>
@@ -180,7 +174,7 @@ export function Scorebug({ live, flags = true }: { live: PublicLiveScore; flags?
   const [homePoints, awayPoints] = finished ? [live.home.sets, live.away.sets] : [live.home.score, live.away.score];
   const winner: Side | null = finished && live.home.sets !== live.away.sets ? (live.home.sets > live.away.sets ? "home" : "away") : null;
   const timeouts = finished || !live.timeouts ? null : live.timeouts;
-  // I punti fatti da quando la barra c'è: a ogni punto in più parte la festa sulla riga di chi l'ha fatto.
+  // I punti fatti da quando la barra c'è: a ogni punto in più il lampo passa sulla riga di chi l'ha fatto.
   const homeRises = useRises(finished ? 0 : live.home.score);
   const awayRises = useRises(finished ? 0 : live.away.score);
 
@@ -242,20 +236,7 @@ export function Scorebug({ live, flags = true }: { live: PublicLiveScore; flags?
             ))}
           </div>
         )}
-        {/* Un riflesso che passa ogni tanto sulla barra, come nelle grafiche TV. */}
-        <span className="pointer-events-none absolute inset-y-0 left-0 w-[7rem] animate-[grafica-sheen_7s_ease-in-out_infinite] bg-gradient-to-r from-white/0 via-white/30 to-white/0" aria-hidden />
       </div>
-      {/* La raggiera di coriandoli sopra i punti di chi ha appena segnato (fuori dal riquadro, che la taglierebbe). */}
-      {homeRises > 0 && (
-        <span className="pointer-events-none absolute right-[2rem] top-[3.55rem]">
-          <PointBurst key={homeRises} color={accent(live.home.color)} />
-        </span>
-      )}
-      {awayRises > 0 && (
-        <span className="pointer-events-none absolute right-[2rem] top-[6.77rem]">
-          <PointBurst key={awayRises} color={accent(live.away.color)} />
-        </span>
-      )}
       {flags && <Flag live={live} />}
     </div>
   );
