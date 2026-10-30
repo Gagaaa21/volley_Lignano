@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { checkSource } from "@/components/diretta/VerifyFrame";
 import { demoScript } from "@/lib/diretta/demo";
 import {
@@ -234,6 +236,20 @@ test.describe("grafica della diretta: nomi corti e misure della sorgente", () =>
     expect(checkSource(800, 600)).toBe("ratio");
     expect(checkSource(1920, 1200)).toBe("ratio");
     expect(checkSource(0, 0)).toBe("ratio");
+  });
+
+  test("nessuna grafica usa translate, rotate o scale di Tailwind: il Chrome vecchio di Streamlabs / OBS non li conosce", () => {
+    // Tailwind 4 li scrive con le proprietà CSS translate / rotate / scale (Chrome 104 e poi): in un browser più vecchio
+    // l'elemento resta fuori posto. Per spostare o girare si usa transform (scritto a mano) o un margine negativo.
+    const files = [
+      ...readdirSync("src/components/diretta").map((name) => path.join("src/components/diretta", name)),
+      "src/app/diretta/grafica/GraficaClient.tsx",
+    ].filter((file) => file.endsWith(".tsx"));
+    const modern = /(?:^|[\s"'`])-?(?:translate-[xy]|rotate|scale(?:-[xy])?)-[\w[\/.]/;
+    for (const file of files) {
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, i) => expect(modern.test(line), `${file}:${i + 1}: ${line.trim()}`).toBe(false));
+    }
   });
 });
 

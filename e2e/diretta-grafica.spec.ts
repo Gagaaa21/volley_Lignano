@@ -513,7 +513,7 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
 
 test("?verifica=1 dice la misura vera della sorgente: verde a 1920×1080, rossa e con cosa correggere se è piccola o storta", async ({ browser }) => {
   for (const [width, height, status, text] of [
-    [1920, 1080, "ok", "Perfetta"],
+    [1920, 1080, "ok", "Adatta allo schermo"],
     [1280, 720, "small", "si sgrana"],
     [800, 600, "ratio", "Adatta allo schermo"],
   ] as const) {
@@ -524,9 +524,24 @@ test("?verifica=1 dice la misura vera della sorgente: verde a 1920×1080, rossa 
     await expect(verify).toHaveAttribute("data-grafica-verify", status);
     await expect(page.locator("[data-grafica-verify-size]")).toHaveText(`${width} × ${height}`);
     await expect(verify).toContainText(text);
+    // Dice anche dove gira la pagina (dentro Streamlabs / OBS o in un browser, e quale Chrome): serve se qualcosa non torna.
+    await expect(page.locator("[data-grafica-verify-browser]")).toContainText(/browser, Chrome \d+/);
     // Sotto, la partita finta.
     await expect(page.locator("[data-grafica-demo]")).toHaveCount(1);
     if (status === "ok") await page.screenshot(shots("verifica"));
     await context.close();
   }
+});
+
+test("?verifica=1 resta al centro anche nel Chrome vecchio di Streamlabs / OBS, che non conosce translate", async ({ page }) => {
+  await page.goto("/diretta/grafica?verifica=1");
+  const panel = page.locator("[data-grafica-verify-panel]");
+  await expect(panel).toBeVisible();
+  // Come un browser di prima di Chrome 104: le proprietà translate, rotate e scale non esistono.
+  await page.addStyleTag({ content: "*{translate:none!important;rotate:none!important;scale:none!important}" });
+  const box = (await panel.boundingBox())!;
+  expect(Math.abs(box.x + box.width / 2 - 1920 / 2)).toBeLessThan(2);
+  expect(Math.abs(box.y + box.height / 2 - 1080 / 2)).toBeLessThan(2);
+  expect(box.x).toBeGreaterThan(0);
+  expect(box.x + box.width).toBeLessThan(1920);
 });

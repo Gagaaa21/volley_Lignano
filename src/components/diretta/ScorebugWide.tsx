@@ -145,8 +145,8 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
       </div>
       {/* La linguetta sotto il riquadro dei punti: categoria, set in corso e, quando c'è, il set point o il match point. */}
       <div
-        className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-[0.8rem] rounded-b-[0.7rem] px-[1.2rem] py-[0.2rem] text-[0.95rem] font-extrabold uppercase tracking-[0.14em] text-white shadow-[0_0.4rem_1rem_rgba(0,0,0,0.4)]"
-        style={{ backgroundColor: NAVY }}
+        className="absolute bottom-0 left-1/2 flex items-center gap-[0.8rem] rounded-b-[0.7rem] px-[1.2rem] py-[0.2rem] text-[0.95rem] font-extrabold uppercase tracking-[0.14em] text-white shadow-[0_0.4rem_1rem_rgba(0,0,0,0.4)]"
+        style={{ backgroundColor: NAVY, transform: "translateX(-50%)" }}
         data-grafica-wide-tab
       >
         {live.category && <span className="rounded-[0.3rem] bg-white/15 px-[0.5rem]">{live.category}F</span>}

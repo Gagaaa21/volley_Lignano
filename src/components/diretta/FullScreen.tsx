@@ -36,7 +36,8 @@ function Stinger({ phase }: { phase: "in" | "out" }) {
           style={{ background: color, animation: `grafica-stinger 780ms cubic-bezier(.55,.05,.35,1) ${i * 70}ms both` }}
         />
       ))}
-      <span className="absolute left-1/2 top-1/2 h-[18rem] w-[18rem] -translate-x-1/2 -translate-y-1/2" style={{ animation: "grafica-full-out 260ms ease-in 560ms both" }}>
+      {/* Centrato con margini negativi e non con translate: il browser di Streamlabs / OBS può essere vecchio e non conoscerlo. */}
+      <span className="absolute left-1/2 top-1/2 -ml-[9rem] -mt-[9rem] h-[18rem] w-[18rem]" style={{ animation: "grafica-full-out 260ms ease-in 560ms both" }}>
         <span className="block h-full w-full" style={{ animation: "grafica-bounce-in 520ms cubic-bezier(.2,.8,.2,1) both" }}>
           <Image src={crest} alt="" unoptimized className="h-full w-full object-contain drop-shadow-[0_0.8rem_2rem_rgba(0,0,0,0.35)]" />
         </span>

@@ -536,7 +536,11 @@ staff (Developer e Admin).
     nelle animazioni `grafica-*` di `globals.css` il lampo sulla riga di chi segna (`useRises`
     in `Scorebug.tsx`, mai al primo disegno) e le entrate; i coriandoli cadono una volta sola,
     quando un set o la partita li vince Lignano («Vittoria!»). Niente che giri o lampeggi di
-    continuo: la partita deve restare leggibile. Il logo delle
+    continuo: la partita deve restare leggibile. Il browser dentro Streamlabs / OBS può essere un
+    Chrome vecchio (prima del 104): niente `translate-*`, `rotate-*`, `scale-*` di Tailwind nelle
+    grafiche (usano proprietà CSS che lì non esistono e l'elemento resta fuori posto), ma
+    `transform` scritto a mano o margini negativi; lo controlla `unit/diretta-overlay.spec.ts`, e
+    `?verifica=1` mostra con quale Chrome gira la pagina. Il logo delle
     squadre è sempre `TeamMark.tsx` (stemma nostro; per l'avversaria `away.logo` o le iniziali).
     Le misure sono in `rem` con `html { font-size }` legato alla larghezza dello schermo, quindi
     scala con qualunque dimensione; nitida solo se la fonte è davvero 1920×1080 (con la misura

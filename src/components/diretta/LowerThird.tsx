@@ -59,7 +59,7 @@ function Head({ icon, label, live, side, right }: { icon: ReactNode; label: stri
 function CountdownRing({ card, now }: { card: StripCard; now: number }) {
   return (
     <span className="relative mr-[0.7rem] grid h-[2.9rem] w-[2.9rem] shrink-0 place-items-center self-center">
-      <svg viewBox="0 0 36 36" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+      <svg viewBox="0 0 36 36" className="absolute inset-0 h-full w-full" style={{ transform: "rotate(-90deg)" }} aria-hidden>
         <circle cx="18" cy="18" r="16" fill="rgba(11,27,77,0.35)" stroke="rgba(255,255,255,0.25)" strokeWidth="3" />
         <circle
           key={card.startedAt}
