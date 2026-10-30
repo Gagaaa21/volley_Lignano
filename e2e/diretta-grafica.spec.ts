@@ -126,9 +126,9 @@ test("sfondo trasparente, nessun avviso del sito e la barra in alto a sinistra c
   for (const target of ["document.documentElement", "document.body"]) {
     expect(await page.evaluate((t) => getComputedStyle(eval(t)).backgroundColor, target)).toBe("rgba(0, 0, 0, 0)");
   }
-  // Su 1920 di larghezza la barra è larga 576 px (36 rem) e sta nell'angolo in alto a sinistra: tutto scala con la larghezza.
+  // Su 1920 di larghezza la barra è larga 608 px (38 rem) e sta nell'angolo in alto a sinistra: tutto scala con la larghezza.
   const box = (await bug.boundingBox())!;
-  expect(box.width).toBeCloseTo(576, 0);
+  expect(box.width).toBeCloseTo(608, 0);
   expect(box.x).toBeCloseTo(64, 0);
   expect(box.y).toBeLessThan(100);
   // Di partenza una barra sola, come in SuperLega: niente barra larga in basso.
@@ -506,8 +506,8 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
   const bug = corner.locator("[data-grafica-bug]");
   await expect(bug).toBeVisible();
   const box = (await bug.boundingBox())!;
-  // 150%: 864 px di larghezza, e il lato destro-basso dello schermo.
-  expect(box.width).toBeCloseTo(864, 0);
+  // 150%: 912 px di larghezza, e il lato destro-basso dello schermo.
+  expect(box.width).toBeCloseTo(912, 0);
   expect(box.x + box.width).toBeGreaterThan(1700);
   expect(box.y).toBeGreaterThan(540);
   await corner.close();

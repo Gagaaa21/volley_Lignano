@@ -100,9 +100,9 @@ test("con una camera: il lettore giusto, senza lo schermo intero di YouTube, e i
   const bug = (await overlay(page).locator("[data-grafica-bug]").boundingBox())!;
   const frame = (await grafica.boundingBox())!;
   expect(frame.width).toBeCloseTo(stage.width, 0);
-  // Su un riquadro largo la barra è il 30% della larghezza (36 rem su 120), come in OBS.
-  expect(bug.width).toBeGreaterThan(frame.width * 0.28);
-  expect(bug.width).toBeLessThan(frame.width * 0.32);
+  // Su un riquadro largo la barra è circa un terzo della larghezza (38 rem su 120), come in OBS.
+  expect(bug.width).toBeGreaterThan(frame.width * 0.3);
+  expect(bug.width).toBeLessThan(frame.width * 0.34);
   await expect(page.getByText("Risultato non ufficiale")).toBeVisible();
   // Nessun avviso del sito (installa l'app, notifiche) sopra il video.
   await expect(page.getByText(/Installa l'app|Attiva le notifiche/)).toHaveCount(0);
@@ -264,16 +264,16 @@ test("ritardo e scala si cambiano da fuori con un messaggio, e solo dalla stessa
   const main = page.locator("[data-grafica]");
   await expect(main).toHaveAttribute("data-grafica-delay", "10");
   await expect(page.locator("[data-grafica-bug]")).toBeVisible({ timeout: 10_000 });
-  expect((await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(576, 0);
+  expect((await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(608, 0);
 
   await page.evaluate(() => window.postMessage({ type: "vl-opzioni", ritardo: 0, scala: 150 }, window.location.origin));
   await expect(main).toHaveAttribute("data-grafica-delay", "0");
-  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(864, 0);
+  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(912, 0);
 
   // Valori assurdi si ripuliscono: ritardo a 60 al massimo, scala ignorata se fuori dai limiti.
   await page.evaluate(() => window.postMessage({ type: "vl-opzioni", ritardo: 9999, scala: 5 }, window.location.origin));
   await expect(main).toHaveAttribute("data-grafica-delay", "60");
-  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(576, 0);
+  await expect.poll(async () => (await page.locator("[data-grafica-bug]").boundingBox())?.width).toBeCloseTo(608, 0);
 });
 
 test("lo sfondo della grafica sopra il lettore resta trasparente anche con il tema scuro del sito", async ({ page }) => {
