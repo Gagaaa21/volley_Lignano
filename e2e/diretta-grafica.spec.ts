@@ -191,6 +191,11 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   await pass(page, 1_500);
   await page.screenshot(shots("formazione"));
 
+  // Da 1 minuto prima la barra c'è, a 0–0 (nascosta sotto la formazione ancora in onda).
+  source.set(live({ ...PRE, lineup: LINEUP(1), info: INFO }));
+  await pass(page, 2_500);
+  await expect(page.locator('[data-grafica-full="lineup"]')).toBeVisible();
+  await expect(page.locator('[data-grafica-score="home"]')).toHaveText("0");
   // Primo punto: la formazione esce subito (con la transizione) e resta la barra, senza altre grafiche.
   source.set(live({ ...score(1, 0), serving: "home", lineup: LINEUP(1), info: INFO }));
   await pass(page, 2_500);
@@ -227,8 +232,9 @@ test("prima del via: copertina finché non parte il riscaldamento, poi i banner 
   expect(box.width).toBeGreaterThanOrEqual(1919);
   expect(box.height).toBeGreaterThanOrEqual(1079);
   await page.screenshot(shots("copertina"));
-  // Resta finché nessuno preme il tasto, anche dopo un'ora.
-  await pass(page, 60 * 60_000);
+  // Resta finché nessuno preme il tasto, anche dopo un'ora (l'orologio salta avanti, senza far girare ogni secondo).
+  await page.clock.fastForward("01:00:00");
+  await pass(page, 1_500);
   await expect(full).toBeVisible();
 
   // Il tasto nello Scout: la copertina si apre sul video e in alto c'è il banner del riscaldamento, senza punteggio.
