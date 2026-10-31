@@ -661,7 +661,7 @@ staff (Developer e Admin).
     per i cambi). Se la colonna non c'è ancora su Supabase, atlete e partite
     funzionano lo stesso: il salvataggio riprova senza il numero e lo dice.
   - **Punteggio live pubblico**: lo Scout ha `settings.publicLive` (interruttore
-    nella preparazione e pulsante «Punteggio live sul sito»). `/api/livescore/
+    nella preparazione e pulsante «Accendi la diretta» / «Spegni la diretta»). `/api/livescore/
     pubblico` unisce il Live score e lo Scout acceso (`getPublicLiveScout`,
     `src/lib/scout/publicScore.ts`): squadre, punti, set, chi batte e time-out
     usati per il banner; per la grafica della diretta video anche numeri di

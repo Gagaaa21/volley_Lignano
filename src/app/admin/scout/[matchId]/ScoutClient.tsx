@@ -424,7 +424,7 @@ export function ScoutClient({
                 <span className="hidden sm:inline">{isFullscreen ? "Esci" : "Schermo intero"}</span>
               </Button>
               {data.settings.publicLive && (
-                <Badge tone="danger" className="px-2.5 py-1" title="Il punteggio è visibile a tutti sul sito" data-scout-live-badge>
+                <Badge tone="danger" className="px-2.5 py-1" title="Diretta accesa: la grafica del video e il punteggio sul sito" data-scout-live-badge>
                   <Radio className="h-3.5 w-3.5" />
                   Live<span className="max-sm:sr-only"> sul sito</span>
                 </Badge>
@@ -684,12 +684,12 @@ export function ScoutClient({
                     size="xs"
                     aria-pressed={data.settings.publicLive}
                     onClick={() => dispatch({ type: "settings", patch: { publicLive: !data.settings.publicLive } })}
-                    title="Mostra o nascondi il punteggio sul sito pubblico (solo punti e set, mai nomi)"
+                    title="Accendi o spegni la diretta: la grafica del video e il punteggio sul sito (mai chi ha fatto punto)"
                     data-scout-live-toggle
                     data-tour="scout-live-toggle"
                   >
                     <Radio className="h-3.5 w-3.5" />
-                    {data.settings.publicLive ? "Spegni il live sul sito" : "Punteggio live sul sito"}
+                    {data.settings.publicLive ? "Spegni la diretta" : "Accendi la diretta"}
                   </Button>
                   {/* Prima del primo punto: la diretta video passa dalla copertina al riscaldamento. */}
                   {data.settings.publicLive && !hasRallies && !locked && <ScoutWarmup data={data} dispatch={dispatch} compact />}

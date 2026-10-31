@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
 import { addPlayer, addRally, addTimeout, newScoutData, opponentPlayer, setLineup, substitute, updateSettings } from "@/lib/scout/actions";
-import { clearPublicScore, PUBLIC_LIVE_SCOUT_KEY, publishPublicScore, readPublicScoutSnapshot } from "@/lib/scout/publicSnapshot";
+import { clearPublicScore, PUBLIC_LIVE_SCOUT_KEY, publishPublicScore, readPublicScoutSnapshot, refreshPublicScore } from "@/lib/scout/publicSnapshot";
 import type { MatchScout, ScoutData } from "@/lib/scout/types";
 import { LIVE_SCORE_TTL_MS } from "@/lib/types";
 
@@ -140,6 +140,23 @@ test.describe("copia compatta del punteggio live", () => {
     await clearPublicScore(repo, "m1");
     expect((await readPublicScoutSnapshot(repo, now))?.home.score).toBe(7);
     await clearPublicScore(repo, "m2");
+    expect(await readPublicScoutSnapshot(repo, now)).toBeNull();
+  });
+
+  test("cambiato l'orario della partita in diretta, la copia si rifà subito (la grafica lo usa per le fasi prima del via)", async () => {
+    const repo = createMemoryRepo(createEmptyStore());
+    const saved = await repo.saveMatchScout("m1", scoutData({ us: 0, opp: 0 }), null, null);
+    if (!saved.ok) throw new Error("scout non salvato");
+    await publishPublicScore(repo, saved.scout, { ...MATCH, matchDate: "2026-10-31T18:00" });
+    const now = Date.parse(saved.scout.updatedAt);
+    expect((await readPublicScoutSnapshot(repo, now))?.info?.date).toBe("2026-10-31T18:00");
+    await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: "2026-10-31T18:30", location: "Palestra nuova" });
+    expect((await readPublicScoutSnapshot(repo, now))?.info).toMatchObject({ date: "2026-10-31T18:30", venue: "Palestra nuova" });
+    // Un'altra partita modificata non tocca quella in diretta; senza niente in diretta non si scrive niente.
+    await refreshPublicScore(repo, "m2", { ...MATCH, matchDate: "2026-11-01T10:00" });
+    expect((await readPublicScoutSnapshot(repo, now))?.info?.date).toBe("2026-10-31T18:30");
+    await clearPublicScore(repo, "m1");
+    await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: "2026-10-31T19:00" });
     expect(await readPublicScoutSnapshot(repo, now)).toBeNull();
   });
 

@@ -97,7 +97,7 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   const toggle = page.locator("[data-scout-public-live]");
   await expect(toggle).not.toBeChecked();
   await expect(liveBadge(page)).toHaveCount(0);
-  await page.getByText("Mostra il punteggio sul sito pubblico").click();
+  await page.getByText("Accendi la diretta", { exact: true }).click();
   await expect(toggle).toBeChecked();
   await expect(liveBadge(page)).toBeVisible();
   await expect(liveBadge(page)).toContainText("Live sul sito");
@@ -202,10 +202,10 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   await expect(site.locator("[data-public-livescore]")).toHaveCount(0);
 
   // Spento dal pulsante sotto i pannelli: sparisce subito dalla API e dal sito.
-  await expect(liveToggle(page)).toContainText("Spegni il live sul sito");
+  await expect(liveToggle(page)).toContainText("Spegni la diretta");
   await liveToggle(page).click();
   await expect(liveBadge(page)).toHaveCount(0);
-  await expect(liveToggle(page)).toContainText("Punteggio live sul sito");
+  await expect(liveToggle(page)).toContainText("Accendi la diretta");
   await expect(sync(page)).toContainText("Salvato");
   await expect.poll(async () => await publicLive(site), { timeout: 15_000 }).toBeNull();
   await site.goto("/");
@@ -296,7 +296,7 @@ test("Scout: a partita finita il sito mostra «Partita finita» con i set, poi s
 
   // Spegnendo il live dalla pagina della partita, il sito smette di mostrarla.
   await page.goto(`/admin/scout/${matchId}`);
-  await expect(liveToggle(page)).toContainText("Spegni il live sul sito");
+  await expect(liveToggle(page)).toContainText("Spegni la diretta");
   await liveToggle(page).click();
   await expect(sync(page)).toContainText("Salvato");
   await expect.poll(async () => await publicLive(page), { timeout: 15_000 }).toBeNull();
@@ -318,7 +318,7 @@ test("Scout: prima del via la diretta video mostra la copertina; «Inizia il ris
   // Il tasto c'è solo con il live acceso.
   const panel = page.locator("[data-scout-warmup-panel]");
   await expect(panel).toHaveCount(0);
-  await page.getByText("Mostra il punteggio sul sito pubblico").click();
+  await page.getByText("Accendi la diretta", { exact: true }).click();
   await expect(panel).toBeVisible();
   await expect(panel).toContainText("copertina");
   await expect(sync(page)).toContainText("Salvato");

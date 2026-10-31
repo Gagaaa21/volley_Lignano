@@ -20,7 +20,7 @@ import {
   type MatchNotice,
 } from "@/lib/matchNotices";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
-import { clearPublicScore } from "@/lib/scout/publicSnapshot";
+import { clearPublicScore, refreshPublicScore } from "@/lib/scout/publicSnapshot";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
 import type { Match, MatchInput, MatchLineupInput } from "@/lib/types";
 import { todayIso } from "@/lib/today";
@@ -166,6 +166,11 @@ export async function saveMatchAction(
 
     if (existing && id) {
       await repo.updateMatch(id, input);
+      // Se è la partita in diretta (Scout con il live acceso), orario, palazzetto e avversaria nuovi arrivano subito alla grafica
+      // della diretta video. In modalità prova lo scout sta in un archivio separato: sul sito pubblico non va niente.
+      if (!(session.role === "dev" && session.testMode === true)) {
+        await refreshPublicScore(repo, id, input).catch((error: unknown) => console.error("[saveMatchAction] punteggio live non aggiornato:", error));
+      }
       // L'avviso dice che cosa è cambiato (orario, luogo, ritrovo…); se non è cambiato niente che interessi, non parte.
       if (notify) await sendMatchNotice(matchChangeNotice(existing, input), input, id);
     } else {

@@ -307,19 +307,15 @@ const ROWS = [
   [5, 6, 1],
 ] as const;
 
+/**
+ * La nostra formazione: il campo, e accanto, in colonna, la squadra e la libero. Il pallone sulla posizione 1 solo se batte
+ * Lignano: prima del via non si sa ancora, e a un set nuovo può battere l'avversaria.
+ */
 function Lineup({ live, lineup }: { live: PublicLiveScore; lineup: PublicLineup }) {
+  const weServe = live.serving === "home";
   return (
     <>
-      <Heading
-        eyebrow={competition(live)}
-        title={`Formazione · ${lineup.set}° set`}
-        right={
-          <span className="mb-[0.4rem] flex items-center gap-[1rem]" style={{ animation: "grafica-rise 500ms ease-out 700ms both" }}>
-            <TeamMark team={live.home} side="home" className="h-[4.4rem] w-[4.4rem] rounded-[0.8rem] shadow-[0_0.5rem_1.2rem_rgba(2,6,24,0.5)]" />
-            <span className="grafica-type text-[2.6rem] tracking-[0.03em]">{live.home.name}</span>
-          </span>
-        }
-      />
+      <Heading eyebrow={competition(live)} title={`Formazione · ${lineup.set}° set`} />
       <div className="flex items-center gap-[4rem]" data-grafica-lineup={lineup.set}>
         {/* Il campo come in palestra, un po' inclinato: arancio con le righe bianche, la rete in alto. */}
         <div style={{ filter: DROP, transform: "perspective(80rem) rotateX(12deg)", transformOrigin: "50% 100%", animation: "grafica-rise 600ms ease-out 450ms both" }}>
@@ -345,21 +341,27 @@ function Lineup({ live, lineup }: { live: PublicLiveScore; lineup: PublicLineup 
               {ROWS.map((row, i) => (
                 <div key={i} className={cn("relative flex justify-between", i === 0 ? "mb-[2.4rem]" : "")}>
                   {row.map((position, j) => (
-                    <Jersey key={position} player={lineup.positions[position - 1] ?? null} serving={position === 1} position={position} delay={650 + (i * 3 + j) * 90} />
+                    <Jersey key={position} player={lineup.positions[position - 1] ?? null} serving={weServe && position === 1} position={position} delay={650 + (i * 3 + j) * 90} />
                   ))}
                 </div>
               ))}
             </div>
           </div>
         </div>
-        {lineup.libero && (
-          <div className="flex flex-col items-center gap-[1.2rem] px-[2.4rem] pb-[1.6rem] pt-[1.2rem]" style={{ background: GLASS_DARK, boxShadow: EDGE, animation: "grafica-rise 600ms ease-out 900ms both" }}>
-            <span className="grafica-type px-[1.4rem] py-[0.45rem] text-[1.5rem] tracking-[0.16em]" style={{ background: GOLD, color: INK, clipPath: tag("0.5rem") }}>
-              Libero
-            </span>
-            <Jersey player={lineup.libero} libero delay={1250} />
-          </div>
-        )}
+        <div className="flex flex-col items-center gap-[2.6rem]">
+          <span className="flex items-center gap-[1rem]" style={{ animation: "grafica-rise 500ms ease-out 700ms both" }} data-grafica-lineup-team>
+            <TeamMark team={live.home} side="home" className="h-[4.4rem] w-[4.4rem] rounded-[0.8rem] shadow-[0_0.5rem_1.2rem_rgba(2,6,24,0.5)]" />
+            <span className="grafica-type text-[2.6rem] tracking-[0.03em]">{live.home.name}</span>
+          </span>
+          {lineup.libero && (
+            <div className="flex flex-col items-center gap-[1.2rem] px-[2.4rem] pb-[1.6rem] pt-[1.2rem]" style={{ background: GLASS_DARK, boxShadow: EDGE, animation: "grafica-rise 600ms ease-out 900ms both" }}>
+              <span className="grafica-type px-[1.4rem] py-[0.45rem] text-[1.5rem] tracking-[0.16em]" style={{ background: GOLD, color: INK, clipPath: tag("0.5rem") }}>
+                Libero
+              </span>
+              <Jersey player={lineup.libero} libero delay={1250} />
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

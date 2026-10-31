@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Repo } from "@/lib/db/repo";
-import { LIVE_SCORE_TTL_MS, type Match, type PublicLiveScore } from "@/lib/types";
-import { toPublicScoutScore } from "./publicScore";
+import { LIVE_SCORE_TTL_MS, type PublicLiveScore } from "@/lib/types";
+import { toPublicScoutScore, type PublicMatch } from "./publicScore";
 import type { MatchScout } from "./types";
 
 /**
@@ -107,17 +107,25 @@ function parseStored(raw: string | null): z.infer<typeof storedSchema> | null {
 }
 
 /** Mette la copia compatta al posto di quella di prima: il punteggio pubblico di questo scout, o «niente» se è spento. */
-export async function publishPublicScore(
-  repo: Store,
-  scout: MatchScout,
-  match: Pick<Match, "team" | "category" | "opponent">,
-): Promise<void> {
+export async function publishPublicScore(repo: Store, scout: MatchScout, match: PublicMatch): Promise<void> {
   const live = toPublicScoutScore(scout, match);
   if (live) {
     await repo.setAppSetting(PUBLIC_LIVE_SCOUT_KEY, JSON.stringify({ matchId: scout.matchId, live }));
     return;
   }
   await clearPublicScore(repo, scout.matchId);
+}
+
+/**
+ * La partita è stata modificata (orario, palazzetto, avversaria): se è quella in diretta, la copia si rifà subito con i dati
+ * nuovi. Senza, la grafica della diretta video userebbe l'orario vecchio (copertina, riscaldamento e presentazione dipendono da
+ * lui) fino al tocco successivo nello Scout, che prima della partita può arrivare anche dopo un'ora.
+ */
+export async function refreshPublicScore(repo: Store & Pick<Repo, "getMatchScout">, matchId: string, match: PublicMatch): Promise<void> {
+  const current = parseStored(await repo.getAppSetting(PUBLIC_LIVE_SCOUT_KEY));
+  if (!current || current.matchId !== matchId || current.live === null) return;
+  const scout = await repo.getMatchScout(matchId);
+  if (scout) await publishPublicScore(repo, scout, match);
 }
 
 /**

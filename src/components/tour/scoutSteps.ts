@@ -220,7 +220,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: "section-scout-setup",
         chapter: C_SETUP,
         title: "Prima di cominciare",
-        body: "Questa è la schermata di preparazione. Scorri verso il basso: in ordine trovi le nostre giocatrici, l'avversaria, le regole della gara e il punteggio live sul sito. In fondo c'è il pulsante per cominciare.",
+        body: "Questa è la schermata di preparazione. Scorri verso il basso: in ordine trovi le nostre giocatrici, l'avversaria, le regole della gara e la diretta (video e sito). In fondo c'è il pulsante per cominciare.",
       },
       {
         id: "scout-setup-level",
@@ -282,8 +282,8 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         path,
         target: "section-scout-live",
         chapter: C_SETUP,
-        title: "Punteggio live sul sito",
-        body: "Se lo accendi, chi apre il sito della squadra vede la partita in diretta: solo le due squadre, i punti, i set e chi batte, con la dicitura «Risultato non ufficiale». Nella grafica della diretta video anche i nostri cambi e la formazione, con i numeri di maglia (i nomi solo se accendi l'interruttore qui sotto). Mai chi ha fatto punto o i dettagli degli scambi.\n\nCompare dal primo punto segnato e lo puoi spegnere quando vuoi, anche durante la partita. Per la diretta video, acceso il live, qui sotto c'è «Inizia il riscaldamento»: fino ad allora la grafica mostra solo la copertina con le due squadre; il resto (riscaldamento ufficiale, presentazione, punteggio) segue l'orario della partita.",
+        title: "Diretta (video e sito)",
+        body: "Accendi la diretta per la grafica del video (Streamlabs) e per il sito: chi apre il sito della squadra vede la partita in diretta: solo le due squadre, i punti, i set e chi batte, con la dicitura «Risultato non ufficiale». Nella grafica della diretta video anche i nostri cambi e la formazione, con i numeri di maglia (i nomi solo se accendi l'interruttore qui sotto). Mai chi ha fatto punto o i dettagli degli scambi.\n\nCompare dal primo punto segnato e lo puoi spegnere quando vuoi, anche durante la partita. Per la diretta video, acceso il live, qui sotto c'è «Inizia il riscaldamento»: fino ad allora la grafica mostra solo la copertina con le due squadre; il resto (riscaldamento ufficiale, presentazione, punteggio) segue l'orario della partita.",
         warning: "Lo vede chiunque apra il sito: accendilo solo se vuoi la diretta pubblica.",
       },
       {
@@ -470,8 +470,8 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
     path,
     target: "scout-live-toggle",
     chapter: C_SET,
-    title: "Punteggio live sul sito",
-    body: "Con questo pulsante accendi o spegni in un tocco il punteggio live sul sito pubblico: sul sito solo le due squadre, il punteggio, i set e chi batte; nella grafica della diretta video anche cambi e formazione con i numeri di maglia. Quando è acceso, in alto compare «Live sul sito».",
+    title: "Diretta (video e sito)",
+    body: "Con questo pulsante accendi o spegni in un tocco la diretta, cioè la grafica del video e il punteggio sul sito pubblico: sul sito solo le due squadre, il punteggio, i set e chi batte; nella grafica della diretta video anche cambi e formazione con i numeri di maglia. Quando è acceso, in alto compare «Live sul sito».",
   });
 
   steps.push({

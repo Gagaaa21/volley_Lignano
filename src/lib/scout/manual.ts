@@ -459,7 +459,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Punteggio live (facoltativo)" },
       {
         type: "p",
-        text: `In fondo alla preparazione c'è l'interruttore **«Mostra il punteggio sul sito pubblico»**: se lo accendi, chi apre il sito della squadra vede la partita in diretta (${cap("live")}). Lasciandolo spento non succede niente.`,
+        text: `In fondo alla preparazione c'è l'interruttore **«Accendi la diretta»**: se lo accendi, la grafica della diretta video segue lo Scout e chi apre il sito della squadra vede la partita in diretta (${cap("live")}). Lasciandolo spento non succede niente.`,
       },
       {
         type: "image",
@@ -1040,8 +1040,8 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       {
         type: "bullets",
         items: [
-          "Nella **preparazione**, con l'interruttore «Mostra il punteggio sul sito pubblico».",
-          "Durante la partita, con il pulsante **«Punteggio live sul sito»** sotto i pannelli (diventa «Spegni il live sul sito»).",
+          "Nella **preparazione**, con l'interruttore «Accendi la diretta».",
+          "Durante la partita, con il pulsante **«Accendi la diretta»** sotto i pannelli (diventa «Spegni la diretta»).",
           "Quando è acceso, in alto compare la targhetta rossa **«Live sul sito»**.",
         ],
       },

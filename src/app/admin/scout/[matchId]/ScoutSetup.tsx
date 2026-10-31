@@ -532,15 +532,15 @@ export function ScoutSetup({
 
       <Card data-tour="section-scout-live">
         <CardHeader className="pb-3">
-          <CardTitle>Punteggio live sul sito</CardTitle>
+          <CardTitle>Diretta (video e sito)</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Chi apre il sito della squadra vede la partita in diretta, come con il Live score.
+            La grafica della diretta video (Streamlabs) e il punteggio sul sito della squadra seguono lo Scout.
           </p>
         </CardHeader>
         <CardBody>
           <Toggle
-            label="Mostra il punteggio sul sito pubblico"
-            description="Sul sito: le due squadre, i punti, i set e chi batte (risultato non ufficiale), dal primo punto segnato. Nella grafica della diretta video anche i numeri di squadra, i nostri cambi e la nostra formazione con i numeri di maglia. Mai chi ha fatto punto né i dettagli degli scambi. Lo spegni quando vuoi."
+            label="Accendi la diretta"
+            description="Nella grafica del video: copertina, riscaldamento, presentazione, punteggio, numeri di squadra, i nostri cambi e la nostra formazione con i numeri di maglia. Sul sito: le due squadre, i punti, i set e chi batte (risultato non ufficiale), dal primo punto. Mai chi ha fatto punto né i dettagli degli scambi. La spegni quando vuoi."
             checked={data.settings.publicLive}
             onChange={(e) => dispatch({ type: "settings", patch: { publicLive: e.target.checked } })}
             data-scout-public-live
