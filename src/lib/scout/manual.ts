@@ -579,7 +579,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           "A ogni nuovo set si apre da sola la finestra **«Formazione del 2° set»** (e così via): è già scritta come l'hai preparata in **Partite** per quel set o, se manca, **come la formazione con cui aveva cominciato** il set prima, con la libero ricalcolata. Se non cambia niente tocca **«Conferma e comincia»**.",
           "Per cambiarla correggi le posizioni prima di confermare: **«Come nel set precedente»** e **«Usa la formazione salvata»** riportano indietro. Il pulsante **«Formazione»** della striscia «In campo» la riapre quando vuoi.",
           "Se la scrivi **a set cominciato** è una correzione: sistema chi è in campo adesso (le rotazioni fatte restano) senza cambiare la formazione di partenza.",
-          "**«Annulla ultimo»** toglie anche una formazione o un cambio appena fatti.",
+          "**«Annulla ultimo»** toglie un cambio appena fatto, ma **mai una formazione**: anche se lo premi per sbaglio subito dopo averle scritte, le formazioni restano. Si cambiano solo dalla loro scheda (o con «Non seguire la formazione»).",
         ],
       },
       {

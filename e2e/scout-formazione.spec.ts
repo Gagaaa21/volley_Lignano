@@ -266,6 +266,11 @@ test("formazione in campo: rotazioni, libero, chi batte, cambi con avvertimento,
   await expect(usSpot(page, 6)).toHaveAttribute("title", /libero/);
   await expect(oppSpot(page, 1)).toContainText("21");
   await expect(strip(page)).toContainText("Cambi 0/8");
+  // Appena scritte, le formazioni non si cancellano con «Annulla ultimo»: il pulsante è spento e non c'è niente da togliere.
+  await expect(page.locator("[data-scout-last]")).toContainText("Nessun punto ancora");
+  await expect(page.locator("[data-scout-undo]")).toBeDisabled();
+  await expect(usSpot(page, 1)).toContainText("9");
+  await expect(oppSpot(page, 1)).toContainText("21");
 
   // La palla è dalla parte di chi batte: all'inizio è nostra.
   await expectBall(page, "us", "Battuta");

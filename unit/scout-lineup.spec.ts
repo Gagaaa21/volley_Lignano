@@ -15,6 +15,7 @@ import {
   setLineup,
   substitute,
   undoLast,
+  undoTarget,
   updatePlayer,
   updateRally,
   usedPlayerIds,
@@ -424,11 +425,50 @@ test.describe("cambi", () => {
     expect(substitute(noLineup, "opp", 2, "opp-7", at(noLineup), id())).toBe(noLineup);
   });
 
-  test("«Annulla ultimo» toglie anche un cambio o una formazione", () => {
+  test("«Annulla ultimo» toglie un cambio, ma mai una formazione", () => {
     let data = withLineups(roster());
     data = substitute(data, "us", 2, "u7", at(data), id());
-    expect(deriveScout(undoLast(data)).court.us?.positions[1]).toBe("u2");
-    expect(deriveScout(undoLast(undoLast(undoLast(data)))).court.us).toBeNull();
+    const undone = undoLast(data);
+    expect(deriveScout(undone).court.us?.positions[1]).toBe("u2");
+    // Dopo il cambio restano solo le formazioni: un altro «Annulla ultimo» (anche per sbaglio) non le tocca.
+    expect(undoTarget(undone)).toBeNull();
+    expect(undoLast(undone)).toBe(undone);
+    expect(deriveScout(undoLast(undoLast(undone))).court.us?.positions).toEqual(OURS.positions);
+    expect(deriveScout(undoLast(undone)).court.opp?.positions).toEqual(THEIRS.positions);
+  });
+
+  test("appena scritte le formazioni, «Annulla ultimo» non ha niente da togliere", () => {
+    const data = withLineups(roster());
+    expect(undoTarget(data)).toBeNull();
+    expect(undoLast(data)).toBe(data);
+    // Il primo punto sì, e le formazioni restano.
+    const scored = point(data, "us");
+    const back = undoLast(scored);
+    expect(deriveScout(back).rallies).toHaveLength(0);
+    expect(back.events.filter((e) => e.type === "lineup")).toHaveLength(2);
+  });
+
+  test("una correzione della formazione a set cominciato resta: «Annulla ultimo» toglie il punto prima", () => {
+    let data = point(withLineups(roster()), "us");
+    data = point(data, "opp");
+    data = setLineup(data, "us", { ...OURS, positions: ["u7", "u2", "u3", "u4", "u5", "u6"] }, at(data), id());
+    const back = undoLast(data);
+    expect(deriveScout(back).rallies).toHaveLength(1);
+    expect(back.events.filter((e) => e.type === "lineup")).toHaveLength(3);
+    expect(deriveScout(back).court.us?.positions).toContain("u7");
+  });
+
+  test("con le formazioni del nuovo set già scritte non si riapre il set chiuso (diventerebbero una correzione)", () => {
+    let data = withLineups(roster());
+    for (let i = 0; i < 25; i++) data = point(data, "us");
+    data = endSet(data, "opp", at(data), id());
+    // Chiuso per sbaglio, senza ancora le formazioni: «Annulla ultimo» lo riapre come sempre.
+    expect(deriveScout(undoLast(data)).sets).toHaveLength(1);
+    expect(deriveScout(undoLast(data)).sets[0].closed).toBe(false);
+    // Con le formazioni del 2° set scritte non c'è niente da annullare: restano lì, e il 1° set resta chiuso.
+    const second = withLineups(data);
+    expect(undoTarget(second)).toBeNull();
+    expect(undoLast(second)).toBe(second);
   });
 
   test("chi compare in una formazione o in un cambio non si toglie dalla rosa", () => {

@@ -129,10 +129,26 @@ export function endSet(data: ScoutData, nextServer: ScoutSide, at: number, id: s
   return { ...data, events: [...data.events, { type: "setEnd", id, at, nextServer }] };
 }
 
-/** Annulla l'ultimo evento (un punto o la chiusura di un set) e riapre la partita se era chiusa. */
+/**
+ * Quello che «Annulla ultimo» toglierebbe (la posizione nell'elenco), o null se non c'è niente da togliere: l'ultimo evento
+ * che non è una formazione. Le formazioni non si annullano mai così (si cambiano dalla loro scheda, o con «Non seguire la
+ * formazione»): un tocco per sbaglio subito dopo averle scritte non deve cancellare il lavoro di preparazione. Se le ultime
+ * cose segnate sono le formazioni di un set appena cominciato non c'è niente da annullare: togliere la chiusura del set che
+ * sta prima le farebbe diventare una correzione del set precedente.
+ */
+export function undoTarget(data: ScoutData): number | null {
+  let index = data.events.length - 1;
+  while (index >= 0 && data.events[index].type === "lineup") index--;
+  if (index < 0) return null;
+  if (index < data.events.length - 1 && data.events[index].type === "setEnd") return null;
+  return index;
+}
+
+/** Annulla l'ultimo evento che non è una formazione (un punto, un tocco, un cambio, un time-out, la chiusura di un set) e riapre la partita se era chiusa. */
 export function undoLast(data: ScoutData): ScoutData {
-  if (data.events.length === 0) return data.finished ? { ...data, finished: false } : data;
-  return { ...data, events: data.events.slice(0, -1), finished: false };
+  const index = undoTarget(data);
+  if (index === null) return data.finished ? { ...data, finished: false } : data;
+  return { ...data, events: data.events.filter((_, i) => i !== index), finished: false };
 }
 
 export function removeEvent(data: ScoutData, id: string): ScoutData {

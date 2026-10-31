@@ -34,6 +34,7 @@ import { LinkButton } from "@/components/ui/LinkButton";
 import { SegmentedButtons } from "@/components/ui/Segmented";
 import { cn } from "@/lib/cn";
 import { currentServer, defaultNextServer, deriveScout, isMatchDecided, setTarget, suggestedSetEnd, type ScoutSet, type ScoutView } from "@/lib/scout/derive";
+import { undoTarget } from "@/lib/scout/actions";
 import { rallyText, touchLabel } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
 import { useMediaQuery } from "@/lib/useMediaQuery";
@@ -307,7 +308,9 @@ export function ScoutClient({
     us: view.current?.timeouts.filter((t) => t.side === "us").length ?? 0,
     opp: view.current?.timeouts.filter((t) => t.side === "opp").length ?? 0,
   };
-  const lastEvent = data.events[data.events.length - 1];
+  // Quello che «Annulla ultimo» toglierebbe: l'ultimo evento che non è una formazione (le formazioni non si annullano così).
+  const undoIndex = undoTarget(data);
+  const lastEvent = undoIndex === null ? undefined : data.events[undoIndex];
   // L'ultimo evento ha chiuso uno scambio (un esito scelto a mano, o un tocco con un voto che chiude)? Altrimenti è un tocco in sospeso o la fine di un set.
   const lastRally = lastEvent && lastEvent.type !== "setEnd" ? view.rallies.find((r) => r.id === lastEvent.id) : undefined;
   const lastText = lastRally ? rallyText(lastRally, data.roster) : null;
@@ -625,8 +628,6 @@ export function ScoutClient({
                       <p className="line-clamp-2 text-muted-foreground" data-scout-last-touch>
                         Ultimo tocco: {touchLabel(lastPending, data.roster)}
                       </p>
-                    ) : lastEvent?.type === "lineup" ? (
-                      <p className="text-muted-foreground">Ultimo: formazione {lastEvent.side === "us" ? "nostra" : "loro"}</p>
                     ) : lastEvent?.type === "sub" ? (
                       <p className="text-muted-foreground">Ultimo: cambio {lastEvent.side === "us" ? "nostro" : "loro"}</p>
                     ) : lastEvent?.type === "timeout" ? (
@@ -636,14 +637,14 @@ export function ScoutClient({
                     ) : lastEvent ? (
                       <p className="text-muted-foreground">{view.decided ? "Ultimo: fine della partita" : "Ultimo: fine del set"}</p>
                     ) : (
-                      <p className="text-muted-foreground">Nessun punto ancora.</p>
+                      <p className="text-muted-foreground">{data.events.length > 0 ? "Nessun punto ancora in questo set." : "Nessun punto ancora."}</p>
                     )}
                   </div>
                   <Button
                     variant="outline"
                     size={twoColumns ? "md" : "sm"}
                     onClick={() => dispatch({ type: "undo" })}
-                    disabled={data.events.length === 0 && !data.finished}
+                    disabled={undoIndex === null && !data.finished}
                     className="shrink-0"
                     data-scout-undo
                   >
