@@ -250,7 +250,8 @@ test("prima del via: copertina finché non parte il riscaldamento, poi i banner 
   await expect(banner.locator("[data-grafica-pregame-time]")).toHaveText("Inizio ore 18:00");
   await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
   await expect(page.locator("[data-grafica-score]")).toHaveCount(0);
-  // In alto al centro.
+  // In alto al centro, anche nel Chrome vecchio di Streamlabs / OBS (prima del 104 translate, rotate e scale non esistono).
+  await page.addStyleTag({ content: "*{translate:none!important;rotate:none!important;scale:none!important}" });
   const top = (await banner.boundingBox())!;
   expect(top.y).toBeLessThan(120);
   expect(Math.abs(top.x + top.width / 2 - 960)).toBeLessThan(4);
