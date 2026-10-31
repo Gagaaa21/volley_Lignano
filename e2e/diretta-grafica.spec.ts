@@ -24,6 +24,8 @@ type Live = {
   finished: boolean;
   point?: { side: "home" | "away"; kind: "set" | "match" } | null;
   notStarted?: true;
+  warmupAt?: string;
+  pregame?: "cover" | "warmup" | "officialWarmup" | "protocol";
   recap?: Recap;
   setStats?: { home: RecapTeam; away: RecapTeam };
   matchStats?: { home: RecapTeam; away: RecapTeam };
@@ -75,6 +77,8 @@ const LINEUP = (set: number, names = false) => ({
   libero: names ? { number: "1", name: "Riva" } : { number: "1" },
 });
 const INFO = { date: "2026-10-31T18:00", venue: "Palazzetto dello Sport, Lignano", home: true, friendly: false };
+/** Prima del via, con il riscaldamento già partito (la fase la calcola il server: qui arriva già scritta). */
+const PRE = { ...score(0, 0), serving: null, notStarted: true as const, warmupAt: "2026-10-31T16:00:00.000Z" };
 
 /**
  * L'endpoint del punteggio pubblico simulato: risponde sempre con la lettura corrente, che il test cambia a mano
@@ -155,7 +159,7 @@ test("sfondo trasparente, nessun avviso del sito e la barra in alto a sinistra c
 test("prima del via: presentazione a schermo intero, poi la formazione; al primo punto escono e resta la barra", async ({ page }) => {
   test.setTimeout(90_000);
   await page.clock.install();
-  const source = await feed(page, live({ ...score(0, 0), serving: null, notStarted: true, lineup: LINEUP(1), info: INFO }));
+  const source = await feed(page, live({ ...PRE, pregame: "protocol", lineup: LINEUP(1), info: INFO }));
   await page.goto("/diretta/grafica");
   const intro = page.locator('[data-grafica-full="intro"]');
   await expect(intro).toBeVisible();
@@ -169,8 +173,8 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   // della CDN (`regia=1`): in Streamlabs / OBS il punto deve entrare nel video subito dopo il tocco nello Scout.
   expect(source.urls.every((url) => new URL(url).searchParams.get("prima") === "1")).toBe(true);
   expect(source.urls.every((url) => new URL(url).searchParams.get("regia") === "1")).toBe(true);
-  // A schermo intero la barra si nasconde.
-  await expect(page.locator("[data-grafica-bug]").locator("xpath=..")).toHaveClass(/opacity-0/);
+  // Prima del via la barra non c'è (arriva da 1 minuto prima o dal primo punto).
+  await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
   await pass(page, 1_500);
   await checkerboard(page);
   await page.screenshot(shots("presentazione"));
@@ -200,9 +204,104 @@ test("prima del via: presentazione a schermo intero, poi la formazione; al primo
   await expect(page.locator("[data-grafica-card]")).toHaveCount(0);
 });
 
+test("prima del via: copertina finché non parte il riscaldamento, poi i banner in alto senza punteggio, poi la presentazione", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.clock.install();
+  const cover = live({ ...score(0, 0), serving: null, notStarted: true, pregame: "cover", lineup: LINEUP(1), info: INFO });
+  const source = await feed(page, cover);
+  await page.goto("/diretta/grafica");
+
+  // La copertina: Lignano contro l'avversaria a schermo intero (la telecamera non si vede), niente barra, niente banner.
+  const full = page.locator('[data-grafica-full="cover"]');
+  await expect(full).toBeVisible();
+  await expect(full.locator("[data-grafica-full-title]")).toHaveText("Tra poco in diretta");
+  await expect(full).toContainText("Volley Lignano");
+  await expect(full).toContainText("Pol. Esempio");
+  await expect(full.locator("[data-grafica-intro-date]")).toHaveText("Sabato 31 ottobre · ore 18:00");
+  await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
+  await expect(page.locator("[data-grafica-pregame]")).toHaveCount(0);
+  await pass(page, 1_500);
+  await checkerboard(page);
+  // Copre tutto lo schermo: lo studio blu notte non lascia vedere il video sotto.
+  const box = (await full.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(1919);
+  expect(box.height).toBeGreaterThanOrEqual(1079);
+  await page.screenshot(shots("copertina"));
+  // Resta finché nessuno preme il tasto, anche dopo un'ora.
+  await pass(page, 60 * 60_000);
+  await expect(full).toBeVisible();
+
+  // Il tasto nello Scout: la copertina si apre sul video e in alto c'è il banner del riscaldamento, senza punteggio.
+  source.set(live({ ...PRE, pregame: "warmup", lineup: LINEUP(1), info: INFO }));
+  await pass(page, 2_500);
+  await pass(page, 1_000);
+  await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
+  const banner = page.locator("[data-grafica-pregame]");
+  await expect(banner).toHaveAttribute("data-grafica-pregame", "warmup");
+  await expect(banner.locator("[data-grafica-pregame-label]")).toHaveText("Riscaldamento in corso");
+  await expect(banner).toContainText("Lignano");
+  await expect(banner).toContainText("Esempio");
+  await expect(banner.locator("[data-grafica-pregame-time]")).toHaveText("Inizio ore 18:00");
+  await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
+  await expect(page.locator("[data-grafica-score]")).toHaveCount(0);
+  // In alto al centro.
+  const top = (await banner.boundingBox())!;
+  expect(top.y).toBeLessThan(120);
+  expect(Math.abs(top.x + top.width / 2 - 960)).toBeLessThan(4);
+  await page.screenshot(shots("riscaldamento"));
+
+  // Da 15 minuti prima: il riscaldamento ufficiale.
+  source.set(live({ ...PRE, pregame: "officialWarmup", lineup: LINEUP(1), info: INFO }));
+  await pass(page, 2_500);
+  await expect(banner).toHaveAttribute("data-grafica-pregame", "officialWarmup");
+  await expect(banner.locator("[data-grafica-pregame-label]")).toHaveText("Inizio riscaldamento ufficiale");
+  await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
+  await page.screenshot(shots("riscaldamento-ufficiale"));
+
+  // Da 5 minuti prima: la presentazione (il banner si toglie mentre è a schermo intero), poi la formazione.
+  source.set(live({ ...PRE, pregame: "protocol", lineup: LINEUP(1), info: INFO }));
+  await pass(page, 2_500);
+  await expect(page.locator('[data-grafica-full="intro"]')).toBeVisible();
+  await expect(page.locator("[data-grafica-pregame]")).toHaveCount(0);
+  await pass(page, 12_000);
+  await expect(page.locator('[data-grafica-full="lineup"]')).toBeVisible();
+  // Tra una grafica e l'altra, finita la formazione, il banner della presentazione; il punteggio ancora no.
+  await pass(page, 13_000);
+  await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
+  await expect(banner).toHaveAttribute("data-grafica-pregame", "protocol");
+  await expect(banner.locator("[data-grafica-pregame-label]")).toHaveText("Presentazione delle squadre");
+  await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
+
+  // Da 1 minuto prima la barra a 0–0, senza banner; poi si gioca.
+  source.set(live({ ...score(0, 0), serving: null, notStarted: true, lineup: LINEUP(1), info: INFO }));
+  await pass(page, 2_500);
+  await expect(page.locator("[data-grafica-pregame]")).toHaveCount(0);
+  await expect(page.locator('[data-grafica-score="home"]')).toHaveText("0");
+  await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
+});
+
+test("tornare alla copertina la rimette in onda; il primo punto toglie tutto e mostra la barra, anche senza tasto", async ({ page }) => {
+  await page.clock.install();
+  const source = await feed(page, live({ ...PRE, pregame: "warmup", info: INFO }));
+  await page.goto("/diretta/grafica");
+  await expect(page.locator('[data-grafica-pregame="warmup"]')).toBeVisible();
+  // Alla prima lettura, durante il riscaldamento, nessuna presentazione.
+  await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
+  source.set(live({ ...score(0, 0), serving: null, notStarted: true, pregame: "cover", info: INFO }));
+  await pass(page, 2_500);
+  await expect(page.locator('[data-grafica-full="cover"]')).toBeVisible();
+  await expect(page.locator("[data-grafica-pregame]")).toHaveCount(0);
+  // Primo punto con la copertina ancora su (nessuno ha premuto il tasto): esce, e c'è la barra.
+  source.set(live({ ...score(1, 0), info: INFO }));
+  await pass(page, 2_500);
+  await pass(page, 1_000);
+  await expect(page.locator("[data-grafica-full]")).toHaveCount(0);
+  await expect(page.locator('[data-grafica-score="home"]')).toHaveText("1");
+});
+
 test("con i nomi accesi la formazione e i cambi li mostrano, accanto al numero", async ({ page }) => {
   await page.clock.install();
-  const source = await feed(page, live({ ...score(0, 0), serving: null, notStarted: true, lineup: LINEUP(1, true) }));
+  const source = await feed(page, live({ ...PRE, pregame: "protocol", lineup: LINEUP(1, true) }));
   await page.goto("/diretta/grafica");
   await pass(page, 12_500);
   const lineup = page.locator('[data-grafica-full="lineup"]');
@@ -475,7 +574,14 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
   await page.clock.install();
   await page.goto("/diretta/grafica?prova=1");
   await expect(page.locator("[data-grafica-demo]")).toHaveCount(1);
-  // Prima del via la presentazione, poi la formazione…
+  // Prima del via la copertina, il riscaldamento, quello ufficiale, poi la presentazione e la formazione…
+  await expect(page.locator('[data-grafica-full="cover"]')).toBeVisible();
+  await pass(page, 6_000);
+  await expect(page.locator('[data-grafica-pregame="warmup"]')).toBeVisible();
+  await expect(page.locator("[data-grafica-bug]")).toHaveCount(0);
+  await pass(page, 6_000);
+  await expect(page.locator('[data-grafica-pregame="officialWarmup"]')).toBeVisible();
+  await pass(page, 6_000);
   await expect(page.locator('[data-grafica-full="intro"]')).toBeVisible();
   await pass(page, 13_000);
   await expect(page.locator('[data-grafica-full="lineup"]')).toBeVisible();
@@ -502,7 +608,7 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
   const corner = await page.context().newPage();
   await corner.clock.install();
   await corner.goto("/diretta/grafica?prova=1&posizione=basso-destra&scala=150");
-  await corner.clock.runFor(30_000);
+  await corner.clock.runFor(50_000);
   const bug = corner.locator("[data-grafica-bug]");
   await expect(bug).toBeVisible();
   const box = (await bug.boundingBox())!;

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "./helpers";
+import { deleteMatchById, localDate, localDateTime, loginAsDev, switchTeam, uniqueName } from "./helpers";
 
 /**
  * Punteggio live sul sito pubblico, acceso dallo Scout: si vede solo il
@@ -22,11 +22,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function createMatch(page: Page, opponent: string): Promise<string> {
+async function createMatch(page: Page, opponent: string, when = `${localDate()}T18:00`): Promise<string> {
   await page.goto("/admin/partite/nuovo");
   await page.getByLabel("Squadra avversaria").fill(opponent);
   await page.getByLabel("Luogo della partita").fill("Palestra diretta e2e");
-  await page.getByLabel("Data e ora").fill(`${localDate()}T18:00`);
+  await page.getByLabel("Data e ora").fill(when);
   await page.getByRole("button", { name: /salva partita/i }).click();
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
   const href = await page.locator('a[href^="/admin/partite/"]', { hasText: opponent }).first().getAttribute("href");
@@ -66,6 +66,8 @@ type PublicLive = {
   timeouts: { home: number; away: number };
   finished: boolean;
   notStarted?: true;
+  warmupAt?: string;
+  pregame?: string;
   setStats?: unknown;
   updatedAt: string;
 } | null;
@@ -299,5 +301,65 @@ test("Scout: a partita finita il sito mostra «Partita finita» con i set, poi s
   await expect(sync(page)).toContainText("Salvato");
   await expect.poll(async () => await publicLive(page), { timeout: 15_000 }).toBeNull();
 
+  await deleteMatchById(page, matchId);
+});
+
+test("Scout: prima del via la diretta video mostra la copertina; «Inizia il riscaldamento» la apre, «Torna alla copertina» la rimette", async ({ page }) => {
+  test.setTimeout(180_000);
+  await loginAsDev(page);
+  await switchTeam(page, "u14u15");
+
+  // Una partita tra due ore: dopo il tasto è «Riscaldamento in corso» (quello ufficiale comincia 15 minuti prima).
+  const opponent = uniqueName("Riscaldamento ");
+  const matchId = await createMatch(page, opponent, localDateTime(120));
+  await page.goto(`/admin/scout/${matchId}`);
+  await expect(page.getByRole("heading", { name: "Prima di cominciare" })).toBeVisible();
+
+  // Il tasto c'è solo con il live acceso.
+  const panel = page.locator("[data-scout-warmup-panel]");
+  await expect(panel).toHaveCount(0);
+  await page.getByText("Mostra il punteggio sul sito pubblico").click();
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("copertina");
+  await expect(sync(page)).toContainText("Salvato");
+  await expect.poll(async () => (await publicLive(page, "?prima=1"))?.pregame, { timeout: 15_000 }).toBe("cover");
+  expect((await publicLive(page, "?prima=1"))?.warmupAt).toBeUndefined();
+
+  // Dalla preparazione: «Inizia il riscaldamento».
+  await panel.locator('[data-scout-warmup="start"]').click();
+  await expect(panel.locator("[data-scout-warmup-since]")).toContainText(/Riscaldamento dalle \d\d:\d\d/);
+  await expect(sync(page)).toContainText("Salvato");
+  await expect.poll(async () => (await publicLive(page, "?prima=1"))?.pregame, { timeout: 15_000 }).toBe("warmup");
+  const warm = await publicLive(page, "?prima=1");
+  expect(Date.parse(warm!.warmupAt!)).toBeGreaterThan(Date.now() - 5 * 60_000);
+  // Il sito pubblico, prima del primo punto, continua a non mostrare niente.
+  expect(await publicLive(page)).toBeNull();
+
+  // Sotto i pannelli, a preparazione chiusa: l'ora del riscaldamento e «Torna alla copertina».
+  await page.locator("[data-scout-start]").click();
+  await expect(score(page)).toHaveText("0–0");
+  const tools = page.locator('[data-tour="section-scout-tools"]');
+  await expect(tools.locator("[data-scout-warmup-since]")).toBeVisible();
+  await tools.locator('[data-scout-warmup="stop"]').click();
+  await expect(tools.locator('[data-scout-warmup="start"]')).toBeVisible();
+  await expect(sync(page)).toContainText("Salvato");
+  await expect.poll(async () => (await publicLive(page, "?prima=1"))?.pregame, { timeout: 15_000 }).toBe("cover");
+  await tools.locator('[data-scout-warmup="start"]').click();
+  await expect(sync(page)).toContainText("Salvato");
+  await expect.poll(async () => (await publicLive(page, "?prima=1"))?.pregame, { timeout: 15_000 }).toBe("warmup");
+
+  // Il primo punto: si gioca. Niente più fase, e il tasto sparisce.
+  await page.locator('[data-scout-add="opp-ace"]').click();
+  await expect(score(page)).toHaveText("0–1");
+  await expect(sync(page)).toContainText("Salvato");
+  await expect(tools.locator("[data-scout-warmup]")).toHaveCount(0);
+  await expect.poll(async () => await publicLive(page, "?prima=1"), { timeout: 15_000 }).toMatchObject({ away: { score: 1 } });
+  const playing = await publicLive(page, "?prima=1");
+  expect(playing).not.toHaveProperty("pregame");
+  expect(playing).not.toHaveProperty("notStarted");
+  expect(playing).not.toHaveProperty("warmupAt");
+
+  await liveToggle(page).click();
+  await expect(sync(page)).toContainText("Salvato");
   await deleteMatchById(page, matchId);
 });
