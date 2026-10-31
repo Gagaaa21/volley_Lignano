@@ -283,7 +283,7 @@ export function getScoutMatchTourSteps(matchId: string, context: ScoutMatchTourC
         target: "section-scout-live",
         chapter: C_SETUP,
         title: "Punteggio live sul sito",
-        body: "Se lo accendi, chi apre il sito della squadra vede la partita in diretta: solo le due squadre, i punti, i set e chi batte, con la dicitura «Risultato non ufficiale». Nella grafica della diretta video anche i nostri cambi e la formazione, con i numeri di maglia (i nomi solo se accendi l'interruttore qui sotto). Mai chi ha fatto punto o i dettagli degli scambi.\n\nCompare dal primo punto segnato e lo puoi spegnere quando vuoi, anche durante la partita.",
+        body: "Se lo accendi, chi apre il sito della squadra vede la partita in diretta: solo le due squadre, i punti, i set e chi batte, con la dicitura «Risultato non ufficiale». Nella grafica della diretta video anche i nostri cambi e la formazione, con i numeri di maglia (i nomi solo se accendi l'interruttore qui sotto). Mai chi ha fatto punto o i dettagli degli scambi.\n\nCompare dal primo punto segnato e lo puoi spegnere quando vuoi, anche durante la partita. Per la diretta video, acceso il live, qui sotto c'è «Inizia il riscaldamento»: fino ad allora la grafica mostra solo la copertina con le due squadre; il resto (riscaldamento ufficiale, presentazione, punteggio) segue l'orario della partita.",
         warning: "Lo vede chiunque apra il sito: accendilo solo se vuoi la diretta pubblica.",
       },
       {

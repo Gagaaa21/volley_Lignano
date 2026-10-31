@@ -4,6 +4,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FullScreen } from "@/components/diretta/FullScreen";
 import { LowerThird } from "@/components/diretta/LowerThird";
+import { PregameBanner } from "@/components/diretta/PregameBanner";
 import { Scorebug } from "@/components/diretta/Scorebug";
 import { ScorebugWide } from "@/components/diretta/ScorebugWide";
 import { VerifyFrame } from "@/components/diretta/VerifyFrame";
@@ -206,6 +207,11 @@ export function GraficaClient() {
   const fullOn = full !== null;
   // I sottopancia in basso a sinistra; a destra se in basso a sinistra c'è la barra, più in alto se c'è la barra larga.
   const stripRight = showSmall && position === "basso-sinistra";
+  // Prima del fischio d'inizio (copertina, riscaldamento, presentazione: vedi pregame.ts) niente punteggio: solo il banner in alto,
+  // quando non c'è una grafica a schermo intero. Da 1 minuto prima (o dal primo punto) barra e punteggio.
+  const pregame = live?.pregame ?? null;
+  const scoreOn = !pregame;
+  const banner = pregame && pregame !== "cover" && !fullOn ? pregame : null;
 
   return (
     <>
@@ -217,17 +223,22 @@ export function GraficaClient() {
         data-grafica-delay={delaySeconds}
         data-grafica-style={style}
       >
-        {live && showSmall && (
+        {live && banner && (
+          <div className="absolute inset-x-0 top-[3.4rem] flex justify-center px-[2rem]">
+            <PregameBanner live={live} phase={banner} />
+          </div>
+        )}
+        {live && scoreOn && showSmall && (
           <div className={cn("absolute inset-0 flex px-[4rem] py-[3.4rem] transition-opacity duration-300", POSITIONS[position], fullOn && "opacity-0")}>
             <Scorebug live={live} />
           </div>
         )}
-        {live && showWide && (
+        {live && scoreOn && showWide && (
           <div className={cn("absolute inset-x-0 bottom-[2.5rem] flex justify-center px-[2rem] transition-opacity duration-300", fullOn && "opacity-0")}>
             <ScorebugWide live={live} />
           </div>
         )}
-        {live && (timeout || sub) && !fullOn && (
+        {live && scoreOn && (timeout || sub) && !fullOn && (
           <div className={cn("absolute flex flex-col gap-[0.8rem]", stripRight ? "right-[4rem] items-end" : "left-[4rem] items-start", showWide ? "bottom-[12.5rem]" : "bottom-[3.6rem]")}>
             {sub && <LowerThird card={sub} live={live} now={now} />}
             {timeout && <LowerThird card={timeout} live={live} now={now} />}

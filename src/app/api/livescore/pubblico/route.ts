@@ -1,5 +1,6 @@
 import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { getRepo } from "@/lib/db";
+import { withPregame } from "@/lib/diretta/pregame";
 import { opponentLogoFor } from "@/lib/federation/teamLogos";
 import { toPublicLiveScore } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
@@ -38,6 +39,10 @@ import type { PublicLiveScore } from "@/lib/types";
  * copia locale «da riconvalidare in sottofondo» mostrerebbe il punteggio con
  * un giro di ritardo. Legge sempre l'archivio vero, mai quello della modalità
  * prova.
+ *
+ * Prima del primo punto la risposta dice anche la fase della diretta video
+ * (`pregame`: copertina, riscaldamento, presentazione; vedi
+ * src/lib/diretta/pregame.ts), calcolata qui con l'ora del server.
  *
  * Con `?regia=1` (la grafica dentro Streamlabs / OBS: un solo computer, che
  * rilegge ogni secondo) la risposta non passa dalla copia della CDN: con quella
@@ -89,6 +94,8 @@ export async function GET(request: Request) {
   }
   let live = latestPublicLive(fromLiveScore, fromScout);
   if (live?.notStarted && !withNotStarted) live = null;
+  // Prima del fischio d'inizio, la fase della diretta video (copertina, riscaldamento, presentazione), con l'ora di adesso.
+  if (live?.notStarted) live = withPregame(live, Date.now());
   // Il logo dell'avversaria dalla classifica del girone (le classifiche si tengono in memoria qualche minuto: di norma non
   // costa letture). Mai nella copia compatta di Supabase, e un logo che non si trova non rompe mai il punteggio.
   if (live && live.team === "u14u15") {

@@ -94,6 +94,11 @@ export interface ScoutSettings {
    * come in Serie A. Spento di partenza: si accende solo con la liberatoria dei genitori. Gli scout di prima non lo hanno: spento.
    */
   publicNames?: boolean;
+  /**
+   * Quando lo staff ha premuto «Inizia il riscaldamento» (ms): finché non lo preme la grafica della diretta mostra la copertina
+   * (la camera non si vede), poi le fasi del riscaldamento in base all'orario della partita. Null = copertina.
+   */
+  warmupAt?: number | null;
   /** Quanto si segna (vedi ScoutLevel). Gli scout salvati prima dei livelli non lo hanno: valgono «base». */
   level: ScoutLevel;
 }

@@ -1049,6 +1049,30 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "p",
         text: "Il riquadro compare **dal primo punto segnato**. Il sito si aggiorna ogni pochi secondi: il ritardo, di solito, è al massimo una decina di secondi. A partita finita il riquadro diventa «Partita finita» e resta visibile per qualche ora, poi sparisce da solo.",
       },
+      { type: "sub", title: "La diretta video prima del via" },
+      {
+        type: "p",
+        text: "Se mandate la partita in video con la grafica del sito (Streamlabs, OBS o la pagina /diretta), prima del fischio d'inizio la grafica segue l'**orario della partita**. A te resta un tasto solo: **«Inizia il riscaldamento»**, nella preparazione (sotto l'interruttore del punteggio live) o tra i pulsanti sotto i pannelli. Si vede solo con il live acceso e prima del primo punto.",
+      },
+      {
+        type: "table",
+        columns: [
+          { header: "Quando", weight: 4 },
+          { header: "Cosa va in onda", weight: 7 },
+        ],
+        rows: [
+          ["Live acceso, tasto non ancora premuto", "La **copertina** a schermo intero: Lignano contro l'avversaria. La telecamera non si vede."],
+          ["Dal tasto a 15 minuti prima", "Il video, con in alto il banner **«Riscaldamento in corso»**, le squadre e l'ora d'inizio. Niente punteggio."],
+          ["Da 15 a 5 minuti prima", "Il banner **«Inizio riscaldamento ufficiale»**. Niente punteggio."],
+          ["Da 5 a 1 minuto prima", "La **presentazione** della partita e la **formazione** di partenza."],
+          ["Da 1 minuto prima, o dal primo punto", "La barra con il **punteggio**, i time-out, i cambi: si gioca."],
+        ],
+        keepTogether: true,
+      },
+      {
+        type: "p",
+        text: "Premuto per sbaglio o troppo presto? **«Torna alla copertina»** accanto all'ora del riscaldamento. Se ti dimentichi il tasto, la barra arriva comunque da 1 minuto prima. Senza l'orario della partita, dopo il tasto resta il riscaldamento fino al primo punto.",
+      },
       {
         type: "callout",
         kind: "warning",

@@ -63,7 +63,7 @@ test.describe("grafica della diretta: cosa è cambiato", () => {
   });
 
   test("prima del via: presentazione e poi formazione, anche alla prima lettura (chi apre OBS prima della partita le vede)", () => {
-    const pre = reading({ ...zero, serving: null, notStarted: true, lineup: lineupOf(1) });
+    const pre = reading({ ...zero, serving: null, notStarted: true, lineup: lineupOf(1), pregame: "protocol" });
     expect(diffLive(null, pre)).toMatchObject({ intro: true, lineup: { set: 1 } });
     let feed = poll(INITIAL_FEED, pre, T);
     expect(feed.full).toMatchObject({ kind: "intro", startedAt: T, until: T + INTRO_CARD_MS });
@@ -74,13 +74,13 @@ test.describe("grafica della diretta: cosa è cambiato", () => {
     expect(feed.full).toMatchObject({ kind: "lineup", until: T + INTRO_CARD_MS + LINEUP_CARD_MS });
     expect(feed.full?.kind === "lineup" && feed.full.lineup.positions[0]?.number).toBe("8");
     // Si accende il live dopo «niente»: di nuovo la presentazione. Senza formazione, solo quella.
-    const again = poll(poll(feed, null, T + 40_000), reading({ ...zero, serving: null, notStarted: true }), T + 41_000);
+    const again = poll(poll(feed, null, T + 40_000), reading({ ...zero, serving: null, notStarted: true, pregame: "protocol" }), T + 41_000);
     expect(again.full?.kind).toBe("intro");
     expect(again.fullQueue).toEqual([]);
   });
 
   test("la presentazione in coda non va più in onda a partita cominciata; la formazione nemmeno, a set iniziato", () => {
-    const pre = reading({ ...zero, serving: null, notStarted: true, lineup: lineupOf(1) });
+    const pre = reading({ ...zero, serving: null, notStarted: true, lineup: lineupOf(1), pregame: "protocol" });
     let feed = poll(INITIAL_FEED, pre, T);
     // Primo punto mentre la presentazione è in onda: esce subito, con la sua transizione, e la formazione in coda non serve più.
     feed = poll(feed, reading({ lineup: lineupOf(1), home: { ...zero.home, score: 1 }, away: zero.away }), T + 3_000);
@@ -210,7 +210,7 @@ test.describe("grafica della diretta: cosa è cambiato", () => {
 
   test("un'altra partita, o la prova che ricomincia, non fa scattare animazioni", () => {
     const old = reading({ sets: [{ home: 25, away: 21 }], timeouts: { home: 2, away: 2 }, subs: [sub("a")] });
-    const nothing = { timeouts: [], setEnded: null, matchEnded: false, subs: [], lineup: null, intro: false };
+    const nothing = { timeouts: [], setEnded: null, matchEnded: false, subs: [], lineup: null, intro: false, cover: false };
     expect(diffLive(old, reading({ away: { name: "Altra squadra", color: "#000000", score: 8, sets: 0 }, subs: [sub("b")] }))).toEqual(nothing);
     // I set tornano indietro: è un'altra partita.
     expect(diffLive(old, reading({ timeouts: { home: 1, away: 0 } }))).toEqual(nothing);
@@ -307,7 +307,7 @@ test.describe("grafica della diretta: la partita finta", () => {
       feed = poll(feed, frame, now);
       record(before, feed, now);
     }
-    const perLap = ["intro", "lineup", "timeout", "sub", "timeout", "set", "lineup", "timeout", "sub", "timeout", "final"];
+    const perLap = ["cover", "intro", "lineup", "timeout", "sub", "timeout", "set", "lineup", "timeout", "sub", "timeout", "final"];
     expect(aired).toEqual([...perLap, ...perLap]);
   });
 });

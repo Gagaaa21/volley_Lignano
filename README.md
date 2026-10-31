@@ -513,8 +513,10 @@ staff (Developer e Admin).
     intero (Fullscreen API; su iPhone il riquadro a tutta pagina) e controllo del ritardo del
     punteggio con − e +. Le camere le incolla lo staff nella scheda «Diretta video» in cima
     all'elenco Scout (`src/app/admin/scout/DirettaCard.tsx` + `diretta-actions.ts`, permesso
-    «Scout», mai in modalità prova): `app_settings.live_stream`, JSON con camere, ritardo e ora
-    del salvataggio (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
+    «Scout», mai in modalità prova): `app_settings.live_stream`, JSON con camere, ritardo, ora
+    del salvataggio e `graphicInVideo` («La grafica è già nel video»: con Streamlabs / OBS la
+    pagina `/diretta` mostra solo il video, senza grafica sopra né ritardo da regolare, perché il
+    punteggio è già dentro e sempre allineato) (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
     `live/…`, `embed/…`, accetta solo identificativi di 11 caratteri, scade dopo 12 ore).
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
     anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080, con
@@ -556,7 +558,16 @@ staff (Developer e Admin).
     `src/lib/diretta/overlayEvents.ts` (`diffLive`, `feedReducer`): schermi interi in coda uno
     alla volta (una grafica in coda che non serve più, come la formazione a set cominciato, si
     salta), time-out subito, cambi in coda tra loro; alla prima lettura di una partita già
-    cominciata non va in onda niente, prima del via sì (presentazione e formazione). Opzioni
+    cominciata non va in onda niente, prima del via sì (la fase in corso). **Prima del via**
+    (`src/lib/diretta/pregame.ts`, `pregamePhase`): copertina a schermo intero finché lo staff
+    non preme «Inizia il riscaldamento» nello Scout (`ScoutWarmup.tsx`, `settings.warmupAt`,
+    esce nel punteggio pubblico come `warmupAt`); dal tasto il banner in alto
+    «Riscaldamento in corso» (`PregameBanner.tsx`), da 15 minuti prima dell'orario della partita
+    «Inizio riscaldamento ufficiale», da 5 la presentazione e la formazione, da 1 (o dal primo
+    punto) la barra; in tutte le fasi niente punteggio. La fase (`pregame`) la calcola
+    `/api/livescore/pubblico` a ogni lettura con l'ora del server (`withPregame`), e quando
+    cambia per l'orario `updatedAt` diventa l'ora del cambio: così sulla pagina `/diretta`
+    arriva insieme al video, con lo stesso ritardo dei punti. Opzioni
     nell'indirizzo: `?stile=piccola|larga|entrambe` (di partenza la barra in alto), `?prova=1`
     (partita finta, `demo.ts`, con tutte le grafiche), `?verifica=1`, `?posizione=` (la barra),
     `?scala=`, `?ritardo=` (secondi: le

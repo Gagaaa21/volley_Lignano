@@ -19,6 +19,8 @@ const SCORE_POLL_SECONDS = 8;
 interface Config {
   cameras: Camera[];
   delaySeconds: number;
+  /** La grafica è già dentro il video (Streamlabs / OBS): qui solo il video, senza punteggio sopra né ritardo da regolare. */
+  graphicInVideo?: boolean;
 }
 
 function readStored(key: string): string | null {
@@ -45,8 +47,11 @@ export function scaleForWidth(width: number): number {
 type FullscreenElement = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
 type FullscreenDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
 
-/** Il video di una camera con il punteggio sopra: due riquadri uno sull'altro, quello del punteggio trasparente e senza tocchi. */
-function Stage({ camera, delaySeconds }: { camera: Camera; delaySeconds: number }) {
+/**
+ * Il video di una camera con il punteggio sopra: due riquadri uno sull'altro, quello del punteggio trasparente e senza tocchi.
+ * Con la grafica già nel video (`overlay` spento) solo il video: il punteggio sopra sarebbe doppio.
+ */
+function Stage({ camera, delaySeconds, overlay }: { camera: Camera; delaySeconds: number; overlay: boolean }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLIFrameElement>(null);
@@ -156,17 +161,19 @@ function Stage({ camera, delaySeconds }: { camera: Camera; delaySeconds: number 
           referrerPolicy="strict-origin-when-cross-origin"
           data-diretta-player={camera.id}
         />
-        <iframe
-          ref={overlayRef}
-          src={overlaySrc}
-          title="Punteggio della partita"
-          aria-hidden
-          tabIndex={-1}
-          onLoad={sendAll}
-          className="pointer-events-none absolute inset-0 h-full w-full border-0 bg-transparent"
-          style={{ colorScheme: "light" }}
-          data-diretta-overlay
-        />
+        {overlay && (
+          <iframe
+            ref={overlayRef}
+            src={overlaySrc}
+            title="Punteggio della partita"
+            aria-hidden
+            tabIndex={-1}
+            onLoad={sendAll}
+            className="pointer-events-none absolute inset-0 h-full w-full border-0 bg-transparent"
+            style={{ colorScheme: "light" }}
+            data-diretta-overlay
+          />
+        )}
         <button
           type="button"
           onClick={toggleFullscreen}
@@ -186,6 +193,8 @@ function Stage({ camera, delaySeconds }: { camera: Camera; delaySeconds: number 
  * La pagina dei genitori: il video della diretta (YouTube, nessun peso per il sito) con il punteggio dello Scout sopra e, se
  * le camere sono più d'una, i pulsanti per scegliere quale guardare. YouTube mostra il video con 10–20 secondi di ritardo, il
  * punteggio arriverebbe prima: la grafica lo ritarda (di partenza quanto ha scelto lo staff) e ognuno lo può regolare da solo.
+ * Se lo staff manda in onda la grafica da Streamlabs / OBS (`graphicInVideo`) il punteggio è già nel video, sempre allineato:
+ * qui resta solo il video.
  */
 export function DirettaClient() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -232,6 +241,7 @@ export function DirettaClient() {
   const cameras = config?.cameras ?? [];
   const selected = cameras.find((camera) => camera.name === cameraName) ?? cameras[0] ?? null;
   const delaySeconds = ownDelay ?? config?.delaySeconds ?? DEFAULT_DELAY_SECONDS;
+  const overlay = config?.graphicInVideo !== true;
 
   function chooseCamera(name: string) {
     setCameraName(name);
@@ -265,7 +275,7 @@ export function DirettaClient() {
 
   return (
     <div className="space-y-3">
-      <Stage camera={selected} delaySeconds={delaySeconds} />
+      <Stage camera={selected} delaySeconds={delaySeconds} overlay={overlay} />
 
       {cameras.length > 1 && (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Scegli la camera" data-diretta-cameras>
@@ -287,33 +297,35 @@ export function DirettaClient() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-surface-muted px-4 py-3 text-sm" data-diretta-delay-box>
-        <span className="font-semibold text-foreground/80">Punteggio non allineato al video?</span>
-        <span className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => chooseDelay(delaySeconds - 1)}
-            aria-label="Meno ritardo"
-            className="grid h-8 w-8 place-items-center rounded-lg bg-surface text-foreground shadow-xs ring-1 ring-border hover:bg-border"
-            data-diretta-delay-down
-          >
-            <Minus className="h-4 w-4" />
-          </button>
-          <b className="min-w-[3.5rem] text-center tabular-nums text-foreground" data-diretta-delay>
-            {delaySeconds} s
-          </b>
-          <button
-            type="button"
-            onClick={() => chooseDelay(delaySeconds + 1)}
-            aria-label="Più ritardo"
-            className="grid h-8 w-8 place-items-center rounded-lg bg-surface text-foreground shadow-xs ring-1 ring-border hover:bg-border"
-            data-diretta-delay-up
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </span>
-        <span className="text-xs text-muted-foreground">Se il punteggio compare prima del punto nel video, aumenta; se dopo, diminuisci.</span>
-      </div>
+      {overlay && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-surface-muted px-4 py-3 text-sm" data-diretta-delay-box>
+          <span className="font-semibold text-foreground/80">Punteggio non allineato al video?</span>
+          <span className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => chooseDelay(delaySeconds - 1)}
+              aria-label="Meno ritardo"
+              className="grid h-8 w-8 place-items-center rounded-lg bg-surface text-foreground shadow-xs ring-1 ring-border hover:bg-border"
+              data-diretta-delay-down
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <b className="min-w-[3.5rem] text-center tabular-nums text-foreground" data-diretta-delay>
+              {delaySeconds} s
+            </b>
+            <button
+              type="button"
+              onClick={() => chooseDelay(delaySeconds + 1)}
+              aria-label="Più ritardo"
+              className="grid h-8 w-8 place-items-center rounded-lg bg-surface text-foreground shadow-xs ring-1 ring-border hover:bg-border"
+              data-diretta-delay-up
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </span>
+          <span className="text-xs text-muted-foreground">Se il punteggio compare prima del punto nel video, aumenta; se dopo, diminuisci.</span>
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">Risultato non ufficiale. Il video è di YouTube.</p>
     </div>

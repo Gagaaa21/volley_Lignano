@@ -23,6 +23,11 @@ export interface Camera {
 export interface StreamSettings {
   cameras: Camera[];
   delaySeconds: number;
+  /**
+   * La grafica è già dentro il video (Streamlabs / OBS dal computer): la pagina /diretta mostra solo il video, senza disegnarci
+   * sopra il punteggio un'altra volta (sarebbe doppio) e senza la regolazione del ritardo (punteggio e immagine sono già insieme).
+   */
+  graphicInVideo?: boolean;
   /** Quando lo staff ha salvato i link (ISO). */
   savedAt: string;
 }
@@ -57,6 +62,7 @@ export function parseYouTubeId(input: string): string | null {
 const settingsSchema = z.object({
   cameras: z.array(z.object({ name: z.string().trim().min(1).max(MAX_CAMERA_NAME), id: z.string().regex(YOUTUBE_ID) })).max(MAX_CAMERAS),
   delaySeconds: z.number().int().min(0).max(MAX_DELAY_SECONDS),
+  graphicInVideo: z.boolean().optional(),
   savedAt: z.string().refine((value) => Number.isFinite(Date.parse(value)), "Data non valida."),
 }) satisfies z.ZodType<StreamSettings>;
 
@@ -82,8 +88,9 @@ export type BuiltSettings = { ok: true; settings: StreamSettings } | { ok: false
 /**
  * Le impostazioni dai campi della scheda dell'area riservata: una riga per camera (le righe senza link si saltano), il nome
  * di partenza è «Camera 1…», il ritardo vuoto vale quello di partenza. Un link che non è di YouTube si rifiuta dicendo quale.
+ * Con la grafica già nel video il ritardo non serve e non si controlla.
  */
-export function buildStreamSettings(fields: CameraField[], delay: string, now = Date.now()): BuiltSettings {
+export function buildStreamSettings(fields: CameraField[], delay: string, now = Date.now(), graphicInVideo = false): BuiltSettings {
   const cameras: Camera[] = [];
   for (const [index, field] of fields.slice(0, MAX_CAMERAS).entries()) {
     const link = field.link.trim();
@@ -95,11 +102,12 @@ export function buildStreamSettings(fields: CameraField[], delay: string, now = 
   if (cameras.length === 0) return { ok: false, error: "Incolla almeno un link di una diretta YouTube." };
 
   const text = delay.trim();
-  const seconds = text === "" ? DEFAULT_DELAY_SECONDS : Number(text.replace(",", "."));
-  if (!Number.isFinite(seconds) || seconds < 0 || seconds > MAX_DELAY_SECONDS) {
-    return { ok: false, error: `Il ritardo del punteggio va da 0 a ${MAX_DELAY_SECONDS} secondi.` };
-  }
-  return { ok: true, settings: { cameras, delaySeconds: Math.round(seconds), savedAt: new Date(now).toISOString() } };
+  const parsed = text === "" ? DEFAULT_DELAY_SECONDS : Number(text.replace(",", "."));
+  const valid = Number.isFinite(parsed) && parsed >= 0 && parsed <= MAX_DELAY_SECONDS;
+  if (!valid && !graphicInVideo) return { ok: false, error: `Il ritardo del punteggio va da 0 a ${MAX_DELAY_SECONDS} secondi.` };
+  const delaySeconds = valid ? Math.round(parsed) : DEFAULT_DELAY_SECONDS;
+  const savedAt = new Date(now).toISOString();
+  return { ok: true, settings: { cameras, delaySeconds, ...(graphicInVideo ? { graphicInVideo: true } : {}), savedAt } };
 }
 
 /** L'indirizzo del lettore YouTube da incorporare: senza il pulsante «schermo intero» di YouTube, che lascerebbe fuori il punteggio. */

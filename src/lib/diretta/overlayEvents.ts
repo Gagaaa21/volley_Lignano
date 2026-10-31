@@ -1,3 +1,4 @@
+import { beforeProtocol } from "@/lib/diretta/pregame";
 import type { PublicLineup, PublicLiveScore, PublicSetRecap, PublicSetRecapTeam, PublicSubstitution } from "@/lib/types";
 import { TIMEOUT_SECONDS } from "@/lib/volleyRules";
 
@@ -30,6 +31,8 @@ export const SET_CARD_MS = 9_000;
 /** Con il resoconto del set (i numeri di squadra) serve più tempo per leggerlo. */
 export const SET_RECAP_MS = 15_000;
 export const FINAL_CARD_MS = 30_000;
+/** La copertina resta finché non comincia il riscaldamento (o la partita): abbastanza per qualunque attesa. */
+export const COVER_CARD_MS = 12 * 60 * 60 * 1000;
 /** Da quanti punti di fila si mostra la serie in corso sotto la barra («Parziale 4-0»): il punteggio pubblico la porta da lì. */
 export const RUN_MIN = 4;
 /** Quanto dura l'uscita di una grafica a schermo intero (la transizione): una che non serve più esce in questo tempo. */
@@ -50,11 +53,13 @@ export interface OverlayChange {
   subs: PublicSubstitution[];
   /** La formazione da presentare: quella di un set nuovo, scritta a 0–0. */
   lineup: PublicLineup | null;
-  /** Si è appena acceso il live, prima del primo punto: la presentazione della partita. */
+  /** È cominciata la presentazione (da 5 minuti prima del fischio d'inizio, vedi pregame.ts): squadre e formazione. */
   intro: boolean;
+  /** Si è passati alla copertina (prima del riscaldamento): copre tutto, la camera non si vede. */
+  cover: boolean;
 }
 
-const NOTHING: OverlayChange = { timeouts: [], setEnded: null, matchEnded: false, subs: [], lineup: null, intro: false };
+const NOTHING: OverlayChange = { timeouts: [], setEnded: null, matchEnded: false, subs: [], lineup: null, intro: false, cover: false };
 
 /**
  * Le due letture sono della stessa partita? Se cambia l'avversaria o i set tornano indietro (un'altra partita, o la prova
@@ -67,15 +72,25 @@ function sameMatch(prev: PublicLiveScore, next: PublicLiveScore): boolean {
 /** Il set in corso è ancora a 0–0 (e la partita non è finita): l'unico momento in cui si presenta una formazione. */
 const atZero = (live: PublicLiveScore) => !live.finished && live.home.score === 0 && live.away.score === 0;
 
+/** La presentazione prima del fischio d'inizio (da 5 minuti prima, vedi pregame.ts). */
+const presenting = (live: PublicLiveScore | null) => Boolean(live?.notStarted) && live?.pregame === "protocol";
+
 /**
- * Cosa è cambiato da `prev` a `next`. Alla prima lettura (o dopo un «niente») non è cambiato niente, con un'eccezione: se la
- * partita non è ancora cominciata, la presentazione (e la formazione, se c'è già) vanno in onda lo stesso. Così chi apre OBS
- * prima della partita le vede; chi lo riapre a partita in corso non si ritrova a schermo intero una grafica vecchia.
+ * Cosa è cambiato da `prev` a `next`. Alla prima lettura (o dopo un «niente») non è cambiato niente, con un'eccezione: durante
+ * la presentazione (da 5 a 1 minuto prima del fischio d'inizio) le squadre e la formazione vanno in onda lo stesso. Così chi
+ * apre OBS in quel momento le vede; chi lo riapre a partita in corso non si ritrova a schermo intero una grafica vecchia.
+ * Durante copertina e riscaldamento non va in onda niente: nemmeno una formazione scritta intanto nello Scout.
  */
 export function diffLive(prev: PublicLiveScore | null, next: PublicLiveScore | null): OverlayChange {
   if (!next) return NOTHING;
   if (!prev || !sameMatch(prev, next)) {
-    if (!next.notStarted) return NOTHING;
+    if (next.pregame === "cover") return { ...NOTHING, cover: true };
+    if (!presenting(next)) return NOTHING;
+    return { ...NOTHING, intro: true, lineup: next.lineup && atZero(next) ? next.lineup : null };
+  }
+  if (beforeProtocol(next)) return { ...NOTHING, cover: next.pregame === "cover" && prev.pregame !== "cover" };
+  // Comincia la presentazione: le squadre, e poi la formazione se c'è già.
+  if (presenting(next) && !presenting(prev)) {
     return { ...NOTHING, intro: true, lineup: next.lineup && atZero(next) ? next.lineup : null };
   }
   const timeouts: Side[] = [];
@@ -95,12 +110,14 @@ export function diffLive(prev: PublicLiveScore | null, next: PublicLiveScore | n
     matchEnded: !prev.finished && next.finished,
     subs,
     lineup,
-    intro: Boolean(next.notStarted) && !prev.notStarted,
+    intro: false,
+    cover: false,
   };
 }
 
 /** Una grafica a schermo intero. `startedAt`/`until` si fissano quando va in onda (in coda valgono 0). */
 export type FullCard =
+  | { kind: "cover"; startedAt: number; until: number }
   | { kind: "intro"; startedAt: number; until: number }
   | { kind: "lineup"; lineup: PublicLineup; startedAt: number; until: number }
   | { kind: "set"; n: number; home: number; away: number; recap?: PublicSetRecap; startedAt: number; until: number }
@@ -140,6 +157,8 @@ export type FeedAction = { type: "poll"; live: PublicLiveScore | null; now: numb
 
 function durationOf(card: FullCard | StripCard): number {
   switch (card.kind) {
+    case "cover":
+      return COVER_CARD_MS;
     case "intro":
       return INTRO_CARD_MS;
     case "lineup":
@@ -166,6 +185,9 @@ function onAir<T extends FullCard | StripCard>(card: T, now: number): T {
  */
 function stale(card: FullCard, live: PublicLiveScore | null): boolean {
   if (!live) return true;
+  if (card.kind === "cover") return live.pregame !== "cover";
+  // Si torna alla copertina o al riscaldamento (lo staff ha tolto il tasto): niente presentazione né formazione.
+  if (beforeProtocol(live) && (card.kind === "intro" || card.kind === "lineup")) return true;
   if (card.kind === "intro") return !live.notStarted;
   if (card.kind === "lineup") return !atZero(live) || live.lineup?.set !== card.lineup.set;
   if (card.kind === "set") return live.finished;
@@ -211,8 +233,15 @@ export function feedReducer(feed: Feed, action: FeedAction): Feed {
   // sua transizione: non copre il primo scambio.
   if (full && full.kind !== "final" && stale(full, live) && full.until > now + FULL_EXIT_MS) full = { ...full, until: now + FULL_EXIT_MS };
 
-  // A schermo intero: la fine della partita prende il posto di tutto (anche del fine set appena arrivato con lei).
-  if (change.matchEnded) {
+  // La copertina prende il posto di tutto: prima del riscaldamento la camera non si vede.
+  if (change.cover) {
+    full = onAir({ kind: "cover", startedAt: 0, until: 0 }, now);
+    fullQueue = [];
+    timeout = null;
+    sub = null;
+    subQueue = [];
+  } else if (change.matchEnded) {
+    // A schermo intero: la fine della partita prende il posto di tutto (anche del fine set appena arrivato con lei).
     const final: FullCard = {
       kind: "final",
       ...(live.recap ? { recap: live.recap } : {}),

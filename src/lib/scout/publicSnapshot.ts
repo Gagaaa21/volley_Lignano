@@ -71,6 +71,11 @@ export const publicLiveScoreSchema = z.object({
     .nullable()
     .optional(),
   notStarted: z.literal(true).optional(),
+  warmupAt: z
+    .string()
+    .refine((value) => Number.isFinite(Date.parse(value)), "Data non valida.")
+    .optional(),
+  pregame: z.enum(["cover", "warmup", "officialWarmup", "protocol"]).optional(),
   recap: z
     .object({
       n: z.number().int().min(1).max(9),

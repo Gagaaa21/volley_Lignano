@@ -4,8 +4,9 @@ import { setPointHolder, setsToWin } from "@/lib/volleyRules";
 import { FINAL_CARD_MS, INTRO_CARD_MS, LINEUP_CARD_MS, RUN_MIN, SET_RECAP_MS, type Side } from "./overlayEvents";
 
 /**
- * Una partita finta per provare la grafica in OBS senza uno Scout acceso (`/diretta/grafica?prova=1`): presentazione e
- * formazione prima del via, due set vinti da Lignano con punti, battuta, time-out (con i punti del set), un cambio e un cambio
+ * Una partita finta per provare la grafica in OBS senza uno Scout acceso (`/diretta/grafica?prova=1`): le fasi prima del via
+ * (copertina, riscaldamento, riscaldamento ufficiale, presentazione e formazione: qui in pochi secondi l'una, nella partita vera
+ * le decide l'orario, vedi pregame.ts), due set vinti da Lignano con punti, battuta, time-out (con i punti del set), un cambio e un cambio
  * doppio, una serie di punti, set point, match point, fine set con i numeri e il risultato finale. La pagina la ripete in
  * ciclo; ogni elemento è una «lettura» del punteggio pubblico, come quelle vere. Nomi e numeri sono inventati.
  */
@@ -66,6 +67,8 @@ const SUBS: Record<"sub" | "double-sub", { in: PublicPlayer; out: PublicPlayer }
 
 /** Letture ferme prima del via: presentazione e formazione, una dopo l'altra. */
 const PRE_HOLD = Math.ceil((INTRO_CARD_MS + LINEUP_CARD_MS) / DEMO_STEP_MS) + 2;
+/** Letture per ognuna delle fasi prima della presentazione: copertina, riscaldamento, riscaldamento ufficiale. */
+const PHASE_HOLD = 4;
 /** Letture ferme a 0–0 a inizio 2° set: il resoconto del 1° set, poi la formazione del 2°. Come una partita vera, dove tra un set e l'altro passano minuti. */
 const BREAK_HOLD = Math.ceil((SET_RECAP_MS + LINEUP_CARD_MS) / DEMO_STEP_MS) + 1;
 /** Letture ferme sul finale, poi «niente» (la grafica sparisce) prima di ricominciare. */
@@ -116,7 +119,7 @@ export function demoScript(): (PublicLiveScore | null)[] {
     updatedAt: DEMO_UPDATED_AT,
   });
 
-  // Prima del via: live acceso, 0–0, presentazione e formazione.
+  // Prima del via: live acceso, 0–0. La copertina, il riscaldamento e quello ufficiale, poi presentazione e formazione.
   const pre: PublicLiveScore = {
     ...base(),
     ...teams(0, 0),
@@ -126,7 +129,10 @@ export function demoScript(): (PublicLiveScore | null)[] {
     lineup: LINEUPS[0],
     notStarted: true,
   };
-  for (let i = 0; i < PRE_HOLD; i++) frames.push(pre);
+  for (const pregame of ["cover", "warmup", "officialWarmup"] as const) {
+    for (let i = 0; i < PHASE_HOLD; i++) frames.push({ ...pre, pregame });
+  }
+  for (let i = 0; i < PRE_HOLD; i++) frames.push({ ...pre, pregame: "protocol" });
 
   /** `hold`: letture ferme sul primo punteggio del set (vedi BREAK_HOLD). */
   const playSet = (steps: Step[], index: number, firstServer: Side, hold = 0) => {

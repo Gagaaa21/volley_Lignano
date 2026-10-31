@@ -36,6 +36,7 @@ export const DEFAULT_SETTINGS: ScoutSettings = {
   firstServer: "us",
   publicLive: false,
   publicNames: false,
+  warmupAt: null,
   level: "base",
 };
 

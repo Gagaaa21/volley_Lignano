@@ -171,6 +171,7 @@ export function toPublicScoutScore(
       ...(lineup ? { lineup } : {}),
       ...(info ? { info } : {}),
       notStarted: true,
+      ...(scout.settings.warmupAt ? { warmupAt: new Date(scout.settings.warmupAt).toISOString() } : {}),
       updatedAt: scout.updatedAt,
     };
   }

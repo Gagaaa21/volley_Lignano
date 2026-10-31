@@ -13,8 +13,9 @@ import { AZURE, cutRight, DEEP, DROP, EDGE, GLASS, GLASS_DARK, GOLD, INK, ORANGE
 import { TeamMark, tone } from "./TeamMark";
 
 /**
- * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A: presentazione della partita,
- * formazione di partenza, fine set con i parziali e i numeri del set, risultato finale con i numeri della partita.
+ * Le grafiche a schermo intero della diretta video, come nelle pause delle partite di Serie A: la copertina prima del
+ * riscaldamento (la camera non si vede), presentazione della partita, formazione di partenza, fine set con i parziali e i
+ * numeri del set, risultato finale con i numeri della partita.
  * Il fondo è uno studio TV blu notte: lastre di luce oblique che scorrono piano, righe sottili, un lampo di luce ogni tanto,
  * lo stemma in filigrana e, in basso, la fascia con il club e «Diretta». Titolo con la barra gialla a sinistra, riquadri blu
  * profondi e lucidi con i tagli obliqui, numeri grandi. Entrano ed escono con la transizione (bande blu, gialla e azzurra che
@@ -216,11 +217,11 @@ function TeamPanel({ live, side, delay }: { live: PublicLiveScore; side: Side; d
   );
 }
 
-function Intro({ live }: { live: PublicLiveScore }) {
+function Intro({ live, title = "Oggi in campo!" }: { live: PublicLiveScore; title?: string }) {
   const when = live.info ? matchDate(live.info.date) : null;
   return (
     <>
-      <Heading eyebrow={competition(live)} title="Oggi in campo!" />
+      <Heading eyebrow={competition(live)} title={title} />
       <div className="flex w-[100rem] max-w-full items-center justify-center gap-[1.5rem]">
         <TeamPanel live={live} side="home" delay={500} />
         {/* Il VS in un rombo giallo, come nelle sigle. */}
@@ -491,6 +492,14 @@ function Scoreline({ live, home, away, marker }: { live: PublicLiveScore; home: 
 }
 
 export function FullScreen({ card, live, now }: { card: FullCard; live: PublicLiveScore; now: number }) {
+  // La copertina, prima del riscaldamento: le due squadre, data e palazzetto; il fondo è pieno, la camera non si vede.
+  if (card.kind === "cover") {
+    return (
+      <Frame card={card} now={now} live={live}>
+        <Intro live={live} title="Tra poco in diretta" />
+      </Frame>
+    );
+  }
   if (card.kind === "intro") {
     return (
       <Frame card={card} now={now} live={live}>

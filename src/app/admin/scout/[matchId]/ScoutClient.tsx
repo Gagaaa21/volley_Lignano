@@ -51,6 +51,7 @@ import { ScoutLog } from "./ScoutLog";
 import { ScoutReception } from "./ScoutReception";
 import { ScoutBackups, UnsavedBanner, buildScoutCopy, summaryLine } from "./ScoutSafety";
 import { ScoutSetup, type ScoutAthlete } from "./ScoutSetup";
+import { ScoutWarmup } from "./ScoutWarmup";
 import { useScoutSession, type ScoutConflict, type SyncStatus } from "./useScoutSession";
 import { useWakeLock } from "./useWakeLock";
 
@@ -686,6 +687,8 @@ export function ScoutClient({
                     <Radio className="h-3.5 w-3.5" />
                     {data.settings.publicLive ? "Spegni il live sul sito" : "Punteggio live sul sito"}
                   </Button>
+                  {/* Prima del primo punto: la diretta video passa dalla copertina al riscaldamento. */}
+                  {data.settings.publicLive && !hasRallies && !locked && <ScoutWarmup data={data} dispatch={dispatch} compact />}
                   {canForceClose && !closingSet && (
                     <Button variant="outline" size="xs" onClick={() => setClosingSet(true)}>
                       <Flag className="h-3.5 w-3.5" />

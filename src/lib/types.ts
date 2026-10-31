@@ -807,9 +807,23 @@ export interface PublicLiveScore {
   /** Punteggio live acceso ma ancora nessun punto: 0–0. Solo la grafica della diretta video lo riceve (con `?prima=1`), per
    * far comparire la barra appena si accende il live; il banner del sito non lo vede mai. Assente quando la partita è cominciata. */
   notStarted?: true;
+  /** Quando lo staff ha premuto «Inizia il riscaldamento» nello Scout (ISO). Solo a partita non cominciata. */
+  warmupAt?: string;
+  /**
+   * La fase prima del fischio d'inizio, calcolata dal server a ogni lettura (vedi src/lib/diretta/pregame.ts): copertina,
+   * riscaldamento, riscaldamento ufficiale, presentazione. Assente quando si gioca (o manca un minuto all'inizio): barra e punteggio.
+   */
+  pregame?: PublicPregame;
   /** Ultimo salvataggio del tabellone (ISO). */
   updatedAt: string;
 }
+
+/**
+ * Le fasi della diretta video prima della partita: la copertina (Lignano contro l'avversaria, la camera non si vede) finché lo
+ * staff non preme «Inizia il riscaldamento»; poi il banner «Riscaldamento in corso», da 15 minuti prima «Inizio riscaldamento
+ * ufficiale», da 5 minuti prima la presentazione con le formazioni. Da 1 minuto prima barra e punteggio.
+ */
+export type PublicPregame = "cover" | "warmup" | "officialWarmup" | "protocol";
 
 /** Il tabellone live si salva in automatico (per non perdere tutto se la
  * pagina si ricarica) ma solo per poche ore: oltre questa soglia lo stato

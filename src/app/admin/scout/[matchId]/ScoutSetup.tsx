@@ -16,6 +16,7 @@ import { LEVEL_META, LEVEL_ORDER, levelOf } from "@/lib/scout/levels";
 import type { ScoutView } from "@/lib/scout/derive";
 import type { ScoutData, ScoutFormat, ScoutLevel, ScoutPlayer } from "@/lib/scout/types";
 import { ScoutLineupEditor, type SavedScoutLineup } from "./ScoutLineupEditor";
+import { ScoutWarmup } from "./ScoutWarmup";
 
 /** Un'atleta del registro, tra cui scegliere chi gioca questa partita. */
 export interface ScoutAthlete {
@@ -553,6 +554,20 @@ export function ScoutSetup({
               data-scout-public-names
             />
           </div>
+          {/* La diretta video prima del via: copertina, poi dal tasto il riscaldamento (il resto lo decide l'orario). */}
+          {data.settings.publicLive && view.rallies.length === 0 && (
+            <div className="mt-4 rounded-xl border border-border-subtle bg-muted/40 p-3" data-scout-warmup-panel>
+              <p className="text-[13px] font-semibold text-foreground/80">Diretta video prima del via</p>
+              <FieldHint>
+                Finché non premi, la grafica mostra solo la copertina con le due squadre (la telecamera non si vede). Dal tasto:
+                «Riscaldamento in corso»; da 15 minuti prima dell&apos;orario «Inizio riscaldamento ufficiale»; da 5 minuti prima la
+                presentazione con le formazioni; da 1 minuto prima (o dal primo punto) la barra con il punteggio.
+              </FieldHint>
+              <div className="mt-2.5">
+                <ScoutWarmup data={data} dispatch={dispatch} />
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>

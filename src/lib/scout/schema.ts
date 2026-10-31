@@ -110,6 +110,8 @@ export const scoutDataSchema = z
       publicLive: z.boolean().default(false),
       // I nomi nella grafica della diretta video: gli scout di prima non lo hanno, si leggono come spento.
       publicNames: z.boolean().default(false),
+      // «Inizia il riscaldamento» della diretta video: gli scout di prima non lo hanno, si leggono come copertina.
+      warmupAt: z.number().int().positive().nullable().default(null),
       // Gli scout salvati prima dei livelli non lo hanno: si leggono come «base». Quelli del vecchio livello «Completo» come «ricezioni».
       level: z.enum([...SCOUT_LEVELS, "completo"]).transform(readLevel).default("base"),
     }),
