@@ -4,7 +4,8 @@ import { deleteMatchById, localDate, loginAsDev, switchTeam, uniqueName } from "
 /**
  * Scout: la formazione a ogni set, senza riscriverla. A ogni set nuovo si apre da sola «Formazione del N° set» (già scritta
  * come quella del set prima, o come è stata preparata in Partite); chi esce nel cambio si tocca sul campo, con numero e
- * nome; la libero si cambia dallo stesso Cambio; se non si segue la formazione un avviso propone di impostarla.
+ * nome; la libero si cambia dallo stesso Cambio, e da lì si fa anche rientrare chi la libero sostituiva (la libero resta fuori
+ * finché non rientra); se non si segue la formazione un avviso propone di impostarla.
  */
 
 test.use({ serviceWorkers: "block" });
@@ -163,9 +164,46 @@ test("a ogni set nuovo si sceglie la formazione; il cambio mostra il campo con i
     await expect(usSpot(page, 6)).not.toContainText("Giada");
     await expect(strip(page)).toContainText("Cambi 0/8");
 
-    // Un punto, e si chiude il 1° set.
+    // L'allenatore fa rientrare chi la libero sostituiva (la n. 14): dallo stesso Cambio, non è un cambio ufficiale.
+    const liberoNote = strip(page).locator('[data-scout-libero-out-note="us"]');
+    await expect(liberoNote).toHaveCount(0);
+    await page.locator('[data-scout-sub-open="us"]').click();
+    await expect(subSheet(page).locator("[data-scout-libero-out-box]")).toContainText("Rientra 14 Fede");
+    await subSheet(page).locator("[data-scout-libero-out]").click();
+    await expect(subSheet(page)).toHaveCount(0);
+    await expect(usSpot(page, 6)).toContainText("Fede");
+    await expect(usSpot(page, 6)).not.toContainText("libero");
+    await expect(liberoNote).toContainText("Libero fuori");
+    await expect(strip(page)).toContainText("Cambi 0/8");
+    await expect(page.locator("[data-scout-last]")).toContainText("libero nostra fuori");
+    // «Annulla ultimo» la rimette; di nuovo fuori, resta fuori anche dopo un punto (la n. 14 è ancora in seconda linea).
+    await page.locator("[data-scout-undo]").click();
+    await expect(usSpot(page, 6)).toContainText("Irene");
+    await expect(liberoNote).toHaveCount(0);
+    await page.locator('[data-scout-sub-open="us"]').click();
+    await subSheet(page).locator("[data-scout-libero-out]").click();
     await usPoint(page, "Anna");
     await expect(score(page)).toHaveText("1–0");
+    await expect(usSpot(page, 6)).toContainText("Fede");
+    // Nel Cambio ora c'è «Rientra la libero»; più veloce, «Rientra» sotto il campo.
+    await page.locator('[data-scout-sub-open="us"]').click();
+    await expect(subSheet(page).locator("[data-scout-libero-back-box]")).toContainText("La libero è fuori");
+    await expect(subSheet(page).locator("[data-scout-libero-out-box]")).toHaveCount(0);
+    await subSheet(page).getByRole("button", { name: "Annulla" }).click();
+    await strip(page).locator('[data-scout-libero-back-strip="us"]').click();
+    await expect(usSpot(page, 6)).toContainText("Irene");
+    await expect(usSpot(page, 6)).toContainText("libero");
+    await expect(liberoNote).toHaveCount(0);
+    // Il registro del set racconta tutte e due, con il punteggio; si salvano.
+    const moves = page.locator("[data-scout-libero-note]");
+    await expect(moves).toHaveCount(2);
+    await expect(moves.first()).toContainText("Libero nostra fuori: rientra Fede Riva (14)");
+    await expect(moves.first()).toContainText("sul 0–0");
+    await expect(moves.last()).toContainText("Libero nostra di nuovo in campo per Fede Riva (14)");
+    await expect(moves.last()).toContainText("sul 1–0");
+    await expect(page.locator("[data-scout-sync]")).toHaveAttribute("data-scout-sync", "saved");
+
+    // Si chiude il 1° set.
     await closeSet(page);
     await expect(score(page)).toHaveText("0–0");
 
