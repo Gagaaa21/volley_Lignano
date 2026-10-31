@@ -23,7 +23,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-type Api = { cameras: { name: string; id: string }[]; delaySeconds: number; graphicInVideo: boolean };
+type Api = { cameras: { name: string; id: string }[]; delaySeconds: number };
 const api = async (page: import("@playwright/test").Page) => (await (await page.request.get("/api/diretta")).json()) as Api;
 
 test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", async ({ page }) => {
@@ -77,7 +77,6 @@ test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", as
       { name: "Dietro", id: "BBBBBBBBBBB" },
     ],
     delaySeconds: 12,
-    graphicInVideo: false,
   });
   await page.goto("/diretta");
   await expect(page.locator("[data-diretta-player]")).toHaveAttribute("data-diretta-player", "AAAAAAAAAAA");
@@ -98,24 +97,6 @@ test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", as
   await page.locator("#diretta-delay").fill("99");
   await card.locator("[data-diretta-save]").click();
   await expect(card.locator("[data-diretta-error]")).toContainText("0 a 60");
-
-  // Con Streamlabs / OBS la grafica è già nel video: la pagina dei genitori mostra solo il video, senza punteggio sopra né ritardo.
-  await page.locator("#diretta-delay").fill("12");
-  const inVideo = card.locator("label", { has: page.locator("[data-diretta-in-video]") });
-  await expect(card.locator("[data-diretta-delay-field]")).toBeVisible();
-  await inVideo.click();
-  await expect(card.locator("[data-diretta-in-video]")).toBeChecked();
-  await expect(card.locator("[data-diretta-delay-field]")).toBeHidden();
-  await card.locator("[data-diretta-save]").click();
-  await expect(card.locator("[data-diretta-ok]")).toContainText("2 camere");
-  expect(await api(page)).toMatchObject({ graphicInVideo: true, delaySeconds: 12 });
-  await page.goto("/diretta");
-  await expect(page.locator("[data-diretta-player]")).toBeVisible();
-  await expect(page.locator("[data-diretta-overlay]")).toHaveCount(0);
-  await expect(page.locator("[data-diretta-delay-box]")).toHaveCount(0);
-  await page.goto("/admin/scout");
-  await expect(card.locator("[data-diretta-in-video]")).toBeChecked();
-  await expect(card.locator("[data-diretta-delay-field]")).toBeHidden();
 
   // A fine partita: «Svuota». I genitori tornano a «La diretta non è ancora iniziata».
   await card.locator("[data-diretta-clear]").click();

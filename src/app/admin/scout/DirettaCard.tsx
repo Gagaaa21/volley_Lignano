@@ -4,8 +4,7 @@ import { useActionState, useState } from "react";
 import { Check, ChevronDown, Copy, ExternalLink, Video } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { FieldError, FieldHint, Input, Label, Toggle } from "@/components/ui/Field";
-import { cn } from "@/lib/cn";
+import { FieldError, FieldHint, Input, Label } from "@/components/ui/Field";
 import { MAX_CAMERA_NAME, MAX_CAMERAS, MAX_DELAY_SECONDS, DEFAULT_DELAY_SECONDS, type StreamSettings } from "@/lib/diretta/streams";
 import { saveLiveStreamAction, type DirettaState } from "./diretta-actions";
 
@@ -44,8 +43,6 @@ function CopyAddressButton({ path, label, kind }: { path: string; label: string;
 export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
   const [state, formAction, pending] = useActionState(saveLiveStreamAction, initialState);
   const count = initial?.cameras.length ?? 0;
-  // Con la grafica già nel video il ritardo non serve: il campo si nasconde (resta nel modulo, con il suo valore).
-  const [inVideo, setInVideo] = useState(initial?.graphicInVideo === true);
 
   return (
     <details open={count > 0} className="group mb-6 rounded-2xl border border-border bg-card shadow-card" data-diretta-card>
@@ -104,16 +101,8 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             </div>
           );
         })}
-        <Toggle
-          name="graphicInVideo"
-          label="La grafica è già nel video (Streamlabs / OBS)"
-          description="Accendilo se mandi in onda la grafica dal computer: su /diretta i genitori vedono solo il video, con il punteggio già dentro e sempre allineato (niente punteggio doppio né ritardo da regolare). Spento, la pagina disegna il punteggio sopra il video dei telefoni."
-          checked={inVideo}
-          onChange={(event) => setInVideo(event.target.checked)}
-          data-diretta-in-video
-        />
         {/* Il campo è stretto (bastano due cifre), la spiegazione sotto no: in una colonna da 16rem andava a capo a ogni parola. */}
-        <div className={cn(inVideo && "hidden")} data-diretta-delay-field>
+        <div>
           <Label htmlFor="diretta-delay">Ritardo del punteggio (secondi)</Label>
           <Input
             id="diretta-delay"
@@ -156,8 +145,9 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             formazione, fine set e finale. Aggiungi una «Browser Source» con questo indirizzo, <b className="font-semibold text-foreground">larghezza 1920 e altezza 1080</b>,
             poi tasto destro → Trasforma → <b className="font-semibold text-foreground">Adatta allo schermo</b>: con la misura di partenza (800×600) la grafica si sgrana
             o finisce spostata. Il punteggio entra nel video circa un secondo dopo il tocco nello Scout: immagine e punteggio sono già allineati, senza regolare
-            niente, qualunque sia il ritardo di YouTube. Accendi «La grafica è già nel video» qui sopra e ai genitori mandi /diretta o direttamente il
-            link di YouTube. Prima del via la grafica mostra la copertina; il riscaldamento parte dal tasto nello Scout. I passi sono nella Guida.
+            niente, qualunque sia il ritardo di YouTube. Ai genitori mandi direttamente il link di YouTube. Prima del via la grafica mostra la copertina
+            (la telecamera non si vede) finché nello Scout non premi «Inizia il riscaldamento»; poi riscaldamento, riscaldamento ufficiale e presentazione
+            seguono l&apos;orario della partita. I passi sono nella Guida.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <CopyAddressButton path="/diretta/grafica" label="Copia l'indirizzo della grafica" kind="graphic" />

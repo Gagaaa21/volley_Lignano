@@ -28,8 +28,7 @@ export async function saveLiveStreamAction(_previous: DirettaState, formData: Fo
       name: String(formData.get(`name${index}`) ?? ""),
       link: String(formData.get(`link${index}`) ?? ""),
     }));
-    const graphicInVideo = formData.get("graphicInVideo") === "on";
-    const built = buildStreamSettings(fields, String(formData.get("delay") ?? ""), Date.now(), graphicInVideo);
+    const built = buildStreamSettings(fields, String(formData.get("delay") ?? ""));
     if (!built.ok) return { error: built.error };
     await repo.setAppSetting(LIVE_STREAM_KEY, JSON.stringify(built.settings));
     revalidatePath("/admin/scout");

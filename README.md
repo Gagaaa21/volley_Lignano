@@ -513,10 +513,8 @@ staff (Developer e Admin).
     intero (Fullscreen API; su iPhone il riquadro a tutta pagina) e controllo del ritardo del
     punteggio con − e +. Le camere le incolla lo staff nella scheda «Diretta video» in cima
     all'elenco Scout (`src/app/admin/scout/DirettaCard.tsx` + `diretta-actions.ts`, permesso
-    «Scout», mai in modalità prova): `app_settings.live_stream`, JSON con camere, ritardo, ora
-    del salvataggio e `graphicInVideo` («La grafica è già nel video»: con Streamlabs / OBS la
-    pagina `/diretta` mostra solo il video, senza grafica sopra né ritardo da regolare, perché il
-    punteggio è già dentro e sempre allineato) (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
+    «Scout», mai in modalità prova): `app_settings.live_stream`, JSON con camere, ritardo e ora
+    del salvataggio (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
     `live/…`, `embed/…`, accetta solo identificativi di 11 caratteri, scade dopo 12 ore).
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
     anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080, con

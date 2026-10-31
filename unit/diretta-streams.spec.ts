@@ -122,16 +122,4 @@ test.describe("impostazioni della diretta", () => {
     expect(parseStreamSettings(JSON.stringify({ ...built.settings, cameras: [{ name: "x", id: "corto" }] }), NOW)).toBeNull();
     expect(parseStreamSettings(JSON.stringify({ ...built.settings, delaySeconds: 500 }), NOW)).toBeNull();
   });
-
-  test("con la grafica già nel video si ricorda, e il ritardo non si controlla (non serve)", () => {
-    const link = [{ name: "Campo", link: `https://youtu.be/${ID}` }];
-    const built = buildStreamSettings(link, "tanto", NOW, true);
-    expect(built).toMatchObject({ ok: true, settings: { graphicInVideo: true, delaySeconds: 15 } });
-    if (!built.ok) throw new Error(built.error);
-    expect(parseStreamSettings(JSON.stringify(built.settings), NOW)).toEqual(built.settings);
-    // Spenta non si scrive nemmeno (le impostazioni salvate prima di questa opzione restano valide).
-    const off = buildStreamSettings(link, "20", NOW);
-    expect(off.ok && "graphicInVideo" in off.settings).toBe(false);
-    expect(buildStreamSettings(link, "20", NOW, true)).toMatchObject({ ok: true, settings: { delaySeconds: 20 } });
-  });
 });
