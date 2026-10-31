@@ -207,6 +207,21 @@ export interface ScoutRotateEvent {
   steps: number;
 }
 
+/**
+ * La libero esce o rientra per scelta dell'allenatore: i cambi della libero sono liberi e non contano tra quelli del set
+ * (regola 19.3). Con `out` rientra di persona chi la libero stava sostituendo, e la libero resta fuori, anche quando la
+ * squadra ruota, finché non si segna che rientra (o fino al set dopo, che riparte con la libero). Senza `out` la libero
+ * torna a entrare e uscire da sola, al posto delle centrali in seconda linea.
+ */
+export interface ScoutLiberoEvent {
+  type: "libero";
+  id: string;
+  at: number;
+  side: ScoutSide;
+  /** true: la libero esce (rientra chi sostituiva); false: la libero rientra. */
+  out: boolean;
+}
+
 export type ScoutEvent =
   | ScoutRallyEvent
   | ScoutSetEndEvent
@@ -214,7 +229,8 @@ export type ScoutEvent =
   | ScoutLineupEvent
   | ScoutSubEvent
   | ScoutTimeoutEvent
-  | ScoutRotateEvent;
+  | ScoutRotateEvent
+  | ScoutLiberoEvent;
 
 export interface ScoutData {
   settings: ScoutSettings;

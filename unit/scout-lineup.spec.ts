@@ -12,6 +12,7 @@ import {
   opponentPlayer,
   removePlayer,
   scoutReducer,
+  setLiberoOut,
   setLineup,
   substitute,
   undoLast,
@@ -21,7 +22,7 @@ import {
   usedPlayerIds,
   type LineupInput,
 } from "@/lib/scout/actions";
-import { currentServer, deriveScout, type ScoutCourt } from "@/lib/scout/derive";
+import { currentServer, deriveScout, shiftCourt, type ScoutCourt } from "@/lib/scout/derive";
 import { receptionOpen } from "@/lib/scout/phases";
 import { canDo, isBlockHow, isServeHow } from "@/lib/scout/rules";
 import { scoutDataSchema } from "@/lib/scout/schema";
@@ -339,6 +340,7 @@ test.describe("il campo del «chi?»", () => {
       onCourt: ["u1", "", "u3", "u4", "u5", "zzz"],
       libero: null,
       liberoFor: null,
+      liberoOut: false,
       hosts: ["", ""],
       rotation: 1,
     };
@@ -689,6 +691,97 @@ test.describe("la formazione a ogni set", () => {
     expect(view.court.us?.positions).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
     expect(view.court.us?.libero).toBe("ul2");
     expect(view.court.us?.rotation).toBe(1);
+  });
+});
+
+test.describe("la libero tolta dall'allenatore", () => {
+  test("rientra chi la libero sostituiva: non è un cambio, e la libero resta fuori anche quando si ruota", () => {
+    let data = withLineups(roster());
+    expect(deriveScout(data).court.us?.liberoFor).toBe("u6");
+    data = setLiberoOut(data, "us", true, at(data), id());
+    let view = deriveScout(data);
+    expect(view.court.us).toMatchObject({ liberoFor: null, liberoOut: true, libero: "ul" });
+    expect(view.court.us?.onCourt).toEqual(["u1", "u2", "u3", "u4", "u5", "u6"]);
+    expect(view.current?.subs).toHaveLength(0);
+    expect(view.current?.liberoMoves).toEqual([expect.objectContaining({ side: "us", out: true, player: "u6", score: { us: 0, opp: 0 } })]);
+
+    // Perdiamo la battuta (di solito la libero entrerebbe per u6) e la riconquistiamo (si ruota): resta fuori.
+    data = point(data, "opp");
+    expect(deriveScout(data).court.us?.liberoFor).toBeNull();
+    data = point(data, "us");
+    view = deriveScout(data);
+    expect(view.court.us?.positions).toEqual(["u2", "u3", "u4", "u5", "u6", "u1"]);
+    expect(view.court.us).toMatchObject({ liberoFor: null, liberoOut: true });
+    // Lo scambio ricorda che era fuori.
+    expect(view.rallies[1].court.us).toMatchObject({ liberoFor: null, liberoOut: true });
+  });
+
+  test("la libero rientra al posto della centrale in seconda linea, come sempre", () => {
+    let data = setLiberoOut(withLineups(roster()), "us", true, at(withLineups(roster())), id());
+    data = point(point(data, "opp"), "us"); // ruotiamo: u6 in posizione 5
+    data = setLiberoOut(data, "us", false, at(data), id());
+    const view = deriveScout(data);
+    expect(view.court.us).toMatchObject({ liberoFor: "u6", liberoOut: false });
+    expect(view.court.us?.onCourt[4]).toBe("ul");
+    expect(view.current?.liberoMoves.map((move) => [move.out, move.player])).toEqual([
+      [true, "u6"],
+      [false, "u6"],
+    ]);
+    expect(view.current?.liberoMoves[1].score).toEqual({ us: 1, opp: 1 });
+  });
+
+  test("il set dopo riparte con la libero", () => {
+    let data = setLiberoOut(withLineups(roster()), "us", true, T0, id());
+    data = endSet(point(data, "us"), "opp", at(data) + MIN, id());
+    const view = deriveScout(data);
+    expect(view.current?.n).toBe(2);
+    expect(view.court.us).toMatchObject({ liberoFor: "u6", liberoOut: false });
+    expect(view.current?.liberoMoves).toEqual([]);
+    expect(view.sets[0].liberoMoves).toHaveLength(1);
+  });
+
+  test("toccato per sbaglio due volte di fila si annulla; «Annulla ultimo» lo toglie", () => {
+    const data = point(withLineups(roster()), "opp");
+    const out = setLiberoOut(data, "us", true, at(data), id());
+    expect(setLiberoOut(out, "us", false, at(out), id())).toEqual(data);
+    expect(undoLast(out)).toEqual(data);
+    expect(deriveScout(undoLast(out)).court.us?.liberoFor).toBe("u6");
+  });
+
+  test("senza libero, o se non cambia niente, non si segna", () => {
+    const data = withLineups(roster());
+    // Loro non hanno una libero.
+    expect(setLiberoOut(data, "opp", true, at(data), id())).toBe(data);
+    // La libero è già in gioco; tolta, toglierla ancora non aggiunge niente.
+    expect(setLiberoOut(data, "us", false, at(data), id())).toBe(data);
+    const out = setLiberoOut(data, "us", true, at(data), id());
+    expect(setLiberoOut(out, "us", true, at(out), id())).toBe(out);
+    // Senza formazione da seguire nemmeno.
+    expect(setLiberoOut(roster(), "us", true, T0, id()).events).toHaveLength(0);
+  });
+
+  test("cambi, correzioni della rotazione e della formazione non la rimettono; una libero nuova sì", () => {
+    let data = setLiberoOut(point(withLineups(roster()), "opp"), "us", true, T0 + 5 * MIN, id());
+    data = substitute(data, "us", 2, "u7", at(data), id());
+    expect(deriveScout(data).court.us).toMatchObject({ liberoFor: null, liberoOut: true });
+    const court = deriveScout(data).court.us as ScoutCourt;
+    expect(shiftCourt(court, 1, false)).toMatchObject({ liberoFor: null, liberoOut: true });
+    // La stessa formazione corretta: la libero resta fuori.
+    data = setLineup(data, "us", { ...OURS, positions: ["u1", "u7", "u3", "u4", "u5", "u6"] }, at(data), id());
+    expect(deriveScout(data).court.us).toMatchObject({ liberoFor: null, liberoOut: true });
+    // Una libero nuova entra come sempre.
+    data = addPlayer(data, "us", { id: "ul2", name: "Seconda libera", number: "21", libero: true });
+    data = setLineup(data, "us", { ...OURS, positions: ["u1", "u7", "u3", "u4", "u5", "u6"], libero: "ul2" }, at(data), id());
+    expect(deriveScout(data).court.us).toMatchObject({ libero: "ul2", liberoFor: "u6", liberoOut: false });
+  });
+
+  test("si salva e si rilegge uguale; il reducer la applica", () => {
+    let data = withLineups(roster());
+    data = scoutReducer(data, { type: "libero", side: "us", out: true, at: at(data), id: "lib1" });
+    const parsed = scoutDataSchema.parse(JSON.parse(JSON.stringify(data)));
+    expect(parsed.events).toEqual(data.events);
+    expect(deriveScout(parsed).court.us?.liberoOut).toBe(true);
+    expect(usedPlayerIds(parsed).has("ul")).toBe(true);
   });
 });
 

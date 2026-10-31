@@ -477,7 +477,11 @@ staff (Developer e Admin).
     punteggio non cambia). Se si tocca «Ace» per la squadra che non batte, «chi?»
     si chiede come sempre. Il cambio disegna lo stesso campo con
     numero e nome di ognuna e ha «Cambia la libero» (non conta tra i cambi: è un
-    evento `lineup` con la libero nuova); formazioni di partenza e cambi nel tabellino
+    evento `lineup` con la libero nuova) e «Rientra …» quando l'allenatore fa rientrare
+    chi la libero sostituiva: evento `libero` (`ScoutLiberoEvent`, `out` vero o falso,
+    `setLiberoOut` in `actions.ts`); `derive.ts` tiene la libero fuori, anche ruotando,
+    finché non rientra («Libero fuori · Rientra» sotto il campo) o fino al set dopo, e lo
+    segna nel registro (`liberoMoves`); formazioni di partenza e cambi nel tabellino
     (`src/components/scout/ScoutLineups.tsx`) e nel PDF
     (`lineupSections` in `scoutPdf.ts`). Nessuna migrazione: sono eventi nel
     `data` jsonb, e gli scout vecchi si leggono come prima.

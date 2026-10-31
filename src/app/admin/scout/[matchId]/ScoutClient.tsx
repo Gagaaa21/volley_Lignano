@@ -635,6 +635,10 @@ export function ScoutClient({
                       <p className="text-muted-foreground">Ultimo: time-out {lastEvent.side === "us" ? "nostro" : "loro"}</p>
                     ) : lastEvent?.type === "rotate" ? (
                       <p className="text-muted-foreground">Ultimo: rotazione {lastEvent.side === "us" ? "nostra" : "loro"} corretta</p>
+                    ) : lastEvent?.type === "libero" ? (
+                      <p className="text-muted-foreground">
+                        Ultimo: libero {lastEvent.side === "us" ? "nostra" : "loro"} {lastEvent.out ? "fuori" : "di nuovo in campo"}
+                      </p>
                     ) : lastEvent ? (
                       <p className="text-muted-foreground">{view.decided ? "Ultimo: fine della partita" : "Ultimo: fine del set"}</p>
                     ) : (

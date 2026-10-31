@@ -89,7 +89,7 @@ export function usedPlayerIds(data: Pick<ScoutData, "events">): Set<string> {
       used.add(event.player);
       continue;
     }
-    if (event.type === "timeout" || event.type === "rotate") continue;
+    if (event.type === "timeout" || event.type === "rotate" || event.type === "libero") continue;
     if (event.player) used.add(event.player);
     if (event.type === "rally" && event.victim) used.add(event.victim);
   }
@@ -371,6 +371,20 @@ export function rotateTeam(data: ScoutData, side: ScoutSide, steps: number, at: 
   return { ...data, events: [...events, { type: "rotate", id, at, side, steps: folded }] };
 }
 
+/**
+ * La libero esce (`out`: rientra di persona chi stava sostituendo) o rientra, per scelta dell'allenatore (vedi
+ * ScoutLiberoEvent). Serve la formazione di quella squadra con una libero, e che cambi qualcosa. Se subito prima c'era il
+ * contrario per la stessa squadra (toccato per sbaglio), i due si annullano: il registro resta pulito.
+ */
+export function setLiberoOut(data: ScoutData, side: ScoutSide, out: boolean, at: number, id: string): ScoutData {
+  if (isLocked(data)) return data;
+  const court = deriveScout(data).court[side];
+  if (!court?.libero || court.liberoOut === out) return data;
+  const last = data.events[data.events.length - 1];
+  if (last?.type === "libero" && last.side === side) return { ...data, events: data.events.slice(0, -1) };
+  return { ...data, events: [...data.events, { type: "libero", id, at, side, out }] };
+}
+
 // ── rosa ────────────────────────────────────────────────────────────────
 
 /** La lunghezza massima del nome di una giocatrice a referto (come nel salvataggio, vedi schema.ts). */
@@ -426,6 +440,7 @@ export type ScoutAction =
   | { type: "sub"; side: ScoutSide; position: ScoutSubEvent["position"]; player: string; at: number; id: string }
   | { type: "timeout"; side: ScoutSide; at: number; id: string }
   | { type: "rotate"; side: ScoutSide; steps: number; at: number; id: string }
+  | { type: "libero"; side: ScoutSide; out: boolean; at: number; id: string }
   | { type: "finish" }
   | { type: "reopen" }
   | { type: "settings"; patch: Partial<ScoutSettings> }
@@ -465,6 +480,8 @@ export function scoutReducer(data: ScoutData, action: ScoutAction): ScoutData {
       return addTimeout(data, action.side, action.at, action.id);
     case "rotate":
       return rotateTeam(data, action.side, action.steps, action.at, action.id);
+    case "libero":
+      return setLiberoOut(data, action.side, action.out, action.at, action.id);
     case "finish":
       return finishMatch(data);
     case "reopen":

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Pencil, Plus, RotateCw, Timer, Trash2, X } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, RotateCw, Timer, Trash2, UserRoundCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Label, Select } from "@/components/ui/Field";
@@ -391,7 +391,7 @@ function RallyRow({ rally, roster, onEdit, first }: { rally: ScoutRally; roster:
   );
 }
 
-/** La formazione di partenza e i cambi di un set, sopra gli scambi (i cambi si possono togliere). */
+/** La formazione di partenza e i cambi di un set, sopra gli scambi (i cambi si possono togliere), con time-out, rotazioni corrette e la libero tolta o rimessa. */
 function SetLineupNotes({ set, roster, dispatch }: { set: ScoutSet; roster: ScoutRoster; dispatch: (action: ScoutAction) => void }) {
   const starters = (side: ScoutSide) => {
     const court = set.lineups[side];
@@ -405,12 +405,13 @@ function SetLineupNotes({ set, roster, dispatch }: { set: ScoutSet; roster: Scou
     );
   };
   const hasStarters = set.lineups.us || set.lineups.opp;
-  if (!hasStarters && set.subs.length === 0 && set.timeouts.length === 0 && set.rotations.length === 0) return null;
-  // Cambi, time-out e correzioni della rotazione in ordine di tempo, come sono successi.
+  if (!hasStarters && set.subs.length === 0 && set.timeouts.length === 0 && set.rotations.length === 0 && set.liberoMoves.length === 0) return null;
+  // Cambi, time-out, correzioni della rotazione e uscite e rientri della libero in ordine di tempo, come sono successi.
   const notes = [
     ...set.subs.map((sub) => ({ kind: "sub" as const, at: sub.at, sub })),
     ...set.timeouts.map((timeout) => ({ kind: "timeout" as const, at: timeout.at, timeout })),
     ...set.rotations.map((rotation) => ({ kind: "rotate" as const, at: rotation.at, rotation })),
+    ...set.liberoMoves.map((move) => ({ kind: "libero" as const, at: move.at, move })),
   ].sort((a, b) => a.at - b.at);
   return (
     <div className="space-y-1.5 border-t border-border bg-surface-muted/40 px-3.5 py-2.5 text-[13px] leading-snug text-foreground" data-scout-set-notes={set.n}>
@@ -427,6 +428,20 @@ function SetLineupNotes({ set, roster, dispatch }: { set: ScoutSet; roster: Scou
               </span>
             </span>
             <Button variant="danger-ghost" size="icon-sm" onClick={() => dispatch({ type: "remove", id: note.sub.id })} aria-label="Togli questo cambio">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </p>
+        ) : note.kind === "libero" ? (
+          <p key={note.move.id} className="flex items-start gap-2" data-scout-libero-note={note.move.id}>
+            <UserRoundCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1">
+              <b>Libero {note.move.side === "us" ? "nostra" : "loro"} {note.move.out ? "fuori" : "di nuovo in campo"}</b>
+              {note.move.player ? (note.move.out ? `: rientra ${playerLabel(roster, note.move.side, note.move.player)}` : ` per ${playerLabel(roster, note.move.side, note.move.player)}`) : ""}{" "}
+              <span className="tabular text-muted-foreground">
+                (sul {note.move.score.us}–{note.move.score.opp})
+              </span>
+            </span>
+            <Button variant="danger-ghost" size="icon-sm" onClick={() => dispatch({ type: "remove", id: note.move.id })} aria-label="Togli questa uscita o questo rientro della libero">
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </p>

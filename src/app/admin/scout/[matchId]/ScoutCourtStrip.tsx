@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeftRight, Pencil, Plus, RotateCcw, RotateCw, Volleyball, X } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, RotateCcw, RotateCw, UserRoundCheck, Volleyball, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { cn } from "@/lib/cn";
@@ -232,6 +232,7 @@ function LiberoPanel({
  * Una titolare uscita può rientrare (una volta sola) solo al posto di chi l'ha
  * sostituita, dovunque quella sia adesso: scegliendola, «chi esce» si sceglie da solo.
  * Per la nostra squadra c'è anche il cambio della libero, che non è un cambio ufficiale.
+ * Né lo è far rientrare chi la libero stava sostituendo (la libero esce e resta fuori) o rimettere la libero.
  */
 function SubstitutionSheet({
   side,
@@ -298,6 +299,13 @@ function SubstitutionSheet({
   const outPlayer = position !== null ? roster.find((p) => p.id === court.positions[position - 1]) : undefined;
   const inPlayer = incoming ? roster.find((p) => p.id === incoming) : undefined;
   const canChangeLibero = side === "us" && Boolean(court.libero);
+  /** Chi la libero sta sostituendo adesso: l'allenatore può farla rientrare (e la libero esce). */
+  const liberoHost = court.libero && !court.liberoOut && court.liberoFor ? roster.find((p) => p.id === court.liberoFor) : undefined;
+
+  function liberoOut(out: boolean) {
+    dispatch({ type: "libero", side, out, at: Date.now(), id: newId() });
+    onClose();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-sea-950/45 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
@@ -451,6 +459,31 @@ function SubstitutionSheet({
               <p data-scout-sub-summary className="mt-3 rounded-xl bg-primary-soft px-3 py-2 text-[13px] font-semibold text-foreground">
                 Esce <b>{whoText(outPlayer, side, roster)}</b> (posizione {position}) · entra <b>{whoText(inPlayer, side, roster)}</b>
               </p>
+            )}
+
+            {liberoHost && (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-surface-muted px-3 py-2.5" data-scout-libero-out-box>
+                <p className="text-[13px] leading-snug text-muted-foreground">
+                  <b className="text-foreground">Rientra {whoText(liberoHost, side, roster)} al posto della libero?</b> Non è un cambio: la libero resta fuori finché
+                  non la fai rientrare.
+                </p>
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => liberoOut(true)} data-scout-libero-out>
+                  <UserRoundCheck className="h-4 w-4" />
+                  Rientra {chipText(liberoHost, side)}
+                </Button>
+              </div>
+            )}
+
+            {court.libero && court.liberoOut && (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-3 py-2.5 ring-1 ring-amber-500/40" data-scout-libero-back-box>
+                <p className="text-[13px] leading-snug text-amber-950">
+                  <b>La libero è fuori.</b> Rientrando torna al posto della centrale in seconda linea, come sempre.
+                </p>
+                <Button variant="outline" size="sm" className="shrink-0" onClick={() => liberoOut(false)} data-scout-libero-back>
+                  <UserRoundCheck className="h-4 w-4" />
+                  Rientra la libero
+                </Button>
+              </div>
             )}
 
             {canChangeLibero && (
@@ -678,6 +711,22 @@ export function ScoutCourtStrip({
                 </span>
               </div>
               <MiniCourt side={side} court={court} roster={data.roster[side]} serving={server === side} large={large} />
+              {/* La libero tolta dall'allenatore resta fuori finché non la si rimette: un promemoria, con il tasto per farla rientrare. */}
+              {court.libero && court.liberoOut && (
+                <div className="flex items-center justify-between gap-1 rounded-lg bg-amber-50 py-1 pl-2 pr-1 ring-1 ring-amber-500/40" data-scout-libero-out-note={side}>
+                  <span className="truncate text-[11px] font-semibold text-amber-950">Libero fuori</span>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={locked}
+                    onClick={() => dispatch({ type: "libero", side, out: false, at: Date.now(), id: newId() })}
+                    title="La libero rientra al posto della centrale in seconda linea"
+                    data-scout-libero-back-strip={side}
+                  >
+                    Rientra
+                  </Button>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] font-medium text-muted-foreground" title={`Cambi fatti nel set (${SUBSTITUTIONS_PER_SET} al massimo)`}>
                   Cambi {used}/{SUBSTITUTIONS_PER_SET}

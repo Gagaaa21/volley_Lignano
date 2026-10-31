@@ -91,6 +91,14 @@ const rotateSchema = z.object({
     .refine((steps) => steps !== 0, { message: "Nessuna rotazione da correggere." }),
 });
 
+const liberoSchema = z.object({
+  type: z.literal("libero"),
+  id: z.string().min(1).max(64),
+  at: z.number().int().min(0),
+  side: sideSchema,
+  out: z.boolean(),
+});
+
 function uniqueIds(items: { id: string }[]): boolean {
   return new Set(items.map((i) => i.id)).size === items.length;
 }
@@ -121,7 +129,7 @@ export const scoutDataSchema = z
       opp: z.array(playerSchema).max(MAX_SCOUT_PLAYERS).refine(uniqueIds, { message: "Giocatrici duplicate." }),
     }),
     events: z
-      .array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema, timeoutSchema, rotateSchema]))
+      .array(z.discriminatedUnion("type", [rallySchema, setEndSchema, touchSchema, lineupSchema, subSchema, timeoutSchema, rotateSchema, liberoSchema]))
       .max(MAX_SCOUT_EVENTS),
     finished: z.boolean(),
   })
