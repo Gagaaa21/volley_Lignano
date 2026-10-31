@@ -10,7 +10,7 @@ import { autoServePlayer, orderByCourt } from "@/lib/scout/court";
 import type { ScoutCourt, ScoutCourts, ScoutRally } from "@/lib/scout/derive";
 import { parseJerseyNumbers, shortName, sortPlayers } from "@/lib/scout/describe";
 import { newId } from "@/lib/scout/id";
-import { asksPlayerFor, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
+import { asksPlayerFor, asksVictimFor, canDo, ERROR_HOWS, HOW_META, isBlockHow } from "@/lib/scout/rules";
 import { otherSide, type ScoutData, type ScoutHow, type ScoutPlayer, type ScoutRoster, type ScoutSide } from "@/lib/scout/types";
 import { CourtBench, CourtPicker } from "./ScoutCourtPicker";
 import { Sheet } from "./ScoutSheet";
@@ -18,9 +18,11 @@ import { Sheet } from "./ScoutSheet";
 /**
  * Dove si segna ogni scambio. Due colonne — «Punto nostro» e «Punto loro» —
  * con i quattro modi in cui finisce uno scambio: attacco, muro, ace o errore
- * dell'altra squadra. Poi si dice chi l'ha fatto, e basta: due tocchi per un
- * punto normale, tre per un errore. Fa eccezione l'attacco vincente loro: un
- * tocco solo, senza chiedere chi (vedi `asksPlayerFor`). E se si segue la
+ * dell'altra squadra. Poi si dice chi delle nostre l'ha fatto, e basta: due
+ * tocchi per un punto normale, tre per un errore. Per l'avversaria non si
+ * chiede mai chi: punti ed errori loro sono un tocco solo (vedi
+ * `asksPlayerFor`; dopo un loro muro, facoltativo, chi delle nostre
+ * attaccava). E se si segue la
  * formazione, ace e battuta sbagliata vanno da soli a chi batte (posizione 1),
  * con «Cambia» accanto all'ultimo punto se non era lei (`ServePlayerPicker`).
  */
@@ -323,19 +325,19 @@ export function ScoutEntry({
   }
 
   /**
-   * Chi è stata: si chiede, tranne per l'attacco vincente loro (si segna subito, senza dire chi) e per ace e battuta sbagliata
+   * Chi è stata: si chiede solo per le nostre (dell'avversaria mai, vedi `asksPlayerFor`), tranne per ace e battuta sbagliata
    * della squadra che batte quando se ne segue la formazione (sono di chi sta in posizione 1).
    */
   function pickHow(actor: ScoutSide, how: ScoutHow) {
     const serverPlayer = autoServePlayer(how, actor, server, courts?.[actor]);
     if (serverPlayer) commit({ actor, how, player: serverPlayer });
     else if (asksPlayerFor(actor, how)) setStep({ stage: "player", actor, how });
-    else commit({ actor, how, player: null });
+    else pickPlayer(actor, how, null);
   }
 
   function pickPlayer(actor: ScoutSide, how: ScoutHow, player: string | null) {
-    // Dopo un muro si chiede anche chi attaccava (facoltativo): serve agli attacchi murati nel tabellino.
-    if (how === "block") setStep({ stage: "victim", actor, player });
+    // Dopo un loro muro si chiede anche chi delle nostre attaccava (facoltativo): serve agli attacchi murati nel tabellino.
+    if (how === "block" && asksVictimFor(actor)) setStep({ stage: "victim", actor, player });
     else commit({ actor, how, player });
   }
 

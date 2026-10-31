@@ -47,10 +47,10 @@ async function addPlayer(page: Page, name: string, number: string) {
   await expect(page.locator(`[data-scout-athlete="${name}"]`)).toBeVisible();
 }
 
-/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi (testo della giocatrice o numero avversario). L'attacco vincente loro non lo chiede: si segna subito. */
+/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi delle nostre. Per l'avversaria non si chiede mai chi: si segna subito. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string } | null) {
   await page.locator(`[data-scout-add="${button}"]`).click();
-  if (button === "opp-attack") return;
+  if (button.startsWith("opp-")) return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();

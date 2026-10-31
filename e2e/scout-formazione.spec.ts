@@ -45,10 +45,10 @@ async function addPlayer(page: Page, name: string, number: string) {
   await expect(page.locator(`[data-scout-athlete="${name}"]`)).toBeVisible();
 }
 
-/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi (testo della giocatrice o numero avversario). L'attacco vincente loro non lo chiede: si segna subito. */
+/** Segna un punto con i pulsanti del livello Base: lato e modo, e poi chi delle nostre. Per l'avversaria non si chiede mai chi: si segna subito. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string } | null) {
   await page.locator(`[data-scout-add="${button}"]`).click();
-  if (button === "opp-attack") return;
+  if (button.startsWith("opp-")) return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();
@@ -134,7 +134,7 @@ async function spotCenters(sheet: Locator): Promise<Record<number, { x: number; 
   );
 }
 
-test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro, la libero spenta a muro, chi batte, la panchina e il loro campo", async ({ page }) => {
+test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro, la libero spenta a muro, chi batte e la panchina; per loro mai «chi?»", async ({ page }) => {
   test.setTimeout(240_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
@@ -178,22 +178,11 @@ test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro,
   await expect(sheet.locator("[data-scout-bench]")).toContainText("Hilda");
   await expect(sheet.locator("[data-scout-bench]")).toContainText("Irene");
   await expect(sheet.locator("[data-scout-bench]")).toContainText("Fede");
-  // Muro della n. 5 (posizione 3), poi chi attaccava: il loro campo (21…26 nelle posizioni 1…6), tutte da scegliere.
+  // Muro della n. 5 (posizione 3): il punto è segnato. Chi delle loro attaccava non si chiede (per l'avversaria mai «chi?»).
   await sheet.locator('[data-scout-spot="3"]').click();
-  await expect(page.getByRole("dialog", { name: "Chi attaccava?" })).toBeVisible();
-  const theirs = page.locator("[data-scout-court-picker='opp']");
-  await expect(theirs).toBeVisible();
-  const o = await spotCenters(page.locator("[data-scout-sheet^='player']"));
-  expect(o[4].y).toBeLessThan(o[5].y);
-  expect(Math.abs(o[4].x - o[5].x)).toBeLessThan(2);
-  await expect(theirs.locator('[data-scout-spot="4"]')).toContainText("24");
-  await expect(theirs.locator('[data-scout-spot="1"]')).toContainText("21");
-  await expect(theirs.locator("[data-scout-pick][data-scout-on-court]")).toHaveCount(6);
-  await expect(theirs).not.toContainText("libero");
-  await expect(theirs.getByLabel("Batte")).toHaveCount(0);
-  await theirs.locator('[data-scout-spot="4"]').click();
   await expect(score(page)).toHaveText("1–0");
-  await expect(page.locator('[data-scout-rally="1"]')).toContainText("su n. 24");
+  await expect(page.getByRole("dialog", { name: "Chi attaccava?" })).toHaveCount(0);
+  await expect(page.locator('[data-scout-rally="1"]')).not.toContainText("su n.");
 
   // Ace nostro: è di chi batte (n. 9, posizione 1) e si segna da solo, senza chiedere «chi?».
   const last = page.locator("[data-scout-last]");
@@ -237,11 +226,11 @@ test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro,
   await expect(sheet).toHaveCount(0);
   await expect(last).toContainText("Battuta sbagliata");
   await expect(last).toContainText("n. 22");
-  // Battiamo noi: un ace loro non torna, e allora «chi?» si chiede come sempre (e senza «Cambia» dopo).
+  // Battiamo noi: un ace loro non torna con chi batte, e per l'avversaria «chi?» non si chiede mai: punto della squadra, senza «Cambia».
   await page.locator('[data-scout-add="opp-ace"]').click();
-  await sheet.waitFor();
-  await sheet.locator("[data-scout-court-picker='opp'] [data-scout-spot='3']").click();
   await expect(score(page)).toHaveText("3–3");
+  await expect(sheet).toHaveCount(0);
+  await expect(last).toContainText("Squadra");
   await expect(last.locator("[data-scout-serve-change]")).toHaveCount(0);
 
   await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");

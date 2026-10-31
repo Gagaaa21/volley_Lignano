@@ -177,12 +177,19 @@ export function asksPlayer(how: ScoutHow): boolean {
 }
 
 /**
- * Se a quell'azione di quella squadra si chiede «chi?». Mai per l'attacco vincente dell'avversaria: una loro schiacciata a
- * terra si segna con un tocco solo, senza dire chi (le sue giocatrici si riconoscono a fatica e la partita non aspetta). Per
- * il resto vale `asksPlayer`.
+ * Se a quell'azione di quella squadra si chiede «chi?». Mai per l'avversaria: i suoi punti e i suoi errori si segnano con un
+ * tocco solo, senza dire chi (le sue giocatrici si riconoscono a fatica e la partita non aspetta). Per noi vale `asksPlayer`.
  */
 export function asksPlayerFor(actor: ScoutSide, how: ScoutHow): boolean {
-  return asksPlayer(how) && !(actor === "opp" && how === "attack");
+  return actor === "us" && asksPlayer(how);
+}
+
+/**
+ * Dopo un muro si chiede (facoltativo) chi attaccava solo se era una delle nostre, cioè quando ha murato l'avversaria: serve
+ * agli attacchi murati del nostro tabellino. Chi delle loro attaccava non si chiede mai.
+ */
+export function asksVictimFor(actor: ScoutSide): boolean {
+  return actor === "opp";
 }
 
 /** Ace e battuta sbagliata: li fa sempre chi batte. */

@@ -43,6 +43,8 @@ async function addPlayer(page: Page, name: string, number: string) {
 /** Un punto con i pulsanti: lato e modo, poi la giocatrice (testo del numero) o un numero avversario. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string }) {
   await page.locator(`[data-scout-add="${button}"]`).click();
+  // Per l'avversaria non si chiede mai chi: il punto è già segnato.
+  if (button.startsWith("opp-")) return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if ("opp" in who) await sheet.locator(`[data-scout-pick="opp-${who.opp}"]`).click();

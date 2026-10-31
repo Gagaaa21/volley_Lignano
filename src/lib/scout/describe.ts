@@ -57,7 +57,7 @@ export function rallyText(rally: Pick<ScoutRally, "winner" | "actor" | "how" | "
   return {
     winner: rally.winner,
     label: meta.label,
-    // Rotazione e sanzioni sono della squadra, e l'attacco vincente loro non chiede chi: nessuna giocatrice da indicare.
+    // Rotazione e sanzioni sono della squadra, e per l'avversaria non si chiede chi: nessuna giocatrice da indicare.
     who: !asksPlayerFor(rally.actor, rally.how) && rally.player === null ? "Squadra" : playerLabel(roster, rally.actor, rally.player),
     victim: rally.how === "block" && rally.victim ? playerLabel(roster, other, rally.victim) : null,
   };

@@ -16,7 +16,7 @@ import {
   updateSettings,
 } from "@/lib/scout/actions";
 import { currentServer, defaultNextServer, deriveScout, isSetOver, maxSets, setTarget, suggestedSetEnd } from "@/lib/scout/derive";
-import { asksPlayer, asksPlayerFor, canDo, ERROR_HOWS, HOW_META, isPointHow, POINT_HOWS, rallyWinner } from "@/lib/scout/rules";
+import { asksPlayer, asksPlayerFor, asksVictimFor, canDo, ERROR_HOWS, HOW_META, isPointHow, POINT_HOWS, rallyWinner } from "@/lib/scout/rules";
 import { MAX_SCOUT_EVENTS, scoutDataSchema } from "@/lib/scout/schema";
 import { aggregateSeason, computeStats, hasActivity, percent, statsOf, UNASSIGNED_ID } from "@/lib/scout/stats";
 import { SCOUT_HOWS, type ScoutData, type ScoutHow, type ScoutSide } from "@/lib/scout/types";
@@ -94,17 +94,23 @@ test.describe("regole: come e chi fa punto", () => {
     expect(asksPlayer("attack")).toBe(true);
   });
 
-  test("l'attacco vincente loro non chiede mai chi: tutto il resto sì", () => {
-    expect(asksPlayerFor("opp", "attack")).toBe(false);
-    // Il nostro attacco, e gli altri modi di fare punto loro, lo chiedono come prima.
+  test("per l'avversaria non si chiede mai chi, né sui suoi punti né sui suoi errori; per noi sì", () => {
+    for (const how of [...POINT_HOWS, ...ERROR_HOWS]) expect(asksPlayerFor("opp", how), how).toBe(false);
+    // I nostri punti e i nostri errori lo chiedono come prima.
     expect(asksPlayerFor("us", "attack")).toBe(true);
-    expect(asksPlayerFor("opp", "block")).toBe(true);
-    expect(asksPlayerFor("opp", "ace")).toBe(true);
-    // L'attacco sbagliato loro è un errore (punto nostro), non un attacco vincente.
-    expect(asksPlayerFor("opp", "attackError")).toBe(true);
-    // I falli di squadra restano di squadra, per tutte e due.
-    expect(asksPlayerFor("opp", "rotationFault")).toBe(false);
+    expect(asksPlayerFor("us", "block")).toBe(true);
+    expect(asksPlayerFor("us", "ace")).toBe(true);
+    expect(asksPlayerFor("us", "attackError")).toBe(true);
+    // I falli di squadra restano di squadra.
     expect(asksPlayerFor("us", "sanction")).toBe(false);
+    expect(asksPlayerFor("us", "rotationFault")).toBe(false);
+  });
+
+  test("dopo un muro si chiede chi attaccava solo se era una delle nostre", () => {
+    // Murano loro: chi delle nostre attaccava (facoltativo, per il tabellino).
+    expect(asksVictimFor("opp")).toBe(true);
+    // Muriamo noi: chi delle loro attaccava non si chiede.
+    expect(asksVictimFor("us")).toBe(false);
   });
 });
 

@@ -49,7 +49,8 @@ async function addPlayer(page: Page, name: string, number: string) {
 /** Segna un punto con i pulsanti: lato, modo, e poi chi (indice di maglia o null). L'attacco vincente loro non lo chiede: si segna subito. */
 async function addPoint(page: Page, button: string, who: { text: string } | { opp: string } | null) {
   await page.locator(`[data-scout-add="${button}"]`).click();
-  if (button === "opp-attack") return;
+  // Per l'avversaria non si chiede mai chi: il punto è già segnato.
+  if (button.startsWith("opp-")) return;
   const sheet = page.locator("[data-scout-sheet^='player']");
   await sheet.waitFor();
   if (who === null) await sheet.locator('[data-scout-pick="unknown"]').click();
@@ -123,37 +124,34 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   // 1) Attacco vincente nostro di Giulia → 1-0
   await addPoint(page, "us-attack", { text: "Giulia B." });
   await expect(score(page)).toHaveText("1–0");
-  // 2) Ace loro del n. 5 → 1-1
-  await addPoint(page, "opp-ace", { opp: "5" });
+  // 2) Ace loro → 1-1: per l'avversaria non si chiede chi, il punto è segnato con un tocco.
+  await addPoint(page, "opp-ace", null);
   await expect(score(page)).toHaveText("1–1");
-  // 3) Errore loro: battuta sbagliata del n. 3 → 2-1 (punto nostro)
+  await expect(page.locator("[data-scout-sheet^='player']")).toHaveCount(0);
+  // 3) Errore loro: battuta sbagliata → 2-1 (punto nostro), anche qui senza chiedere chi.
   await page.locator('[data-scout-add="us-error"]').click();
   await page.locator('[data-scout-error="serveError"]').click();
-  await page.locator("[data-scout-sheet^='player'] [data-scout-pick=\"opp-3\"]").click();
   await expect(score(page)).toHaveText("2–1");
-  // 4) Muro nostro di Giulia sull'attacco del n. 8 (due passaggi: chi muro, chi attaccava) → 3-1
+  await expect(page.locator("[data-scout-sheet^='player']")).toHaveCount(0);
+  // 4) Muro nostro di Giulia → 3-1: si sceglie chi ha murato, chi delle loro attaccava non si chiede.
   await page.locator('[data-scout-add="us-block"]').click();
   // La libero non può murare: non compare tra le scelte.
   await expect(page.locator("[data-scout-sheet^='player'] [data-scout-pick]", { hasText: "Sara R." })).toHaveCount(0);
   await page.locator("[data-scout-sheet^='player'] [data-scout-pick]", { hasText: "Giulia B." }).click();
-  await expect(page.getByRole("dialog", { name: "Chi attaccava?" })).toBeVisible();
-  await page.locator('[data-scout-pick="opp-8"]').click();
+  await expect(page.getByRole("dialog", { name: "Chi attaccava?" })).toHaveCount(0);
   await expect(score(page)).toHaveText("3–1");
   // 5) Rotazione sbagliata nostra (fallo di squadra: non chiede chi) → 3-2
   await page.locator('[data-scout-add="opp-error"]').click();
   await page.locator('[data-scout-error="rotationFault"]').click();
   await expect(score(page)).toHaveText("3–2");
-  // 6) Ace loro di un numero nuovo scritto al volo (n. 11) → 3-3
+  // 6) Un altro ace loro → 3-3, senza finestre.
   await page.locator('[data-scout-add="opp-ace"]').click();
-  await page.locator("[data-scout-new-number]").fill("11");
-  await page.locator("[data-scout-new-number]").press("Enter");
   await expect(score(page)).toHaveText("3–3");
 
-  // Il registro ha sei scambi, dall'ultimo.
+  // Il registro ha sei scambi, dall'ultimo: quelli loro sono della squadra.
   await expect(page.locator("[data-scout-rally]")).toHaveCount(6);
-  await expect(page.locator('[data-scout-rally="6"]')).toContainText("n. 11");
+  await expect(page.locator('[data-scout-rally="6"]')).toContainText("Squadra");
   await expect(page.locator('[data-scout-rally="4"]')).toContainText("Giulia Bianchi");
-  await expect(page.locator('[data-scout-rally="4"]')).toContainText("su n. 8");
 
   // Annulla toglie l'ultimo punto.
   await page.locator("[data-scout-undo]").click();
@@ -195,15 +193,13 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   await expect(giulia.locator('[data-col="muro-pt"]')).toHaveText("1");
   // Senza formazione non si sa chi batteva: le battute di ognuna restano vuote, ma il totale della squadra c'è.
   await expect(sara.locator('[data-col="battuta-tot"]')).toHaveText("–");
-  // Squadra nostra: 2 punti da giocatrici, più 2 errori loro (battuta del n. 3 e attacco sbagliato corretto) e il fallo di rotazione loro non c'è: era nostro.
+  // Squadra nostra: 2 punti da giocatrici, più 2 errori loro (battuta e attacco sbagliato corretto) e il fallo di rotazione loro non c'è: era nostro.
   await expect(page.locator('[data-scout-total="us"] [data-col="punti-tot"]')).toHaveText("2");
   // Il set con i parziali e, per ogni squadra, i punti vinti del set (ace, attacco, muro, errori dell'avversaria).
   await expect(page.locator('[data-scout-sheet-set="1"]')).toContainText("4–1");
   await expect(page.locator('[data-scout-table="us"] [data-scout-set-row="1"] [data-col="vinti-gifts"]')).toHaveText("2");
-  // Avversaria: n. 3 con battuta sbagliata, n. 8 attacco murato, e un errore di squadra nostro (rotazione) → il punto è loro.
-  const oppTable = page.locator('[data-scout-table="opp"]');
-  await expect(oppTable.locator('[data-scout-player-row]', { hasText: "n. 3" })).toBeVisible();
-  await expect(oppTable.locator('[data-scout-player-row]', { hasText: "n. 8" })).toBeVisible();
+  // Avversaria: la sua tabella c'è, con i punti e gli errori della squadra (senza giocatrici: per loro non si chiede chi).
+  await expect(page.locator('[data-scout-table="opp"]')).toBeVisible();
   // «Come si è fatto punto»: noi 4 punti in totale, loro 1.
   const how = page.locator("[data-scout-how-table]");
   await expect(how.locator('[data-scout-how="Punti totali"]')).toContainText("4");
@@ -224,7 +220,7 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   await deleteMatchById(page, matchId);
 });
 
-test("scout: l'attacco vincente loro si segna con un tocco solo, senza chiedere chi; gli altri punti lo chiedono ancora", async ({ page }) => {
+test("scout: punti ed errori loro si segnano con un tocco solo, senza chiedere chi; i nostri lo chiedono ancora", async ({ page }) => {
   test.setTimeout(120_000);
   await loginAsDev(page);
   await switchTeam(page, "u14u15");
@@ -248,10 +244,16 @@ test("scout: l'attacco vincente loro si segna con un tocco solo, senza chiedere 
   await expect(page.locator('[data-scout-rally="1"]')).toContainText("Attacco");
   await expect(page.locator('[data-scout-rally="1"]')).toContainText("Squadra");
 
-  // 2) Gli altri modi lo chiedono come prima: l'ace loro (con il suo numero) e il nostro attacco.
+  // 2) Anche l'ace loro e il loro muro (per il muro, facoltativo, chi delle nostre attaccava); il nostro attacco lo chiede come prima.
   await page.locator('[data-scout-add="opp-ace"]').click();
-  await expect(sheet).toBeVisible();
-  await sheet.locator('[data-scout-pick="opp-5"]').click();
+  await expect(score(page)).toHaveText("0–2");
+  await expect(sheet).toHaveCount(0);
+  await page.locator('[data-scout-add="opp-block"]').click();
+  await expect(page.getByRole("dialog", { name: "Chi attaccava?" })).toBeVisible();
+  await expect(page.locator('[data-scout-pick="opp-5"]')).toHaveCount(0);
+  await page.locator("[data-scout-pick]", { hasText: "Giulia B." }).click();
+  await expect(score(page)).toHaveText("0–3");
+  await page.locator("[data-scout-undo]").click();
   await expect(score(page)).toHaveText("0–2");
   await page.locator('[data-scout-add="us-attack"]').click();
   await expect(sheet).toBeVisible();
