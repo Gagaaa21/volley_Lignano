@@ -230,7 +230,8 @@ test("«chi?» si sceglie dal campo: rete in alto, 4-3-2 davanti e 5-6-1 dietro,
   await page.locator('[data-scout-add="opp-ace"]').click();
   await expect(score(page)).toHaveText("3–3");
   await expect(sheet).toHaveCount(0);
-  await expect(last).toContainText("Squadra");
+  await expect(last).toContainText("punto loro · Ace");
+  await expect(last).not.toContainText("n. ");
   await expect(last.locator("[data-scout-serve-change]")).toHaveCount(0);
 
   await expect(sync(page)).toHaveAttribute("data-scout-sync", "saved");
