@@ -269,7 +269,7 @@ export function PlanSplitCheck({ plans, single = false }: { plans: PlanRef[]; si
                 data-plan-split-proposal={proposal.planId}
               >
                 {!single && (
-                  <Link
+                  <Link prefetch={false}
                     href={`/admin/schede/${proposal.planId}`}
                     className="font-display text-[15px] font-bold text-foreground hover:text-primary"
                   >

@@ -222,7 +222,7 @@ function OrphanRow({
         <span>Partita del sito</span>
       </div>
       <p className="mt-1.5 text-sm">
-        <Link href={`/admin/partite/${match.id}`} className="font-display text-base font-bold text-primary hover:underline">
+        <Link prefetch={false} href={`/admin/partite/${match.id}`} className="font-display text-base font-bold text-primary hover:underline">
           vs {match.opponent}
         </Link>
         <span className="text-muted-foreground">

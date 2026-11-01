@@ -8,5 +8,5 @@ interface LinkButtonProps extends ComponentProps<typeof Link> {
 }
 
 export function LinkButton({ variant, size, className, ...props }: LinkButtonProps) {
-  return <Link className={buttonVariants({ variant, size, className })} {...props} />;
+  return <Link prefetch={false} className={buttonVariants({ variant, size, className })} {...props} />;
 }

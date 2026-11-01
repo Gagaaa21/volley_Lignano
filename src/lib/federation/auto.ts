@@ -14,7 +14,7 @@ let lastLocalCheck = 0;
 /**
  * Da chiamare dalle pagine che mostrano dati della federazione. A risposta
  * già inviata (dopo `after`) rilegge i gironi, ma solo se l'ultimo tentativo
- * ha più di 30 minuti: chi apre la pagina non aspetta mai il portale, e i
+ * ha più di 2 ore: chi apre la pagina non aspetta mai il portale, e i
  * dati restano aggiornati anche senza un cron frequente (sul piano gratuito
  * di Vercel i cron sono al massimo giornalieri).
  *

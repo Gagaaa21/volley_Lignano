@@ -11,7 +11,7 @@ export function TestFisiciTabs({ active }: { active: "atlete" | "riepilogo" }) {
     );
   return (
     <nav aria-label="Vista dei test fisici" className="mb-5 inline-flex rounded-xl bg-muted p-1">
-      <Link
+      <Link prefetch={false}
         href="/admin/test-fisici"
         className={tab(active === "atlete")}
         aria-current={active === "atlete" ? "page" : undefined}
@@ -19,7 +19,7 @@ export function TestFisiciTabs({ active }: { active: "atlete" | "riepilogo" }) {
         <Users className="h-4 w-4" />
         Atlete
       </Link>
-      <Link
+      <Link prefetch={false}
         href="/admin/test-fisici/riepilogo"
         className={tab(active === "riepilogo")}
         aria-current={active === "riepilogo" ? "page" : undefined}

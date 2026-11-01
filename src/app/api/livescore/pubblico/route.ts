@@ -33,9 +33,11 @@ import type { PublicLiveScore } from "@/lib/types";
  * sulla lettura completa: così una copia mancata non nasconde mai una partita viva.
  *
  * Il sito la rilegge ogni pochi secondi da ogni telefono aperto sulla home:
- * la rete di Vercel (CDN) tiene la risposta 3 secondi, così il database riceve
- * al più una lettura ogni qualche secondo, qualunque sia il numero di
- * spettatori. Il browser invece non la conserva mai (`no-store`): con una
+ * la rete di Vercel (CDN) tiene la risposta 5 secondi (quanto il riquadro
+ * aspetta tra una lettura e l'altra), così il server riceve al più una
+ * chiamata ogni qualche secondo, qualunque sia il numero di spettatori. Senza
+ * nessuna partita in diretta la tiene 30 secondi: il riquadro la rilegge ogni
+ * minuto, e ogni chiamata al server conta nel tetto di CPU del piano gratuito. Il browser invece non la conserva mai (`no-store`): con una
  * copia locale «da riconvalidare in sottofondo» mostrerebbe il punteggio con
  * un giro di ritardo. Legge sempre l'archivio vero, mai quello della modalità
  * prova.
@@ -106,8 +108,6 @@ export async function GET(request: Request) {
       console.error("[livescore] logo dell'avversaria non disponibile:", error);
     }
   }
-  return Response.json(
-    { live },
-    { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": "max-age=3, stale-while-revalidate=5" } },
-  );
+  const cdn = live ? "max-age=5, stale-while-revalidate=5" : "max-age=30, stale-while-revalidate=30";
+  return Response.json({ live }, { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": cdn } });
 }

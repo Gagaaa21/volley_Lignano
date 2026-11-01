@@ -46,11 +46,11 @@ export default async function PhysicalTestsOverviewPage() {
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Nessun test registrato ancora.{" "}
           {athletes.length > 0 ? (
-            <Link href="/admin/test-fisici/nuovo" className="font-semibold text-primary hover:underline">
+            <Link prefetch={false} href="/admin/test-fisici/nuovo" className="font-semibold text-primary hover:underline">
               Registra il primo
             </Link>
           ) : (
-            <Link href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
+            <Link prefetch={false} href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
               Aggiungi prima un&apos;atleta
             </Link>
           )}

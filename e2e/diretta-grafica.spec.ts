@@ -730,7 +730,9 @@ test("in Streamlabs / OBS il punto arriva in un secondo, senza la copia della CD
   expect(direct.headers()["cache-control"]).toBe("no-store");
   expect(direct.headers()["vercel-cdn-cache-control"]).toBeUndefined();
   const shared = await page.request.get("/api/livescore/pubblico?prima=1");
-  expect(shared.headers()["vercel-cdn-cache-control"]).toContain("max-age=3");
+  // 5 secondi con una partita in diretta, 30 senza (il riquadro del sito la rilegge ogni minuto).
+  const sharedLive = ((await shared.json()) as { live: unknown }).live;
+  expect(shared.headers()["vercel-cdn-cache-control"]).toContain(sharedLive ? "max-age=5" : "max-age=30");
 
   // La grafica di Streamlabs / OBS rilegge ogni secondo: un punto nuovo si vede entro poco più di un secondo.
   const source = await feed(page, live());

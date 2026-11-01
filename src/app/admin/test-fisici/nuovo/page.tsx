@@ -26,7 +26,7 @@ export default async function NewPhysicalTestPage() {
       {athletes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-12 text-center text-sm text-muted-foreground">
           Serve prima un&apos;atleta in anagrafica.{" "}
-          <Link href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
+          <Link prefetch={false} href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
             Aggiungine una
           </Link>
           .

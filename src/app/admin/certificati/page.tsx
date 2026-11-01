@@ -133,7 +133,7 @@ function SummaryChip({
   icon: typeof ShieldCheck;
 }) {
   return (
-    <Link
+    <Link prefetch={false}
       href={href}
       className={cn("inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors hover:border-border-strong", SUMMARY_TONES[tone])}
     >

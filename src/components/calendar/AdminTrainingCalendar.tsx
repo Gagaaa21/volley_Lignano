@@ -23,7 +23,7 @@ function occurrenceHref(event: TrainingEvent) {
 function Occ({ event, planTitle }: { event: TrainingEvent; planTitle: string | null }) {
   const hasPlan = Boolean(planTitle);
   return (
-    <Link
+    <Link prefetch={false}
       href={occurrenceHref(event)}
       className={cn(
         "flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-[3px] text-left text-[11.5px] leading-4 transition-colors",
@@ -159,7 +159,7 @@ export function AdminTrainingCalendar({
                     {events.map((event) => {
                       const planTitle = planTitleOf(event);
                       return (
-                        <Link
+                        <Link prefetch={false}
                           key={event.id}
                           href={occurrenceHref(event)}
                           className={cn("group flex items-center gap-3 py-2", past && "opacity-55")}

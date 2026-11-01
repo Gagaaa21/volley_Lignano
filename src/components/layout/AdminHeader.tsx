@@ -191,7 +191,7 @@ function SectionsMenu({ items, pathname }: { items: typeof NAV_ITEMS; pathname: 
                   const Icon = item.icon;
                   const active = isActive(pathname, item.href, item.exact);
                   return (
-                    <Link
+                    <Link prefetch={false}
                       key={item.href}
                       href={item.href}
                       aria-current={active ? "page" : undefined}
@@ -290,7 +290,7 @@ function UserMenu({ session, activeTeam }: { session: SessionPayload; activeTeam
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={item.href}
                     href={item.href}
                     role="menuitem"
@@ -322,7 +322,7 @@ function UserMenu({ session, activeTeam }: { session: SessionPayload; activeTeam
           </div>
 
           <div className="border-t border-border pt-1.5">
-            <Link
+            <Link prefetch={false}
               href={activeTeam === "minivolley" ? "/minivolley" : "/"}
               role="menuitem"
               onClick={() => setOpen(false)}
@@ -331,7 +331,7 @@ function UserMenu({ session, activeTeam }: { session: SessionPayload; activeTeam
               <Globe className="h-4 w-4" />
               Sito pubblico
             </Link>
-            <Link href="/admin/cambia-password" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
+            <Link prefetch={false} href="/admin/cambia-password" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
               <KeyRound className="h-4 w-4" />
               Cambia password
             </Link>
@@ -395,7 +395,7 @@ export function AdminHeader({
   return (
     <header ref={headerRef} className="page-header">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <Link href="/admin" className="flex min-w-0 items-center gap-3">
+        <Link prefetch={false} href="/admin" className="flex min-w-0 items-center gap-3">
           <span className="brand-chip h-10 w-10 shrink-0">
             <Image src={crest} alt="Stemma Volley Lignano" className="h-full w-full object-contain p-0.5" loading="eager" />
           </span>
@@ -427,7 +427,7 @@ export function AdminHeader({
             const Icon = item.icon;
             const active = isActive(pathname, item.href, item.exact);
             return (
-              <Link
+              <Link prefetch={false}
                 key={item.href}
                 href={item.href}
                 data-tour={item.tourId}

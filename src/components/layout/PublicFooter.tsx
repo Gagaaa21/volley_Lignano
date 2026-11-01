@@ -28,7 +28,7 @@ export function PublicFooter({
           </p>
         </div>
         <div className="flex flex-col items-center gap-1.5 sm:items-end">
-          <Link
+          <Link prefetch={false}
             href={team === "minivolley" ? "/minivolley/notifiche" : "/notifiche"}
             className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
             data-footer-notifiche

@@ -196,7 +196,7 @@ export default async function AdminDashboardPage({
       )}
 
       {portalTodo > 0 && (
-        <Link
+        <Link prefetch={false}
           href="/admin/partite/portale"
           data-tour="dashboard-official-results"
           className="group mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning transition-colors hover:border-warning/50"
@@ -210,7 +210,7 @@ export default async function AdminDashboardPage({
       )}
 
       {certificatesExpired + certificatesExpiring > 0 && (
-        <Link
+        <Link prefetch={false}
           href="/admin/certificati"
           data-dashboard-certificates
           className="group mb-6 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm font-semibold text-destructive transition-colors hover:border-destructive/50"
@@ -233,7 +233,7 @@ export default async function AdminDashboardPage({
       {nextMatchRow && nextMatchShortcuts && (
         <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5" data-dashboard-next-match>
           <p className="eyebrow">Prossima partita</p>
-          <Link href={`/admin/partite/${nextMatchRow.id}`} className="mt-1 block font-display text-xl font-bold text-foreground hover:text-primary">
+          <Link prefetch={false} href={`/admin/partite/${nextMatchRow.id}`} className="mt-1 block font-display text-xl font-bold text-foreground hover:text-primary">
             {matchTitle(nextMatchRow)}
           </Link>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
@@ -318,7 +318,7 @@ export default async function AdminDashboardPage({
           <SectionHeading
             title="Prossimi impegni"
             action={
-              <Link href="/admin/allenamenti" className="text-sm font-semibold text-primary hover:underline">
+              <Link prefetch={false} href="/admin/allenamenti" className="text-sm font-semibold text-primary hover:underline">
                 Calendario
               </Link>
             }
@@ -336,7 +336,7 @@ export default async function AdminDashboardPage({
                 const date = parseISO(event.date);
                 const isToday = event.date === todayStr;
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={event.id}
                     href={eventHref(event)}
                     className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"
@@ -419,7 +419,7 @@ export default async function AdminDashboardPage({
                   ) : null,
                 )}
                 {pendingOccurrences.length > 4 && (
-                  <Link
+                  <Link prefetch={false}
                     href="/admin/presenze"
                     className="block px-4 py-2.5 text-center text-[13px] font-semibold text-primary hover:bg-surface-muted"
                   >

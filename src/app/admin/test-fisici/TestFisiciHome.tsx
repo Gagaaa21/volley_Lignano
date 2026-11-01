@@ -47,7 +47,7 @@ export function TestFisiciHome({ athletes }: { athletes: AthleteTestSummary[] })
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
           {filtered.map((athlete, index) => (
-            <Link
+            <Link prefetch={false}
               key={athlete.id}
               href={`/admin/test-fisici/atleta/${athlete.id}`}
               data-tour={index === 0 ? "test-fisici-athlete" : undefined}

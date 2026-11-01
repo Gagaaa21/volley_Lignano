@@ -49,7 +49,7 @@ export function Logo({
   const primaryText = isMinivolley ? "Minivolley" : "Volley Lignano";
   const secondaryText = isMinivolley ? "Volley Lignano" : subtitle;
   return (
-    <Link href={href} className={cn("group flex items-center gap-3", className)}>
+    <Link prefetch={false} href={href} className={cn("group flex items-center gap-3", className)}>
       <span className={cn("brand-chip shrink-0 transition-transform duration-200 group-hover:-rotate-3", CHIP_SIZES[size])}>
         <Image
           src={CREST_BY_TEAM[team]}

@@ -142,7 +142,7 @@ export default async function AthletePhysicalTestsPage({
                           <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
                             {measure.label}
                           </p>
-                          <Link
+                          <Link prefetch={false}
                             href={sessionEditHref(athlete.id, measure.latest!.date)}
                             aria-label={`Modifica la sessione del ${formatDateShort(measure.latest!.date)}`}
                             className="-mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"
@@ -190,7 +190,7 @@ export default async function AthletePhysicalTestsPage({
                             {previous?.meanAltezza != null && session.meanAltezza != null && (
                               <Delta current={session.meanAltezza} previous={previous.meanAltezza} unit="cm" />
                             )}
-                            <Link
+                            <Link prefetch={false}
                               href={sessionEditHref(athlete.id, session.date)}
                               aria-label={`Modifica la sessione del ${formatDateShort(session.date)}`}
                               className="rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"
@@ -275,7 +275,7 @@ export default async function AthletePhysicalTestsPage({
                         {test.notes && <p className="mt-1.5 text-sm text-muted-foreground">{test.notes}</p>}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/test-fisici/${test.id}`}
                           aria-label="Modifica"
                           className="rounded-full p-1.5 text-foreground/30 hover:bg-muted hover:text-foreground"

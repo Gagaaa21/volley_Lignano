@@ -18,7 +18,7 @@ export interface SchedeCardData {
 
 function PlanRow({ plan }: { plan: SchedeCardData }) {
   return (
-    <Link
+    <Link prefetch={false}
       href={`/admin/schede/${plan.id}`}
       className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-muted sm:px-5"
     >

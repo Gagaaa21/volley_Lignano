@@ -50,7 +50,7 @@ function MatchRow({ match, isPast, absentCount = 0 }: { match: Match; isPast: bo
       ? match.setScores.map((s) => `${s.us}-${s.them}`).join("  ")
       : null;
   return (
-    <Link
+    <Link prefetch={false}
       href={`/admin/partite/${match.id}`}
       className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-muted sm:px-5"
     >

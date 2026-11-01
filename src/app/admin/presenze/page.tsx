@@ -161,7 +161,7 @@ export default async function AttendanceHubPage({
       {activeAthleteCount === 0 && (
         <div className="mb-6 rounded-2xl border border-dashed border-border-strong bg-surface/70 px-6 py-6 text-center text-sm text-muted-foreground">
           Non hai ancora aggiunto nessuna atleta.{" "}
-          <Link href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
+          <Link prefetch={false} href="/admin/presenze/atlete/nuova" className="font-semibold text-primary hover:underline">
             Aggiungi la prima atleta
           </Link>{" "}
           per iniziare a registrare le presenze.

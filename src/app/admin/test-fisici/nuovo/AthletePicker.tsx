@@ -33,7 +33,7 @@ export function AthletePicker({ athletes }: { athletes: Athlete[] }) {
       ) : (
         <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
           {filtered.map((athlete) => (
-            <Link
+            <Link prefetch={false}
               key={athlete.id}
               href={`/admin/test-fisici/nuovo/${athlete.id}`}
               className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"

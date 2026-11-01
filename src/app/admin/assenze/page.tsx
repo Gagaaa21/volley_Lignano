@@ -108,13 +108,13 @@ export default async function AssenzePage() {
           {absences.length === 0 ? "Nessuna assenza segnalata" : absences.length === 1 ? "1 assenza segnalata" : `${absences.length} assenze segnalate`}
         </Badge>
         {withLink !== null && (
-          <Link href="/admin/assenze/link">
+          <Link prefetch={false} href="/admin/assenze/link">
             <Badge tone={withLink === active.length && active.length > 0 ? "success" : "neutral"}>
               {withLink} su {active.length} atlete con il link
             </Badge>
           </Link>
         )}
-        <Link href="/admin/assenze/regole">
+        <Link prefetch={false} href="/admin/assenze/regole">
           <Badge tone="neutral">Regole: {rulesSummary(rules)}</Badge>
         </Link>
       </div>
@@ -234,7 +234,7 @@ function MatchReportingCard({
             <p className="text-[13px] font-semibold text-muted-foreground">
               {capitalize(format(parseISO(match.matchDate.slice(0, 10)), "EEEE d MMMM", { locale: it }))} · {match.matchDate.slice(11, 16)}
             </p>
-            <Link href={href} className="group mt-0.5 inline-flex flex-wrap items-center gap-2 font-display text-base font-bold text-foreground hover:text-primary">
+            <Link prefetch={false} href={href} className="group mt-0.5 inline-flex flex-wrap items-center gap-2 font-display text-base font-bold text-foreground hover:text-primary">
               {matchTitle(match)}
               <CategoryTag category={match.category} />
               <ChevronRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5" aria-hidden />
@@ -259,7 +259,7 @@ function MatchReportingCard({
               ))}
             </ul>
           )}
-          <Link href={href} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-semibold text-primary hover:bg-primary-soft" data-reporting-open-match>
+          <Link prefetch={false} href={href} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-semibold text-primary hover:bg-primary-soft" data-reporting-open-match>
             <UserX className="h-3.5 w-3.5" aria-hidden />
             Segna chi non ci sarà
           </Link>

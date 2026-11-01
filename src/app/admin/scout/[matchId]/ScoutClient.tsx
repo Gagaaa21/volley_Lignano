@@ -395,7 +395,7 @@ export function ScoutClient({
         {/* Intestazione compatta: durante la partita ogni riga in meno è un tocco in meno di scorrimento. */}
         <header className={cn("space-y-2", isFullscreen && "sm:flex sm:items-center sm:gap-3 sm:space-y-0")}>
           <div className={cn("flex items-center justify-between gap-3", isFullscreen && "sm:contents")}>
-            <Link
+            <Link prefetch={false}
               href="/admin/scout"
               className={cn(
                 "-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground",

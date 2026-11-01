@@ -49,7 +49,7 @@ export function StatTile({
   const base = cn("stat-card block p-4 pt-5 sm:p-5 sm:pt-6", className);
   if (href) {
     return (
-      <Link href={href} className={cn(base, "hover:-translate-y-0.5 hover:border-border-strong hover:shadow-raised")}>
+      <Link prefetch={false} href={href} className={cn(base, "hover:-translate-y-0.5 hover:border-border-strong hover:shadow-raised")}>
         {content}
       </Link>
     );

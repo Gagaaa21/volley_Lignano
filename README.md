@@ -872,7 +872,7 @@ non deve mai iniziare con `NEXT_PUBLIC_`.
    - `CRON_SECRET` (facoltativa: una stringa casuale lunga, serve al controllo
      giornaliero di `vercel.json` che aggiorna classifiche e risultati dalla
      federazione; senza, il sito li aggiorna comunque quando qualcuno apre una
-     pagina e i dati hanno più di 30 minuti)
+     pagina e i dati hanno più di 2 ore; il sito si rigenera solo se sono cambiati)
 3. Esegui il deploy. Se non hai ancora eseguito `npm run seed`, puoi farlo
    in locale puntando alle stesse variabili d'ambiente del progetto Supabase
    collegato a Vercel.

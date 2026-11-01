@@ -326,7 +326,7 @@ export default async function GuidaPage() {
         body: (
           <p className="text-sm text-foreground/80">
             La pagina{" "}
-            <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
+            <Link prefetch={false} href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
               Manutenzione
             </Link>{" "}
             mostra righe e spazio occupato per ogni tabella su Supabase, e spiega la cache della homepage pubblica introdotta per restare entro i limiti
@@ -363,21 +363,21 @@ export default async function GuidaPage() {
         title: "Classifiche e risultati ufficiali",
         intro: "Solo Developer.",
         searchText:
-          "Classifiche risultati ufficiali Centro di controllo indirizzo del girone portale della federazione nome squadra classifica rilegge il portale ogni 30 minuti Manutenzione errore",
+          "Classifiche risultati ufficiali Centro di controllo indirizzo del girone portale della federazione nome squadra classifica rilegge il portale ogni 2 ore Manutenzione errore",
         body: (
           <ul className={BULLETS}>
             <li>
               Dal{" "}
-              <Link href="/admin/centro-controllo" className="font-semibold text-primary hover:underline">
+              <Link prefetch={false} href="/admin/centro-controllo" className="font-semibold text-primary hover:underline">
                 Centro di controllo
               </Link>{" "}
               imposti, per ogni categoria, l&apos;indirizzo del girone sul portale della federazione e il nome con cui la nostra squadra compare in classifica.
               Lascia l&apos;indirizzo vuoto finché il girone non è pubblicato: la categoria resta nascosta.
             </li>
             <li>
-              Il sito rilegge il portale in secondo piano quando i dati hanno più di 30 minuti (e una volta al giorno in automatico). Se il portale non risponde o
+              Il sito rilegge il portale in secondo piano quando i dati hanno più di 2 ore (e una volta al giorno in automatico); per averli subito c&apos;è «Aggiorna ora» in Partite. Se il portale non risponde o
               cambia pagina, restano gli ultimi dati validi con la loro data e l&apos;errore compare in{" "}
-              <Link href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
+              <Link prefetch={false} href="/admin/manutenzione" className="font-semibold text-primary hover:underline">
                 Manutenzione
               </Link>
               .
@@ -397,7 +397,7 @@ export default async function GuidaPage() {
     body: (
       <p className="text-sm text-foreground/80">
         Puoi cambiare la tua password in qualsiasi momento dalla pagina{" "}
-        <Link href="/admin/cambia-password" className="font-semibold text-primary hover:underline">
+        <Link prefetch={false} href="/admin/cambia-password" className="font-semibold text-primary hover:underline">
           Cambia password
         </Link>
         .

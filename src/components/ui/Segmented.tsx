@@ -29,7 +29,7 @@ export function SegmentedLinks({
       )}
     >
       {items.map((item) => (
-        <Link
+        <Link prefetch={false}
           key={item.href}
           href={item.href}
           aria-current={item.active ? "page" : undefined}

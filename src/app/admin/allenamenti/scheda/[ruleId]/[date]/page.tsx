@@ -152,7 +152,7 @@ export default async function OccurrencePlanPage({
                 </span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Scheda collegata</p>
-                  <Link
+                  <Link prefetch={false}
                     href={`/admin/schede/${currentPlan.id}`}
                     className="group inline-flex max-w-full items-center gap-1.5 font-display text-lg font-bold text-foreground hover:text-primary"
                   >

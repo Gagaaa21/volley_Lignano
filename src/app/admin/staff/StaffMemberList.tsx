@@ -83,7 +83,7 @@ export function StaffMemberList({
                   </p>
                 </div>
                 {canManage && (
-                  <Link
+                  <Link prefetch={false}
                     href={`/admin/staff/${member.id}`}
                     aria-label={`Modifica ${member.fullName}`}
                     title="Modifica"

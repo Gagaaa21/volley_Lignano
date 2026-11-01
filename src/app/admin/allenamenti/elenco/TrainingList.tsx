@@ -50,7 +50,7 @@ export function TrainingList({
           {filtered.map((training) => {
             const linked = upcomingLinkedCountByRule[training.id] ?? 0;
             return (
-              <Link
+              <Link prefetch={false}
                 key={training.id}
                 href={`/admin/allenamenti/${training.id}`}
                 className={cn(

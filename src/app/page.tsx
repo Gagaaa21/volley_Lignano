@@ -71,7 +71,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     getPublicStandings(),
   ]);
   // Rilettura delle classifiche dalla federazione in secondo piano, solo se
-  // i dati hanno più di 30 minuti (chi visita non aspetta mai il portale).
+  // i dati hanno più di 2 ore (chi visita non aspetta mai il portale).
   scheduleFederationRefresh();
 
   const occurrencePlanIds = new Map(

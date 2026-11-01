@@ -43,7 +43,7 @@ function GameRow({ game }: { game: PortalGame }) {
   return (
     <li data-portal-game={game.official.externalId} data-portal-status={game.status}>
       {game.match ? (
-        <Link href={`/admin/partite/${game.match.id}`} className={`${className} transition-colors hover:bg-surface-muted`}>
+        <Link prefetch={false} href={`/admin/partite/${game.match.id}`} className={`${className} transition-colors hover:bg-surface-muted`}>
           {content}
         </Link>
       ) : (

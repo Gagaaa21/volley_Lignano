@@ -7,13 +7,19 @@ import type { Category } from "@/lib/types";
 
 /** Tra una lettura e la successiva (riuscita o no) passa almeno questo
  * tempo: bastano poche richieste al giorno, e non si carica il portale. */
-export const AUTO_REFRESH_MIN_INTERVAL_MS = 30 * 60 * 1000;
+/**
+ * Ogni quanto, al massimo, le visite rileggono i gironi dal portale: risultati e classifiche cambiano dopo le partite, non
+ * di continuo, e ogni lettura (scaricare e leggere la pagina) consuma CPU su Vercel, che nel piano gratuito ha un tetto al
+ * mese. Per averli subito c'è «Aggiorna ora» in Partite.
+ */
+export const AUTO_REFRESH_MIN_INTERVAL_MS = 2 * 60 * 60 * 1000;
 /** Per il pulsante «Aggiorna ora» degli admin: più corto, ma comunque limitato. */
 export const MANUAL_REFRESH_MIN_INTERVAL_MS = 2 * 60 * 1000;
 
 export interface RefreshOutcome {
   category: Category;
-  status: "updated" | "skipped-recent" | "skipped-no-source" | "failed";
+  /** «unchanged»: letto, ma uguale a prima (il sito non si rigenera). */
+  status: "updated" | "unchanged" | "skipped-recent" | "skipped-no-source" | "failed";
   message?: string;
 }
 
@@ -56,7 +62,9 @@ export async function refreshFederation(
         }
         const girone = await readGirone(source.url);
         await repo.saveFederationSnapshot({ category, girone, fetchedAt: now, lastError: null, lastErrorAt: null });
-        return { category, status: "updated" };
+        // Uguale a prima: niente da rigenerare (le pagine pubbliche restano in cache, senza nuove letture del database).
+        const same = previous?.girone != null && JSON.stringify(previous.girone) === JSON.stringify(girone);
+        return { category, status: same ? "unchanged" : "updated" };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Errore sconosciuto.";
         console.error(`[federation] ${category}:`, message);

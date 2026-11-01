@@ -158,7 +158,7 @@ export default async function TrainingPlanDetailPage({
                 {occurrences.map((o) => {
                   const isPast = o.occurrenceDate < todayStr;
                   return (
-                    <Link
+                    <Link prefetch={false}
                       key={o.id}
                       href={`/admin/allenamenti/scheda/${o.trainingRuleId}/${o.occurrenceDate}`}
                       className={cn(

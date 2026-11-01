@@ -332,7 +332,7 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
               {rows.map((row) => (
                 <tr key={row.key} className="transition-colors hover:bg-surface-muted/70" data-riepilogo-row={row.athlete.id}>
                   <th scope="row" className="sticky left-0 z-10 bg-card px-3 py-2.5 text-left font-normal">
-                    <Link
+                    <Link prefetch={false}
                       href={`/admin/test-fisici/atleta/${row.athlete.id}`}
                       className="group flex min-w-[10.5rem] items-center gap-2.5"
                     >
@@ -349,7 +349,7 @@ export function RiepilogoTable({ athletes }: { athletes: OverviewAthlete[] }) {
                   </th>
                   <td className="whitespace-nowrap px-3 py-2.5 align-top">
                     {row.date ? (
-                      <Link
+                      <Link prefetch={false}
                         href={`/admin/test-fisici/atleta/${row.athlete.id}/sessione/${row.date}`}
                         className="text-foreground/80 hover:text-primary hover:underline"
                         title="Apri la sessione per correggerla"

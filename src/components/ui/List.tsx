@@ -30,7 +30,7 @@ export function ListItem({
 }) {
   if (href) {
     return (
-      <Link href={href} className={cn(rowClass, "transition-colors hover:bg-surface-muted", className)}>
+      <Link prefetch={false} href={href} className={cn(rowClass, "transition-colors hover:bg-surface-muted", className)}>
         {children}
       </Link>
     );

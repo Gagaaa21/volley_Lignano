@@ -22,6 +22,13 @@ const ENDPOINT = "/api/livescore/pubblico?prima=1";
  */
 const DIRECT_ENDPOINT = `${ENDPOINT}&regia=1`;
 const DIRECT_POLL_MS = 1_000;
+/**
+ * Prima del via (copertina, riscaldamento, presentazione: possono durare un'ora) basta rileggere ogni 3 secondi: le fasi le
+ * decide l'orario e il tasto del riscaldamento non ha fretta. Su Vercel ogni lettura è una chiamata al server, e il piano
+ * gratuito ne ha un tetto di CPU al mese: così un'ora di attesa costa un terzo. Dal minuto prima del via (barra a 0–0) e in
+ * partita si torna a ogni secondo.
+ */
+const PREGAME_POLL_MS = 3_000;
 /** Chi guarda dalla pagina /diretta rilegge di partenza ogni 2 secondi (la rete di Vercel lo tiene 3: il database non se ne accorge)… */
 const LIVE_POLL_MS = 2_000;
 /** …altrimenti ogni 15, per accorgersi di una partita che comincia. */
@@ -157,7 +164,7 @@ export function GraficaClient() {
             }
             lastStamp = reading.stamp;
           }
-          delay = live && !live.finished ? livePollMs : IDLE_POLL_MS;
+          delay = !live || live.finished ? IDLE_POLL_MS : !viewer && live.notStarted && live.pregame ? PREGAME_POLL_MS : livePollMs;
         }
       } catch {
         // Rete assente: si riprova al giro successivo, la grafica resta com'è.

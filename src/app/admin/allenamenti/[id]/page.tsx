@@ -89,7 +89,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
 
               return (
                 <div key={occ.date} className="flex items-center gap-1 pr-2">
-                  <Link
+                  <Link prefetch={false}
                     href={`/admin/allenamenti/scheda/${id}/${occ.date}`}
                     className="group flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"
                   >
@@ -138,7 +138,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
               );
             })}
             {remainingCount > 0 && (
-              <Link
+              <Link prefetch={false}
                 href="/admin/allenamenti"
                 className="block px-4 py-2.5 text-center text-[13px] font-semibold text-primary hover:bg-surface-muted"
               >

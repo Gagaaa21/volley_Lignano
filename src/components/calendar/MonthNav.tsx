@@ -30,7 +30,7 @@ export function MonthNav({
 
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <Link
+      <Link prefetch={false}
         href={`${basePath}?month=${current}${suffix}`}
         scroll={false}
         aria-disabled={isCurrent || undefined}
@@ -42,11 +42,11 @@ export function MonthNav({
         Oggi
       </Link>
       <div className="inline-flex overflow-hidden rounded-xl border border-border-strong/80 bg-surface shadow-xs">
-        <Link href={`${basePath}?month=${prev}${suffix}`} scroll={false} aria-label="Mese precedente" className={arrowClass}>
+        <Link prefetch={false} href={`${basePath}?month=${prev}${suffix}`} scroll={false} aria-label="Mese precedente" className={arrowClass}>
           <ChevronLeft className="h-[18px] w-[18px]" />
         </Link>
         <span aria-hidden className="w-px bg-border" />
-        <Link href={`${basePath}?month=${next}${suffix}`} scroll={false} aria-label="Mese successivo" className={arrowClass}>
+        <Link prefetch={false} href={`${basePath}?month=${next}${suffix}`} scroll={false} aria-label="Mese successivo" className={arrowClass}>
           <ChevronRight className="h-[18px] w-[18px]" />
         </Link>
       </div>

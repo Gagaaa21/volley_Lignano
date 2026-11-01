@@ -45,7 +45,7 @@ function AthleteGroup({
       <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
         {athletes.map((athlete) => (
           <div key={athlete.id} className={cn("flex items-center gap-1 pr-2", !athlete.isActive && "opacity-60")}>
-            <Link
+            <Link prefetch={false}
               href={`/admin/presenze/atleta/${athlete.id}`}
               className="group flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5"
             >
@@ -70,7 +70,7 @@ function AthleteGroup({
                 }
               />
             )}
-            <Link
+            <Link prefetch={false}
               href={`/admin/presenze/atlete/${athlete.id}`}
               aria-label={`Modifica ${athlete.fullName}`}
               title="Modifica"

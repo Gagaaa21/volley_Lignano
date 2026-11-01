@@ -101,7 +101,7 @@ export default async function MatchesListPage({
       )}
 
       {isU14U15 && showPortal && (
-        <Link
+        <Link prefetch={false}
           href={portalHref}
           data-tour="section-partite-official"
           data-portal-alert={portalTodo > 0 ? "" : undefined}

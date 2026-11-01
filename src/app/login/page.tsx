@@ -41,7 +41,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <Link
+          <Link prefetch={false}
             href="/"
             className="mx-auto mt-6 flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >

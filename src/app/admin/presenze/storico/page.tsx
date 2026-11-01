@@ -54,7 +54,7 @@ export default async function AttendanceHistoryPage() {
             const isMini = s.team === "minivolley";
             const date = parseISO(s.sessionDate);
             return (
-              <Link
+              <Link prefetch={false}
                 key={s.id}
                 href={`/admin/presenze/storico/${s.id}`}
                 className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-muted sm:px-5"
