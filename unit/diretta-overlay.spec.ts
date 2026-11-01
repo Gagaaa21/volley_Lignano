@@ -4,6 +4,8 @@ import path from "node:path";
 import { checkSource } from "@/components/diretta/VerifyFrame";
 import { demoScript } from "@/lib/diretta/demo";
 import {
+  atDeuce,
+  COURT_CARD_MS,
   diffLive,
   FINAL_CARD_MS,
   FULL_EXIT_MS,
@@ -12,10 +14,14 @@ import {
   INTRO_CARD_MS,
   LINEUP_CARD_MS,
   SET_CARD_MS,
+  phaseLabel,
   SET_RECAP_MS,
+  STATS_CARD_MS,
+  STRIP_OUT_MS,
   SUB_CARD_MS,
   secondsLeft,
   TIMEOUT_CARD_MS,
+  timeoutSecondsLeft,
   type Feed,
 } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
@@ -210,10 +216,85 @@ test.describe("grafica della diretta: cosa è cambiato", () => {
 
   test("un'altra partita, o la prova che ricomincia, non fa scattare animazioni", () => {
     const old = reading({ sets: [{ home: 25, away: 21 }], timeouts: { home: 2, away: 2 }, subs: [sub("a")] });
-    const nothing = { timeouts: [], setEnded: null, matchEnded: false, subs: [], lineup: null, intro: false, cover: false };
+    const nothing = { timeouts: [], setEnded: null, matchEnded: false, subs: [], lineup: null, intro: false, cover: false, statsAt: null, courtChange: null };
     expect(diffLive(old, reading({ away: { name: "Altra squadra", color: "#000000", score: 8, sets: 0 }, subs: [sub("b")] }))).toEqual(nothing);
     // I set tornano indietro: è un'altra partita.
     expect(diffLive(old, reading({ timeouts: { home: 1, away: 0 } }))).toEqual(nothing);
+  });
+});
+
+test.describe("grafica della diretta: il time-out e i momenti del set", () => {
+  const SET25 = { target: 25, deciding: false };
+  const TIEBREAK = { target: 15, deciding: true };
+  const at = (home: number, away: number, over: Partial<PublicLiveScore> = {}) =>
+    reading({ home: { ...zero.home, score: home }, away: { ...zero.away, score: away }, setRules: SET25, setStats: stats, ...over });
+
+  test("il time-out dice quale dei due è, e il conto alla rovescia va da 30 a 0 dall'istante in cui va in onda", () => {
+    let feed = poll(INITIAL_FEED, at(10, 8), T);
+    feed = poll(feed, at(10, 8, { timeouts: { home: 0, away: 1 } }), T + 1_000);
+    expect(feed.timeout).toMatchObject({ kind: "timeout", side: "away", count: 1, startedAt: T + 1_000, until: T + 1_000 + TIMEOUT_CARD_MS });
+    expect(timeoutSecondsLeft(feed.timeout!, T + 1_000)).toBe(30);
+    expect(timeoutSecondsLeft(feed.timeout!, T + 11_500)).toBe(20);
+    feed = poll(feed, at(12, 8, { timeouts: { home: 0, away: 2 } }), T + 60_000);
+    expect(feed.timeout).toMatchObject({ side: "away", count: 2 });
+  });
+
+  test("si riprende a giocare: al primo punto dopo, il time-out esce subito (con la tendina), senza aspettare i 30 secondi", () => {
+    let feed = poll(INITIAL_FEED, at(10, 8), T);
+    feed = poll(feed, at(10, 8, { timeouts: { home: 1, away: 0 } }), T + 1_000);
+    // Letture uguali: resta.
+    feed = poll(feed, at(10, 8, { timeouts: { home: 1, away: 0 } }), T + 9_000);
+    expect(feed.timeout?.until).toBe(T + 1_000 + TIMEOUT_CARD_MS);
+    // Un punto: esce.
+    feed = poll(feed, at(11, 8, { timeouts: { home: 1, away: 0 } }), T + 12_000);
+    expect(feed.timeout?.until).toBe(T + 12_000 + STRIP_OUT_MS);
+    // Il conto non salta a zero mentre esce.
+    expect(timeoutSecondsLeft(feed.timeout!, T + 12_000)).toBe(19);
+    expect(tick(feed, T + 12_000 + STRIP_OUT_MS).timeout).toBeNull();
+  });
+
+  test("«Il set fin qui» a 8 e a 16 di chi è avanti, nei set a 25; una volta sola per soglia, mai insieme al time-out", () => {
+    expect(diffLive(at(7, 5), at(8, 5)).statsAt).toBe(8);
+    expect(diffLive(at(6, 7), at(6, 8)).statsAt).toBe(8);
+    expect(diffLive(at(15, 12), at(16, 12)).statsAt).toBe(16);
+    expect(diffLive(at(8, 5), at(9, 5)).statsAt).toBeNull();
+    // Un set nuovo non conta come «arrivato a 8»; senza le regole del set (il Live score) niente.
+    expect(diffLive(at(7, 5), at(8, 5, { sets: [{ home: 25, away: 20 }] })).statsAt).toBeNull();
+    expect(diffLive(reading({ ...zero }), reading({ ...zero, home: { ...zero.home, score: 8 } })).statsAt).toBeNull();
+
+    let feed = poll(INITIAL_FEED, at(7, 5), T);
+    feed = poll(feed, at(8, 5), T + 1_000);
+    expect(feed.moment).toMatchObject({ kind: "stats", set: 1, stats, startedAt: T + 1_000, until: T + 1_000 + STATS_CARD_MS });
+    // Il punto dopo la chiude.
+    feed = poll(feed, at(8, 6), T + 4_000);
+    expect(feed.moment?.until).toBe(T + 4_000 + STRIP_OUT_MS);
+    // Il 16° punto e il time-out nella stessa lettura: i numeri li mostra il time-out, niente «Il set fin qui» in più.
+    let busy = poll(INITIAL_FEED, at(15, 12), T);
+    busy = poll(busy, at(16, 12, { timeouts: { home: 0, away: 1 } }), T + 1_000);
+    expect(busy.timeout).toMatchObject({ side: "away", count: 1 });
+    expect(busy.moment).toBeNull();
+  });
+
+  test("nel tie-break a 8 di chi è avanti si cambia campo; niente numeri a metà set", () => {
+    const tb = (home: number, away: number) => at(home, away, { sets: [{ home: 25, away: 20 }, { home: 22, away: 25 }], setRules: TIEBREAK });
+    expect(diffLive(tb(7, 5), tb(8, 5))).toMatchObject({ courtChange: 8, statsAt: null });
+    expect(diffLive(tb(5, 7), tb(5, 8)).courtChange).toBe(8);
+    expect(diffLive(tb(8, 5), tb(9, 5)).courtChange).toBeNull();
+    let feed = poll(INITIAL_FEED, tb(7, 5), T);
+    feed = poll(feed, tb(8, 5), T + 1_000);
+    expect(feed.moment).toMatchObject({ kind: "court", at: 8, score: { home: 8, away: 5 }, until: T + 1_000 + COURT_CARD_MS });
+  });
+
+  test("«Ai vantaggi» a pari da 24–24 (14–14 nel tie-break), non con un set point; «Tie-break» al posto del numero del set", () => {
+    expect(atDeuce(at(24, 24))).toBe(true);
+    expect(atDeuce(at(27, 27))).toBe(true);
+    expect(atDeuce(at(23, 23))).toBe(false);
+    expect(atDeuce(at(25, 24, { point: { side: "home", kind: "set" } }))).toBe(false);
+    expect(atDeuce(at(14, 14, { setRules: TIEBREAK }))).toBe(true);
+    expect(atDeuce(reading({ home: { ...zero.home, score: 24 }, away: { ...zero.away, score: 24 } }))).toBe(false);
+    expect(phaseLabel(at(3, 2))).toBe("1° set");
+    expect(phaseLabel(at(3, 2, { sets: [{ home: 25, away: 20 }, { home: 22, away: 25 }], setRules: TIEBREAK }))).toBe("Tie-break");
+    expect(phaseLabel(at(0, 0, { finished: true }))).toBe("Finale");
   });
 });
 
@@ -256,7 +337,7 @@ test.describe("grafica della diretta: nomi corti e misure della sorgente", () =>
 test.describe("grafica della diretta: la partita finta", () => {
   const frames = () => demoScript().filter((frame): frame is PublicLiveScore => frame !== null);
 
-  test("comincia prima del via e racconta due set: battuta, set point, match point, time-out, cambi, serie e finale", () => {
+  test("comincia prima del via e racconta tre set: battuta, set point, match point, vantaggi, tie-break, time-out, cambi, serie e finale", () => {
     const script = demoScript();
     expect(script[script.length - 1]).toBeNull();
     const all = frames();
@@ -268,7 +349,23 @@ test.describe("grafica della diretta: la partita finta", () => {
     expect(all.some((f) => (f.subs?.length ?? 0) >= 2)).toBe(true);
     expect(all.some((f) => (f.run?.points ?? 0) >= 4)).toBe(true);
     expect(all.some((f) => f.lineup?.set === 2)).toBe(true);
-    expect(all[all.length - 1]).toMatchObject({ finished: true, home: { sets: 2 }, away: { sets: 0 }, sets: [{ home: 25, away: 20 }, { home: 25, away: 22 }], matchStats: expect.any(Object) });
+    expect(all[all.length - 1]).toMatchObject({
+      finished: true,
+      home: { sets: 2 },
+      away: { sets: 1 },
+      sets: [
+        { home: 25, away: 20 },
+        { home: 24, away: 26 },
+        { home: 15, away: 12 },
+      ],
+      matchStats: expect.any(Object),
+    });
+    // Il 2° set ai vantaggi (24–24, senza set point), il 3° è il tie-break a 15.
+    expect(all.some((f) => f.home.score === 24 && f.away.score === 24 && !f.point && f.setRules?.target === 25)).toBe(true);
+    expect(all.some((f) => f.sets.length === 2 && f.setRules?.deciding === true && f.setRules.target === 15)).toBe(true);
+    // Durante un time-out il punteggio resta fermo per più letture.
+    const firstTimeout = all.findIndex((f) => f.timeouts.away > 0);
+    expect(all[firstTimeout + 4]).toMatchObject({ home: { score: all[firstTimeout].home.score }, away: { score: all[firstTimeout].away.score } });
     // Il 2° set comincia battendo gli altri (la battuta si alterna).
     expect(all.find((f) => f.sets.length === 1)?.serving).toBe("away");
   });
@@ -293,6 +390,7 @@ test.describe("grafica della diretta: la partita finta", () => {
       if (after.full && after.full !== before.full && after.full.startedAt === at) aired.push(after.full.kind);
       if (after.timeout && after.timeout !== before.timeout && after.timeout.startedAt === at) aired.push(after.timeout.kind);
       if (after.sub && after.sub !== before.sub && after.sub.startedAt === at) aired.push(after.sub.kind);
+      if (after.moment && after.moment !== before.moment && after.moment.startedAt === at) aired.push(after.moment.kind);
     };
     let now = T;
     for (const frame of [...demoScript(), ...demoScript()]) {
@@ -307,7 +405,14 @@ test.describe("grafica della diretta: la partita finta", () => {
       feed = poll(feed, frame, now);
       record(before, feed, now);
     }
-    const perLap = ["cover", "intro", "lineup", "timeout", "sub", "timeout", "set", "lineup", "timeout", "sub", "timeout", "final"];
+    // 1° set: i numeri a 8, il time-out, i numeri a 16, il cambio, il time-out; 2° set uguale (ai vantaggi, perso); il tie-break con il
+    // cambio di campo a 8 e un time-out; il finale.
+    const perLap = [
+      "cover", "intro", "lineup",
+      "stats", "timeout", "stats", "sub", "timeout", "set", "lineup",
+      "stats", "timeout", "stats", "sub", "timeout", "set", "lineup",
+      "court", "timeout", "final",
+    ];
     expect(aired).toEqual([...perLap, ...perLap]);
   });
 });

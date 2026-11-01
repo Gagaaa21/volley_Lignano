@@ -12,7 +12,7 @@ import type {
 } from "@/lib/types";
 import { setPointHolder, setsToWin } from "@/lib/volleyRules";
 import { lineupWrittenThisSet } from "./court";
-import { currentServer, deriveScout, setTarget, type ScoutCourt, type ScoutSet, type ScoutView } from "./derive";
+import { currentServer, deriveScout, isDecisive, setTarget, type ScoutCourt, type ScoutSet, type ScoutView } from "./derive";
 import { estimateMinutes, setRecapCounts, type SetRecapCounts } from "./stats";
 import type { MatchScout, ScoutPlayer, ScoutSettings } from "./types";
 
@@ -211,6 +211,7 @@ export function toPublicScoutScore(
     ...(lastDone ? { recap: publicSetRecap(lastDone) } : {}),
     ...(setCounts ? { setStats: { home: publicCounts(setCounts.us), away: publicCounts(setCounts.opp) } } : {}),
     ...(totals ? { matchStats: totals } : {}),
+    ...(live ? { setRules: { target: setTarget(scout.settings, live.n), deciding: isDecisive(scout.settings.format, live.n) } } : {}),
     ...(run ? { run } : {}),
     ...(subs.length > 0 ? { subs } : {}),
     ...(!finished && lineup ? { lineup } : {}),

@@ -81,7 +81,8 @@ function Studio({ word }: { word?: string }) {
           {word}
         </span>
       )}
-      <div className="absolute -bottom-[7rem] -right-[5rem] h-[40rem] w-[40rem] opacity-[0.07]">
+      {/* Nell'angolo, fuori dai riquadri: dietro a un pannello si vedrebbe a metà, in disordine. */}
+      <div className="absolute -bottom-[9rem] -right-[7rem] h-[28rem] w-[28rem] opacity-[0.08]">
         <Image src={crest} alt="" unoptimized className="h-full w-full object-contain" />
       </div>
       <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(2,6,24,0) 55%, rgba(2,6,24,0.6) 100%)" }} />

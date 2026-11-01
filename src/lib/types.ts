@@ -796,6 +796,11 @@ export interface PublicLiveScore {
   setStats?: { home: PublicSetRecapTeam; away: PublicSetRecapTeam };
   /** I numeri di squadra di tutta la partita: somma dei set (la serie è la più lunga). Grafica del finale. Solo dallo Scout. */
   matchStats?: { home: PublicSetRecapTeam; away: PublicSetRecapTeam };
+  /**
+   * Il set in corso: a quanti punti finisce e se è il decisivo (tie-break). Serve alla grafica della diretta video per «Ai
+   * vantaggi», «Tie-break», il cambio di campo a metà del decisivo e i numeri a 8 e 16. Solo dallo Scout, a partita in corso.
+   */
+  setRules?: { target: number; deciding: boolean };
   /** La serie di punti in corso, quando è di almeno RUN_MIN (striscia «Parziale 4-0» sotto la barra). Solo dallo Scout. */
   run?: { side: "home" | "away"; points: number };
   /** I nostri cambi nel set in corso, in ordine (gli ultimi). Solo dallo Scout, con la formazione seguita. */

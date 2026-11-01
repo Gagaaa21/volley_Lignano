@@ -30,6 +30,7 @@ type Live = {
   setStats?: { home: RecapTeam; away: RecapTeam };
   matchStats?: { home: RecapTeam; away: RecapTeam };
   run?: { side: "home" | "away"; points: number };
+  setRules?: { target: number; deciding: boolean };
   subs?: { id: string; in: Player; out: Player; score: { home: number; away: number } }[];
   lineup?: { set: number; positions: (Player | null)[]; libero: Player | null };
   info?: { date: string; venue: string | null; home: boolean; friendly: boolean };
@@ -574,6 +575,68 @@ test("senza partita in diretta, o con il Minivolley, non si vede niente; se la r
   await offline.waitForTimeout(4_500);
   await expect(offline.locator('[data-grafica-score="home"]')).toHaveText("10");
   await offline.close();
+});
+
+test("momenti del set: «Il set fin qui» a 8, il time-out esce al primo punto, «Ai vantaggi», tie-break e cambio di campo", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.clock.install();
+  const R25 = { target: 25, deciding: false };
+  const setStats = { home: stat(4, 1, 1, 2), away: stat(3, 1, 0, 1) };
+  const source = await feed(page, live({ ...score(7, 5), setRules: R25, setStats }));
+  await page.goto("/diretta/grafica");
+  await expect(page.locator('[data-grafica-score="home"]')).toHaveText("7");
+
+  // Chi è avanti arriva a 8: i numeri del set fin qui, con il punteggio e le barre; il punto dopo li chiude.
+  source.set(live({ ...score(8, 5), setRules: R25, setStats }));
+  await pass(page, 2_500);
+  const stats = page.locator('[data-grafica-card="stats"]');
+  await expect(stats).toContainText("Il set fin qui");
+  await expect(stats.locator("[data-grafica-stats-score]")).toContainText("8");
+  await expect(stats.locator('[data-grafica-timeout-value="home-attack"]')).toHaveText("4");
+  await checkerboard(page);
+  await page.screenshot(shots("set-fin-qui"));
+  source.set(live({ ...score(8, 6), setRules: R25, setStats }));
+  await pass(page, 2_500);
+  await expect(stats).toHaveCount(0);
+
+  // Time-out: quale dei due e i secondi; si riprende a giocare e se ne va subito, senza aspettare i 30 secondi.
+  source.set(live({ ...score(8, 6), setRules: R25, setStats, timeouts: { home: 1, away: 0 } }));
+  await pass(page, 2_500);
+  const timeout = page.locator('[data-grafica-card="timeout"]');
+  await expect(timeout.locator("[data-grafica-timeout-count]")).toContainText("1° time-out");
+  await expect(page.locator("[data-grafica-countdown]")).toHaveText(/^0:(2\d|30)$/);
+  await pass(page, 5_000);
+  await expect(page.locator("[data-grafica-countdown]")).toHaveText(/^0:2[0-4]$/);
+  source.set(live({ ...score(9, 6), setRules: R25, setStats, timeouts: { home: 1, away: 0 } }));
+  await pass(page, 2_500);
+  await expect(timeout).toHaveCount(0);
+
+  // 24 pari: «Ai vantaggi» sotto la barra (e nella barra larga), finché nessuno ha il set point.
+  source.set(live({ ...score(24, 24), setRules: R25, timeouts: { home: 1, away: 2 } }));
+  await pass(page, 2_500);
+  await expect(page.locator('[data-grafica-flag="deuce"]')).toContainText("Ai vantaggi");
+  source.set(live({ ...score(25, 24), setRules: R25, point: { side: "home", kind: "set" }, timeouts: { home: 1, away: 2 } }));
+  await pass(page, 2_500);
+  await expect(page.locator('[data-grafica-flag="deuce"]')).toHaveCount(0);
+  await expect(page.locator("[data-grafica-point]")).toHaveText("Set point");
+
+  // Tie-break: il nome del set e, a 8 di chi è avanti, il cambio di campo.
+  const TB = { target: 15, deciding: true };
+  const sets = [
+    { home: 25, away: 20 },
+    { home: 24, away: 26 },
+  ];
+  source.set(live({ ...score(7, 5, [1, 1]), sets, setRules: TB }));
+  await pass(page, 20_000);
+  await expect(page.locator("[data-grafica-phase]")).toHaveText("Tie-break");
+  source.set(live({ ...score(8, 5, [1, 1]), sets, setRules: TB }));
+  await pass(page, 2_500);
+  const court = page.locator('[data-grafica-card="court"]');
+  await expect(court).toContainText("Cambio di campo");
+  await expect(court.locator("[data-grafica-court-score]")).toHaveText("8–5");
+  await page.screenshot(shots("cambio-campo"));
+  await pass(page, 11_000);
+  await expect(court).toHaveCount(0);
 });
 
 test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scala spostano e ridimensionano la barra", async ({ page }) => {

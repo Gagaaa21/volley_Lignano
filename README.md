@@ -527,10 +527,14 @@ staff (Developer e Admin).
     banner) e fa da sola la regia di una partita di Serie A: la barra del punteggio in alto a
     sinistra (`src/components/diretta/Scorebug.tsx`: categoria e set, nomi corti delle squadre
     con `teamShortName` in `liveScore.ts`, battuta, tacche dei time-out, set vinti, punti,
-    parziali; sotto, la striscia SET/MATCH POINT o la serie in corso «Parziale 4-0»); in basso a
-    sinistra i sottopancia (`LowerThird.tsx`: time-out con i 30 secondi e i punti del set per
-    fondamentale, cambio con chi entra e chi esce; se capitano insieme il cambio sta sopra il
-    time-out); a schermo intero, con la transizione a bande diagonali (`FullScreen.tsx`):
+    parziali; sotto, la striscia SET/MATCH POINT, «Ai vantaggi» (`atDeuce`) o la serie in corso
+    «Parziale 4-0»; nel set decisivo «Tie-break», `phaseLabel`); in basso a sinistra i
+    sottopancia (`LowerThird.tsx`: time-out con chi l'ha chiesto, 1° o 2°, i secondi in grande
+    (`timeoutSecondsLeft`) e i punti del set a barre speculari, che esce da solo al primo punto
+    dopo; cambio con chi entra e chi esce, sopra il time-out se capitano insieme; i momenti del
+    set `MomentCard`: «Il set fin qui» a 8 e 16 di chi è avanti nei set a 25 e «Cambio di campo»
+    a metà del tie-break, ricavati in `diffLive` dal campo pubblico `setRules` { target,
+    deciding }); a schermo intero, con la transizione a bande diagonali (`FullScreen.tsx`):
     presentazione (squadre, data, palazzetto) e formazione di partenza prima del via,
     formazione a ogni set nuovo, riepilogo di fine set (parziale, tabella dei set, numeri del
     set) e risultato finale (numeri della partita). Durante le grafiche a schermo intero la barra

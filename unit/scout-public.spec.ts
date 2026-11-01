@@ -99,6 +99,19 @@ test.describe("punteggio live dallo scout", () => {
     expect(result?.finished).toBe(false);
   });
 
+  test("il set in corso dice a quanti punti finisce e se è il tie-break (per «Ai vantaggi» e il cambio di campo); a partita finita no", () => {
+    let data = updateSettings(base(), { publicLive: true, format: "bo3" });
+    data = play(data, 3, 2);
+    expect(live(data)?.setRules).toEqual({ target: 25, deciding: false });
+    data = endSet(play(data, 22, 0, 10), "opp", T0 + 200_000, "e1");
+    data = endSet(play(data, 0, 25, 300), "us", T0 + 400_000, "e2");
+    data = play(data, 1, 0, 500);
+    expect(live(data)?.setRules).toEqual({ target: 15, deciding: true });
+    data = endSet(play(data, 14, 0, 600), "opp", T0 + 700_000, "e3");
+    expect(live(data)?.finished).toBe(true);
+    expect(live(data)).not.toHaveProperty("setRules");
+  });
+
   test("a partita decisa: finita, set vinti, nessuno che batte", () => {
     let data = updateSettings(base(), { publicLive: true, format: "bo3" });
     for (let set = 1; set <= 2; set++) {
@@ -137,7 +150,7 @@ test.describe("punteggio live dallo scout", () => {
     expect(json).not.toContain("a1");
     expect(json).not.toContain("roster");
     // Le ultime 6 sono loro: c'è anche la serie in corso.
-    expect(Object.keys(live(data) ?? {}).sort()).toEqual(["away", "category", "finished", "home", "matchStats", "run", "serving", "setStats", "sets", "team", "timeouts", "updatedAt"]);
+    expect(Object.keys(live(data) ?? {}).sort()).toEqual(["away", "category", "finished", "home", "matchStats", "run", "serving", "setRules", "setStats", "sets", "team", "timeouts", "updatedAt"]);
   });
 });
 

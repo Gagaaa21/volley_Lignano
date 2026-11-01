@@ -86,6 +86,7 @@ export const publicLiveScoreSchema = z.object({
     .optional(),
   setStats: statsSchema.optional(),
   matchStats: statsSchema.optional(),
+  setRules: z.object({ target: z.number().int().min(1).max(99), deciding: z.boolean() }).optional(),
   run: z.object({ side: z.enum(["home", "away"]), points: z.number().int().min(1) }).optional(),
   subs: z.array(subSchema).max(20).optional(),
   lineup: lineupSchema.optional(),

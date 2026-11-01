@@ -193,14 +193,15 @@ export function GraficaClient() {
   }, [demo]);
 
   // Con una grafica in onda o in coda l'ora corre: conto alla rovescia, transizioni, la prossima della coda.
-  const busy = feed.full !== null || feed.timeout !== null || feed.sub !== null || feed.fullQueue.length > 0 || feed.subQueue.length > 0;
+  const busy =
+    feed.full !== null || feed.timeout !== null || feed.sub !== null || feed.moment !== null || feed.fullQueue.length > 0 || feed.subQueue.length > 0;
   useEffect(() => {
     if (!busy) return;
     const timer = setInterval(() => dispatch({ type: "tick", now: clock() }), TICK_MS);
     return () => clearInterval(timer);
   }, [busy]);
 
-  const { live, full, timeout, sub, now } = feed;
+  const { live, full, timeout, sub, moment, now } = feed;
   const showSmall = style !== "larga";
   const showWide = style !== "piccola";
   // A schermo intero la barra si nasconde (la transizione la copre), e torna quando la grafica se ne va.
@@ -238,9 +239,10 @@ export function GraficaClient() {
             <ScorebugWide live={live} />
           </div>
         )}
-        {live && scoreOn && (timeout || sub) && !fullOn && (
+        {live && scoreOn && (timeout || sub || moment) && !fullOn && (
           <div className={cn("absolute flex flex-col gap-[0.8rem]", stripRight ? "right-[4rem] items-end" : "left-[4rem] items-start", showWide ? "bottom-[12.5rem]" : "bottom-[3.6rem]")}>
             {sub && <LowerThird card={sub} live={live} now={now} />}
+            {moment && <LowerThird card={moment} live={live} now={now} />}
             {timeout && <LowerThird card={timeout} live={live} now={now} />}
           </div>
         )}

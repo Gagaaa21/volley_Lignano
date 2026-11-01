@@ -137,7 +137,7 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   expect(live!.home.sets).toBe(0);
   expect(live!.finished).toBe(false);
   expect(live!.serving).toBe("home");
-  expect(Object.keys(live!).sort()).toEqual(["away", "category", "finished", "home", "info", "matchStats", "serving", "setStats", "sets", "team", "timeouts", "updatedAt"]);
+  expect(Object.keys(live!).sort()).toEqual(["away", "category", "finished", "home", "info", "matchStats", "serving", "setRules", "setStats", "sets", "team", "timeouts", "updatedAt"]);
   expect(live!.setStats).toEqual({ home: expect.objectContaining({ attack: 2 }), away: expect.objectContaining({ ace: 1 }) });
   expect(live!.timeouts).toEqual({ home: 0, away: 0 });
   expect(Object.keys(live!.home).sort()).toEqual(["color", "name", "score", "sets"]);

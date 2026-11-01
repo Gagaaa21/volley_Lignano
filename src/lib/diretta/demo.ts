@@ -6,9 +6,11 @@ import { FINAL_CARD_MS, INTRO_CARD_MS, LINEUP_CARD_MS, RUN_MIN, SET_RECAP_MS, ty
 /**
  * Una partita finta per provare la grafica in OBS senza uno Scout acceso (`/diretta/grafica?prova=1`): le fasi prima del via
  * (copertina, riscaldamento, riscaldamento ufficiale, presentazione e formazione: qui in pochi secondi l'una, nella partita vera
- * le decide l'orario, vedi pregame.ts), due set vinti da Lignano con punti, battuta, time-out (con i punti del set), un cambio e un cambio
- * doppio, una serie di punti, set point, match point, fine set con i numeri e il risultato finale. La pagina la ripete in
- * ciclo; ogni elemento è una «lettura» del punteggio pubblico, come quelle vere. Nomi e numeri sono inventati.
+ * le decide l'orario, vedi pregame.ts), poi tre set: il 1° vinto da Lignano, il 2° perso ai vantaggi, il 3° (tie-break a 15) vinto
+ * con il cambio di campo a 8. Dentro: battuta, time-out (il punteggio resta fermo finché dura, come in palestra), un cambio e un
+ * cambio doppio, i numeri del set a 8 e 16, una serie di punti, set point, match point, «Ai vantaggi», fine set con i numeri e il
+ * risultato finale. La pagina la ripete in ciclo; ogni elemento è una «lettura» del punteggio pubblico, come quelle vere. Nomi e
+ * numeri sono inventati.
  */
 
 /** Ogni quanto avanza la partita finta. */
@@ -25,10 +27,16 @@ const SET_ONE: Step[] = [
 
 const SET_TWO: Step[] = [
   [0, 0], [1, 0], [3, 1], [6, 4], [9, 8], [12, 12], [12, 12, "timeout-away"], [14, 16], [17, 19], [17, 19, "double-sub"],
-  [17, 19, "timeout-home"], [20, 21], [22, 22], [23, 22], [24, 22], [25, 22],
+  [17, 19, "timeout-home"], [20, 21], [22, 22], [23, 23], [24, 23], [24, 24], [24, 25], [24, 26],
 ];
 
-/** I numeri di squadra dei due set (attacco + muri + ace + errori avversari fanno il punteggio: 25–20 e 25–22). */
+/** Il tie-break, a 15: a 8 di chi è avanti si cambia campo. */
+const SET_THREE: Step[] = [
+  [0, 0], [1, 0], [2, 2], [4, 3], [6, 4], [7, 5], [8, 5], [9, 7], [10, 9], [10, 9, "timeout-away"], [12, 10], [13, 11], [14, 11],
+  [14, 12], [15, 12],
+];
+
+/** I numeri di squadra dei tre set (attacco + muri + ace + errori avversari fanno il punteggio: 25–20, 24–26 e 15–12). */
 const DEMO_RECAPS: PublicSetRecap[] = [
   {
     n: 1,
@@ -38,9 +46,15 @@ const DEMO_RECAPS: PublicSetRecap[] = [
   },
   {
     n: 2,
-    minutes: 24,
-    home: { attack: 13, block: 4, ace: 1, gifts: 7, run: 4, timeouts: 1 },
-    away: { attack: 11, block: 2, ace: 1, gifts: 8, run: 3, timeouts: 1 },
+    minutes: 29,
+    home: { attack: 12, block: 3, ace: 1, gifts: 8, run: 3, timeouts: 1 },
+    away: { attack: 13, block: 2, ace: 2, gifts: 9, run: 4, timeouts: 1 },
+  },
+  {
+    n: 3,
+    minutes: 16,
+    home: { attack: 8, block: 2, ace: 1, gifts: 4, run: 3, timeouts: 0 },
+    away: { attack: 6, block: 1, ace: 1, gifts: 4, run: 2, timeouts: 1 },
   },
 ];
 
@@ -54,6 +68,11 @@ const LINEUPS: PublicLineup[] = [
   {
     set: 2,
     positions: [player("4", "Conti"), player("7", "Rossi"), player("10", "Costa"), player("3", "Verdi"), player("9", "Neri"), player("15", "Galli")],
+    libero: player("1", "Riva"),
+  },
+  {
+    set: 3,
+    positions: [player("12", "Bianchi"), player("3", "Verdi"), player("9", "Neri"), player("15", "Galli"), player("4", "Conti"), player("7", "Rossi")],
     libero: player("1", "Riva"),
   },
 ];
@@ -71,6 +90,8 @@ const PRE_HOLD = Math.ceil((INTRO_CARD_MS + LINEUP_CARD_MS) / DEMO_STEP_MS) + 2;
 const PHASE_HOLD = 4;
 /** Letture ferme a 0–0 a inizio 2° set: il resoconto del 1° set, poi la formazione del 2°. Come una partita vera, dove tra un set e l'altro passano minuti. */
 const BREAK_HOLD = Math.ceil((SET_RECAP_MS + LINEUP_CARD_MS) / DEMO_STEP_MS) + 1;
+/** Letture ferme durante un time-out: il punteggio non cambia finché si sta in panchina (poi il primo punto chiude la grafica). */
+const TIMEOUT_HOLD = 8;
 /** Letture ferme sul finale, poi «niente» (la grafica sparisce) prima di ricominciare. */
 const FINAL_HOLD = Math.ceil(FINAL_CARD_MS / DEMO_STEP_MS) + 2;
 
@@ -78,6 +99,7 @@ const DEMO_OPPONENT = "Pol. Esempio";
 const DEMO_UPDATED_AT = "2026-10-18T10:00:00.000Z";
 const DEMO_INFO = { date: "2026-10-31T18:00", venue: "Palazzetto dello Sport, Lignano Sabbiadoro", home: true, friendly: false };
 const DEMO_SET_TARGET = 25;
+const DEMO_TIEBREAK_TARGET = 15;
 
 /** Numeri di squadra verosimili per un punteggio parziale: circa metà attacchi, poi muri, ace e regali. */
 function roughCounts(points: number, timeouts: number, run: number): PublicSetRecapTeam {
@@ -134,8 +156,8 @@ export function demoScript(): (PublicLiveScore | null)[] {
   }
   for (let i = 0; i < PRE_HOLD; i++) frames.push({ ...pre, pregame: "protocol" });
 
-  /** `hold`: letture ferme sul primo punteggio del set (vedi BREAK_HOLD). */
-  const playSet = (steps: Step[], index: number, firstServer: Side, hold = 0) => {
+  /** `hold`: letture ferme sul primo punteggio del set (vedi BREAK_HOLD). `target`: a quanti punti finisce; `deciding`: è il tie-break. */
+  const playSet = (steps: Step[], index: number, firstServer: Side, hold = 0, target = DEMO_SET_TARGET, deciding = false) => {
     const used = { home: 0, away: 0 };
     const subs: PublicSubstitution[] = [];
     let serving: Side = firstServer;
@@ -160,7 +182,7 @@ export function demoScript(): (PublicLiveScore | null)[] {
           longest = { ...longest, [side]: Math.max(longest[side], run.points) };
         }
       }
-      const holder = setPointHolder(home, away, DEMO_SET_TARGET);
+      const holder = setPointHolder(home, away, target);
       const side: Side | null = holder === "a" ? "home" : holder === "b" ? "away" : null;
       const point: PublicLiveScore["point"] = side ? { side, kind: wins[side] + 1 >= needed ? "match" : "set" } : null;
       const playing = home + away > 0;
@@ -178,6 +200,7 @@ export function demoScript(): (PublicLiveScore | null)[] {
         timeouts: { ...used },
         finished: false,
         ...(point ? { point } : {}),
+        setRules: { target, deciding },
         ...(setStats ? { setStats } : {}),
         ...(playing || done.length > 0 ? { matchStats } : {}),
         ...(run && run.points >= RUN_MIN ? { run: { ...run } } : {}),
@@ -186,6 +209,7 @@ export function demoScript(): (PublicLiveScore | null)[] {
       };
       frames.push(current);
       if (stepIndex === 0) for (let i = 0; i < hold; i++) frames.push(current);
+      if (event === "timeout-home" || event === "timeout-away") for (let i = 0; i < TIMEOUT_HOLD; i++) frames.push(current);
       previous = step;
     }
     const [home, away] = steps[steps.length - 1];
@@ -195,6 +219,7 @@ export function demoScript(): (PublicLiveScore | null)[] {
 
   playSet(SET_ONE, 0, "home");
   playSet(SET_TWO, 1, "away", BREAK_HOLD);
+  playSet(SET_THREE, 2, "home", BREAK_HOLD, DEMO_TIEBREAK_TARGET, true);
 
   // Partita finita: il punteggio del set è azzerato e contano i set vinti (come nel banner del sito).
   const totals = DEMO_RECAPS.reduce((total, recap) => ({ home: addCounts(total.home, recap.home), away: addCounts(total.away, recap.away) }), {

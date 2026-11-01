@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Flame, Trophy, Volleyball } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Side } from "@/lib/diretta/overlayEvents";
+import { atDeuce, phaseLabel, type Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
-import { cutRight, DROP, EDGE, GLASS, GLASS_DARK, GOLD, INK, ORANGE, PAPER, PINK, SUN, tag, VIOLET } from "./theme";
+import { cutRight, DROP, EDGE, GLASS, GLASS_DARK, GOLD, INK, ORANGE, PAPER, PINK, SUN, SUNSET, tag, VIOLET } from "./theme";
 import { TeamMark, tone } from "./TeamMark";
 
 /**
@@ -122,7 +122,7 @@ function TeamRow({
   );
 }
 
-/** L'etichetta che scende da sotto la barra: set point / match point (prima di tutto) oppure la serie di punti in corso. */
+/** L'etichetta che scende da sotto la barra: set point / match point (prima di tutto), «Ai vantaggi», oppure la serie di punti in corso. */
 function Flag({ live }: { live: PublicLiveScore }) {
   if (live.finished) return null;
   const point = live.point;
@@ -146,6 +146,22 @@ function Flag({ live }: { live: PublicLiveScore }) {
         </span>
         <span className="grafica-type -ml-[0.3rem] flex items-center px-[1.1rem] text-[1.15rem] text-white" style={{ background: GLASS, clipPath: tag("0.6rem") }}>
           {teamShortName(team.name)}
+        </span>
+      </div>
+    );
+  }
+  if (atDeuce(live)) {
+    return (
+      <div
+        key={`deuce-${live.home.score}`}
+        className="ml-[0.5rem] flex h-[2.3rem] w-fit items-stretch"
+        style={{ filter: DROP, animation: "grafica-drop 420ms cubic-bezier(.2,.8,.2,1)" }}
+        data-grafica-flag="deuce"
+      >
+        <span className="grafica-type flex items-center px-[1.3rem] text-[1.35rem] tracking-[0.06em]" style={{ background: SUNSET, color: INK, clipPath: tag("0.6rem") }}>
+          <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite]" data-grafica-deuce>
+            Ai vantaggi
+          </span>
         </span>
       </div>
     );
@@ -200,7 +216,7 @@ export function Scorebug({ live, flags = true }: { live: PublicLiveScore; flags?
           style={{ background: GLASS_DARK, clipPath: cutRight("0.7rem") }}
           data-grafica-phase
         >
-          {finished ? "Finale" : `${live.sets.length + 1}° set`}
+          {phaseLabel(live)}
         </span>
       </div>
       <div style={{ filter: DROP }}>

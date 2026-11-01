@@ -1,6 +1,6 @@
 import { Timer, Trophy, Volleyball } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Side } from "@/lib/diretta/overlayEvents";
+import { atDeuce, phaseLabel, type Side } from "@/lib/diretta/overlayEvents";
 import { teamShortName } from "@/lib/liveScore";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
@@ -153,10 +153,15 @@ export function ScorebugWide({ live }: { live: PublicLiveScore }) {
             {live.category}F
           </span>
         )}
-        <span data-grafica-wide-phase>{finished ? "Finale" : `${live.sets.length + 1}° set`}</span>
+        <span data-grafica-wide-phase>{phaseLabel(live)}</span>
         {point && (
           <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite] text-[#ffd23f]" data-grafica-wide-point={`${point.side}-${point.kind}`}>
             {point.kind === "match" ? "Match point" : "Set point"}
+          </span>
+        )}
+        {atDeuce(live) && (
+          <span className="animate-[grafica-point-pulse_1.1s_ease-in-out_infinite] text-[#ffd23f]" data-grafica-wide-deuce>
+            Ai vantaggi
           </span>
         )}
       </div>
