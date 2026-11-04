@@ -102,6 +102,11 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             Il punteggio entra nel video circa un secondo dopo il tocco nello Scout, qualunque sia il ritardo di YouTube: ai genitori mandi direttamente il link di
             YouTube. I passi completi sono nella Guida.
           </p>
+          <p className="rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground" data-diretta-hotspot>
+            <b className="font-semibold text-foreground">Con l&apos;hotspot del telefono:</b> in Streamlabs uscita 1280×720 a 30 fps, bitrate video 2500 kbps
+            (1500–2000 se si blocca) con il bitrate dinamico acceso; su YouTube latenza «Normale»; telefono collegato al computer con il cavo USB e messo dove
+            prende meglio. La grafica e lo Scout pesano pochissimo: è il video a riempire la connessione. Dettagli nella Guida.
+          </p>
         </section>
 
         <section className="space-y-4 border-t border-border pt-4" data-diretta-site>

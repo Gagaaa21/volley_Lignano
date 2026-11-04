@@ -583,7 +583,9 @@ staff (Developer e Admin).
     piccolo visto tra arrivo e salvataggio, così la copia della CDN non lo fa ballare e un
     orologio sbagliato non conta) e `?intervallo=` (secondi tra due letture, e si ferma a
     scheda nascosta: lo usa la pagina `/diretta`, 8 s; senza, è la grafica di Streamlabs /
-    OBS: legge ogni secondo con `?regia=1`). La pagina dei
+    OBS: legge ogni secondo con `?regia=1`, ogni 3 prima del via; ogni lettura si abbandona
+    dopo 4 s, `FETCH_TIMEOUT_MS`, e una andata male si ripete dopo 1,5 s, `RETRY_MS`: con
+    l'hotspot del telefono il punteggio non resta fermo). La pagina dei
     genitori cambia ritardo e scala senza ricaricare la grafica con un messaggio
     (`OPTIONS_MESSAGE`, stessa origine); la grafica avvisa di essere pronta con `READY_MESSAGE`
     (un messaggio mandato prima andrebbe perso). Lo schema colori è sempre «chiaro» sia per il

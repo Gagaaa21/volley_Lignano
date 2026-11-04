@@ -553,7 +553,7 @@ test("il logo dell'avversaria compare nella barra; senza logo, o se non si caric
   await broken.close();
 });
 
-test("senza partita in diretta, o con il Minivolley, non si vede niente; se la rete cade resta l'ultimo punteggio", async ({ page }) => {
+test("senza partita in diretta, o con il Minivolley, non si vede niente; se la rete cade resta l'ultimo punteggio e al ritorno si riprende subito", async ({ page }) => {
   await feed(page, null);
   await page.goto("/diretta/grafica");
   await expect(page.locator('[data-grafica="idle"]')).toHaveCount(1);
@@ -574,6 +574,10 @@ test("senza partita in diretta, o con il Minivolley, non si vede niente; se la r
   line.fail(true);
   await offline.waitForTimeout(4_500);
   await expect(offline.locator('[data-grafica-score="home"]')).toHaveText("10");
+  // La rete torna (l'hotspot del telefono che riprende): il punteggio nuovo arriva subito, non dopo un'attesa lunga.
+  line.set(live(score(11, 8)));
+  line.fail(false);
+  await expect(offline.locator('[data-grafica-score="home"]')).toHaveText("11", { timeout: 4_000 });
   await offline.close();
 });
 

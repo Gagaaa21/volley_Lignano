@@ -35,6 +35,13 @@ const LIVE_POLL_MS = 2_000;
 const IDLE_POLL_MS = 15_000;
 /** Con una grafica in onda (o in coda) si aggiorna l'ora ogni decimo di secondo: conto alla rovescia, transizioni, coda. */
 const TICK_MS = 100;
+/**
+ * Con una connessione debole (l'hotspot del telefono in palestra) una lettura può non arrivare mai: dopo questo tempo si lascia
+ * perdere e se ne fa un'altra, invece di restare appesi con il punteggio fermo nel video.
+ */
+const FETCH_TIMEOUT_MS = 4_000;
+/** Una lettura andata male (rete caduta un attimo, server lento) si ripete presto: il punteggio non resta indietro a lungo. */
+const RETRY_MS = 1_500;
 /** Ogni quanto si guarda la coda del ritardo. */
 const QUEUE_MS = 250;
 
@@ -138,6 +145,8 @@ export function GraficaClient() {
     let shown = false;
     let lastStamp: number | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Il ritmo dell'ultima lettura riuscita: dopo una lettura andata male si riprova presto, mai più tardi di così.
+    let cadence = IDLE_POLL_MS;
     async function poll() {
       if (timer) clearTimeout(timer);
       timer = null;
@@ -145,9 +154,12 @@ export function GraficaClient() {
       // Chi guarda dalla pagina /diretta non rilegge a scheda nascosta: si riprende quando torna visibile.
       if (viewer && document.visibilityState === "hidden") return;
       inFlight = true;
-      let delay = IDLE_POLL_MS;
+      // Se non va a buon fine (rete assente, risposta di errore, nessuna risposta entro FETCH_TIMEOUT_MS) si riprova presto.
+      let delay = Math.min(cadence, RETRY_MS);
+      const controller = new AbortController();
+      const abort = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
       try {
-        const res = await fetch(endpoint);
+        const res = await fetch(endpoint, { signal: controller.signal });
         if (res.ok) {
           const data = (await res.json()) as { live: PublicLiveScore | null };
           const live = data.live && data.live.team === "u14u15" ? data.live : null;
@@ -165,10 +177,12 @@ export function GraficaClient() {
             lastStamp = reading.stamp;
           }
           delay = !live || live.finished ? IDLE_POLL_MS : !viewer && live.notStarted && live.pregame ? PREGAME_POLL_MS : livePollMs;
+          cadence = delay;
         }
       } catch {
-        // Rete assente: si riprova al giro successivo, la grafica resta com'è.
+        // Rete assente o lettura abbandonata: la grafica resta com'è e si riprova tra poco.
       } finally {
+        clearTimeout(abort);
         inFlight = false;
       }
       if (!cancelled) timer = setTimeout(poll, delay);
