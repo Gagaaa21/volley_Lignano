@@ -95,3 +95,16 @@ export async function resolveActiveTeam(session: SessionPayload): Promise<Traini
   const allowed = staff?.allowedTeams ?? TEAMS;
   return allowed.includes(requested) ? requested : (allowed[0] ?? "u14u15");
 }
+
+/** Questo account può lavorare su questa squadra? Un Developer sempre; un Admin solo sulle squadre che gli sono state date
+ * (staff.allowedTeams), lette sempre dallo stato più recente come requireStaffPage(). */
+export async function canUseTeam(session: SessionPayload, team: TrainingTeam): Promise<boolean> {
+  if (session.role === "dev") return true;
+  const staff = await getOwnStaff(session.sub);
+  return (staff?.allowedTeams ?? TEAMS).includes(team);
+}
+
+/** Come canUseTeam(), ma per pagine e azioni: chi non può lavorare su quella squadra torna alla dashboard. */
+export async function requireTeam(session: SessionPayload, team: TrainingTeam): Promise<void> {
+  if (!(await canUseTeam(session, team))) redirect("/admin");
+}

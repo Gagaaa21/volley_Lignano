@@ -5,6 +5,7 @@ import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarOff, ChevronDown, ClipboardList, Clock, ExternalLink, Globe, Lock } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { requireStaff, requireTeam } from "@/lib/auth/guard";
 import { formatDateLong } from "@/lib/format";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -40,6 +41,8 @@ export default async function OccurrencePlanPage({
     repo.getTrainingOccurrencePlan(ruleId, date),
   ]);
   if (!training) notFound();
+  // Solo sulle squadre di chi guarda (un Admin del solo U14/U15 non apre gli allenamenti del Minivolley).
+  await requireTeam(await requireStaff(), training.team);
   // Solo schede della stessa squadra dell'allenamento: mai proporre di
   // collegare una scheda Minivolley a un allenamento U14/U15 o viceversa.
   const [allPlans, teamTrainings] = await Promise.all([

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { format } from "date-fns";
 import { CalendarX2, Plus, Trophy } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { todayIso } from "@/lib/today";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -35,7 +35,7 @@ export default async function TrainingsListPage({
     if (activeType === "tornei") return t.isTournament;
     return true;
   });
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = todayIso();
   // Un plain object, non una Map: attraversa il confine Server->Client
   // component verso TrainingList, e una Map non è serializzabile lì.
   const upcomingLinkedCountByRule: Record<string, number> = {};

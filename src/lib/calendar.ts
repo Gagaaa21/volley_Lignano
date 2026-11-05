@@ -1,4 +1,4 @@
-import { addDays, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import { addDays, endOfMonth, endOfWeek, format, parseISO, startOfMonth, startOfWeek, startOfDay } from "date-fns";
 import type { CalendarEvent, Match, TrainingRule } from "@/lib/types";
 
 /** Orario e luogo di una data di un allenamento. */
@@ -72,13 +72,17 @@ export function expandTrainings(
   occurrencePlanIds: Map<string, string> = new Map(),
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
+  // Si confrontano giorni, non istanti: chi passa «adesso» (es. le 15:00) come inizio non deve perdere un allenamento di oggi,
+  // né l'ultimo giorno di una serie.
+  const fromDay = startOfDay(rangeStart);
+  const toDay = startOfDay(rangeEnd);
 
   for (const rule of trainings) {
     if (!rule.isActive) continue;
 
     if (rule.repeat === "once") {
       const eventDate = parseISO(rule.startDate);
-      if (eventDate >= rangeStart && eventDate <= rangeEnd) {
+      if (eventDate >= fromDay && eventDate <= toDay) {
         events.push({
           kind: "training",
           id: `${rule.id}:${rule.startDate}`,
@@ -105,11 +109,12 @@ export function expandTrainings(
     const ruleEnd = rule.endDate ? parseISO(rule.endDate) : null;
     const excludedDates = new Set(rule.excludedDates ?? []);
 
-    let cursor = ruleStart > rangeStart ? ruleStart : rangeStart;
-    const upperBound = ruleEnd && ruleEnd < rangeEnd ? ruleEnd : rangeEnd;
+    let cursor = ruleStart > fromDay ? ruleStart : fromDay;
+    const upperBound = ruleEnd && ruleEnd < toDay ? ruleEnd : toDay;
 
+    // Freno contro intervalli sbagliati: più di due anni di giorni non servono a nessuna pagina.
     let safety = 0;
-    while (cursor <= upperBound && safety < 400) {
+    while (cursor <= upperBound && safety < 800) {
       safety += 1;
       const dateStr = format(cursor, "yyyy-MM-dd");
       if (rule.weekdays.includes(cursor.getDay()) && !excludedDates.has(dateStr)) {

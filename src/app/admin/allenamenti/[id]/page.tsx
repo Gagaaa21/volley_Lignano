@@ -5,6 +5,8 @@ import { addDays, format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarOff, ChevronRight, ClipboardList, Globe, RotateCcw, Trash2 } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
+import { todayIso } from "@/lib/today";
+import { requireStaff, requireTeam } from "@/lib/auth/guard";
 import { expandTrainings, occurrenceKey } from "@/lib/calendar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -26,6 +28,8 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
   const repo = await getActiveRepo();
   const training = await repo.getTraining(id);
   if (!training) notFound();
+  // Solo sulle squadre di chi guarda (un Admin del solo U14/U15 non apre gli allenamenti del Minivolley).
+  await requireTeam(await requireStaff(), training.team);
   // Solo schede della stessa squadra dell'allenamento.
   const [allPlans, occurrencePlans] = await Promise.all([
     repo.listTrainingPlans({ team: training.team }),
@@ -33,7 +37,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
   ]);
 
   const today = new Date();
-  const todayStr = format(today, "yyyy-MM-dd");
+  const todayStr = todayIso(today);
   const rangeStart = training.repeat === "once" ? new Date(`${training.startDate}T00:00:00`) : today;
   const rangeEnd = training.repeat === "once" ? rangeStart : addDays(today, 90);
   const allOccurrences = expandTrainings([training], rangeStart, rangeEnd);
@@ -161,9 +165,14 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
                 <span className="text-sm font-semibold text-muted-foreground line-through decoration-muted-foreground/40 first-letter:uppercase">
                   {format(new Date(`${date}T00:00:00`), "EEEE d MMMM", { locale: it })}
                 </span>
-                <form action={restoreTrainingOccurrenceAction}>
+                <form action={restoreTrainingOccurrenceAction} className="flex items-center gap-3">
                   <input type="hidden" name="ruleId" value={id} />
                   <input type="hidden" name="date" value={date} />
+                  {/* Chi aveva saputo che non si faceva riceve «si fa»: si può togliere se l'annullamento non era stato comunicato. */}
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <input type="checkbox" name="notify" defaultChecked className="h-4 w-4 accent-[var(--color-primary)]" data-restore-notify />
+                    Avvisa
+                  </label>
                   <Button type="submit" variant="outline" size="sm">
                     <RotateCcw className="h-3.5 w-3.5" />
                     Ripristina

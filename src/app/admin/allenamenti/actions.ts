@@ -8,10 +8,11 @@ import { it } from "date-fns/locale";
 import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { expandTrainings } from "@/lib/calendar";
-import { requireStaffPage } from "@/lib/auth/guard";
+import { canUseTeam, requireStaffPage, requireTeam } from "@/lib/auth/guard";
 import { notifyCalendarChange, notifyStaffChange } from "@/lib/push";
 import { formatDateLong, formatDateShort, formatWeekdays } from "@/lib/format";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
+import { todayIso } from "@/lib/today";
 import { DEFAULT_TRAINING_COLOR, TRAINING_COLORS, type TrainingRule, type TrainingRuleInput } from "@/lib/types";
 
 /** Campi modificabili di una regola già esistente, per costruire un
@@ -85,6 +86,8 @@ export interface TrainingFormValues {
   isActive: boolean;
   isTournament: boolean;
   color: string;
+  /** Rimesso com'era se si torna al modulo per un errore (non deve riaccendersi da solo). */
+  notify: boolean;
 }
 
 export interface TrainingFormState {
@@ -106,6 +109,7 @@ function readRawValues(formData: FormData): TrainingFormValues {
     isActive: formData.get("isActive") === "on",
     isTournament: formData.get("isTournament") === "on",
     color: formData.get("color")?.toString() ?? DEFAULT_TRAINING_COLOR,
+    notify: formData.get("notify") === "on",
   };
 }
 
@@ -155,6 +159,10 @@ export async function saveTrainingAction(
     // questo form: vanno preservate esplicitamente in modifica, altrimenti
     // ogni salvataggio del form principale le azzererebbe silenziosamente.
     const existing = id ? await repo.getTraining(id) : null;
+    // Un allenamento si crea e si cambia solo sulle squadre di chi lo fa (e una regola non passa a un'altra squadra di nascosto).
+    if ((existing && !(await canUseTeam(session, existing.team))) || !(await canUseTeam(session, parsed.data.team))) {
+      return { error: "Non puoi gestire gli allenamenti di questa squadra.", values };
+    }
 
     const input: TrainingRuleInput = {
       title: parsed.data.title,
@@ -228,33 +236,38 @@ export async function setOccurrencePlanAction(formData: FormData): Promise<void>
   if (!ruleId || !date || !planId) return;
 
   const repo = await getActiveRepo();
-  await repo.setTrainingOccurrencePlan(ruleId, date, planId, isPublic, session.sub);
   const [training, plan] = await Promise.all([repo.getTraining(ruleId), repo.getTrainingPlan(planId)]);
+  // Solo una scheda della stessa squadra dell'allenamento, e solo sulle squadre di chi la collega.
+  if (!training || !plan || plan.team !== training.team) return;
+  await requireTeam(session, training.team);
+  await repo.setTrainingOccurrencePlan(ruleId, date, planId, isPublic, session.sub);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");
-  revalidatePath(training?.team === "minivolley" ? "/minivolley" : "/");
+  revalidatePath(training.team === "minivolley" ? "/minivolley" : "/");
   updateTag(PUBLIC_CALENDAR_TAG);
   await notifyStaffChange(
     {
       title: "Scheda assegnata a un allenamento",
-      body: `${plan?.title ?? "Scheda"} · ${training?.title ?? "Allenamento"} del ${formatDateShort(date)}`,
+      body: `${plan.title} · ${training.title} del ${formatDateShort(date)}`,
       url: `/admin/allenamenti/scheda/${ruleId}/${date}`,
     },
-    training?.team ?? "u14u15",
+    training.team,
     "allenamenti",
   );
 }
 
 export async function removeOccurrencePlanAction(formData: FormData): Promise<void> {
-  await requireStaffPage("allenamenti");
+  const session = await requireStaffPage("allenamenti");
   const ruleId = formData.get("ruleId")?.toString();
   const date = formData.get("date")?.toString();
   if (!ruleId || !date) return;
 
   const repo = await getActiveRepo();
-  await repo.removeTrainingOccurrencePlan(ruleId, date);
   const training = await repo.getTraining(ruleId);
+  if (!training) return;
+  await requireTeam(session, training.team);
+  await repo.removeTrainingOccurrencePlan(ruleId, date);
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath(`/admin/allenamenti/scheda/${ruleId}/${date}`);
   revalidatePath("/admin/allenamenti");
@@ -263,12 +276,13 @@ export async function removeOccurrencePlanAction(formData: FormData): Promise<vo
 }
 
 export async function deleteTrainingAction(formData: FormData): Promise<void> {
-  await requireStaffPage("allenamenti");
+  const session = await requireStaffPage("allenamenti");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
   const training = await repo.getTraining(id);
   if (!training) return;
+  await requireTeam(session, training.team);
   await repo.deleteTraining(id);
   const scheduleLabel =
     training.repeat === "once"
@@ -295,17 +309,22 @@ export async function deleteTrainingAction(formData: FormData): Promise<void> {
  * "notify" avvisa chi segue il calendario; con "redirectTo" (solo pagine
  * dell'area tecnici) ci torna dopo, es. dalla pagina del giorno annullato. */
 export async function skipTrainingOccurrenceAction(formData: FormData): Promise<void> {
-  await requireStaffPage("allenamenti");
+  const session = await requireStaffPage("allenamenti");
   const ruleId = formData.get("ruleId")?.toString();
   const date = formData.get("date")?.toString();
   const notify = formData.get("notify") === "on";
   const redirectTo = formData.get("redirectTo")?.toString();
-  if (!ruleId || !date) return;
+  if (!ruleId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
 
   const repo = await getActiveRepo();
   const training = await repo.getTraining(ruleId);
   if (!training || training.repeat === "once") return;
+  await requireTeam(session, training.team);
   if (training.excludedDates.includes(date)) return;
+  // Solo una data vera della serie: una pagina rimasta aperta dopo un cambio dei giorni non annulla (né avvisa) un giorno che
+  // non c'è.
+  const day = parseISO(date);
+  if (!expandTrainings([training], day, day).some((event) => event.date === date)) return;
 
   await repo.updateTraining(ruleId, {
     ...trainingToInput(training),
@@ -333,19 +352,34 @@ export async function skipTrainingOccurrenceAction(formData: FormData): Promise<
 
 /** Ripristina una data precedentemente saltata (vedi skipTrainingOccurrenceAction). */
 export async function restoreTrainingOccurrenceAction(formData: FormData): Promise<void> {
-  await requireStaffPage("allenamenti");
+  const session = await requireStaffPage("allenamenti");
   const ruleId = formData.get("ruleId")?.toString();
   const date = formData.get("date")?.toString();
+  const notify = formData.get("notify") === "on";
   if (!ruleId || !date) return;
 
   const repo = await getActiveRepo();
   const training = await repo.getTraining(ruleId);
   if (!training) return;
+  await requireTeam(session, training.team);
+  if (!training.excludedDates.includes(date)) return;
 
   await repo.updateTraining(ruleId, {
     ...trainingToInput(training),
     excludedDates: training.excludedDates.filter((d) => d !== date),
   });
+
+  // Chi aveva ricevuto «non si fa» deve sapere che si fa di nuovo (solo per le date che devono ancora venire).
+  if (notify && date >= todayIso()) {
+    await notifyCalendarChange(
+      {
+        title: "Allenamento confermato",
+        body: `${training.title} di ${dayLabel(date)}: si fa, come sempre.`,
+        url: training.team === "minivolley" ? "/minivolley" : "/",
+      },
+      training.team,
+    );
+  }
 
   revalidatePath(`/admin/allenamenti/${ruleId}`);
   revalidatePath("/admin/allenamenti");
@@ -386,7 +420,7 @@ export async function saveOccurrenceOverrideAction(
   _prevState: OccurrenceOverrideState,
   formData: FormData,
 ): Promise<OccurrenceOverrideState> {
-  await requireStaffPage("allenamenti");
+  const session = await requireStaffPage("allenamenti");
   const reset = formData.get("intent") === "reset";
   const notify = formData.get("notify") === "on";
   const parsed = occurrenceOverrideSchema.safeParse({
@@ -406,6 +440,7 @@ export async function saveOccurrenceOverrideAction(
     const repo = await getActiveRepo();
     const training = await repo.getTraining(ruleId);
     if (!training) return { error: "Allenamento non trovato." };
+    if (!(await canUseTeam(session, training.team))) return { error: "Non puoi gestire gli allenamenti di questa squadra." };
     if (training.repeat === "once") {
       return { error: "È un allenamento singolo: modifica direttamente l'allenamento." };
     }

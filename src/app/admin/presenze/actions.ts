@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath, updateTag } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
 import type { Repo } from "@/lib/db/repo";
-import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
+import { canUseTeam, requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 import type { AttendanceSession, AttendanceSessionInput, AttendanceStatus, TrainingTeam } from "@/lib/types";
 import type { SessionPayload } from "@/lib/auth/session";
@@ -69,6 +69,7 @@ async function saveAttendance(
   try {
     const repo = await getActiveRepo();
     const { existing, team } = await resolveExistingAndTeam(repo, session, sessionId, trainingRuleId, sessionDate);
+    if (!(await canUseTeam(session, team))) return { error: "Non puoi registrare le presenze di questa squadra." };
     const ofTeam = new Set((await repo.listAthletes({ team })).map((athlete) => athlete.id));
     const records = readRecords(athleteIds.filter((id) => ofTeam.has(id)));
 
@@ -129,11 +130,12 @@ export async function saveMiniAttendanceAction(
 }
 
 export async function deleteAttendanceSessionAction(formData: FormData): Promise<void> {
-  await requireStaffPage("presenze");
+  const session = await requireStaffPage("presenze");
   const id = formData.get("id")?.toString();
   if (!id) return;
   const repo = await getActiveRepo();
   const attendanceSession = await repo.getAttendanceSession(id);
+  if (!attendanceSession || !(await canUseTeam(session, attendanceSession.team))) return;
   await repo.deleteAttendanceSession(id);
   revalidatePath("/admin/presenze");
   revalidatePath("/admin/presenze/storico");

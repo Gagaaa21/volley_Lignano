@@ -132,7 +132,7 @@ export function OccurrenceOverrideForm({
           {pending ? "Salvo…" : "Salva solo per questo giorno"}
         </Button>
         {usual && (
-          <Button type="submit" name="intent" value="reset" variant="outline" disabled={pending}>
+          <Button type="submit" name="intent" value="reset" variant="outline" disabled={pending} formNoValidate>
             <RotateCcw className="h-4 w-4" />
             Torna all&apos;orario di sempre
           </Button>

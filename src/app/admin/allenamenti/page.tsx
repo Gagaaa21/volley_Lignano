@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { format } from "date-fns";
+import { todayIso } from "@/lib/today";
 import { List, Plus } from "lucide-react";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
@@ -41,11 +42,12 @@ export default async function TrainingsCalendarPage({
   const eventsByDate = groupEventsByDate(events);
   const planById = new Map(plans.map((p) => [p.id, p] as const));
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const monthEventsWithPlan = events.filter((e) => e.kind === "training" && e.planId).length;
-  const monthEventsWithoutPlan = events.filter(
-    (e) => e.kind === "training" && !e.planId && e.date >= todayStr,
-  ).length;
+  const todayStr = todayIso();
+  // I conti della legenda valgono per il mese mostrato, non per i giorni dei mesi vicini che la griglia fa vedere ai bordi.
+  const monthKey = format(monthDate, "yyyy-MM");
+  const monthTrainings = events.flatMap((e) => (e.kind === "training" && e.date.startsWith(monthKey) ? [e] : []));
+  const monthEventsWithPlan = monthTrainings.filter((e) => e.planId).length;
+  const monthEventsWithoutPlan = monthTrainings.filter((e) => !e.planId && e.date >= todayStr).length;
 
   return (
     <div>

@@ -204,7 +204,7 @@ export function TrainingForm({
             description="Visibile nel calendario pubblico."
             defaultChecked={values?.isActive ?? training?.isActive ?? true}
           />
-          <Toggle name="notify" label="Invia notifica push" description="A chi segue il calendario." defaultChecked />
+          <Toggle name="notify" label="Invia notifica push" description="A chi segue il calendario." defaultChecked={values?.notify ?? true} />
         </div>
       </FormSection>
 
