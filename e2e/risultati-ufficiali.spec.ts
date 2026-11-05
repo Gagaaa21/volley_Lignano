@@ -292,6 +292,9 @@ test("proposte dalla federazione: conferma, differenza con il risultato scritto 
   const itasRow = standings.locator("tr", { hasText: "ITAS CECCARELLI GROUP" });
   const itasLogo = itasRow.locator("img");
   await expect(itasLogo).toHaveAttribute("src", /^\/api\/federation\/logo\?u=/);
+  // I loghi si caricano quando arrivano sullo schermo (loading="lazy"): con più eventi in calendario la classifica sta più in
+  // basso, quindi ci si scorre prima di controllare che il logo sia arrivato.
+  await itasLogo.scrollIntoViewIfNeeded();
   await expect.poll(() => itasLogo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   const noLogoRow = standings.locator("tr", { hasText: "ASD SANGIORGINA" });
   await expect(noLogoRow.locator("img")).toHaveCount(0);
