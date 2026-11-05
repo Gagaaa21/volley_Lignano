@@ -48,6 +48,8 @@ test.describe("Autenticazione", () => {
     await page.getByLabel("Conferma nuova password").fill("NuovaPass123");
     await page.getByRole("button", { name: /aggiorna password/i }).click();
     await expect(page).toHaveURL(/\/admin(\?|$)/);
+    // Primo accesso: parte il tour guidato, che riporterebbe alla dashboard a metà del modulo qui sotto.
+    await dismissTourIfShown(page);
 
     // Il cambio scelto da sé, invece, chiede sempre la password attuale.
     await page.goto("/admin/cambia-password");
