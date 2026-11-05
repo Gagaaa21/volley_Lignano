@@ -38,6 +38,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Per tutto il sito: le pagine non si possono inserire dentro altri siti (protezione contro chi le «incornicia» per far
+        // toccare pulsanti all'insaputa), il browser non indovina il tipo dei file, e agli altri siti si manda solo il dominio di
+        // provenienza. La grafica della diretta in Streamlabs/OBS è una pagina a sé, non incorniciata: non cambia niente.
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
         // La pagina del genitore ha il codice segreto nell'indirizzo: non deve finire nei motori di ricerca né nell'«indirizzo di
         // provenienza» che il browser manda ad altri siti (vedi anche i metadati della pagina).
         source: "/disponibilita/:path*",

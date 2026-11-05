@@ -76,11 +76,9 @@ create index if not exists training_sessions_team_idx on training_sessions (team
 
 alter table training_sessions enable row level security;
 
+-- Nessuna policy pubblica: le pagine pubbliche leggono dal server (service role). La vecchia lettura pubblica si
+-- toglie anche dai database già installati.
 drop policy if exists "Allenamenti attivi visibili a tutti" on training_sessions;
-create policy "Allenamenti attivi visibili a tutti"
-  on training_sessions for select
-  to anon, authenticated
-  using (is_active = true);
 
 -- =========================================================
 -- matches — partite di campionato per categoria
@@ -124,11 +122,8 @@ create index if not exists matches_team_idx on matches (team);
 
 alter table matches enable row level security;
 
+-- Nessuna policy pubblica: note, convocate e ritrovo restano riservati; le pagine pubbliche leggono dal server.
 drop policy if exists "Partite visibili a tutti" on matches;
-create policy "Partite visibili a tutti"
-  on matches for select
-  to anon, authenticated
-  using (true);
 
 -- =========================================================
 -- match_lineups — formazioni per set di ogni partita
@@ -460,9 +455,10 @@ alter table push_subscriptions enable row level security;
 -- le API route del server (service role key), mai direttamente dal browser.
 
 -- Nota: l'applicazione Next.js legge e scrive sempre tramite la service
--- role key lato server, che ignora la Row Level Security. Le policy sopra
--- sono una protezione aggiuntiva nel caso in futuro venga usata la chiave
--- pubblica (anon) direttamente dal browser.
+-- role key lato server, che ignora la Row Level Security. La Row Level
+-- Security senza policy e i permessi tolti alla chiave pubblica (vedi in fondo,
+-- «Chiave pubblica chiusa») sono una protezione in più: con la chiave anon non
+-- si legge né si scrive nulla.
 
 -- =========================================================
 -- Migrazioni per installazioni Supabase già esistenti
@@ -706,6 +702,10 @@ as $$
   from pg_stat_user_tables
   order by pg_total_relation_size(relid) desc;
 $$;
+-- Percorso di ricerca fisso e solo il server la può chiamare.
+alter function table_sizes() set search_path = pg_catalog, public;
+revoke all on function table_sizes() from public, anon, authenticated;
+grant execute on function table_sizes() to service_role;
 
 -- =========================================================
 -- test_mode_store — archivio della "modalità prova" (solo dev): una singola
@@ -820,3 +820,18 @@ create table if not exists app_settings (
   updated_at timestamptz not null default now()
 );
 alter table app_settings enable row level security;
+
+-- =========================================================
+-- Chiave pubblica chiusa — il sito usa solo la service role dal server: la
+-- chiave pubblica (anon) e gli utenti di Supabase Auth (authenticated, non
+-- usati) non devono poter leggere né scrivere nessuna tabella o funzione.
+-- Anche ciò che verrà creato in futuro dall'editor SQL nasce chiuso.
+-- Si può rilanciare in sicurezza.
+-- =========================================================
+revoke all on all tables in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+revoke all on all functions in schema public from public, anon, authenticated;
+grant execute on function table_sizes() to service_role;
+alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;
+alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated;
+alter default privileges for role postgres in schema public revoke all on functions from public, anon, authenticated;

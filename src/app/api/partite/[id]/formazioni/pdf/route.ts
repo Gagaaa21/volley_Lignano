@@ -5,6 +5,7 @@ import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { getActiveRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { getOwnStaff } from "@/lib/auth/guard";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_LABELS, CATEGORY_RGB, MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
 import { formatDateLong } from "@/lib/format";
@@ -191,6 +192,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!session) {
     return new NextResponse("Non autorizzato.", { status: 401 });
   }
+  // Come le convocazioni: serve il permesso «Partite» e la squadra della partita (un Developer vede tutto).
+  let allowedTeams: readonly string[] | null = null;
+  if (session.role !== "dev") {
+    const staff = await getOwnStaff(session.sub);
+    if (!staff || !staff.allowedPages.includes("partite")) {
+      return new NextResponse("Non hai accesso alle partite.", { status: 403 });
+    }
+    allowedTeams = staff.allowedTeams;
+  }
 
   const { id } = await params;
   const repo = await getActiveRepo();
@@ -201,6 +211,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
   if (!match) {
     return new NextResponse("Partita non trovata.", { status: 404 });
+  }
+  if (allowedTeams && !allowedTeams.includes(match.team)) {
+    return new NextResponse("Non hai accesso a questa squadra.", { status: 403 });
   }
 
   const athletesById = new Map<string, Athlete>(allAthletes.map((a) => [a.id, a] as const));

@@ -5,6 +5,14 @@ import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { verifyTypedPassword } from "@/lib/auth/password";
 import { setSessionCookie } from "@/lib/auth/session";
+import {
+  loginFailuresKey,
+  loginLockedFor,
+  loginLockedMessage,
+  NO_LOGIN_FAILURES,
+  parseLoginFailures,
+  recordLoginFailure,
+} from "@/lib/auth/loginThrottle";
 
 const schema = z.object({
   username: z.string().min(1, "Inserisci il nome utente."),
@@ -32,8 +40,23 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const staff = await repo.getStaffByUsername(parsed.data.username.trim());
   if (!staff) return WRONG;
 
+  // Freno ai tentativi: un account con troppe password sbagliate di fila non ne accetta altre per un po' (vedi loginThrottle.ts).
+  // Se le impostazioni non si leggono o non si scrivono l'accesso funziona come prima: il freno non deve mai chiudere fuori.
+  const failuresKey = loginFailuresKey(staff.id);
+  const failures = parseLoginFailures(await repo.getAppSetting(failuresKey).catch(() => null));
+  const now = Date.now();
+  const wait = loginLockedFor(failures, now);
+  if (wait > 0) return { error: loginLockedMessage(wait) };
+
   const valid = await verifyTypedPassword(parsed.data.password, staff.passwordHash);
-  if (!valid) return WRONG;
+  if (!valid) {
+    const next = recordLoginFailure(failures, now);
+    await repo.setAppSetting(failuresKey, JSON.stringify(next)).catch((err) => console.error("[login] tentativi:", err));
+    return next.lockedUntil > now ? { error: loginLockedMessage(next.lockedUntil - now) } : WRONG;
+  }
+  if (failures.count > 0) {
+    await repo.setAppSetting(failuresKey, JSON.stringify(NO_LOGIN_FAILURES)).catch((err) => console.error("[login] tentativi:", err));
+  }
 
   try {
     await setSessionCookie({

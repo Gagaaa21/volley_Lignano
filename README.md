@@ -809,6 +809,17 @@ staff (Developer e Admin).
 - TypeScript, Tailwind CSS v4
 - [Supabase](https://supabase.com) (Postgres) come database
 - Sessioni firmate con `jose` (JWT in cookie httpOnly), password con `bcryptjs`
+- Sicurezza (controllo completo di novembre 2026):
+  - **Database chiuso alla chiave pubblica**: il sito legge e scrive solo dal server con la service role. Tutte le tabelle
+    hanno la Row Level Security senza policy pubbliche e alla chiave `anon` (e ad `authenticated`) sono tolti tutti i
+    permessi su tabelle, sequenze e funzioni, anche per quelle create in futuro (fondo di `supabase/schema.sql`).
+  - **Freno ai tentativi di accesso**: 8 password sbagliate in 15 minuti bloccano l'account per 15 minuti, anche con la
+    password giusta (`src/lib/auth/loginThrottle.ts`, stato in `app_settings` con chiave `login_failures:<id>`).
+  - **Sessioni revocate**: se il Developer toglie un account o gli rimette la password, chi era collegato con quell'account
+    esce alla pagina successiva (`requireStaff` → `/esci` → `/login?sessione=scaduta`).
+  - **Intestazioni di sicurezza** su tutto il sito (`next.config.ts`): le pagine non si possono incorniciare in altri siti,
+    `nosniff`, `Referrer-Policy` e `Permissions-Policy`.
+  - Il PDF delle formazioni chiede il permesso «Partite» e la squadra della partita, come quello delle convocazioni.
 - Pensato per il deploy su [Vercel](https://vercel.com)
 
 ## Sviluppo locale

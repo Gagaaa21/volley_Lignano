@@ -8,6 +8,7 @@ import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { parseMinivolleyBulkLine } from "@/lib/text";
 import { nameKey, parseAthleteBulkLine, parseJerseyNumber } from "@/lib/jersey";
 import type { Athlete, AthleteInput } from "@/lib/types";
+import { matchToInput } from "@/lib/matchInput";
 import { PUBLIC_CALENDAR_TAG } from "@/lib/publicCalendarData";
 
 /** Nomi e gruppi delle atlete compaiono anche sul sito pubblico (presenze e
@@ -256,6 +257,14 @@ export async function deleteAthleteAction(formData: FormData): Promise<void> {
   if (!id) return;
   const repo = await getActiveRepo();
   await repo.deleteAthlete(id);
+  // Tolta anche dalle convocazioni: un'atleta che non c'è più farebbe contare una convocata in più (nelle Trasferte risulterebbe
+  // «senza posto»), senza poterne mostrare il nome.
+  const matches = await repo.listMatches();
+  for (const match of matches.filter((item) => item.calledUpAthleteIds.includes(id))) {
+    await repo
+      .updateMatch(match.id, { ...matchToInput(match), calledUpAthleteIds: match.calledUpAthleteIds.filter((other) => other !== id) })
+      .catch((err) => console.error("[deleteAthleteAction] convocazioni", err));
+  }
   // Il certificato medico (tra le impostazioni) e la sua foto (nello Storage) non hanno legame con l'atleta nel database: vanno tolti
   // qui (se mancano, non c'è niente da togliere).
   await repo.clearMedicalCertificate(id).catch(() => undefined);

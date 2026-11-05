@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { DEV_USERNAME, dismissTourIfShown, login, loginAsDev, logout, uniqueName } from "./helpers";
 
 test.describe("Autenticazione", () => {
@@ -102,5 +102,64 @@ test.describe("Autenticazione", () => {
     await expect(page.getByText("Nome utente o password errati.")).toBeVisible();
     await login(page, username, "SceltaDaMe123");
     await expect(page).toHaveURL(/\/admin(\?|$)/);
+  });
+  /** Il Developer crea un account Admin e ne restituisce il nome utente. */
+  async function createAdmin(page: Page, fullName: string, password: string) {
+    const username = uniqueName("e2etent");
+    await page.goto("/admin/staff");
+    await page.getByLabel("Nome e cognome").fill(fullName);
+    await page.getByLabel("Nome utente").fill(username);
+    await page.getByLabel("Password temporanea").fill(password);
+    await page.getByRole("button", { name: /crea account admin/i }).click();
+    await expect(page.getByText("Account creato")).toBeVisible();
+    return username;
+  }
+
+  test("troppe password sbagliate bloccano l'account per un po', anche con quella giusta", async ({ page }) => {
+    await loginAsDev(page);
+    const username = await createAdmin(page, `Tentativi ${uniqueName("x")}`, "GiustaPass123");
+    await logout(page);
+
+    for (let i = 0; i < 7; i++) {
+      await login(page, username, `Sbagliata${i}xx`);
+      await expect(page.getByText("Nome utente o password errati.")).toBeVisible();
+    }
+    // L'ottavo errore fa scattare il blocco, e per un po' nemmeno la password giusta entra.
+    await login(page, username, "Sbagliata7xx");
+    await expect(page.getByText(/Troppi tentativi sbagliati/)).toBeVisible();
+    await login(page, username, "GiustaPass123");
+    await expect(page.getByText(/Troppi tentativi sbagliati/)).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test("password rimessa dal Developer: chi era collegato con quell'account viene fatto uscire", async ({ page, browser }) => {
+    await loginAsDev(page);
+    const fullName = `Uscita ${uniqueName("x")}`;
+    const username = await createAdmin(page, fullName, "PrimaPass123");
+
+    // L'allenatore entra dal suo telefono (un altro browser) e sceglie la sua password.
+    const coachContext = await browser.newContext();
+    const coach = await coachContext.newPage();
+    await login(coach, username, "PrimaPass123");
+    await expect(coach).toHaveURL(/\/cambia-password/);
+    await coach.getByLabel("Nuova password", { exact: true }).fill("SuaPass12345");
+    await coach.getByLabel("Conferma nuova password").fill("SuaPass12345");
+    await coach.getByRole("button", { name: /aggiorna password/i }).click();
+    await expect(coach).toHaveURL(/\/admin(\?|$)/);
+
+    // Il Developer gli rimette la password: la sessione del telefono non vale più.
+    await page.goto("/admin/staff");
+    await page.getByRole("link", { name: `Modifica ${fullName}` }).click();
+    await page.getByLabel(/Nuova password temporanea/).fill("RimessaPass99");
+    await page.getByRole("button", { name: /salva modifiche/i }).click();
+    await expect(page.locator("[data-staff-credentials]")).toBeVisible();
+
+    await coach.goto("/admin");
+    await expect(coach).toHaveURL(/\/login\?sessione=scaduta/);
+    await expect(coach.locator("[data-login-expired]")).toBeVisible();
+    // Con la password nuova si rientra (e la si cambia subito).
+    await login(coach, username, "RimessaPass99");
+    await expect(coach).toHaveURL(/\/cambia-password/);
+    await coachContext.close();
   });
 });

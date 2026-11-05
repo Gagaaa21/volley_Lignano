@@ -14,6 +14,13 @@ import {
 export async function requireStaff(): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) redirect("/login");
+  // Una sessione dura 14 giorni: se nel frattempo il Developer ha tolto l'account, o gli ha rimesso la password (l'account
+  // aspetta il cambio, ma questa sessione è nata prima), non vale più e si esce. Per un Admin il record si legge comunque
+  // (permessi): nessuna lettura in più. Un Developer non si può togliere dal sito.
+  if (session.role !== "dev") {
+    const staff = await getOwnStaff(session.sub);
+    if (!staff || (staff.mustChangePassword && !session.mustChangePassword)) redirect("/esci");
+  }
   return session;
 }
 

@@ -10,7 +10,9 @@ export const metadata: Metadata = {
   title: "Accedi",
 };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ sessione?: string | string[] }> }) {
+  // Arriva da /esci: l'account è stato tolto o la password rimessa dal Developer dopo l'ultimo accesso.
+  const expired = (await searchParams).sessione === "scaduta";
   return (
     <div className="auth-stage relative min-h-screen overflow-hidden">
       <Image src={crest} alt="" aria-hidden className="auth-stage-logo" loading="eager" />
@@ -31,6 +33,12 @@ export default function LoginPage() {
                 Accedi per gestire allenamenti, partite e presenze.
               </p>
             </div>
+
+            {expired && (
+              <p className="mt-6 rounded-xl bg-accent px-3.5 py-2.5 text-sm leading-relaxed text-accent-foreground" data-login-expired>
+                La sessione non è più valida (la password è stata cambiata o l&apos;account modificato): entra di nuovo.
+              </p>
+            )}
 
             <div className="mt-7">
               <LoginForm />
