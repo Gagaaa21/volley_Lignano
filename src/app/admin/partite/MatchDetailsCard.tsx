@@ -8,12 +8,15 @@ import type { Match } from "@/lib/types";
 
 function Row({ icon, label, children, dataKey }: { icon: ReactNode; label: string; children: ReactNode; dataKey: string }) {
   return (
-    <div className="flex gap-3" data-match-detail={dataKey}>
-      <span className="mt-0.5 shrink-0 text-muted-foreground">{icon}</span>
-      <div className="min-w-0">
-        <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{label}</dt>
-        <dd className="mt-0.5 text-sm leading-snug text-foreground">{children}</dd>
-      </div>
+    // Dentro un <dl> ogni gruppo può contenere solo <dt> e <dd>: l'icona sta nel <dt>, il valore rientra sotto l'etichetta.
+    <div className="min-w-0" data-match-detail={dataKey}>
+      <dt className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="shrink-0" aria-hidden>
+          {icon}
+        </span>
+        {label}
+      </dt>
+      <dd className="mt-0.5 pl-7 text-sm leading-snug text-foreground">{children}</dd>
     </div>
   );
 }

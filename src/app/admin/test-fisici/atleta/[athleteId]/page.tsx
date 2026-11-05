@@ -34,7 +34,7 @@ function Delta({ current, previous, unit }: { current: number; previous: number;
   const diff = current - previous;
   if (Math.abs(diff) < 0.005) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/40">
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
         <Minus className="h-3 w-3" />
         invariato
       </span>
@@ -139,7 +139,7 @@ export default async function AthletePhysicalTestsPage({
                     <Card key={measure.key}>
                       <CardBody className="pt-5">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {measure.label}
                           </p>
                           <Link prefetch={false}
@@ -152,10 +152,10 @@ export default async function AthletePhysicalTestsPage({
                         </div>
                         <p className="mt-1 font-display text-2xl font-bold text-foreground">
                           {measure.latest!.value}
-                          <span className="ml-1 text-sm font-normal text-foreground/50">{measure.unit}</span>
+                          <span className="ml-1 text-sm font-normal text-muted-foreground">{measure.unit}</span>
                         </p>
                         <div className="mt-1.5 flex items-center justify-between gap-2">
-                          <span className="text-xs text-foreground/40">{formatDateShort(measure.latest!.date)}</span>
+                          <span className="text-xs text-muted-foreground">{formatDateShort(measure.latest!.date)}</span>
                           {measure.previous &&
                             parseMeasure(measure.latest!.value) !== null &&
                             parseMeasure(measure.previous.value) !== null && (
@@ -213,16 +213,16 @@ export default async function AthletePhysicalTestsPage({
                           </div>
                         </div>
                         <div className="mt-3 grid grid-cols-[auto_1fr_1fr_1fr] gap-x-3 gap-y-1.5 text-sm">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Salto
                           </span>
-                          <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Tempo di volo
                           </span>
-                          <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Altezza
                           </span>
-                          <span className="text-xs font-semibold uppercase tracking-wide text-foreground/40">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Forza
                           </span>
                           {session.trials.map((trial) => (

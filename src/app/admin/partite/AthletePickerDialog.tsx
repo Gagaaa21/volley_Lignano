@@ -44,7 +44,7 @@ export function AthletePickerDialog({
             type="button"
             onClick={onClose}
             aria-label="Chiudi"
-            className="shrink-0 rounded-full p-1.5 text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+            className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
@@ -61,7 +61,7 @@ export function AthletePickerDialog({
         )}
 
         {athletes.length === 0 ? (
-          <p className="mt-4 text-sm text-foreground/50">
+          <p className="mt-4 text-sm text-muted-foreground">
             Nessuna convocata: selezionale nella sezione &quot;Convocazioni&quot; qui sopra.
           </p>
         ) : (

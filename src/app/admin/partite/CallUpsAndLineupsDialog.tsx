@@ -187,7 +187,7 @@ export function CallUpsAndLineupsDialog({
                 </div>
               </div>
               {calledUpAthletes.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-foreground/50">
+                <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-muted-foreground">
                   Convoca prima almeno un&apos;atleta qui sopra per poter costruire le formazioni.
                 </div>
               ) : (

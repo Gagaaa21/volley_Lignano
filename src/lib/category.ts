@@ -87,7 +87,7 @@ export function trainingDotClass(color: TrainingColor): string {
 }
 
 export const NO_CATEGORY_LABEL = "Senza categoria";
-export const NO_CATEGORY_BADGE = "bg-foreground/8 text-foreground/50";
+export const NO_CATEGORY_BADGE = "bg-foreground/8 text-muted-foreground";
 export const NO_CATEGORY_DOT = "bg-foreground/25";
 
 /** Etichetta di una partita senza categoria (Minivolley, che non ha la
@@ -128,7 +128,7 @@ export const MINIVOLLEY_GROUP_DOT: Record<MinivolleyGroup, string> = {
 };
 
 export const NO_GROUP_LABEL = "Senza gruppo";
-export const NO_GROUP_BADGE = "bg-foreground/8 text-foreground/50";
+export const NO_GROUP_BADGE = "bg-foreground/8 text-muted-foreground";
 export const NO_GROUP_DOT = "bg-foreground/25";
 
 export function groupLabel(group: MinivolleyGroup | null): string {

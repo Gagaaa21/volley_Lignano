@@ -70,7 +70,7 @@ function PermissionRow({ admin }: { admin: AdminRow }) {
 
 export function PermissionsMatrix({ admins }: { admins: AdminRow[] }) {
   if (admins.length === 0) {
-    return <p className="text-sm text-foreground/50">Nessun account Admin da gestire al momento.</p>;
+    return <p className="text-sm text-muted-foreground">Nessun account Admin da gestire al momento.</p>;
   }
 
   return (

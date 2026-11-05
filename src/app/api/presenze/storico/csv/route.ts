@@ -1,8 +1,7 @@
-import { format } from "date-fns";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage, resolveActiveTeam } from "@/lib/auth/guard";
 import { buildCsv } from "@/lib/csv";
-import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import { isAttendanceSessionCounted } from "@/lib/minivolleyAttendance";
 
 const STATUS_LABEL: Record<string, string> = {
   present: "Presente",
@@ -14,14 +13,13 @@ export async function GET() {
   const session = await requireStaffPage("presenze");
   const team = await resolveActiveTeam(session);
   const repo = await getActiveRepo();
-  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const [allSessions, athletes] = await Promise.all([
     repo.listAttendanceSessions({ team }),
     repo.listAthletes({ team }),
   ]);
   const sessions = allSessions
-    .filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr))
+    .filter((s) => isAttendanceSessionCounted(team, s.sessionDate))
     .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate));
   const nameById = new Map(athletes.map((a) => [a.id, a.fullName] as const));
 

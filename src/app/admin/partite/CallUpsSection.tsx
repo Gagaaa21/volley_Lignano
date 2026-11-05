@@ -43,7 +43,7 @@ export function CallUpsSection({
       </div>
 
       {athletes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-foreground/50">
+        <div className="rounded-xl border border-dashed border-border-subtle px-4 py-8 text-center text-sm text-muted-foreground">
           Nessuna atleta attiva in anagrafica.
         </div>
       ) : (

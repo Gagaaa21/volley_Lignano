@@ -121,9 +121,9 @@ function DateTile({ parts, tone }: { parts: FamilyMatchItem["dateParts"]; tone: 
       )}
       aria-hidden
     >
-      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-80">{parts.weekday}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{parts.weekday}</span>
       <span className="display-wide tabular text-[1.5rem] leading-7">{parts.day}</span>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-80">{parts.month}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{parts.month}</span>
     </div>
   );
 }

@@ -116,7 +116,7 @@ function TourCard({
           type="button"
           onClick={onSkip}
           aria-label="Chiudi il tour"
-          className="shrink-0 rounded-full p-1 text-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
+          className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>

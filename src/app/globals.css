@@ -88,12 +88,12 @@
   --muted-foreground: #5a6a7b;
   --accent: var(--color-sand-100);
   --accent-foreground: var(--color-sand-800);
-  --destructive: #c8312b;
+  --destructive: #b42820;
   --destructive-strong: #9f2620;
   --destructive-foreground: #ffffff;
-  --success: #15803d;
+  --success: #13703a;
   --success-soft: #dcf5e4;
-  --warning: #b45309;
+  --warning: #9a4a08;
   --warning-soft: #fdf1d8;
   --border: #e2e8ef;
   --border-strong: #cdd6e0;
@@ -1004,4 +1004,12 @@
     1.5px -1.5px 0 #1f1a24,
     -1.5px -1.5px 0 #1f1a24,
     0 3.5px 0 #1f1a24;
+}
+
+/* Sottotitolo del logo («U14 · U15»): piccolo, quindi più scuro sul chiaro (contrasto 4,5:1) e più chiaro sullo scuro. */
+.logo-subtitle {
+  color: var(--color-sand-700);
+}
+:root[data-color-scheme="dark"] .logo-subtitle {
+  color: var(--color-sand-400);
 }

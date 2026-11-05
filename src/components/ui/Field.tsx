@@ -35,7 +35,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
       <select className={cn(controlClass, "appearance-none pr-10", className)} {...props} />
       <ChevronDown
         aria-hidden
-        className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45"
+        className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
       />
     </div>
   );

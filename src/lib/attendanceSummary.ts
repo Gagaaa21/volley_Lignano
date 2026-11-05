@@ -1,4 +1,5 @@
 import type { Athlete, AttendanceSession } from "@/lib/types";
+import { athleteJoinDate } from "@/lib/minivolleyAttendance";
 
 /** Presenze di un'atleta nel periodo considerato. */
 export interface AttendanceSummaryRow {
@@ -34,8 +35,12 @@ export function summarizeAttendance(
       let excused: number;
       let unexcused: number;
       if (isMinivolley) {
-        total = sessions.length;
-        present = sessions.filter((s) => athlete.id in s.records).length;
+        // Contano gli allenamenti da quando l'atleta è in anagrafica (o in cui è segnata presente): chi arriva a metà anno
+        // non risulta assente agli allenamenti di prima.
+        const joined = athleteJoinDate(athlete.createdAt);
+        const counted = sessions.filter((s) => athlete.id in s.records || !joined || s.sessionDate >= joined);
+        total = counted.length;
+        present = counted.filter((s) => athlete.id in s.records).length;
         excused = 0;
         unexcused = 0;
       } else {

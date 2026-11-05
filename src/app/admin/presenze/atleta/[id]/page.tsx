@@ -8,7 +8,8 @@ import { getActiveRepo } from "@/lib/db";
 import { expandTrainings, getMonthGridRange } from "@/lib/calendar";
 import { formatMonthParam, parseMonthParam } from "@/lib/month";
 import { categoryBadgeClass, categoryLabel, groupBadgeClass, groupLabel } from "@/lib/category";
-import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import { athleteJoinDate, isAttendanceSessionCounted } from "@/lib/minivolleyAttendance";
+import { summarizeAttendance } from "@/lib/attendanceSummary";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
@@ -57,7 +58,7 @@ const MINI_STATUS_LABEL: Record<MiniStatus, string> = {
 
 const MINI_STATUS_BADGE: Record<MiniStatus, string> = {
   present: STATUS_BADGE.present,
-  absent: "bg-foreground/8 text-foreground/50",
+  absent: "bg-foreground/8 text-muted-foreground",
 };
 
 const MINI_STATUS_ICON: Record<MiniStatus, typeof Check> = {
@@ -92,29 +93,12 @@ export default async function AthleteAttendancePage({
     repo.listAttendanceSessions({ team: athlete.team }),
     repo.listTrainings({ team: athlete.team }),
   ]);
-  const sessions = allSessions.filter((s) => isMinivolleyDateRelevant(athlete.team, s.sessionDate, todayStr));
+  const sessions = allSessions.filter((s) => isAttendanceSessionCounted(athlete.team, s.sessionDate));
 
-  // Per il Minivolley un'assenza non ha mai una voce nel record (vedi
-  // saveMiniAttendanceAction): "presente" non si può dedurre da
-  // s.records[id] da solo, serve sapere quanti allenamenti sono stati
-  // registrati in totale per questa squadra.
-  let total: number;
-  let present: number;
-  let excused: number;
-  let unexcused: number;
-  if (isMini) {
-    total = sessions.length;
-    present = sessions.filter((s) => id in s.records).length;
-    excused = 0;
-    unexcused = 0;
-  } else {
-    const statuses = sessions.filter((s) => id in s.records).map((s) => s.records[id]);
-    total = statuses.length;
-    present = statuses.filter((s) => s === "present").length;
-    excused = statuses.filter((s) => s === "excused").length;
-    unexcused = statuses.filter((s) => s === "unexcused").length;
-  }
-  const presencePct = total > 0 ? Math.round((present / total) * 100) : null;
+  // Stesso conto dei riepiloghi CSV e PDF (vedi summarizeAttendance): per il Minivolley un'assenza non ha voce nel registro e
+  // contano gli allenamenti da quando l'atleta è in anagrafica.
+  const { total, present, excused, unexcused, pct: presencePct } = summarizeAttendance([athlete], sessions, isMini)[0];
+  const joined = athleteJoinDate(athlete.createdAt);
 
   const sessionByOccurrence = new Map(sessions.map((s) => [`${s.trainingRuleId}_${s.sessionDate}`, s]));
   const { start, end } = getMonthGridRange(monthDate);
@@ -133,7 +117,15 @@ export default async function AthleteAttendancePage({
     let StatusIcon: typeof Check | null = null;
 
     if (isMini) {
-      const miniStatus: MiniStatus | null = session ? (id in session.records ? "present" : "absent") : null;
+      // Prima di entrare in anagrafica non è «assente»: non c'era ancora.
+      const beforeJoining = joined !== null && occ.date < joined;
+      const miniStatus: MiniStatus | null = session
+        ? id in session.records
+          ? "present"
+          : beforeJoining
+            ? null
+            : "absent"
+        : null;
       if (miniStatus) {
         label = MINI_STATUS_LABEL[miniStatus];
         colorClass = MINI_STATUS_DOT[miniStatus];

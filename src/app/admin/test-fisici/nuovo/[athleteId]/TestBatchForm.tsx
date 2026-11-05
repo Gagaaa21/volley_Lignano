@@ -132,7 +132,7 @@ export function TestBatchForm({
           Fino a {SQUAT_JUMP_TRIALS} salti: lascia vuoto un salto non eseguito.
         </p>
 
-        <p className="eyebrow mt-4 text-foreground/50">Altezza (cm)</p>
+        <p className="eyebrow mt-4 text-muted-foreground">Altezza (cm)</p>
         <RowGroup className="mt-2">
           {TRIALS.map((trial) => (
             <MetricRow
@@ -150,7 +150,7 @@ export function TestBatchForm({
           ))}
         </RowGroup>
 
-        <p className="eyebrow mt-4 text-foreground/50">Tempo di volo (ms)</p>
+        <p className="eyebrow mt-4 text-muted-foreground">Tempo di volo (ms)</p>
         <RowGroup className="mt-2">
           {TRIALS.map((trial) => (
             <MetricRow
@@ -168,7 +168,7 @@ export function TestBatchForm({
           ))}
         </RowGroup>
 
-        <p className="eyebrow mt-4 text-foreground/50">Forza (N)</p>
+        <p className="eyebrow mt-4 text-muted-foreground">Forza (N)</p>
         <RowGroup className="mt-2">
           {TRIALS.map((trial) => (
             <MetricRow
@@ -214,7 +214,7 @@ export function TestBatchForm({
                 type="button"
                 aria-label="Rimuovi riga"
                 onClick={() => setAltroRows((rows) => rows.filter((r) => r.id !== row.id))}
-                className="shrink-0 rounded-full p-1.5 text-foreground/40 hover:bg-muted hover:text-foreground"
+                className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>

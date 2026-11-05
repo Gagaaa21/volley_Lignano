@@ -71,7 +71,7 @@ export function Logo({
           <span
             className={cn(
               "text-[10.5px] font-semibold uppercase leading-none tracking-[0.14em]",
-              inverted ? "text-sand-200" : "text-sand-600",
+              inverted ? "text-sand-200" : "logo-subtitle",
             )}
           >
             {secondaryText}

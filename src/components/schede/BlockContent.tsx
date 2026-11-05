@@ -5,7 +5,7 @@ export function BlockContent({ content, className }: { content: string; classNam
   const parts = parseBlockContent(content);
 
   if (parts.length === 0) {
-    return <p className={cn("text-sm italic text-foreground/40", className)}>Nessuna descrizione.</p>;
+    return <p className={cn("text-sm italic text-muted-foreground", className)}>Nessuna descrizione.</p>;
   }
 
   return (

@@ -315,7 +315,7 @@ export function LineupEditor({
         })}
       </div>
 
-      <p className="mt-2.5 text-xs text-foreground/50">
+      <p className="mt-2.5 text-xs text-muted-foreground">
         {isMobile
           ? "Tocca una posizione (o il libero) per aprire l'elenco delle convocate e assegnarla."
           : "Trascina una convocata dall'elenco sopra una posizione (o sul libero) per assegnarla."}
@@ -398,7 +398,7 @@ export function LineupEditor({
             ) : (
               <>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {targetLabel(selected)}
                   </p>
                   {isMobile && (
@@ -462,7 +462,7 @@ export function LineupEditor({
                         </label>
                       </>
                     ) : (
-                      <p className="mt-2 text-xs text-foreground/45">
+                      <p className="mt-2 text-xs text-muted-foreground">
                         Il libero non occupa una delle 6 posizioni: sostituisce chi è in seconda linea senza
                         contare come cambio.
                       </p>
@@ -481,11 +481,11 @@ export function LineupEditor({
 
           {!isMobile && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-foreground/45">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Convocate — trascina in campo
               </p>
               {athletes.length === 0 ? (
-                <p className="text-sm text-foreground/50">Nessuna convocata: selezionale qui sopra.</p>
+                <p className="text-sm text-muted-foreground">Nessuna convocata: selezionale qui sopra.</p>
               ) : (
                 <div className="space-y-1.5">
                   {athletes.map((athlete) => {

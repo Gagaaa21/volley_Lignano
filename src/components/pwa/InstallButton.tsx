@@ -61,7 +61,7 @@ export function InstallButton({ className }: { className?: string }) {
             type="button"
             onClick={() => setShowIOSHint(false)}
             aria-label="Chiudi"
-            className="absolute right-2 top-2 rounded-full p-1 text-foreground/40 hover:bg-muted hover:text-foreground"
+            className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -87,7 +87,7 @@ export function InstallButton({ className }: { className?: string }) {
             type="button"
             onClick={() => setShowChromeHint(false)}
             aria-label="Chiudi"
-            className="absolute right-2 top-2 rounded-full p-1 text-foreground/40 hover:bg-muted hover:text-foreground"
+            className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
           </button>

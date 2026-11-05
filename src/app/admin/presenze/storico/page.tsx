@@ -5,7 +5,7 @@ import { it } from "date-fns/locale";
 import { format, parseISO } from "date-fns";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaff, resolveActiveTeam } from "@/lib/auth/guard";
-import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import { isAttendanceSessionCounted } from "@/lib/minivolleyAttendance";
 import { FileLink } from "@/components/files/FileLink";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -19,9 +19,8 @@ export default async function AttendanceHistoryPage() {
   const session = await requireStaff();
   const repo = await getActiveRepo();
   const team = await resolveActiveTeam(session);
-  const todayStr = format(new Date(), "yyyy-MM-dd");
   const allSessions = await repo.listAttendanceSessions({ team });
-  const sessions = allSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
+  const sessions = allSessions.filter((s) => isAttendanceSessionCounted(team, s.sessionDate));
 
   return (
     <div>

@@ -344,7 +344,7 @@ export default async function CentroControlloPage() {
         </CardHeader>
         <CardBody className="pt-0">
           {recentActivity.length === 0 ? (
-            <p className="text-sm text-foreground/50">Nessuna attività registrata.</p>
+            <p className="text-sm text-muted-foreground">Nessuna attività registrata.</p>
           ) : (
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
               {recentActivity.map((entry, i) => (
@@ -357,11 +357,11 @@ export default async function CentroControlloPage() {
                       {entry.type}
                     </span>
                     <span className="truncate text-foreground/85">
-                      {entry.label} <span className="text-foreground/45">· {entry.kind}</span>
-                      {entry.by && <span className="text-foreground/45"> da {entry.by}</span>}
+                      {entry.label} <span className="text-muted-foreground">· {entry.kind}</span>
+                      {entry.by && <span className="text-muted-foreground"> da {entry.by}</span>}
                     </span>
                   </span>
-                  <span className="shrink-0 tabular-nums text-xs text-foreground/40">
+                  <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
                     {formatDateTime(entry.at)}
                   </span>
                 </li>
@@ -371,7 +371,7 @@ export default async function CentroControlloPage() {
         </CardBody>
       </Card>
 
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-foreground/40">
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
         <Clock className="h-3 w-3" />
         Pagina generata al caricamento: aggiorna per dati sempre aggiornati.
       </p>

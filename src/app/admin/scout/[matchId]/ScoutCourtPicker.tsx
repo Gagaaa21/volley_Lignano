@@ -35,7 +35,7 @@ export function CourtThreeMeterLine() {
   return (
     <div className="my-2 flex items-center gap-2" aria-hidden>
       <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
-      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/70">linea dei 3 m</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">linea dei 3 m</span>
       <span className="h-0 flex-1 border-t-2 border-dashed border-foreground/15" />
     </div>
   );

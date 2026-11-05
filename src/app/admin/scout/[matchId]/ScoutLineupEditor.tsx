@@ -74,7 +74,7 @@ function LineupHalf({ side, renderCell }: { side: ScoutSide; renderCell: (positi
             className="relative min-w-0 rounded-xl border border-border-subtle bg-sand-500 px-1.5 pb-1.5 pt-5"
             style={{ gridRow: SPOTS[position].row, gridColumn: SPOTS[position].column }}
           >
-            <span className="absolute left-2 top-1 text-[10px] font-bold leading-4 text-white">
+            <span className="absolute left-2 top-1 text-[10px] font-bold leading-4 text-black/75">
               {position}
               {position === 1 ? " · batte" : ""}
             </span>

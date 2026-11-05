@@ -28,7 +28,7 @@ export function MetricRow({
           )}
           {...props}
         />
-        {unit && <span className="text-xs font-medium text-foreground/40">{unit}</span>}
+        {unit && <span className="text-xs font-medium text-muted-foreground">{unit}</span>}
       </span>
     </div>
   );

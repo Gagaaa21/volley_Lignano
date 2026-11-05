@@ -137,7 +137,7 @@ async function LockedPredictions({ matchId, hasResult }: { matchId: string; hasR
                 .filter((r) => r.rankings.length > 0)
                 .map((r) => (
                   <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
                     </p>
                     <SetRankingBadges rankings={r.rankings} nameById={nameById} />
@@ -158,7 +158,7 @@ async function LockedPredictions({ matchId, hasResult }: { matchId: string; hasR
           .filter((r) => r.rankings.length > 0)
           .map((r) => (
             <div key={r.setIndex} className="rounded-xl border border-border-subtle px-3.5 py-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Set {r.setIndex + 1} · {r.actual.us}-{r.actual.them}
               </p>
               <SetRankingBadges rankings={r.rankings} nameById={nameById} />

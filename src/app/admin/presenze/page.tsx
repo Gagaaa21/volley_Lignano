@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { MonthCalendarPicker, type DayMarker } from "@/components/presenze/MonthCalendarPicker";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_PRESENZE_STEPS } from "@/components/tour/sectionSteps";
-import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import { isAttendanceSessionCounted, isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
 
 export const metadata: Metadata = {
   title: "Presenze",
@@ -49,18 +49,28 @@ export default async function AttendanceHubPage({
   const occurrencesByDate = new Map<string, typeof occurrences>();
 
   for (const occ of occurrences) {
-    if (!isMinivolleyDateRelevant(team, occ.date, todayStr)) continue;
     const isRegistered = recordedKeys.has(`${occ.ruleId}_${occ.date}`);
-    const status: "registered" | "pending" | "upcoming" = isRegistered
+    // Si vede tutto dal primo giorno dell'anagrafica Minivolley. Un allenamento Minivolley passato e mai registrato non è
+    // «da registrare» (non sempre si segna), ma resta registrabile: «Non registrato», in grigio.
+    if (!isAttendanceSessionCounted(team, occ.date)) continue;
+    const status: "registered" | "pending" | "optional" | "upcoming" = isRegistered
       ? "registered"
-      : occ.date <= todayStr
-        ? "pending"
-        : "upcoming";
+      : occ.date > todayStr
+        ? "upcoming"
+        : isMinivolleyDateRelevant(team, occ.date, todayStr)
+          ? "pending"
+          : "optional";
 
     const colorClass =
       status === "registered" ? "bg-success" : status === "pending" ? "bg-warning" : "bg-foreground/25";
     const label =
-      status === "registered" ? "Registrato" : status === "pending" ? "Da registrare" : "Programmato";
+      status === "registered"
+        ? "Registrato"
+        : status === "pending"
+          ? "Da registrare"
+          : status === "optional"
+            ? "Non registrato"
+            : "Programmato";
 
     (markersByDate[occ.date] ??= []).push({ colorClass, label });
 
@@ -94,8 +104,10 @@ export default async function AttendanceHubPage({
                     </Badge>
                   ) : isUpcoming ? (
                     <Badge>Programmato</Badge>
-                  ) : (
+                  ) : isMinivolleyDateRelevant(team, occ.date, todayStr) ? (
                     <Badge tone="warning">Da registrare</Badge>
+                  ) : (
+                    <Badge>Non registrato</Badge>
                   )}
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground">

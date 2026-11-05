@@ -1,10 +1,9 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getRepo } from "@/lib/db";
-import { isMinivolleyDateRelevant } from "@/lib/minivolleyAttendance";
+import { isAttendanceSessionCounted } from "@/lib/minivolleyAttendance";
 import type { StandingRow } from "@/lib/federation/types";
 import type { AttendanceStatus, Category, MinivolleyGroup, TrainingTeam } from "@/lib/types";
-import { todayIso } from "@/lib/today";
 
 /** Tag usato per invalidare la cache da ogni azione admin che tocca il
  * calendario pubblico (allenamenti, partite, schede collegate a una data,
@@ -54,7 +53,6 @@ export const getPublicCalendarData = unstable_cache(
     // e famiglie devono poter vedere chi era presente a un allenamento, senza
     // login). Espone solo nome e stato: mai note interne o altri campi
     // dell'atleta, e solo per le sedute nel mese visibile.
-    const todayStr = todayIso();
     const athleteNameById = new Map(athletes.map((a) => [a.id, a.fullName] as const));
     const attendance: PublicAttendanceSession[] = attendanceSessions
       .filter(
@@ -62,7 +60,7 @@ export const getPublicCalendarData = unstable_cache(
           s.trainingRuleId &&
           s.sessionDate >= from &&
           s.sessionDate <= to &&
-          isMinivolleyDateRelevant(team, s.sessionDate, todayStr),
+          isAttendanceSessionCounted(team, s.sessionDate),
       )
       .map((s) => ({
         trainingRuleId: s.trainingRuleId as string,
@@ -126,8 +124,7 @@ export const getPublicAttendanceTally = unstable_cache(
       repo.listAthletes({ team }),
     ]);
     const athleteById = new Map(athletes.map((a) => [a.id, a] as const));
-    const todayStr = todayIso();
-    const relevantSessions = attendanceSessions.filter((s) => isMinivolleyDateRelevant(team, s.sessionDate, todayStr));
+    const relevantSessions = attendanceSessions.filter((s) => isAttendanceSessionCounted(team, s.sessionDate));
 
     const countByAthleteId = new Map<string, number>();
     for (const session of relevantSessions) {
@@ -138,9 +135,10 @@ export const getPublicAttendanceTally = unstable_cache(
     }
 
     return [...countByAthleteId.entries()]
-      .map(([athleteId, count]) => {
+      // Le atlete tolte dall'anagrafica non compaiono più (nemmeno come «Atleta rimossa»).
+      .flatMap(([athleteId, count]) => {
         const athlete = athleteById.get(athleteId);
-        return { fullName: athlete?.fullName ?? "Atleta rimossa", group: athlete?.group ?? null, count };
+        return athlete ? [{ fullName: athlete.fullName, group: athlete.group, count }] : [];
       })
       .sort((a, b) => b.count - a.count || a.fullName.localeCompare(b.fullName));
   },

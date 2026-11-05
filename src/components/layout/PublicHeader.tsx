@@ -17,14 +17,14 @@ export function PublicHeader({ team = "u14u15" }: { team?: TrainingTeam } = {}) 
         <Logo team={team} href={isMinivolley ? "/minivolley" : "/"} />
         <div className="flex items-center gap-1.5">
           {isMinivolley && (
-            <LinkButton href="/minivolley/presenze" variant="quiet" size="sm" data-tour="public-nav-presenze">
+            <LinkButton href="/minivolley/presenze" variant="quiet" size="sm" data-tour="public-nav-presenze" aria-label="Presenze">
               <ClipboardCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Presenze</span>
             </LinkButton>
           )}
           <ThemePopover />
           <InstallButton />
-          <LinkButton href="/login" variant="outline" size="sm" data-tour="public-nav-area-tecnici">
+          <LinkButton href="/login" variant="outline" size="sm" data-tour="public-nav-area-tecnici" aria-label="Area tecnici">
             <LogIn className="h-4 w-4" />
             <span className="hidden sm:inline">Area tecnici</span>
           </LinkButton>

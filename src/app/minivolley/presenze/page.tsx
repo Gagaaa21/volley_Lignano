@@ -36,8 +36,8 @@ function TallyGroup({
         </p>
       </div>
       <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-        {rows.map((row) => (
-          <li key={row.fullName} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+        {rows.map((row, index) => (
+          <li key={`${row.fullName}-${index}`} className="flex items-center gap-3 px-4 py-3 sm:px-5">
             <Avatar name={row.fullName} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold text-foreground">{row.fullName}</p>

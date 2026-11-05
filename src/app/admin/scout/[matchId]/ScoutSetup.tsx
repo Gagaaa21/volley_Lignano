@@ -447,7 +447,7 @@ export function ScoutSetup({
               aria-label="Numeri di maglia dell'avversaria"
               className="min-w-0"
             />
-            <Button variant="outline" onClick={addOpponents} disabled={parseJerseyNumbers(oppText).length === 0}>
+            <Button variant="outline" onClick={addOpponents} disabled={parseJerseyNumbers(oppText).length === 0} aria-label="Aggiungi i numeri">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Aggiungi</span>
             </Button>

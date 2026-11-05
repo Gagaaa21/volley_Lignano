@@ -490,6 +490,7 @@ function PositionNameField({
       <div className="w-full space-y-1">
         <select
           id={id}
+          aria-label={placeholder}
           value={selectValue}
           onChange={(e) => {
             if (e.target.value === CUSTOM_NAME_OPTION) {
@@ -552,6 +553,7 @@ function PositionNameField({
     <div className="w-full space-y-1">
       <select
         id={id}
+        aria-label={placeholder}
         value={selectValue}
         onChange={(e) => {
           if (e.target.value === CUSTOM_NAME_OPTION) {

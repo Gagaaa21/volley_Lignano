@@ -200,7 +200,7 @@ function SectionsMenu({ items, pathname }: { items: typeof NAV_ITEMS; pathname: 
                         active ? "bg-primary-soft text-primary" : "text-foreground hover:bg-muted",
                       )}
                     >
-                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-foreground/50")} aria-hidden />
+                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} aria-hidden />
                       {item.label}
                     </Link>
                   );
@@ -437,7 +437,7 @@ export function AdminHeader({
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-foreground/40 group-hover:text-foreground/70")} />
+                <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground/70")} />
                 {item.label}
                 <span
                   aria-hidden

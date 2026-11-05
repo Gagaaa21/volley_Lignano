@@ -42,10 +42,17 @@ async function resolveExistingAndTeam(
   return { existing, team };
 }
 
-export async function saveAttendanceAction(
-  _prevState: AttendanceFormState,
+/**
+ * Salva un registro presenze, per U14/U15 e per il Minivolley: cambia solo come si leggono le voci dal modulo (`readRecords`).
+ * Si tengono solo le atlete della squadra del registro: un modulo rimasto aperto (atleta spostata o tolta) o una richiesta
+ * fatta a mano non può mettere nel registro atlete di un'altra squadra. Un errore (es. Supabase lento) non fa perdere le
+ * spunte: si torna al modulo con un messaggio invece di lasciar risalire l'eccezione.
+ */
+async function saveAttendance(
   formData: FormData,
-): Promise<AttendanceFormState> {
+  readRecords: (athleteIds: string[]) => Record<string, AttendanceStatus>,
+  where: string,
+): Promise<{ error: string } | undefined> {
   const session = await requireStaffPage("presenze");
 
   const sessionId = formData.get("sessionId")?.toString() || undefined;
@@ -59,18 +66,11 @@ export async function saveAttendanceAction(
     return { error: "Data non valida." };
   }
 
-  const records: Record<string, AttendanceStatus> = {};
-  for (const athleteId of athleteIds) {
-    records[athleteId] = normalizeStatus(formData.get(`status_${athleteId}`)?.toString());
-  }
-
-  // Un errore qui (es. Supabase lento/irraggiungibile) non deve far perdere
-  // le presenze appena spuntate: si torna al form con un messaggio invece
-  // di lasciar risalire l'eccezione (che smonterebbe il form senza un
-  // error.tsx dedicato).
   try {
     const repo = await getActiveRepo();
     const { existing, team } = await resolveExistingAndTeam(repo, session, sessionId, trainingRuleId, sessionDate);
+    const ofTeam = new Set((await repo.listAthletes({ team })).map((athlete) => athlete.id));
+    const records = readRecords(athleteIds.filter((id) => ofTeam.has(id)));
 
     const input: AttendanceSessionInput = { trainingRuleId, team, sessionDate, title, location, records };
 
@@ -84,75 +84,48 @@ export async function saveAttendanceAction(
 
     revalidatePath("/admin/presenze");
     revalidatePath("/admin/presenze/storico");
-    // Solo il sito pubblico della squadra toccata: i due siti sono
-    // indipendenti.
+    // Solo il sito pubblico della squadra toccata: i due siti sono indipendenti.
     revalidatePath(team === "minivolley" ? "/minivolley" : "/");
+    if (team === "minivolley") revalidatePath("/minivolley/presenze");
     updateTag(PUBLIC_CALENDAR_TAG);
   } catch (err) {
-    console.error("[saveAttendanceAction]", err);
+    console.error(`[${where}]`, err);
     return { error: "Non è stato possibile salvare le presenze. Riprova." };
   }
 
   redirect("/admin/presenze/storico");
+}
+
+export async function saveAttendanceAction(
+  _prevState: AttendanceFormState,
+  formData: FormData,
+): Promise<AttendanceFormState> {
+  const result = await saveAttendance(
+    formData,
+    (ids) => Object.fromEntries(ids.map((id) => [id, normalizeStatus(formData.get(`status_${id}`)?.toString())])),
+    "saveAttendanceAction",
+  );
+  return result ?? {};
 }
 
 export interface MiniAttendanceFormState {
   error?: string;
 }
 
-/** Registro presenze del Minivolley: stessa anagrafica di U14/U15 (vedi
- * MiniAttendanceForm), ma un elenco con spunte senza assenze — si tocca solo
- * chi era presente. Salva comunque un AttendanceSession con lo stesso
- * identico modello dati di saveAttendanceAction: solo che la chiave di ogni
- * voce del records è l'id dell'atleta selezionata e vale sempre "present" —
- * le assenze non vengono tracciate, nessuna voce per chi non è stata
- * selezionata (vedi getPublicAttendanceTally). */
+/** Registro presenze del Minivolley: stessa anagrafica di U14/U15 (vedi MiniAttendanceForm), ma un elenco con spunte senza
+ * assenze — si tocca solo chi era presente. Stesso modello dati di saveAttendanceAction: la chiave di ogni voce è l'id
+ * dell'atleta selezionata e vale sempre "present"; nessuna voce per chi non è stata selezionata (vedi
+ * getPublicAttendanceTally). */
 export async function saveMiniAttendanceAction(
   _prevState: MiniAttendanceFormState,
   formData: FormData,
 ): Promise<MiniAttendanceFormState> {
-  const session = await requireStaffPage("presenze");
-
-  const sessionId = formData.get("sessionId")?.toString() || undefined;
-  const trainingRuleId = formData.get("trainingRuleId")?.toString() || null;
-  const sessionDate = formData.get("sessionDate")?.toString();
-  const title = formData.get("title")?.toString().trim() || "Allenamento";
-  const location = formData.get("location")?.toString().trim() || "";
-  const athleteIds = (formData.get("athleteIds")?.toString() ?? "").split(",").filter(Boolean);
-
-  if (!sessionDate || !/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)) {
-    return { error: "Data non valida." };
-  }
-
-  const records: Record<string, AttendanceStatus> = {};
-  for (const athleteId of athleteIds) {
-    if (formData.get(`present_${athleteId}`) === "on") records[athleteId] = "present";
-  }
-
-  try {
-    const repo = await getActiveRepo();
-    const { existing, team } = await resolveExistingAndTeam(repo, session, sessionId, trainingRuleId, sessionDate);
-
-    const input: AttendanceSessionInput = { trainingRuleId, team, sessionDate, title, location, records };
-
-    if (sessionId) {
-      await repo.updateAttendanceSession(sessionId, input);
-    } else if (existing) {
-      await repo.updateAttendanceSession(existing.id, input);
-    } else {
-      await repo.createAttendanceSession(input, session.sub);
-    }
-
-    revalidatePath("/admin/presenze");
-    revalidatePath("/admin/presenze/storico");
-    revalidatePath(team === "minivolley" ? "/minivolley" : "/");
-    updateTag(PUBLIC_CALENDAR_TAG);
-  } catch (err) {
-    console.error("[saveMiniAttendanceAction]", err);
-    return { error: "Non è stato possibile salvare le presenze. Riprova." };
-  }
-
-  redirect("/admin/presenze/storico");
+  const result = await saveAttendance(
+    formData,
+    (ids) => Object.fromEntries(ids.filter((id) => formData.get(`present_${id}`) === "on").map((id) => [id, "present" as const])),
+    "saveMiniAttendanceAction",
+  );
+  return result ?? {};
 }
 
 export async function deleteAttendanceSessionAction(formData: FormData): Promise<void> {
