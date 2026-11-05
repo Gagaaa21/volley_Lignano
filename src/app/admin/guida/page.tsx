@@ -270,6 +270,8 @@ const SECTIONS: Section[] = [
     points: [
       "Solo i Developer creano nuovi account Admin, con una password temporanea da cambiare al primo accesso.",
       "Un Developer può anche modificare il nome utente di un Admin o impostargli una nuova password temporanea.",
+      "Dopo aver creato un account o rimesso la password, «Copia per mandarle» copia nome utente e password esatti da incollare su WhatsApp: niente errori a riscriverle. Al primo accesso l'allenatore sceglie una password sua, senza dover riscrivere quella temporanea.",
+      "Se un allenatore non riesce a entrare: maiuscole e minuscole della password contano (il nome utente no, e gli spazi in più ai lati non contano). Spesso il telefono propone da solo la password vecchia: va cancellata e scritta quella nuova.",
       "Solo un Developer può rimuovere l'accesso a un account Admin.",
     ],
   },

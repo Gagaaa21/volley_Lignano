@@ -59,6 +59,7 @@ import {
   type MedicalCertificate,
 } from "@/lib/medical/certificate";
 import { isJerseyColumnMissing } from "@/lib/jersey";
+import { escapeLikePattern } from "@/lib/auth/passwordInput";
 import {
   DEFAULT_FEDERATION_SOURCES,
   type FederationDecision,
@@ -1145,7 +1146,9 @@ export const supabaseRepo: Repo = {
     const { data, error } = await db
       .from("staff")
       .select("*")
-      .ilike("username", username)
+      // ILIKE: lo stesso nome utente con maiuscole o minuscole diverse (sul telefono la prima lettera si alza da sola). I
+      // caratteri jolly vanno protetti: «m_rossi» deve trovare solo m_rossi, non anche mxrossi.
+      .ilike("username", escapeLikePattern(username))
       .maybeSingle();
     if (error) throw new Error(error.message);
     return data ? staffFromRow(data as StaffRow) : null;

@@ -38,7 +38,6 @@ export default async function globalSetup(config: FullConfig) {
     await page.waitForLoadState("networkidle");
 
     if (page.url().includes("/cambia-password")) {
-      await page.getByLabel("Password attuale").fill(candidate);
       await page.getByLabel("Nuova password", { exact: true }).fill(DEV_PASSWORD);
       await page.getByLabel("Conferma nuova password").fill(DEV_PASSWORD);
       await page.getByRole("button", { name: /aggiorna password/i }).click();

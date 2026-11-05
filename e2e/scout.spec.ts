@@ -553,7 +553,6 @@ test("scout: un Admin senza il permesso non lo vede né lo raggiunge", async ({ 
   await logout(page);
   await login(page, username, password);
   await expect(page).toHaveURL(/\/cambia-password/);
-  await page.getByLabel("Password attuale").fill(password);
   await page.getByLabel("Nuova password", { exact: true }).fill("Scout123456");
   await page.getByLabel("Conferma nuova password").fill("Scout123456");
   await page.getByRole("button", { name: /aggiorna password/i }).click();

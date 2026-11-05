@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Eye, EyeOff, Loader2, Lock, LogIn, User } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, FieldError } from "@/components/ui/Field";
+import { EXACT_TEXT, Input, Label, FieldError } from "@/components/ui/Field";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -42,6 +42,7 @@ export function LoginForm() {
             id="username"
             name="username"
             autoComplete="username"
+            {...EXACT_TEXT}
             required
             className="h-11 pl-9"
           />
@@ -56,6 +57,7 @@ export function LoginForm() {
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
+            {...EXACT_TEXT}
             required
             className="h-11 pl-9 pr-10"
           />
@@ -70,8 +72,14 @@ export function LoginForm() {
         </div>
       </div>
       {state.error && (
-        <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5">
+        <div className="rounded-xl bg-destructive/8 px-3.5 py-2.5" data-login-error>
           <FieldError>{state.error}</FieldError>
+          {state.wrongCredentials && (
+            <p className="mt-1.5 text-xs leading-relaxed text-foreground/70" data-login-hint>
+              Maiuscole e minuscole contano. Se la password è stata cambiata, il telefono può proporre da solo quella vecchia:
+              cancellala e scrivi quella nuova (con l&apos;occhio vedi cosa stai scrivendo).
+            </p>
+          )}
         </div>
       )}
       <SubmitButton />

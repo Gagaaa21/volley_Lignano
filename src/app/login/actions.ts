@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
-import { verifyPassword } from "@/lib/auth/password";
+import { verifyTypedPassword } from "@/lib/auth/password";
 import { setSessionCookie } from "@/lib/auth/session";
 
 const schema = z.object({
@@ -13,7 +13,11 @@ const schema = z.object({
 
 export interface LoginState {
   error?: string;
+  /** Nome utente o password sbagliati (sotto si spiega cosa controllare). */
+  wrongCredentials?: boolean;
 }
+
+const WRONG: LoginState = { error: "Nome utente o password errati.", wrongCredentials: true };
 
 export async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const parsed = schema.safeParse({
@@ -26,10 +30,10 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
 
   const repo = await getRepo();
   const staff = await repo.getStaffByUsername(parsed.data.username.trim());
-  if (!staff) return { error: "Nome utente o password errati." };
+  if (!staff) return WRONG;
 
-  const valid = await verifyPassword(parsed.data.password, staff.passwordHash);
-  if (!valid) return { error: "Nome utente o password errati." };
+  const valid = await verifyTypedPassword(parsed.data.password, staff.passwordHash);
+  if (!valid) return WRONG;
 
   try {
     await setSessionCookie({

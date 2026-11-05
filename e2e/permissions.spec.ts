@@ -36,7 +36,6 @@ test.describe("Permessi Centro di controllo", () => {
     await logout(page);
     await login(page, username, password);
     await expect(page).toHaveURL(/\/cambia-password/);
-    await page.getByLabel("Password attuale").fill(password);
     await page.getByLabel("Nuova password", { exact: true }).fill("Restrict1234");
     await page.getByLabel("Conferma nuova password").fill("Restrict1234");
     await page.getByRole("button", { name: /aggiorna password/i }).click();

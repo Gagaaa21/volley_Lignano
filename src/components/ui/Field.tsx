@@ -15,6 +15,12 @@ export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElem
   );
 }
 
+/**
+ * Per un campo da scrivere esattamente così (nome utente, password temporanea): sul telefono la tastiera non alza la prima
+ * lettera, non corregge e non suggerisce parole (che aggiungono uno spazio invisibile in fondo).
+ */
+export const EXACT_TEXT = { autoCapitalize: "none", autoCorrect: "off", spellCheck: false } as const;
+
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(controlClass, className)} {...props} />;
 }

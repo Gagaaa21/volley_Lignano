@@ -19,7 +19,10 @@ staff (Developer e Admin).
   - `ADMIN` — creato da un DEVELOPER o da un altro ADMIN nella sezione
     "Staff" dell'area riservata.
   - Al primo accesso con password temporanea, il cambio password è
-    obbligatorio.
+    obbligatorio. In quel cambio non si chiede di nuovo la password
+    temporanea (appena scritta per entrare: il telefono ci metteva da solo
+    quella vecchia e il cambio veniva rifiutato); il cambio scelto da sé la
+    chiede sempre.
   - Un pulsante nell'header dell'area riservata ("Sito pubblico") permette
     di tornare in un click al calendario pubblico.
 - **Gestione allenamenti** (`/admin/allenamenti`) — regole ricorrenti per
@@ -50,7 +53,13 @@ staff (Developer e Admin).
   precedente. Il modulo mostra in anteprima la notifica che partirà.
 - **Gestione staff** (`/admin/staff`) — creazione nuovi account admin con
   password temporanea. Un Developer può anche modificare il nome utente di
-  un Admin o impostargli una nuova password temporanea.
+  un Admin o impostargli una nuova password temporanea. Dopo il salvataggio
+  «Copia per mandarle» copia le credenziali esatte. I campi di nome utente e
+  password non si correggono da soli sul telefono (niente maiuscola iniziale
+  né parole suggerite); le password nuove si salvano senza spazi ai lati e
+  all'accesso si accetta anche la password con uno spazio in più ai lati. Il
+  nome utente non distingue maiuscole e minuscole (su Supabase `ilike` con
+  `_` e `%` protetti, vedi `src/lib/auth/passwordInput.ts`).
 - **Schede allenamento** (`/admin/schede`) — visibili solo a Developer e
   Admin. Incolla il testo di un allenamento com'è: l'IA (Gemini, chiave
   `GEMINI_API_KEY`) decide da sola dove inizia ogni blocco, qualunque sia la

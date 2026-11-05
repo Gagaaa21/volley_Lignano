@@ -348,7 +348,6 @@ test("la sezione ha un permesso a sé: un nuovo Admin non la vede finché il Dev
   await logout(page);
   await login(page, username, password);
   await expect(page).toHaveURL(/\/cambia-password/);
-  await page.getByLabel("Password attuale").fill(password);
   await page.getByLabel("Nuova password", { exact: true }).fill(finalPassword);
   await page.getByLabel("Conferma nuova password").fill(finalPassword);
   await page.getByRole("button", { name: /aggiorna password/i }).click();

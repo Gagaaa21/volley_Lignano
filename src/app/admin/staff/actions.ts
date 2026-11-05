@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { requireDev, requireStaffPage } from "@/lib/auth/guard";
 import { hashPassword } from "@/lib/auth/password";
+import { cleanNewPassword } from "@/lib/auth/passwordInput";
 import { DEFAULT_NEW_ADMIN_PAGES, TEAMS } from "@/lib/types";
 
 const schema = z.object({
@@ -31,7 +32,7 @@ export async function createStaffAction(
   const parsed = schema.safeParse({
     username: formData.get("username")?.toString().trim() ?? "",
     fullName: formData.get("fullName")?.toString().trim() ?? "",
-    temporaryPassword: formData.get("temporaryPassword")?.toString() ?? "",
+    temporaryPassword: cleanNewPassword(formData.get("temporaryPassword")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -105,7 +106,7 @@ export async function updateStaffAction(
   const parsed = updateSchema.safeParse({
     username: formData.get("username")?.toString().trim() ?? "",
     fullName: formData.get("fullName")?.toString().trim() ?? "",
-    newPassword: formData.get("newPassword")?.toString() ?? "",
+    newPassword: cleanNewPassword(formData.get("newPassword")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };

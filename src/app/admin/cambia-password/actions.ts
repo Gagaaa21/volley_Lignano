@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { cleanNewPassword } from "@/lib/auth/passwordInput";
 import { getSession, setSessionCookie } from "@/lib/auth/session";
 
 const schema = z
   .object({
-    currentPassword: z.string().min(1, "Inserisci la password attuale."),
+    currentPassword: z.string(),
     newPassword: z.string().min(8, "La nuova password deve avere almeno 8 caratteri."),
     confirmPassword: z.string().min(1, "Conferma la nuova password."),
   })
@@ -29,9 +30,9 @@ export async function changePasswordAction(
   if (!session) redirect("/login");
 
   const parsed = schema.safeParse({
-    currentPassword: formData.get("currentPassword"),
-    newPassword: formData.get("newPassword"),
-    confirmPassword: formData.get("confirmPassword"),
+    currentPassword: formData.get("currentPassword")?.toString() ?? "",
+    newPassword: cleanNewPassword(formData.get("newPassword")),
+    confirmPassword: cleanNewPassword(formData.get("confirmPassword")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi." };
@@ -41,8 +42,15 @@ export async function changePasswordAction(
   const staff = await repo.getStaffById(session.sub);
   if (!staff) redirect("/login");
 
-  const valid = await verifyPassword(parsed.data.currentPassword, staff.passwordHash);
-  if (!valid) return { error: "La password attuale non è corretta." };
+  // Cambio obbligatorio dopo una password temporanea: chi è qui l'ha appena scritta per entrare (la sessione nasce solo
+  // da lì), non serve chiederla di nuovo. Era il punto in cui ci si bloccava: il telefono riempie da solo «Password attuale»
+  // con la password VECCHIA che ricorda, e il cambio veniva rifiutato. Negli altri casi la password attuale resta richiesta.
+  const forced = session.mustChangePassword && staff.mustChangePassword;
+  if (!forced) {
+    if (!parsed.data.currentPassword) return { error: "Inserisci la password attuale." };
+    const valid = await verifyPassword(parsed.data.currentPassword, staff.passwordHash);
+    if (!valid) return { error: "La password attuale non è corretta." };
+  }
 
   const newHash = await hashPassword(parsed.data.newPassword);
   await repo.setStaffPassword(staff.id, newHash, false);

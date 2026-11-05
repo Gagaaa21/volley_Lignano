@@ -19,21 +19,24 @@ function SubmitButton() {
   );
 }
 
-export function ChangePasswordForm() {
+/** `forced`: cambio obbligatorio dopo una password temporanea, appena scritta per entrare: non si chiede di nuovo. */
+export function ChangePasswordForm({ forced = false }: { forced?: boolean }) {
   const [state, formAction] = useActionState(changePasswordAction, initialState);
 
   return (
     <form action={formAction} className="space-y-5" noValidate>
-      <div>
-        <Label htmlFor="currentPassword">Password attuale</Label>
-        <Input
-          id="currentPassword"
-          name="currentPassword"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
-      </div>
+      {!forced && (
+        <div>
+          <Label htmlFor="currentPassword">Password attuale</Label>
+          <Input
+            id="currentPassword"
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            required
+          />
+        </div>
+      )}
       <div>
         <Label htmlFor="newPassword">Nuova password</Label>
         <Input

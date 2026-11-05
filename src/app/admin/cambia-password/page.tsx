@@ -28,13 +28,13 @@ export default async function ChangePasswordPage() {
       {forced && (
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-accent-foreground/20 bg-accent px-4 py-3.5 text-sm text-accent-foreground">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>Stai usando una password temporanea. Impostane una nuova per accedere al resto del pannello.</p>
+          <p>Sei entrato con una password temporanea. Scegline una tua (almeno 8 caratteri) per accedere al resto del pannello.</p>
         </div>
       )}
 
       <Card>
         <CardBody className="pt-5 sm:pt-6">
-          <ChangePasswordForm />
+          <ChangePasswordForm forced={forced === true} />
         </CardBody>
       </Card>
     </div>

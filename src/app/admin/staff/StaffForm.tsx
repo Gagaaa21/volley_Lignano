@@ -4,7 +4,9 @@ import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label, FieldError, FieldHint, FormActions } from "@/components/ui/Field";
+import { CopyTextButton } from "@/components/ui/CopyTextButton";
+import { EXACT_TEXT, Input, Label, FieldError, FieldHint, FormActions } from "@/components/ui/Field";
+import { credentialsText } from "./credentials";
 import { createStaffAction, type StaffFormState } from "./actions";
 
 const initialState: StaffFormState = {};
@@ -37,11 +39,11 @@ export function StaffForm() {
       </div>
       <div>
         <Label htmlFor="username">Nome utente</Label>
-        <Input id="username" name="username" placeholder="Es. mrossi" required />
+        <Input id="username" name="username" placeholder="Es. mrossi" autoComplete="off" {...EXACT_TEXT} required />
       </div>
       <div>
         <Label htmlFor="temporaryPassword">Password temporanea</Label>
-        <Input id="temporaryPassword" name="temporaryPassword" minLength={8} required />
+        <Input id="temporaryPassword" name="temporaryPassword" minLength={8} autoComplete="off" {...EXACT_TEXT} required />
         <FieldHint>
           Il nuovo admin dovrà cambiarla al primo accesso. Almeno 8 caratteri.
         </FieldHint>
@@ -62,11 +64,16 @@ export function StaffForm() {
           <p className="mt-1.5">
             Comunica queste credenziali al nuovo admin, dovrà cambiare la password al primo accesso.
           </p>
-          <p className="mt-2 rounded-lg bg-card/70 px-3 py-2 font-mono text-xs text-foreground">
+          <p className="mt-2 rounded-lg bg-card/70 px-3 py-2 font-mono text-xs text-foreground" data-staff-credentials>
             Utente: <strong>{state.created.username}</strong>
             <br />
             Password: <strong>{state.created.password}</strong>
           </p>
+          <div className="mt-2">
+            <CopyTextButton text={credentialsText(state.created)} data-staff-credentials-copy>
+              Copia per mandarle
+            </CopyTextButton>
+          </div>
         </div>
       )}
 
