@@ -44,7 +44,7 @@ export default async function EditStaffPage({ params }: { params: Promise<{ id: 
         <form action={deleteStaffAction}>
           <input type="hidden" name="id" value={member.id} />
           <ConfirmSubmitButton
-            confirmMessage={`Rimuovere l'accesso di ${member.fullName} (@${member.username})?`}
+            confirmMessage={`Rimuovere l'accesso di ${member.fullName} (@${member.username})? Non potrà più entrare nell'area tecnici, ed esce subito anche dai telefoni dove è collegato. Non si può annullare.`}
             variant="danger"
             size="sm"
           >

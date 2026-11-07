@@ -56,7 +56,7 @@ export function AgendaList({
         <button
           type="button"
           onClick={() => setShowPast((v) => !v)}
-          className="mb-3 inline-flex items-center gap-1.5 rounded-lg py-1 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="hit-area relative mb-3 inline-flex items-center gap-1.5 rounded-lg py-1 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           {showPast ? (
             <>

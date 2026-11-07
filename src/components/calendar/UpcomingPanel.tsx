@@ -147,13 +147,13 @@ export function UpcomingPanel({
                   onClick={() => setSelectedEvent(event)}
                   className="group flex w-full items-center gap-3 px-5 py-2 text-left transition-colors hover:bg-muted/70 sm:px-6"
                 >
-                  <span className="w-[4.5rem] shrink-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                  <span className="w-14 shrink-0 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground sm:w-[4.5rem]">
                     {format(parseISO(event.date), "EEE d", { locale: it })}
                   </span>
                   <span className="flex w-9 shrink-0 justify-center">
                     <CategoryMarker event={event} size="xs" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground group-hover:text-primary">
+                  <span className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground group-hover:text-primary">
                     {eventLabel(event)}
                   </span>
                   <span className="tabular shrink-0 text-sm text-muted-foreground">

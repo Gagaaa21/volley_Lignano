@@ -29,7 +29,7 @@ export function PageHeader({
       {back && (
         <Link prefetch={false}
           href={back.href}
-          className="-ml-1 mb-3 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="hit-area relative -ml-1 mb-3 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           {back.label}

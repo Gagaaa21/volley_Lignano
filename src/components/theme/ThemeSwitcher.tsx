@@ -139,7 +139,7 @@ export function ThemePopover({ className }: { className?: string }) {
         title="Tema del sito"
         data-theme-popover
         className={cn(
-          "grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+          "hit-area relative grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
           open && "bg-muted text-foreground",
         )}
       >

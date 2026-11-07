@@ -51,7 +51,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
           <Link prefetch={false}
             href="/"
-            className="mx-auto mt-6 flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            className="hit-area relative mx-auto mt-6 flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             Calendario pubblico

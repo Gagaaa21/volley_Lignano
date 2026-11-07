@@ -552,6 +552,25 @@
   mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
 }
 
+/* Zona da toccare di almeno 44×44 sul telefono, senza cambiare l'aspetto: un
+   riquadro trasparente centrato sul controllo (che dev'essere relative o
+   absolute). Solo con il dito (pointer: coarse): col mouse non cambia niente.
+   Non va dentro strisce che scorrono (overflow): le farebbe scorrere in alto
+   e in basso. */
+@utility hit-area {
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar {

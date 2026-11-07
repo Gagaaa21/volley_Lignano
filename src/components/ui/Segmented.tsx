@@ -79,7 +79,7 @@ export function SegmentedButtons<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(item.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors",
+              "hit-area relative inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors",
               active
                 ? "bg-surface text-foreground shadow-[0_1px_2px_rgba(15,30,50,0.08),0_0_0_1px_rgba(15,30,50,0.04)]"
                 : "text-muted-foreground hover:text-foreground",

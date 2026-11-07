@@ -49,7 +49,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
         </div>
         <form action={deleteMatchAction}>
           <input type="hidden" name="id" value={match.id} />
-          <ConfirmSubmitButton confirmMessage={`Eliminare la partita ${matchTitle(match)}?`} variant="danger" size="sm">
+          <ConfirmSubmitButton confirmMessage={`Eliminare la partita ${matchTitle(match)}? Sparisce dal calendario insieme a convocazioni, formazioni, scout e trasferta. Non si può annullare.`} variant="danger" size="sm">
             <Trash2 className="h-4 w-4" />
             Elimina
           </ConfirmSubmitButton>

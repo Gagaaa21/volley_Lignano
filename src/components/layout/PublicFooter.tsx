@@ -30,7 +30,7 @@ export function PublicFooter({
         <div className="flex flex-col items-center gap-1.5 sm:items-end">
           <Link prefetch={false}
             href={team === "minivolley" ? "/minivolley/notifiche" : "/notifiche"}
-            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
+            className="hit-area relative inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
             data-footer-notifiche
           >
             <Bell className="h-3.5 w-3.5" aria-hidden />

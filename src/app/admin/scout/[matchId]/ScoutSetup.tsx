@@ -148,7 +148,7 @@ function PlayerRow({
         disabled={used}
         onClick={onToggle}
         className={cn(
-          "grid h-6 w-6 shrink-0 place-items-center rounded-md border transition-colors disabled:cursor-not-allowed",
+          "hit-area relative grid h-6 w-6 shrink-0 place-items-center rounded-md border transition-colors disabled:cursor-not-allowed",
           inRoster ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-surface",
         )}
       >

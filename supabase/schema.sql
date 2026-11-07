@@ -835,3 +835,27 @@ grant execute on function table_sizes() to service_role;
 alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;
 alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated;
 alter default privileges for role postgres in schema public revoke all on functions from public, anon, authenticated;
+
+-- =========================================================
+-- Indici delle chiavi esterne — buona pratica Postgres (Supabase): ogni
+-- chiave esterna ha il suo indice, così le ricerche e le cancellazioni a
+-- cascata («set null») non scorrono tutta la tabella. Si può rilanciare.
+-- =========================================================
+create index if not exists athlete_contacts_updated_by_idx on athlete_contacts (updated_by);
+create index if not exists athletes_created_by_idx on athletes (created_by);
+create index if not exists attendance_sessions_created_by_idx on attendance_sessions (created_by);
+create index if not exists federation_decisions_decided_by_idx on federation_decisions (decided_by);
+create index if not exists match_availability_athlete_idx on match_availability (athlete_id);
+create index if not exists match_availability_updated_by_idx on match_availability (updated_by);
+create index if not exists match_lineups_updated_by_idx on match_lineups (updated_by);
+create index if not exists match_predictions_staff_idx on match_predictions (staff_id);
+create index if not exists match_scouts_updated_by_idx on match_scouts (updated_by);
+create index if not exists match_trips_updated_by_idx on match_trips (updated_by);
+create index if not exists matches_created_by_idx on matches (created_by);
+create index if not exists physical_tests_created_by_idx on physical_tests (created_by);
+create index if not exists push_subscriptions_staff_idx on push_subscriptions (staff_id);
+create index if not exists staff_created_by_idx on staff (created_by);
+create index if not exists training_occurrence_plans_created_by_idx on training_occurrence_plans (created_by);
+create index if not exists training_occurrence_plans_plan_idx on training_occurrence_plans (plan_id);
+create index if not exists training_plans_created_by_idx on training_plans (created_by);
+create index if not exists training_sessions_created_by_idx on training_sessions (created_by);

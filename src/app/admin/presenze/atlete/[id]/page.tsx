@@ -46,7 +46,7 @@ export default async function EditAthletePage({ params }: { params: Promise<{ id
         <form action={deleteAthleteAction}>
           <input type="hidden" name="id" value={athlete.id} />
           <ConfirmSubmitButton
-            confirmMessage={`Eliminare definitivamente ${athlete.fullName}? Le presenze registrate resteranno ma senza nome collegato.`}
+            confirmMessage={`Eliminare ${athlete.fullName}? Viene tolta da anagrafica, convocazioni, link dei genitori e certificato; le presenze già registrate restano senza nome. Non si può annullare.`}
             variant="danger"
             size="sm"
           >

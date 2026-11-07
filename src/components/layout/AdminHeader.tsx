@@ -121,7 +121,7 @@ function TeamSwitcher({
               type="submit"
               disabled={active}
               className={cn(
-                "rounded-lg px-2.5 py-1.5 text-xs font-bold tracking-[0.01em] transition-colors sm:px-3",
+                "hit-area relative rounded-lg px-2.5 py-1.5 text-xs font-bold tracking-[0.01em] transition-colors sm:px-3",
                 active
                   ? "bg-surface text-primary shadow-[0_1px_2px_rgba(15,30,50,0.1),0_0_0_1px_rgba(15,30,50,0.04)]"
                   : "text-muted-foreground hover:text-foreground",
@@ -172,7 +172,7 @@ function SectionsMenu({ items, pathname }: { items: typeof NAV_ITEMS; pathname: 
         aria-expanded={open}
         aria-haspopup="true"
         aria-label="Tutte le sezioni"
-        className="mb-2 mt-0.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="hit-area relative mb-2 mt-0.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
         data-sections-toggle
       >
         <LayoutGrid className="h-4 w-4" aria-hidden />
