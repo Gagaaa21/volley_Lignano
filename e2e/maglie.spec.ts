@@ -250,6 +250,8 @@ test("Live score in Partita: i numeri delle nostre si scelgono dall'elenco delle
   await page.waitForLoadState("networkidle");
   const skipTour = page.getByRole("button", { name: "Salta il tour" });
   if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
+  // «Nuovo» chiede conferma: senza accettarla resterebbe la formazione lasciata da una prova precedente.
+  page.on("dialog", (dialog) => dialog.accept());
   const reset = page.getByRole("button", { name: "Nuovo" });
   if (await reset.isVisible().catch(() => false)) await reset.click();
   await expect(page.getByRole("button", { name: "Inizia" })).toBeVisible();
