@@ -246,14 +246,13 @@ test("Live score in Partita: i numeri delle nostre si scelgono dall'elenco delle
   const name = `Live Lista ${tag()}`;
   await bulkAdd(page, `58 ${name}`, "1 atleta aggiunta");
 
+  // Il tabellone è uno solo per tutto il sito: si cancella quello lasciato da una prova precedente
+  // (anche la formazione già scritta prima di «Inizia», che altrimenti resterebbe nelle caselle).
+  expect((await page.request.delete("/api/livescore")).ok()).toBe(true);
   await page.goto("/admin/livescore");
   await page.waitForLoadState("networkidle");
   const skipTour = page.getByRole("button", { name: "Salta il tour" });
   if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
-  // «Nuovo» chiede conferma: senza accettarla resterebbe la formazione lasciata da una prova precedente.
-  page.on("dialog", (dialog) => dialog.accept());
-  const reset = page.getByRole("button", { name: "Nuovo" });
-  if (await reset.isVisible().catch(() => false)) await reset.click();
   await expect(page.getByRole("button", { name: "Inizia" })).toBeVisible();
 
   await page.getByRole("button", { name: "Partita", exact: true }).click();
@@ -274,6 +273,6 @@ test("Live score in Partita: i numeri delle nostre si scelgono dall'elenco delle
   await custom.fill("23");
   await expect(custom).toHaveValue("23");
 
-  await page.getByRole("button", { name: "Nuovo" }).click().catch(() => {});
+  expect((await page.request.delete("/api/livescore")).ok()).toBe(true);
   await deleteAthletes(page, [name]);
 });
