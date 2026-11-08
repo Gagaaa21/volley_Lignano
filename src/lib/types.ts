@@ -739,6 +739,7 @@ export interface PublicSetRecap {
  * Una nostra giocatrice nella grafica della diretta video (cambi e formazione): il numero di maglia (null se non è scritto) e
  * il nome solo se lo staff lo ha acceso nello Scout (ScoutSettings.publicNames: serve la liberatoria dei genitori).
  */
+/** Una nostra atleta nei dati pubblici: solo numero di maglia e nome. MAI statistiche sue (ordine del proprietario). */
 export interface PublicPlayer {
   number: string | null;
   name?: string;

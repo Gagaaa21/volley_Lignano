@@ -4,8 +4,9 @@ import { addPlayer, addRally, addTimeout, endSet, newScoutData, opponentPlayer, 
 import { deriveScout } from "@/lib/scout/derive";
 import { scoutDataSchema } from "@/lib/scout/schema";
 import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
+import { publicLiveScoreSchema } from "@/lib/scout/publicSnapshot";
 import { backupKey, parseBackup, sameScout, scoutContent } from "@/lib/scout/sync";
-import type { ScoutData } from "@/lib/scout/types";
+import type { ScoutData, ScoutHow } from "@/lib/scout/types";
 import { LIVE_SCORE_TTL_MS, type MatchInput, type PublicLiveScore } from "@/lib/types";
 
 /** Punteggio live dallo Scout: cosa esce sul sito, cosa non esce mai, e come si sceglie tra Scout e Live score. */
@@ -228,6 +229,80 @@ test.describe("punteggio live dallo scout: la grafica della diretta video", () =
     expect(live(data)?.matchStats?.home.attack).toBe(25);
     data = setLineup(data, "us", { positions: ["p4", "p7", "p12", "p3", "p9", "p15"], libero: "p1", hosts: ["p3", "p4"] }, T0 + 110_000, "l2");
     expect(live(data)?.lineup).toMatchObject({ set: 2, positions: [{ number: "4" }, { number: "7" }, { number: "12" }, { number: "3" }, { number: "9" }, { number: "15" }] });
+  });
+
+  /**
+   * Ordine del proprietario: nella grafica della diretta non compaiono MAI le statistiche di una singola atleta. La grafica
+   * mostra solo quello che riceve qui, quindi si controllano i dati pubblici in ogni momento della partita: delle nostre
+   * solo numero di maglia (e nome, se acceso) in formazione e cambi; i numeri (attacchi, muri, ace, errori, serie, time-out)
+   * solo di squadra. Un campo nuovo va aggiunto a TOP_LEVEL di proposito, sapendo questa regola.
+   */
+  test("mai le statistiche di una singola atleta, neanche con i nomi accesi: solo totali di squadra", () => {
+    const TOP_LEVEL = [
+      "away", "category", "finished", "home", "info", "lineup", "matchStats", "notStarted", "point", "pregame", "recap",
+      "run", "serving", "setRules", "setStats", "sets", "subs", "team", "timeouts", "updatedAt", "warmupAt",
+    ];
+    const TEAM_COUNTS = ["ace", "attack", "block", "gifts", "run", "timeouts"];
+    const PLAYER = ["name", "number"];
+
+    function check(result: PublicLiveScore | null, moment: string) {
+      expect(result, moment).not.toBeNull();
+      const value = result!;
+      expect(Object.keys(value).filter((key) => !TOP_LEVEL.includes(key)), moment).toEqual([]);
+      // Nessun riferimento alle giocatrici (id) e nessuna voce con i numeri di una sola.
+      expect(json(value), moment).not.toMatch(/"p\d+"/);
+      const walk = (node: unknown, path: string) => {
+        if (Array.isArray(node)) return node.forEach((item, i) => walk(item, `${path}[${i}]`));
+        if (!node || typeof node !== "object") return;
+        if ("number" in node) expect(Object.keys(node).filter((key) => !PLAYER.includes(key)), `${moment} ${path}`).toEqual([]);
+        for (const [key, child] of Object.entries(node)) walk(child, `${path}.${key}`);
+      };
+      walk(value, "live");
+      for (const stats of [value.setStats, value.matchStats, value.recap]) {
+        if (!stats) continue;
+        expect(Object.keys(stats.home).sort(), moment).toEqual(TEAM_COUNTS);
+        expect(Object.keys(stats.away).sort(), moment).toEqual(TEAM_COUNTS);
+      }
+      if (value.recap) expect(Object.keys(value.recap).sort(), moment).toEqual(["away", "home", "minutes", "n"]);
+    }
+
+    // Una sola giocatrice fa quasi tutto (attacchi, ace, muri), altre sbagliano: nei dati pubblici devono restare i totali.
+    let data = withLineup(true);
+    check(toPublicScoutScore({ ...data, updatedAt: "2026-10-17T09:30:00.000Z" }, DATED), "prima del via");
+    let at = T0;
+    const rally = (actor: "us" | "opp", how: ScoutHow, player: string | null) => {
+      at += 1000;
+      data = addRally(data, { actor, how, player }, at, `r${at}`);
+    };
+    for (let i = 0; i < 6; i++) rally("us", "attack", "p7");
+    for (let i = 0; i < 3; i++) rally("us", "ace", "p12");
+    rally("us", "block", "p3");
+    rally("us", "serveError", "p9");
+    rally("opp", "receptionError", null);
+    data = substitute(data, "us", 2, "p10", (at += 1000), "s1");
+    for (let i = 0; i < 5; i++) rally("us", "attack", "p7");
+    const midSet = live(data)!;
+    check(midSet, "set in corso");
+    expect(midSet.setStats?.home).toMatchObject({ attack: 11, ace: 3, block: 1, gifts: 1 });
+
+    data = play(data, 9, 0, 200);
+    data = endSet(data, "opp", T0 + 400_000, "e1");
+    check(live(data), "set chiuso");
+    data = setLineup(data, "us", { positions: ["p4", "p7", "p12", "p3", "p9", "p15"], libero: "p1", hosts: ["p3", "p4"] }, T0 + 410_000, "l2");
+    at = T0 + 420_000;
+    for (let i = 0; i < 4; i++) rally("us", "attack", "p7");
+    check(live(data), "secondo set");
+    check(live({ ...data, finished: true }), "partita chiusa");
+  });
+
+  test("anche un campo in più arrivato per sbaglio nella copia pubblica viene lasciato fuori quando si legge", () => {
+    const result = live(withLineup(true))!;
+    const tampered = {
+      ...result,
+      lineup: { ...result.lineup!, positions: result.lineup!.positions.map((player) => (player ? { ...player, points: 9, aces: 2 } : null)) },
+      topScorer: { number: "7", points: 9 },
+    };
+    expect(json(publicLiveScoreSchema.parse(tampered))).not.toMatch(/points|aces|topScorer/);
   });
 });
 

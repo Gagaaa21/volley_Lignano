@@ -139,7 +139,9 @@ function publicTeams(match: Pick<Match, "opponent">, home: { score: number; sets
  * batte) e, per la grafica della diretta video, i numeri di squadra, la serie
  * in corso, i nostri cambi e la nostra formazione con i numeri di maglia (i
  * nomi solo con `publicNames` acceso). Mai i dettagli degli scambi né chi ha
- * fatto punto. Esce solo se lo staff ha acceso «Punteggio live»; il resto
+ * fatto punto, e MAI le statistiche di una singola atleta (ordine del
+ * proprietario: i numeri sono solo di squadra; lo controlla la prova «mai le
+ * statistiche di una singola atleta»). Esce solo se lo staff ha acceso «Punteggio live»; il resto
  * dello scout resta riservato. Finché non c'è un punto è la partita «non
  * iniziata» (0–0, `notStarted`): il sito pubblico non la mostra, la grafica
  * della diretta video sì, così la barra (e la presentazione) c'è appena si

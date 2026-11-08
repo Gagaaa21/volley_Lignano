@@ -12,10 +12,12 @@ import type { PublicLiveScore } from "@/lib/types";
 /**
  * Punteggio live pubblico, senza accesso: `{ live: null }` finché un admin non
  * lo attiva, dal Live score (solo in Partita, a partita iniziata) oppure dallo
- * Scout («Punteggio live» acceso, dal primo punto segnato). Espone solo squadre,
- * punteggio, set e chi serve — mai nomi, numeri di maglia o formazioni (vedi
- * toPublicLiveScore e toPublicScoutScore). Se sono accesi entrambi vale quello
- * aggiornato per ultimo.
+ * Scout («Punteggio live» acceso, dal primo punto segnato). Espone squadre,
+ * punteggio, set, chi serve e numeri di squadra; dallo Scout anche la nostra
+ * formazione e i cambi con i soli numeri di maglia (i nomi se lo staff li
+ * accende). MAI le statistiche di una singola atleta (ordine del proprietario,
+ * vedi toPublicLiveScore e toPublicScoutScore). Se sono accesi entrambi vale
+ * quello aggiornato per ultimo.
  *
  * Con `?prima=1` (la grafica della diretta video, vedi /diretta/grafica) risponde
  * anche la partita dello Scout con il live acceso ma ancora senza punti, a 0–0
