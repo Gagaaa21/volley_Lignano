@@ -51,7 +51,9 @@ export async function GET(request: Request) {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": `inline; filename="${fileName}.ics"`,
-      "Cache-Control": "public, max-age=300",
+      // Solo partite: lo legge ogni 5 minuti lo script per Google Calendar (scripts/google-calendar), quindi la copia
+      // della rete di Vercel dura un minuto, così un cambio arriva nel calendario in pochi minuti.
+      "Cache-Control": onlyMatches ? "public, max-age=60" : "public, max-age=300",
     },
   });
 }

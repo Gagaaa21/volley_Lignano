@@ -16,7 +16,14 @@ staff (Developer e Admin).
   partite (un anno indietro e uno avanti, con il risultato nella descrizione):
   è l'indirizzo da aggiungere «Da URL» in Google Calendar per avere sempre le
   partite aggiornate (ogni partita tiene lo stesso UID, quindi un cambio
-  aggiorna l'evento e una partita cancellata sparisce).
+  aggiorna l'evento e una partita cancellata sparisce). Google però ricarica
+  gli indirizzi «Da URL» quando vuole (anche una volta al giorno): per un
+  calendario personale aggiornato in pochi minuti c'è
+  `scripts/google-calendar/PartiteVolleyLignano.gs`, uno script da incollare
+  in script.google.com (istruzioni in cima al file) che ogni 5 minuti legge
+  questo feed e aggiunge, aggiorna o toglie gli eventi in un calendario
+  «Partite Volley Lignano» dell'account Google (provato in
+  `unit/google-calendar-script.spec.ts` con un Google Calendar finto).
 - **Autenticazione staff** — login con nome utente e password (nessun
   account richiesto per i visitatori pubblici). Due ruoli:
   - `DEVELOPER` — ruolo più alto, account iniziale `Gaga`.
