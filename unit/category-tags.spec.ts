@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { matchesToEvents } from "@/lib/calendar";
 import { CATEGORY_LABELS, CATEGORY_RGB, CATEGORY_SHORT, CATEGORY_SOLID, parseCategoryFilter } from "@/lib/category";
-import { buildICSCalendar, buildICSSingleEvent, eventFullTitle, eventTitle } from "@/lib/ics";
+import { buildICSCalendar, buildICSSingleEvent, eventFullTitle, eventTitle, matchResultLine } from "@/lib/ics";
 import { buildMatchesPdf, categoryCell, categoryTone, dateCell } from "@/lib/pdf/matchesPdf";
 import type { Match } from "@/lib/types";
 
@@ -71,6 +71,32 @@ test.describe("calendario del telefono (.ics)", () => {
   test("l'evento singolo ha il suo nome con la categoria", () => {
     const [event] = matchesToEvents([match({ category: "U15" })]);
     expect(buildICSSingleEvent(event)).toContain("X-WR-CALNAME:U15 · vs Degano");
+  });
+
+  test("a partita giocata la descrizione ha il risultato con i parziali; da giocare o torneo no", () => {
+    const [won, lost, toPlay, tournament] = matchesToEvents([
+      match({ setScores: [{ us: 25, them: 20 }, { us: 23, them: 25 }, { us: 25, them: 18 }, { us: 25, them: 22 }], resultSetsWon: 3, resultSetsLost: 1 }),
+      match({ setScores: [{ us: 20, them: 25 }, { us: 18, them: 25 }, { us: 22, them: 25 }], resultSetsWon: 0, resultSetsLost: 3 }),
+      match(),
+      match({ isTournament: true, opponent: "Triangolare" }),
+    ]);
+    expect(matchResultLine(won)).toBe("Risultato: vinta 3–1 (25-20, 23-25, 25-18, 25-22)");
+    expect(matchResultLine(lost)).toBe("Risultato: persa 0–3 (20-25, 18-25, 22-25)");
+    expect(matchResultLine(toPlay)).toBeNull();
+    expect(matchResultLine(tournament)).toBeNull();
+    // Nella descrizione le virgole sono protette (RFC 5545) e il risultato viene prima del resto.
+    const [friendly] = matchesToEvents([
+      match({ isFriendly: true, setScores: [{ us: 25, them: 20 }, { us: 23, them: 25 }, { us: 25, them: 18 }, { us: 25, them: 22 }], resultSetsWon: 3, resultSetsLost: 1 }),
+    ]);
+    const ics = buildICSCalendar([friendly], "Volley Lignano").replace(/\r\n /g, "");
+    expect(ics).toContain("DESCRIPTION:Risultato: vinta 3–1 (25-20\\, 23-25\\, 25-18\\, 25-22)\\nAmichevole");
+  });
+
+  test("chi si abbona ricarica il calendario ogni ora (dove l'app lo permette)", () => {
+    const ics = buildICSCalendar(matchesToEvents([match()]), "Volley Lignano · Partite");
+    expect(ics).toContain("REFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n");
+    expect(ics).toContain("X-PUBLISHED-TTL:PT1H\r\n");
+    expect(ics).toContain("X-WR-CALNAME:Volley Lignano · Partite\r\n");
   });
 });
 

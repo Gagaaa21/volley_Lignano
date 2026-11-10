@@ -61,9 +61,20 @@ export function eventFullTitle(event: CalendarEvent): string {
   return eventTitle(event);
 }
 
+/** Il risultato di una partita giocata, per la descrizione: «Risultato: vinta 3–1 (25-20, 23-25, 25-18, 25-22)». I tornei no
+ * (più avversarie, nessun unico risultato). */
+export function matchResultLine(event: CalendarEvent): string | null {
+  if (event.kind !== "match" || event.isTournament || event.resultSetsWon === null || event.resultSetsLost === null) return null;
+  const outcome = event.resultSetsWon > event.resultSetsLost ? "vinta" : event.resultSetsWon < event.resultSetsLost ? "persa" : "pari";
+  const sets = event.setScores && event.setScores.length > 0 ? ` (${event.setScores.map((s) => `${s.us}-${s.them}`).join(", ")})` : "";
+  return `Risultato: ${outcome} ${event.resultSetsWon}–${event.resultSetsLost}${sets}`;
+}
+
 function eventDescription(event: CalendarEvent): string | null {
   if (event.kind === "training") return event.notes;
   const parts: string[] = [];
+  const result = matchResultLine(event);
+  if (result) parts.push(result);
   if (event.isFriendly) parts.push("Amichevole");
   if (event.meetingTime || event.meetingLocation) {
     parts.push(
@@ -116,6 +127,9 @@ export function buildICSCalendar(events: CalendarEvent[], calendarName: string):
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeICSText(calendarName)}`,
     "X-WR-TIMEZONE:Europe/Rome",
+    // Per chi si abbona: ricaricare ogni ora (Calendario dell'iPhone e Outlook lo rispettano; Google decide da sé).
+    "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+    "X-PUBLISHED-TTL:PT1H",
     ...events.flatMap((event) => eventToVEVENT(event, stamp)),
     "END:VCALENDAR",
   ];

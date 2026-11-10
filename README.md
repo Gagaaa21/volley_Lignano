@@ -12,7 +12,11 @@ staff (Developer e Admin).
   (`CategoryTag`, `src/components/ui/CategoryTag.tsx`: calendario, elenchi
   dell'area tecnici, Scout, Pronostici, banner in diretta, PDF); il feed
   `.ics` (`/calendario.ics`, `?cat=U14|U15`) mette la categoria nel titolo e
-  segue il filtro scelto sulla home.
+  segue il filtro scelto sulla home. Con `?solo=partite` il feed ha solo le
+  partite (un anno indietro e uno avanti, con il risultato nella descrizione):
+  è l'indirizzo da aggiungere «Da URL» in Google Calendar per avere sempre le
+  partite aggiornate (ogni partita tiene lo stesso UID, quindi un cambio
+  aggiorna l'evento e una partita cancellata sparisce).
 - **Autenticazione staff** — login con nome utente e password (nessun
   account richiesto per i visitatori pubblici). Due ruoli:
   - `DEVELOPER` — ruolo più alto, account iniziale `Gaga`.

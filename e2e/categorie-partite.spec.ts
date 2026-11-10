@@ -157,6 +157,17 @@ test("ogni partita ha la sua etichetta U14 o U15: sito pubblico, area tecnici, S
     const header = await request.get("/calendario.ics?cat=U15");
     expect(header.headers()["content-disposition"]).toContain("volley-lignano-u15.ics");
 
+    // ── Solo le partite (l'indirizzo da aggiungere «Da URL» in Google Calendar): tutte e due le categorie, nessun allenamento ──
+    const onlyMatches = await icsEvents(request, "?solo=partite");
+    expect(onlyMatches.some((block) => block.includes(opp14)) && onlyMatches.some((block) => block.includes(opp15))).toBe(true);
+    for (const block of onlyMatches) expect(block).toMatch(/SUMMARY:U1[45] · /);
+    const onlyMatchesHeader = await request.get("/calendario.ics?solo=partite");
+    expect(onlyMatchesHeader.headers()["content-disposition"]).toContain("volley-lignano-partite.ics");
+    expect(await onlyMatchesHeader.text()).toContain("X-WR-CALNAME:Volley Lignano · Partite");
+    const onlyU14Matches = await icsEvents(request, "?cat=U14&solo=partite");
+    expect(onlyU14Matches.some((block) => block.includes(opp15))).toBe(false);
+    for (const block of onlyU14Matches) expect(block).toMatch(/SUMMARY:U14 · /);
+
   } finally {
     // Anche se un controllo fallisce, le partite di prova non restano in giro a sporcare gli altri test.
     for (const id of [id14, id15]) await deleteMatchById(page, id).catch(() => {});
