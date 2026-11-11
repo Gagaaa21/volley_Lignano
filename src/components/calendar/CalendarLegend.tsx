@@ -13,6 +13,18 @@ interface LegendEntry {
   tournament?: boolean;
 }
 
+/** Le parole iniziali che più nomi hanno in comune, o «Allenamenti» se non ne hanno. */
+export function commonLabel(titles: string[]): string {
+  const words = titles.map((title) => title.trim().split(/\s+/));
+  const common: string[] = [];
+  for (let i = 0; i < words[0].length; i++) {
+    const word = words[0][i];
+    if (!words.every((list) => list[i]?.toLowerCase() === word.toLowerCase())) break;
+    common.push(word);
+  }
+  return common.length > 0 ? common.join(" ") : "Allenamenti";
+}
+
 /** Legenda costruita dagli eventi davvero mostrati: un colore per ogni tipo
  * di allenamento presente (con il suo nome reale, es. "Preparazione
  * fisica"), più le partite per categoria e i tornei. Così non descrive mai
@@ -45,13 +57,11 @@ function buildEntries(events: CalendarEvent[]): LegendEntry[] {
   }
 
   const entries: LegendEntry[] = [];
+  // Un colore con un solo tipo di allenamento porta il suo nome; con più nomi la parte che hanno in comune
+  // («Allenamento», «Allenamento del sabato» → «Allenamento»), o «Allenamenti»: l'elenco tagliato con «…» non diceva niente.
   for (const [color, titles] of trainingTitlesByColor) {
     const list = [...titles];
-    entries.push({
-      key: `training-${color}`,
-      label: list.length > 2 ? `${list.slice(0, 2).join(", ")}…` : list.join(", "),
-      dotClass: trainingDotClass(color),
-    });
+    entries.push({ key: `training-${color}`, label: list.length === 1 ? list[0] : commonLabel(list), dotClass: trainingDotClass(color) });
   }
   entries.push(...[...matchKeys.values()].sort((a, b) => a.label.localeCompare(b.label)));
   if (hasTournament) entries.push({ key: "tournament", label: "Torneo", tournament: true });

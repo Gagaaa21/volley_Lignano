@@ -6,8 +6,11 @@ import {
   MAX_CAMERAS,
   parseStreamSettings,
   parseYouTubeId,
+  pickNextMatch,
   STREAM_TTL_MS,
+  watchUrl,
 } from "@/lib/diretta/streams";
+import { commonLabel } from "@/components/calendar/CalendarLegend";
 
 /** I link delle dirette YouTube e le impostazioni della diretta video: cosa si accetta, cosa si rifiuta, quando scadono. */
 
@@ -121,5 +124,40 @@ test.describe("impostazioni della diretta", () => {
     expect(parseStreamSettings(JSON.stringify({ ...built.settings, cameras: [] }), NOW)).toBeNull();
     expect(parseStreamSettings(JSON.stringify({ ...built.settings, cameras: [{ name: "x", id: "corto" }] }), NOW)).toBeNull();
     expect(parseStreamSettings(JSON.stringify({ ...built.settings, delaySeconds: 500 }), NOW)).toBeNull();
+  });
+});
+
+test.describe("diretta da Streamlabs e prossima partita", () => {
+  test("«la grafica è già nel video»: si salva solo se scelta, e le impostazioni di prima (senza) valgono «no»", () => {
+    const withGraphic = buildStreamSettings([{ name: "Campo", link: `https://youtu.be/${ID}` }], "", NOW, true);
+    const plain = buildStreamSettings([{ name: "Campo", link: `https://youtu.be/${ID}` }], "", NOW);
+    if (!withGraphic.ok || !plain.ok) throw new Error("impostazioni rifiutate");
+    expect(withGraphic.settings.graphicInVideo).toBe(true);
+    expect(plain.settings).not.toHaveProperty("graphicInVideo");
+    expect(parseStreamSettings(JSON.stringify(withGraphic.settings), NOW)?.graphicInVideo).toBe(true);
+    expect(parseStreamSettings(JSON.stringify(plain.settings), NOW)?.graphicInVideo).toBeUndefined();
+    expect(watchUrl(ID)).toBe(`https://www.youtube.com/watch?v=${ID}`);
+  });
+
+  test("la prossima partita: la prima da adesso, o quella cominciata da meno di tre ore; nessuna se non ce ne sono", () => {
+    const now = new Date("2026-11-14T16:00").getTime();
+    const base = { isTournament: false, category: "U14" as const, location: "Palazzetto", isHome: true };
+    const matches = [
+      { ...base, matchDate: "2026-11-21T15:30", opponent: "Dopo" },
+      { ...base, matchDate: "2026-11-14T12:00", opponent: "Finita" },
+      { ...base, matchDate: "2026-11-14T15:30", opponent: "In corso", category: "U15" as const, isHome: false },
+    ];
+    expect(pickNextMatch(matches, now)).toEqual({ date: "2026-11-14T15:30", title: "vs In corso", category: "U15", location: "Palazzetto", isHome: false });
+    expect(pickNextMatch(matches, new Date("2026-11-14T19:00").getTime())?.title).toBe("vs Dopo");
+    expect(pickNextMatch([{ ...base, matchDate: "2026-11-14T12:00", opponent: "Finita" }], now)).toBeNull();
+    expect(pickNextMatch([], now)).toBeNull();
+  });
+});
+
+test.describe("legenda del calendario", () => {
+  test("più nomi per lo stesso colore: la parte in comune, o «Allenamenti»", () => {
+    expect(commonLabel(["Allenamento", "Allenamento Under 14/15", "Allenamento del sabato"])).toBe("Allenamento");
+    expect(commonLabel(["Preparazione fisica U14", "Preparazione fisica U15"])).toBe("Preparazione fisica");
+    expect(commonLabel(["Tecnica", "Pesi"])).toBe("Allenamenti");
   });
 });

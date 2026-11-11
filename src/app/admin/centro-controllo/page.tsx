@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bell, BellRing, Clock, KeyRound, ListChecks, Shield, Trophy } from "lucide-react";
+import { Activity, Bell, BellRing, Clock, KeyRound, ListChecks, Shield, Trophy } from "lucide-react";
 import { requireDev } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
@@ -14,6 +14,7 @@ import { NotificationPromptForm } from "./NotificationPromptForm";
 import { NOTIFY_PROMPT_SETTING } from "@/lib/notifyPrompt";
 import { FederationSourcesForm } from "./FederationSourcesForm";
 import { PermissionsMatrix } from "./PermissionsMatrix";
+import { SystemStatus } from "./SystemStatus";
 import { SectionTour } from "@/components/tour/SectionTour";
 import { SECTION_CENTRO_CONTROLLO_STEPS } from "@/components/tour/sectionSteps";
 
@@ -160,13 +161,14 @@ export default async function CentroControlloPage() {
           </>
         }
         title="Centro di controllo"
-        description="Notifiche manuali, permessi e attività recenti. Gli account staff si gestiscono dalla sezione Staff."
+        description="Stato del sito, notifiche manuali, permessi e attività recenti. Gli account staff si gestiscono dalla sezione Staff."
         help={<SectionTour steps={SECTION_CENTRO_CONTROLLO_STEPS} />}
       />
 
       {/* La pagina è lunga: da qui si salta alla parte che serve. */}
       <nav aria-label="Vai a" className="-mt-3 mb-6 flex flex-wrap gap-2" data-cc-nav>
         {[
+          { id: "stato", label: "Stato", icon: Activity },
           { id: "notifiche", label: "Notifiche", icon: Bell },
           { id: "permessi", label: "Permessi", icon: KeyRound },
           { id: "classifiche", label: "Classifiche", icon: Trophy },
@@ -178,6 +180,8 @@ export default async function CentroControlloPage() {
           </a>
         ))}
       </nav>
+
+      <SystemStatus matches={matches} athletes={athletes} staffCount={staff.length} subscriptions={pushSubscriptions.length} />
 
       {/* Notifica manuale */}
       <Card id="notifiche" className="scroll-mt-24" data-tour="section-cc-notification">

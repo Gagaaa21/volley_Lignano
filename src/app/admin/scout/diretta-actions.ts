@@ -28,12 +28,14 @@ export async function saveLiveStreamAction(_previous: DirettaState, formData: Fo
       name: String(formData.get(`name${index}`) ?? ""),
       link: String(formData.get(`link${index}`) ?? ""),
     }));
-    const built = buildStreamSettings(fields, String(formData.get("delay") ?? ""));
+    const built = buildStreamSettings(fields, String(formData.get("delay") ?? ""), Date.now(), formData.get("graphicInVideo") === "on");
     if (!built.ok) return { error: built.error };
     await repo.setAppSetting(LIVE_STREAM_KEY, JSON.stringify(built.settings));
     revalidatePath("/admin/scout");
     const count = built.settings.cameras.length;
-    return { success: `Salvato: ${count === 1 ? "1 camera" : `${count} camere`}. I genitori le trovano su /diretta.` };
+    return {
+      success: `Salvato: ${count === 1 ? "1 camera" : `${count} camere`}. I genitori la trovano su /diretta e dalla home del sito («Guarda la diretta video»).`,
+    };
   } catch (error) {
     console.error("[saveLiveStreamAction]", error);
     return { error: "Non è stato possibile salvare. Riprova." };

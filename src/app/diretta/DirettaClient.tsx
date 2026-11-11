@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Maximize2, Minimize2, Minus, Plus, Radio } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { CalendarClock, ExternalLink, Home, MapPin, Maximize2, Minimize2, Minus, Plane, Plus, Radio } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { clampDelaySeconds } from "@/lib/diretta/delay";
 import { OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
-import { DEFAULT_DELAY_SECONDS, embedUrl, type Camera } from "@/lib/diretta/streams";
+import { CategoryTag } from "@/components/ui/CategoryTag";
+import { DEFAULT_DELAY_SECONDS, embedUrl, watchUrl, type Camera, type NextMatch } from "@/lib/diretta/streams";
 
 const ENDPOINT = "/api/diretta";
 /** Con la diretta in corso si rilegge l'elenco delle camere ogni minuto, senza: ogni 20 secondi, per vederla partire. */
@@ -19,6 +22,9 @@ const SCORE_POLL_SECONDS = 8;
 interface Config {
   cameras: Camera[];
   delaySeconds: number;
+  /** Il video ha già la grafica dentro (Streamlabs): niente punteggio sopra, niente ritardo da regolare. */
+  graphicInVideo?: boolean;
+  next?: NextMatch | null;
 }
 
 function readStored(key: string): string | null {
@@ -46,7 +52,7 @@ type FullscreenElement = HTMLElement & { webkitRequestFullscreen?: () => Promise
 type FullscreenDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
 
 /** Il video di una camera con il punteggio sopra: due riquadri uno sull'altro, quello del punteggio trasparente e senza tocchi. */
-function Stage({ camera, delaySeconds }: { camera: Camera; delaySeconds: number }) {
+function Stage({ camera, delaySeconds, overlay }: { camera: Camera; delaySeconds: number; overlay: boolean }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLIFrameElement>(null);
@@ -156,17 +162,19 @@ function Stage({ camera, delaySeconds }: { camera: Camera; delaySeconds: number 
           referrerPolicy="strict-origin-when-cross-origin"
           data-diretta-player={camera.id}
         />
-        <iframe
-          ref={overlayRef}
-          src={overlaySrc}
-          title="Punteggio della partita"
-          aria-hidden
-          tabIndex={-1}
-          onLoad={sendAll}
-          className="pointer-events-none absolute inset-0 h-full w-full border-0 bg-transparent"
-          style={{ colorScheme: "light" }}
-          data-diretta-overlay
-        />
+        {overlay && (
+          <iframe
+            ref={overlayRef}
+            src={overlaySrc}
+            title="Punteggio della partita"
+            aria-hidden
+            tabIndex={-1}
+            onLoad={sendAll}
+            className="pointer-events-none absolute inset-0 h-full w-full border-0 bg-transparent"
+            style={{ colorScheme: "light" }}
+            data-diretta-overlay
+          />
+        )}
         <button
           type="button"
           onClick={toggleFullscreen}
@@ -178,6 +186,31 @@ function Stage({ camera, delaySeconds }: { camera: Camera; delaySeconds: number 
           {full ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** La prossima partita, nell'attesa: giorno e ora, avversaria, categoria e palestra (quello che il calendario già mostra). */
+function NextMatchInfo({ next }: { next: NextMatch }) {
+  const when = new Date(next.date);
+  const day = format(when, "EEEE d MMMM", { locale: it });
+  return (
+    <div className="w-full max-w-md rounded-2xl bg-surface-muted px-4 py-3.5 text-left ring-1 ring-border" data-diretta-next>
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Prossima partita</p>
+      <p className="mt-1.5 flex flex-wrap items-center gap-2 font-display text-lg font-bold text-foreground">
+        {next.category && <CategoryTag category={next.category} size="sm" long />}
+        {next.title}
+      </p>
+      <p className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
+        <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="first-letter:uppercase">{day}</span> · ore {next.date.slice(11, 16)}
+      </p>
+      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+        {next.isHome ? <Home className="h-4 w-4 shrink-0" /> : <Plane className="h-4 w-4 shrink-0" />}
+        <span className="shrink-0">{next.isHome ? "In casa" : "In trasferta"}</span>
+        <MapPin className="ml-1 h-4 w-4 shrink-0" />
+        <span className="truncate">{next.location}</span>
+      </p>
     </div>
   );
 }
@@ -255,17 +288,19 @@ export function DirettaClient() {
 
   if (!selected) {
     return (
-      <div className="grid place-items-center gap-3 rounded-2xl border border-border bg-card px-6 py-14 text-center shadow-card" data-diretta-idle>
+      <div className="grid place-items-center gap-3 rounded-2xl border border-border bg-card px-5 py-12 text-center shadow-card" data-diretta-idle>
         <Radio className="h-8 w-8 text-muted-foreground" aria-hidden />
         <p className="font-display text-xl font-bold text-foreground">La diretta non è ancora iniziata</p>
         <p className="max-w-md text-sm text-muted-foreground">Tieni aperta questa pagina: quando comincia, il video compare da solo.</p>
+        {config.next && <NextMatchInfo next={config.next} />}
       </div>
     );
   }
 
+  const overlay = config.graphicInVideo !== true;
   return (
     <div className="space-y-3">
-      <Stage camera={selected} delaySeconds={delaySeconds} />
+      <Stage key={overlay ? "punteggio" : "video"} camera={selected} delaySeconds={delaySeconds} overlay={overlay} />
 
       {cameras.length > 1 && (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Scegli la camera" data-diretta-cameras>
@@ -287,6 +322,7 @@ export function DirettaClient() {
         </div>
       )}
 
+      {overlay && (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-surface-muted px-4 py-3 text-sm" data-diretta-delay-box>
         <span className="font-semibold text-foreground/80">Punteggio non allineato al video?</span>
         <span className="flex items-center gap-2">
@@ -314,8 +350,21 @@ export function DirettaClient() {
         </span>
         <span className="text-xs text-muted-foreground">Se il punteggio compare prima del punto nel video, aumenta; se dopo, diminuisci.</span>
       </div>
+      )}
 
-      <p className="text-xs text-muted-foreground">Risultato non ufficiale. Il video è di YouTube.</p>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span>Risultato non ufficiale. Il video è di YouTube.</span>
+        <a
+          href={watchUrl(selected.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+          data-diretta-youtube
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Apri su YouTube (chat, TV)
+        </a>
+      </p>
     </div>
   );
 }

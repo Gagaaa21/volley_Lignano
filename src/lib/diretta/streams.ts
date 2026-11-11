@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { matchTitle } from "@/lib/calendar";
+import type { Match } from "@/lib/types";
 
 /**
  * La diretta video: ogni telefono su cavalletto fa una diretta su YouTube e lo staff ne incolla i link (fino a 3, uno per
@@ -25,6 +27,11 @@ export interface StreamSettings {
   delaySeconds: number;
   /** Quando lo staff ha salvato i link (ISO). */
   savedAt: string;
+  /**
+   * Il video ha già la grafica dentro (diretta da Streamlabs / OBS con la grafica del sito): /diretta lo mostra così com'è,
+   * senza disegnarci sopra il punteggio una seconda volta. Assente = dirette dai telefoni, punteggio sopra.
+   */
+  graphicInVideo?: boolean;
 }
 
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -58,6 +65,7 @@ const settingsSchema = z.object({
   cameras: z.array(z.object({ name: z.string().trim().min(1).max(MAX_CAMERA_NAME), id: z.string().regex(YOUTUBE_ID) })).max(MAX_CAMERAS),
   delaySeconds: z.number().int().min(0).max(MAX_DELAY_SECONDS),
   savedAt: z.string().refine((value) => Number.isFinite(Date.parse(value)), "Data non valida."),
+  graphicInVideo: z.boolean().optional(),
 }) satisfies z.ZodType<StreamSettings>;
 
 /** Le impostazioni salvate, o null se mancano, non si leggono, non hanno camere o sono più vecchie di STREAM_TTL_MS. */
@@ -83,7 +91,7 @@ export type BuiltSettings = { ok: true; settings: StreamSettings } | { ok: false
  * Le impostazioni dai campi della scheda dell'area riservata: una riga per camera (le righe senza link si saltano), il nome
  * di partenza è «Camera 1…», il ritardo vuoto vale quello di partenza. Un link che non è di YouTube si rifiuta dicendo quale.
  */
-export function buildStreamSettings(fields: CameraField[], delay: string, now = Date.now()): BuiltSettings {
+export function buildStreamSettings(fields: CameraField[], delay: string, now = Date.now(), graphicInVideo = false): BuiltSettings {
   const cameras: Camera[] = [];
   for (const [index, field] of fields.slice(0, MAX_CAMERAS).entries()) {
     const link = field.link.trim();
@@ -99,10 +107,46 @@ export function buildStreamSettings(fields: CameraField[], delay: string, now = 
   if (!Number.isFinite(seconds) || seconds < 0 || seconds > MAX_DELAY_SECONDS) {
     return { ok: false, error: `Il ritardo del punteggio va da 0 a ${MAX_DELAY_SECONDS} secondi.` };
   }
-  return { ok: true, settings: { cameras, delaySeconds: Math.round(seconds), savedAt: new Date(now).toISOString() } };
+  return {
+    ok: true,
+    settings: { cameras, delaySeconds: Math.round(seconds), savedAt: new Date(now).toISOString(), ...(graphicInVideo ? { graphicInVideo: true } : {}) },
+  };
 }
 
 /** L'indirizzo del lettore YouTube da incorporare: senza il pulsante «schermo intero» di YouTube, che lascerebbe fuori il punteggio. */
 export function embedUrl(id: string): string {
   return `https://www.youtube-nocookie.com/embed/${id}?rel=0&playsinline=1&fs=0&modestbranding=1`;
+}
+
+/** Lo stesso video su YouTube (per la chat, o per mandarlo alla TV). */
+export function watchUrl(id: string): string {
+  return `https://www.youtube.com/watch?v=${id}`;
+}
+
+/** La prossima partita, per la pagina /diretta prima che cominci: gli stessi dati che il calendario pubblico già mostra. */
+export interface NextMatch {
+  /** «AAAA-MM-GGTHH:mm», ora italiana. */
+  date: string;
+  title: string;
+  category: "U14" | "U15" | null;
+  location: string;
+  isHome: boolean;
+}
+
+/** Quanto indietro guardare per «la prossima»: una partita cominciata da poco è ancora quella da guardare. */
+export const NEXT_MATCH_GRACE_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * La prossima partita da guardare: la prima che comincia da adesso in poi, o che è cominciata da meno di
+ * NEXT_MATCH_GRACE_MS (in corso). L'orario è ora italiana senza fuso, letto come ora locale: sul server è quella italiana.
+ */
+export function pickNextMatch(
+  matches: Pick<Match, "matchDate" | "opponent" | "isTournament" | "category" | "location" | "isHome">[],
+  now = Date.now(),
+): NextMatch | null {
+  const next = matches
+    .filter((match) => new Date(match.matchDate).getTime() >= now - NEXT_MATCH_GRACE_MS)
+    .sort((a, b) => a.matchDate.localeCompare(b.matchDate))[0];
+  if (!next) return null;
+  return { date: next.matchDate.slice(0, 16), title: matchTitle(next), category: next.category, location: next.location, isHome: next.isHome };
 }

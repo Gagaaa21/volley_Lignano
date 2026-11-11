@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Timer, Trophy, Volleyball } from "lucide-react";
+import Link from "next/link";
+import { PlayCircle, Timer, Trophy, Volleyball } from "lucide-react";
 import crestU14U15 from "@/assets/lignano-crest.png";
 import crestMinivolley from "@/assets/minivolley-crest.png";
 import { cn } from "@/lib/cn";
@@ -191,8 +192,28 @@ function TeamMeta({
  * come le altre, con i colori delle due squadre come filo in alto, bagliore
  * dalla loro parte e segno sotto il punteggio.
  */
+/** «Guarda la diretta video»: porta a /diretta, dove c'è il video della partita (YouTube) col punteggio. */
+function WatchVideoLink({ className }: { className?: string }) {
+  return (
+    <Link
+      prefetch={false}
+      href="/diretta"
+      className={cn(
+        "hit-area relative inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_6px_16px_-6px_rgba(220,38,38,0.75)] transition-colors hover:bg-red-700",
+        className,
+      )}
+      data-public-watch-video
+    >
+      <PlayCircle className="h-4 w-4" />
+      Guarda la diretta video
+    </Link>
+  );
+}
+
 export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  // C'è una diretta video su /diretta (solo U14/U15: il Minivolley non ne fa).
+  const [video, setVideo] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,9 +230,12 @@ export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
       try {
         const res = await fetch(ENDPOINT);
         if (res.ok) {
-          const data = (await res.json()) as { live: PublicLiveScore | null };
+          const data = (await res.json()) as { live: PublicLiveScore | null; video?: boolean };
           current = data.live && data.live.team === team ? data.live : null;
-          if (!cancelled) setSnapshot(current ? { live: current, checkedAt: Date.now() } : null);
+          if (!cancelled) {
+            setSnapshot(current ? { live: current, checkedAt: Date.now() } : null);
+            setVideo(team === "u14u15" && data.video === true);
+          }
         }
       } catch {
         // Rete assente: si riprova al giro successivo, tenendo l'ultimo punteggio.
@@ -233,7 +257,24 @@ export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
     };
   }, [team]);
 
-  if (!snapshot) return null;
+  if (!snapshot) {
+    if (!video) return null;
+    // Il video è già partito ma il punteggio non ancora (copertina, riscaldamento): una striscia sola, con il link.
+    return (
+      <section aria-label="Diretta video" className="border-b border-border bg-background" data-public-video-strip>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-70 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-600" />
+            </span>
+            La partita è in diretta video
+          </p>
+          <WatchVideoLink />
+        </div>
+      </section>
+    );
+  }
   const { live, checkedAt } = snapshot;
   const updatedAt = Date.parse(live.updatedAt);
   const stale = !live.finished && checkedAt - updatedAt > STALE_AFTER_MS;
@@ -346,6 +387,12 @@ export function LiveScoreBanner({ team }: { team: TrainingTeam }) {
               </div>
             </div>
           </div>
+
+          {video && !live.finished && (
+            <div className="flex justify-center px-4 pb-4 sm:-mt-2 sm:px-8 sm:pb-5">
+              <WatchVideoLink className="w-full justify-center py-2.5 text-[13px] sm:w-auto sm:px-5" />
+            </div>
+          )}
 
           {live.sets.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border bg-surface-muted/70 px-4 py-3 sm:px-8">

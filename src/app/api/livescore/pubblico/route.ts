@@ -1,6 +1,7 @@
 import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { getRepo } from "@/lib/db";
 import { withPregame } from "@/lib/diretta/pregame";
+import { LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
 import { opponentLogoFor } from "@/lib/federation/teamLogos";
 import { toPublicLiveScore } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
@@ -52,6 +53,9 @@ import type { PublicLiveScore } from "@/lib/types";
  * rilegge ogni secondo) la risposta non passa dalla copia della CDN: con quella
  * il punto entrava nel video fino a 8 secondi dopo il tocco nello Scout, ora
  * circa uno. Una lettura al secondo da un computer solo il database non la sente.
+ *
+ * `video: true` quando c'è una diretta video su /diretta (link salvati dallo staff, non scaduti): la home mostra «Guarda la
+ * diretta video». Non per la regia, che non ne ha bisogno e legge ogni secondo.
  */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
@@ -59,10 +63,11 @@ export async function GET(request: Request) {
   const direct = params.get("regia") === "1";
   let fromLiveScore: PublicLiveScore | null = null;
   let fromScout: PublicLiveScore | null = null;
+  let video = false;
   try {
     const repo = await getRepo();
     // Le due fonti sono indipendenti: se una non risponde, l'altra funziona lo stesso.
-    const [snapshot, compact] = await Promise.all([
+    const [snapshot, compact, stream] = await Promise.all([
       repo.getLiveScoreSnapshot().catch((error: unknown) => {
         console.error("[livescore] diretta pubblica non disponibile:", error);
         return null;
@@ -72,7 +77,9 @@ export async function GET(request: Request) {
         console.error("[scout] copia compatta del punteggio live non leggibile:", error);
         return undefined;
       }),
+      direct ? Promise.resolve(null) : repo.getAppSetting(LIVE_STREAM_KEY).catch(() => null),
     ]);
+    video = parseStreamSettings(stream) !== null;
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
     if (compact) {
@@ -111,5 +118,8 @@ export async function GET(request: Request) {
     }
   }
   const cdn = live ? "max-age=5, stale-while-revalidate=5" : "max-age=30, stale-while-revalidate=30";
-  return Response.json({ live }, { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": cdn } });
+  return Response.json(
+    direct ? { live } : { live, video },
+    { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": cdn } },
+  );
 }

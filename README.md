@@ -36,6 +36,14 @@ staff (Developer e Admin).
     chiede sempre.
   - Un pulsante nell'header dell'area riservata ("Sito pubblico") permette
     di tornare in un click al calendario pubblico.
+  - Pagine solo Developer: **Centro di controllo** (`/admin/centro-controllo`), che si apre con
+    lo **Stato del sito** (`SystemStatus.tsx`: versione pubblicata da `VERCEL_GIT_COMMIT_*`,
+    archivio e tempo di risposta, cosa è in diretta adesso — punteggio dallo Scout, dal Live
+    score, video sul sito —, la prossima partita con il suo Scout, i numeri, la configurazione
+    con solo «c'è / manca» per ogni chiave, mai i valori, e i collegamenti rapidi alla diretta),
+    poi notifiche, permessi, classifiche e attività; **Manutenzione** (`/admin/manutenzione`):
+    spazio occupato rispetto ai 500 MB del piano gratuito (tabelle dalla più grande), lettura delle
+    classifiche e, chiuse, le spiegazioni su come il sito resta nei limiti.
 - **Gestione allenamenti** (`/admin/allenamenti`) — regole ricorrenti per
   giorno della settimana, orario, luogo e periodo di validità. Una singola
   data si può annullare oppure spostare (orario e/o luogo diversi solo quel
@@ -545,6 +553,14 @@ staff (Developer e Admin).
     «Scout», mai in modalità prova): `app_settings.live_stream`, JSON con camere, ritardo e ora
     del salvataggio (`src/lib/diretta/streams.ts`: legge i link `youtu.be/…`, `watch?v=…`,
     `live/…`, `embed/…`, accetta solo identificativi di 11 caratteri, scade dopo 12 ore).
+    Con **«La grafica è già nel video»** (`graphicInVideo`, la diretta da Streamlabs) `/diretta`
+    mostra il video senza disegnarci sopra il punteggio né il controllo del ritardo. Finché i link
+    sono salvati `GET /api/livescore/pubblico` risponde anche `video: true` (non per la regia) e il
+    riquadro della home mostra **«Guarda la diretta video»** (anche prima del primo punto, come
+    striscia sola). Prima che la diretta cominci `/diretta` dice la prossima partita U14/U15
+    (`pickNextMatch`, dalla cache del calendario pubblico, in `GET /api/diretta`), e in alto c'è
+    «Condividi» (foglio di condivisione del telefono, o copia del link). Sotto il video «Apri su
+    YouTube (chat, TV)».
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
     anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080, con
     «Adatta allo schermo» (la grafica entra nel video e ai genitori basta il link di YouTube: i

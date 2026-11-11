@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import crest from "@/assets/lignano-crest.png";
 import { DirettaClient } from "./DirettaClient";
+import { ShareButton } from "./ShareButton";
 
 export const metadata: Metadata = {
   title: "Diretta",
@@ -19,11 +20,15 @@ export default function DirettaPage() {
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-border">
             <Image src={crest} alt="" unoptimized className="h-full w-full object-contain" />
           </span>
-          <span className="truncate font-display text-lg font-extrabold text-foreground">Volley Lignano</span>
+          {/* Sui telefoni stretti c'è posto solo per lo stemma accanto a «Condividi» e «Calendario». */}
+          <span className="hidden truncate font-display text-lg font-extrabold text-foreground min-[440px]:inline">Volley Lignano</span>
         </Link>
-        <Link prefetch={false} href="/" className="shrink-0 text-sm font-semibold text-primary hover:underline">
-          Calendario
-        </Link>
+        <span className="flex shrink-0 items-center gap-1">
+          <ShareButton />
+          <Link prefetch={false} href="/" className="hit-area relative rounded-lg px-2.5 py-1.5 text-sm font-semibold text-primary hover:bg-primary-soft">
+            Calendario
+          </Link>
+        </span>
       </header>
       <DirettaClient />
     </main>

@@ -56,7 +56,7 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-display text-base font-bold text-foreground">Diretta video</span>
             <Badge tone={count > 0 ? "success" : "neutral"} data-diretta-status={count > 0 ? "attiva" : "vuota"}>
-              {count > 0 ? `/diretta · ${count === 1 ? "1 camera" : `${count} camere`}` : "Streamlabs"}
+              {count > 0 ? `Sul sito · ${initial?.graphicInVideo ? "Streamlabs" : count === 1 ? "1 camera" : `${count} camere`}` : "Streamlabs"}
             </Badge>
           </span>
           <span className="mt-0.5 block text-sm text-muted-foreground">
@@ -99,8 +99,9 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             </a>
           </div>
           <p className="text-xs text-muted-foreground">
-            Il punteggio entra nel video circa un secondo dopo il tocco nello Scout, qualunque sia il ritardo di YouTube: ai genitori mandi direttamente il link di
-            YouTube. I passi completi sono nella Guida.
+            Il punteggio entra nel video circa un secondo dopo il tocco nello Scout, qualunque sia il ritardo di YouTube. Incolla il link della diretta YouTube
+            qui sotto, con «La grafica è già nel video»: i genitori la trovano anche dal sito, con «Guarda la diretta video» nella home. I passi completi sono
+            nella Guida.
           </p>
           <p className="rounded-lg bg-surface px-3 py-2 text-xs text-muted-foreground" data-diretta-hotspot>
             <b className="font-semibold text-foreground">Con l&apos;hotspot del telefono:</b> in Streamlabs uscita 1280×720 a 30 fps, bitrate video 2500 kbps
@@ -111,12 +112,28 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
 
         <section className="space-y-4 border-t border-border pt-4" data-diretta-site>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Pagina /diretta del sito (facoltativa)</h3>
+            <h3 className="text-sm font-semibold text-foreground">La diretta sul sito (/diretta e home)</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Solo se trasmetti dai telefoni, senza Streamlabs: su ogni telefono YouTube → «Vai in diretta» (meglio «Non in elenco»), poi incolla qui il link, una
-              riga per camera. I genitori la guardano da <b className="font-semibold">/diretta</b>, con il punteggio sopra.
+              Incolla il link della diretta YouTube: i genitori la guardano da <b className="font-semibold">/diretta</b> e, finché è salvata, la home del sito
+              mostra «Guarda la diretta video». <b className="font-semibold text-foreground">Con Streamlabs</b> basta la camera 1, con «La grafica è già nel
+              video». <b className="font-semibold text-foreground">Dai telefoni</b> (YouTube → «Vai in diretta», meglio «Non in elenco») un link per camera: il
+              punteggio lo disegna il sito sopra il video.
             </p>
           </div>
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-muted/60 px-3.5 py-3" data-diretta-graphic-in-video>
+            <input
+              type="checkbox"
+              name="graphicInVideo"
+              defaultChecked={initial?.graphicInVideo === true}
+              className="mt-0.5 h-5 w-5 shrink-0 rounded border-border-strong accent-[var(--primary)]"
+            />
+            <span className="text-sm">
+              <b className="font-semibold text-foreground">La grafica è già nel video (Streamlabs)</b>
+              <span className="mt-0.5 block text-muted-foreground">
+                Il sito mostra il video così com&apos;è, senza disegnarci sopra il punteggio una seconda volta. Lascialo spento per le dirette dai telefoni.
+              </span>
+            </span>
+          </label>
           {Array.from({ length: MAX_CAMERAS }, (_, index) => {
             const camera = initial?.cameras[index];
             return (
