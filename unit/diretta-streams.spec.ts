@@ -6,6 +6,7 @@ import {
   MAX_CAMERAS,
   parseStreamSettings,
   parseYouTubeId,
+  isMatchTime,
   pickNextMatch,
   STREAM_TTL_MS,
   watchUrl,
@@ -141,7 +142,7 @@ test.describe("diretta da Streamlabs e prossima partita", () => {
 
   test("la prossima partita: la prima da adesso, o quella cominciata da meno di tre ore; nessuna se non ce ne sono", () => {
     const now = new Date("2026-11-14T16:00").getTime();
-    const base = { isTournament: false, category: "U14" as const, location: "Palazzetto", isHome: true };
+    const base = { isTournament: false, category: "U14" as const, location: "Palazzetto", isHome: true, setScores: null, tournamentGames: null };
     const matches = [
       { ...base, matchDate: "2026-11-21T15:30", opponent: "Dopo" },
       { ...base, matchDate: "2026-11-14T12:00", opponent: "Finita" },
@@ -151,6 +152,21 @@ test.describe("diretta da Streamlabs e prossima partita", () => {
     expect(pickNextMatch(matches, new Date("2026-11-14T19:00").getTime())?.title).toBe("vs Dopo");
     expect(pickNextMatch([{ ...base, matchDate: "2026-11-14T12:00", opponent: "Finita" }], now)).toBeNull();
     expect(pickNextMatch([], now)).toBeNull();
+    // Cominciata da poco ma già finita (risultato inserito): la prossima è quella dopo.
+    const done = { ...base, matchDate: "2026-11-14T15:00", opponent: "Finita presto", setScores: [{ us: 25, them: 10 }, { us: 25, them: 10 }, { us: 25, them: 10 }] };
+    expect(pickNextMatch([done, { ...base, matchDate: "2026-11-14T18:00", opponent: "U15 dopo" }], new Date("2026-11-14T17:30").getTime())?.title).toBe("vs U15 dopo");
+  });
+
+  test("«Guarda la diretta video» solo durante una partita: da due ore prima a tre ore dopo l'inizio, e non se è finita", () => {
+    const base = { isTournament: false, category: "U14" as const, location: "Palazzetto", isHome: true, setScores: null, tournamentGames: null, opponent: "X" };
+    const match = { ...base, matchDate: "2026-11-14T15:00" };
+    const at = (time: string) => new Date(`2026-11-14T${time}`).getTime();
+    expect(isMatchTime([match], at("12:30"))).toBe(false);
+    expect(isMatchTime([match], at("13:30"))).toBe(true);
+    expect(isMatchTime([match], at("17:30"))).toBe(true);
+    expect(isMatchTime([match], at("18:30"))).toBe(false);
+    expect(isMatchTime([{ ...match, setScores: [{ us: 25, them: 10 }] }], at("16:00"))).toBe(false);
+    expect(isMatchTime([], at("16:00"))).toBe(false);
   });
 });
 
@@ -159,5 +175,6 @@ test.describe("legenda del calendario", () => {
     expect(commonLabel(["Allenamento", "Allenamento Under 14/15", "Allenamento del sabato"])).toBe("Allenamento");
     expect(commonLabel(["Preparazione fisica U14", "Preparazione fisica U15"])).toBe("Preparazione fisica");
     expect(commonLabel(["Tecnica", "Pesi"])).toBe("Allenamenti");
+    expect(commonLabel(["Allenamento del sabato", "Allenamento del lunedì"])).toBe("Allenamento");
   });
 });

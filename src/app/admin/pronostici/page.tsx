@@ -266,8 +266,11 @@ function MatchResultCard({
   expanded: boolean;
 }) {
   const outcome = actualOutcome(match);
-  const sets = judgedSets(match, predictions);
-  const tournament = match.isTournament ? (computeTournamentMatchResults(match, predictions) ?? []) : [];
+  // Per un torneo le gare con almeno un pronostico (come nella scheda); i set di tutte, in fila, per i punti in breve.
+  const tournament = match.isTournament
+    ? (computeTournamentMatchResults(match, predictions) ?? []).filter((game) => game.sets.some((set) => set.rankings.length > 0))
+    : [];
+  const sets = match.isTournament ? tournament.flatMap((game) => game.sets) : judgedSets(match, predictions);
   return (
     <Card data-prediction-result={match.id}>
       <CardHeader className="pb-3">

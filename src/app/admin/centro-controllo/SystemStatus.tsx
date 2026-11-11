@@ -2,12 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Activity, CheckCircle2, Database, ExternalLink, GitCommitHorizontal, Radio, Settings2, Users, Volleyball, XCircle } from "lucide-react";
+import { Activity, CheckCircle2, Database, ExternalLink, GitCommitHorizontal, MinusCircle, Radio, Settings2, Users, Volleyball, XCircle } from "lucide-react";
 import { getRepo, isDemoMode } from "@/lib/db";
 import { matchTitle } from "@/lib/calendar";
 import { CATEGORY_SHORT } from "@/lib/category";
 import { cn } from "@/lib/cn";
-import { LIVE_STREAM_KEY, NEXT_MATCH_GRACE_MS, parseStreamSettings, STREAM_TTL_MS } from "@/lib/diretta/streams";
+import { LIVE_STREAM_KEY, nextMatchOf, parseStreamSettings, STREAM_TTL_MS } from "@/lib/diretta/streams";
 import { toPublicLiveScore } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import { readPublicScoutSnapshot } from "@/lib/scout/publicSnapshot";
@@ -38,10 +38,17 @@ function Tile({ icon: Icon, title, children, wide = false }: { icon: typeof Acti
   );
 }
 
-function Check({ ok, label, hint }: { ok: boolean; label: string; hint: string }) {
+/** Una voce della configurazione: verde se c'è; se manca, arancione quando serve e grigia quando è facoltativa. */
+function Check({ ok, label, hint, optional = false }: { ok: boolean; label: string; hint: string; optional?: boolean }) {
   return (
-    <li className="flex items-start gap-2" data-system-check={ok ? "ok" : "manca"}>
-      {ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />}
+    <li className="flex items-start gap-2" data-system-check={ok ? "ok" : optional ? "facoltativa" : "manca"}>
+      {ok ? (
+        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+      ) : optional ? (
+        <MinusCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      ) : (
+        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+      )}
       <span>
         <span className="font-semibold text-foreground">{label}</span>
         <span className="text-muted-foreground"> · {hint}</span>
@@ -61,14 +68,15 @@ const quickLink = "inline-flex items-center gap-1 rounded-lg bg-surface-muted px
 async function readStatus(matches: Match[]) {
   const repo = await getRepo();
   const now = Date.now();
-  // Il tempo di risposta dell'archivio, su una lettura che serve comunque (i link della diretta video).
-  const started = performance.now();
-  const streamRaw = await repo.getAppSetting(LIVE_STREAM_KEY).catch(() => null);
-  const latencyMs = Math.round(performance.now() - started);
-  const nextMatch = [...matches]
-    .filter((m) => m.team === "u14u15" && new Date(m.matchDate).getTime() >= now - NEXT_MATCH_GRACE_MS)
-    .sort((a, b) => a.matchDate.localeCompare(b.matchDate))[0];
-  const [liveSnapshot, scoutLive, nextScout] = await Promise.all([
+  const nextMatch = nextMatchOf(matches.filter((m) => m.team === "u14u15"), now);
+  // Il tempo di risposta dell'archivio, su una lettura che serve comunque (i link della diretta video), insieme alle altre.
+  const timedStream = async () => {
+    const started = performance.now();
+    const raw = await repo.getAppSetting(LIVE_STREAM_KEY).catch(() => null);
+    return { raw, latencyMs: Math.round(performance.now() - started) };
+  };
+  const [{ raw: streamRaw, latencyMs }, liveSnapshot, scoutLive, nextScout] = await Promise.all([
+    timedStream(),
     repo.getLiveScoreSnapshot().catch(() => null),
     readPublicScoutSnapshot(repo).catch(() => undefined),
     nextMatch ? repo.getMatchScout(nextMatch.id).catch(() => null) : Promise.resolve(null),
@@ -186,9 +194,7 @@ export async function SystemStatus({ matches, athletes, staffCount, subscription
         </Tile>
 
         <Tile icon={Users} title="Numeri">
-          <p>
-            {u14u15Athletes} atlete U14/U15 · {athletes.length - u14u15Athletes} Minivolley
-          </p>
+          <p>{u14u15Athletes} atlete U14/U15</p>
           <p>
             {toPlay} partite da giocare · {played} giocate
           </p>
@@ -203,8 +209,17 @@ export async function SystemStatus({ matches, athletes, staffCount, subscription
               label="Notifiche"
               hint={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY ? "chiavi impostate" : "mancano le chiavi VAPID"}
             />
-            <Check ok={Boolean(process.env.CRON_SECRET)} label="Lettura classifiche" hint={process.env.CRON_SECRET ? "lettura notturna protetta" : "manca CRON_SECRET"} />
-            <Check ok={Boolean(process.env.GEMINI_API_KEY)} label="IA delle schede" hint={process.env.GEMINI_API_KEY ? "chiave impostata" : "facoltativa, non impostata"} />
+            <Check
+              ok={Boolean(process.env.CRON_SECRET)}
+              optional
+              label="Lettura notturna delle classifiche"
+              hint={
+                process.env.CRON_SECRET
+                  ? "attiva ogni mattina"
+                  : "spenta (manca CRON_SECRET): le classifiche si aggiornano lo stesso quando qualcuno apre il sito, al più ogni 2 ore"
+              }
+            />
+            <Check ok={Boolean(process.env.GEMINI_API_KEY)} optional label="IA delle schede" hint={process.env.GEMINI_API_KEY ? "chiave impostata" : "facoltativa, non impostata"} />
           </ul>
         </Tile>
 

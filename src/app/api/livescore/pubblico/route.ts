@@ -1,11 +1,12 @@
 import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { getRepo } from "@/lib/db";
 import { withPregame } from "@/lib/diretta/pregame";
-import { LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
+import { isMatchTime, LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
 import { opponentLogoFor } from "@/lib/federation/teamLogos";
 import { toPublicLiveScore } from "@/lib/liveScore";
 import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import { isScoutTableMissing } from "@/lib/scout/missing";
+import { getPublicMatches } from "@/lib/publicCalendarData";
 import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
 import { readPublicScoutSnapshot } from "@/lib/scout/publicSnapshot";
 import type { PublicLiveScore } from "@/lib/types";
@@ -54,8 +55,10 @@ import type { PublicLiveScore } from "@/lib/types";
  * il punto entrava nel video fino a 8 secondi dopo il tocco nello Scout, ora
  * circa uno. Una lettura al secondo da un computer solo il database non la sente.
  *
- * `video: true` quando c'è una diretta video su /diretta (link salvati dallo staff, non scaduti): la home mostra «Guarda la
- * diretta video». Non per la regia, che non ne ha bisogno e legge ogni secondo.
+ * `video: true` quando c'è una diretta video su /diretta (link salvati dallo staff, non scaduti) e si sta giocando: un
+ * punteggio in diretta non finito, o una partita U14/U15 senza risultato tra due ore prima e tre ore dopo l'inizio
+ * (`isMatchTime`). La home mostra allora «Guarda la diretta video». Non per la regia, che non ne ha bisogno e legge ogni
+ * secondo.
  */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
@@ -63,7 +66,7 @@ export async function GET(request: Request) {
   const direct = params.get("regia") === "1";
   let fromLiveScore: PublicLiveScore | null = null;
   let fromScout: PublicLiveScore | null = null;
-  let video = false;
+  let streamSaved = false;
   try {
     const repo = await getRepo();
     // Le due fonti sono indipendenti: se una non risponde, l'altra funziona lo stesso.
@@ -79,7 +82,7 @@ export async function GET(request: Request) {
       }),
       direct ? Promise.resolve(null) : repo.getAppSetting(LIVE_STREAM_KEY).catch(() => null),
     ]);
-    video = parseStreamSettings(stream) !== null;
+    streamSaved = parseStreamSettings(stream) !== null;
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
     if (compact) {
@@ -104,6 +107,11 @@ export async function GET(request: Request) {
     console.error("[livescore] diretta pubblica non disponibile:", error);
   }
   let live = latestPublicLive(fromLiveScore, fromScout);
+  // Il link al video solo mentre si gioca: con il punteggio in diretta (non finito) o nella finestra di una partita.
+  let video = false;
+  if (streamSaved && !live?.finished) {
+    video = Boolean(live) || isMatchTime(await getPublicMatches().catch(() => []));
+  }
   if (live?.notStarted && !withNotStarted) live = null;
   // Prima del fischio d'inizio, la fase della diretta video (copertina, riscaldamento, presentazione), con l'ora di adesso.
   if (live?.notStarted) live = withPregame(live, Date.now());

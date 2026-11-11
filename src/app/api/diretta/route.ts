@@ -1,7 +1,6 @@
-import { addDays, format } from "date-fns";
 import { getRepo } from "@/lib/db";
 import { DEFAULT_DELAY_SECONDS, LIVE_STREAM_KEY, parseStreamSettings, pickNextMatch, type NextMatch } from "@/lib/diretta/streams";
-import { getPublicCalendarData } from "@/lib/publicCalendarData";
+import { getPublicMatches } from "@/lib/publicCalendarData";
 
 /**
  * Le camere della diretta video, per la pagina /diretta dei genitori: senza accesso, solo nome e identificativo YouTube di
@@ -20,10 +19,8 @@ export async function GET() {
     console.error("[diretta] impostazioni non disponibili:", error);
   }
   try {
-    // Le partite di questi giorni dalla cache del calendario pubblico (si rinnova da sola a ogni salvataggio di una partita).
-    const today = new Date();
-    const { matches } = await getPublicCalendarData(format(addDays(today, -1), "yyyy-MM-dd"), format(addDays(today, 14), "yyyy-MM-dd"));
-    next = pickNextMatch(matches);
+    // Le partite U14/U15 dalla loro cache (5 minuti, rinnovata a ogni salvataggio di una partita): niente allenamenti né presenze.
+    next = pickNextMatch(await getPublicMatches());
   } catch (error) {
     console.error("[diretta] prossima partita non disponibile:", error);
   }

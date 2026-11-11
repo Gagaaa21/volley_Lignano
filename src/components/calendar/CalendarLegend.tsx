@@ -13,6 +13,9 @@ interface LegendEntry {
   tournament?: boolean;
 }
 
+/** Parole che non chiudono un nome: «Allenamento del» diventa «Allenamento». */
+const DANGLING = new Set(["a", "al", "alla", "allo", "ai", "agli", "alle", "con", "da", "dal", "dalla", "dei", "del", "della", "delle", "dello", "degli", "di", "e", "in", "nel", "nella", "per", "su", "-", "·"]);
+
 /** Le parole iniziali che più nomi hanno in comune, o «Allenamenti» se non ne hanno. */
 export function commonLabel(titles: string[]): string {
   const words = titles.map((title) => title.trim().split(/\s+/));
@@ -22,6 +25,7 @@ export function commonLabel(titles: string[]): string {
     if (!words.every((list) => list[i]?.toLowerCase() === word.toLowerCase())) break;
     common.push(word);
   }
+  while (common.length > 0 && DANGLING.has(common[common.length - 1].toLowerCase())) common.pop();
   return common.length > 0 ? common.join(" ") : "Allenamenti";
 }
 

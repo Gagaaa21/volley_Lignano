@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { matchTitle } from "@/lib/calendar";
+import { matchHasResult } from "@/lib/predictions";
 import type { Match } from "@/lib/types";
 
 /**
@@ -136,17 +137,40 @@ export interface NextMatch {
 /** Quanto indietro guardare per «la prossima»: una partita cominciata da poco è ancora quella da guardare. */
 export const NEXT_MATCH_GRACE_MS = 3 * 60 * 60 * 1000;
 
+type MatchForNext = Pick<Match, "matchDate" | "opponent" | "isTournament" | "category" | "location" | "isHome" | "setScores" | "tournamentGames">;
+
 /**
  * La prossima partita da guardare: la prima che comincia da adesso in poi, o che è cominciata da meno di
- * NEXT_MATCH_GRACE_MS (in corso). L'orario è ora italiana senza fuso, letto come ora locale: sul server è quella italiana.
+ * NEXT_MATCH_GRACE_MS (in corso), saltando quelle che hanno già il risultato (finite: alle 17:30 la U14 delle 15 è
+ * conclusa, la prossima è la U15 delle 18). L'orario è ora italiana senza fuso, letto come ora locale: sul server è quella
+ * italiana. Una regola sola per /diretta e per lo «Stato del sito».
  */
-export function pickNextMatch(
-  matches: Pick<Match, "matchDate" | "opponent" | "isTournament" | "category" | "location" | "isHome">[],
-  now = Date.now(),
-): NextMatch | null {
-  const next = matches
-    .filter((match) => new Date(match.matchDate).getTime() >= now - NEXT_MATCH_GRACE_MS)
-    .sort((a, b) => a.matchDate.localeCompare(b.matchDate))[0];
+export function nextMatchOf<T extends MatchForNext>(matches: T[], now = Date.now()): T | null {
+  return (
+    matches
+      .filter((match) => !matchHasResult(match) && new Date(match.matchDate).getTime() >= now - NEXT_MATCH_GRACE_MS)
+      .sort((a, b) => a.matchDate.localeCompare(b.matchDate))[0] ?? null
+  );
+}
+
+export function pickNextMatch(matches: MatchForNext[], now = Date.now()): NextMatch | null {
+  const next = nextMatchOf(matches, now);
   if (!next) return null;
   return { date: next.matchDate.slice(0, 16), title: matchTitle(next), category: next.category, location: next.location, isHome: next.isHome };
+}
+
+/** Quanto prima dell'inizio la diretta video può già essere partita (copertina, riscaldamento). */
+export const VIDEO_BEFORE_START_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Vero se in questo momento c'è una partita «da diretta»: una senza risultato che comincia entro VIDEO_BEFORE_START_MS o è
+ * cominciata da meno di NEXT_MATCH_GRACE_MS. Serve a non mostrare «Guarda la diretta video» per ore dopo la fine (i link
+ * restano salvati fino a 12 ore) o la sera prima, se lo staff li incolla in anticipo.
+ */
+export function isMatchTime(matches: MatchForNext[], now = Date.now()): boolean {
+  return matches.some((match) => {
+    if (matchHasResult(match)) return false;
+    const start = new Date(match.matchDate).getTime();
+    return now >= start - VIDEO_BEFORE_START_MS && now <= start + NEXT_MATCH_GRACE_MS;
+  });
 }

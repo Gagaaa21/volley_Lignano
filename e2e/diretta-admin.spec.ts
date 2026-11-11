@@ -23,7 +23,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-type Api = { cameras: { name: string; id: string }[]; delaySeconds: number };
+type Api = { cameras: { name: string; id: string }[]; delaySeconds: number; graphicInVideo: boolean; next: unknown };
 const api = async (page: import("@playwright/test").Page) => (await (await page.request.get("/api/diretta")).json()) as Api;
 
 test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", async ({ page }) => {
@@ -71,17 +71,39 @@ test("lo staff incolla i link, i genitori li trovano e «Svuota» li toglie", as
   await expect(status).toContainText("2 camere");
 
   // Quello che vedono i genitori.
-  expect(await api(page)).toEqual({
+  // (Più la prossima partita, quella del calendario pubblico: qui non conta quale.)
+  expect(await api(page)).toMatchObject({
     cameras: [
       { name: "Campo", id: "AAAAAAAAAAA" },
       { name: "Dietro", id: "BBBBBBBBBBB" },
     ],
     delaySeconds: 12,
+    graphicInVideo: false,
   });
   await page.goto("/diretta");
   await expect(page.locator("[data-diretta-player]")).toHaveAttribute("data-diretta-player", "AAAAAAAAAAA");
   await expect(page.locator('[data-diretta-camera="Dietro"]')).toBeVisible();
   await expect(page.locator("[data-diretta-delay]")).toHaveText("12 s");
+  await expect(page.locator("[data-diretta-overlay]")).toHaveCount(1);
+  await expect(page.locator("[data-diretta-youtube]")).toHaveAttribute("href", "https://www.youtube.com/watch?v=AAAAAAAAAAA");
+
+  // Con Streamlabs la grafica è già nel video: /diretta lo mostra senza un secondo punteggio e senza il ritardo da regolare.
+  await page.goto("/admin/scout");
+  await page.locator("[data-diretta-graphic-in-video] input").check();
+  await card.locator("[data-diretta-save]").click();
+  await expect(card.locator("[data-diretta-ok]")).toBeVisible();
+  await expect(card.locator("[data-diretta-status]")).toContainText("Streamlabs");
+  expect((await api(page)).graphicInVideo).toBe(true);
+  await page.goto("/diretta");
+  await expect(page.locator("[data-diretta-player]")).toBeVisible();
+  await expect(page.locator("[data-diretta-overlay]")).toHaveCount(0);
+  await expect(page.locator("[data-diretta-delay-box]")).toHaveCount(0);
+  await page.goto("/admin/scout");
+  await expect(page.locator("[data-diretta-graphic-in-video] input")).toBeChecked();
+  await page.locator("[data-diretta-graphic-in-video] input").uncheck();
+  await card.locator("[data-diretta-save]").click();
+  await expect(card.locator("[data-diretta-ok]")).toBeVisible();
+  expect((await api(page)).graphicInVideo).toBe(false);
 
   // Un link che non è di YouTube si rifiuta, dicendo quale camera, e non cambia niente.
   await page.goto("/admin/scout");

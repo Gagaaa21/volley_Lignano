@@ -217,7 +217,7 @@ export function computeTournamentMatchResults(
 }
 
 /** true se una partita ha già un risultato inserito — normale o torneo. */
-export function matchHasResult(match: Match): boolean {
+export function matchHasResult(match: Pick<Match, "isTournament" | "setScores" | "tournamentGames">): boolean {
   if (match.isTournament) {
     return Boolean(match.tournamentGames?.some((g) => g.setScores.length > 0));
   }

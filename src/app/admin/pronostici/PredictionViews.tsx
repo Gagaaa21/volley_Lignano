@@ -2,6 +2,7 @@ import { Star, Trophy } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
 import {
+  PREDICTION_GRACE_LABEL,
   predictedOutcome,
   rankPositions,
   scoreSets,
@@ -368,7 +369,7 @@ export function ScoringRules() {
         <li>Per ogni set giocato prende <strong className="text-foreground">1 punto</strong> chi si è avvicinato di più al punteggio vero.</li>
         <li>Conta prima il punteggio esatto, poi aver indovinato chi vinceva il set, poi quanto ci si è andati vicino (punti nostri, loro, differenza e totale).</li>
         <li>A pari merito il punto va a tutti. Un set pronosticato ma non giocato non conta.</li>
-        <li>I pronostici degli altri si vedono quando si chiudono: 10 minuti dopo l&apos;inizio della partita.</li>
+        <li>I pronostici degli altri si vedono quando si chiudono: {PREDICTION_GRACE_LABEL} dopo l&apos;inizio della partita.</li>
       </ul>
     </details>
   );
