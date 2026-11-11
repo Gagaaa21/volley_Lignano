@@ -195,6 +195,7 @@ const ALWAYS_REAL_METHODS = new Set<keyof Repo>([
   "listFederationSnapshots",
   "saveFederationSnapshot",
   "getAppSetting",
+  "getAppSettings",
   "setAppSetting",
   "listPushSubscriptions",
   "upsertPushSubscription",

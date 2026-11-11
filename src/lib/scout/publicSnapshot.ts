@@ -146,7 +146,12 @@ export async function clearPublicScore(repo: Store, matchId: string): Promise<vo
  * - undefined se la copia non c'è o non si legge (mai scritta, valore rovinato): chi legge ripiega sulla lettura completa.
  */
 export async function readPublicScoutSnapshot(repo: Pick<Repo, "getAppSetting">, now = Date.now()): Promise<PublicLiveScore | null | undefined> {
-  const stored = parseStored(await repo.getAppSetting(PUBLIC_LIVE_SCOUT_KEY));
+  return publicScoutSnapshotFrom(await repo.getAppSetting(PUBLIC_LIVE_SCOUT_KEY), now);
+}
+
+/** Come readPublicScoutSnapshot, dal valore già letto (per leggerlo insieme ad altre impostazioni con una query sola). */
+export function publicScoutSnapshotFrom(raw: string | null, now = Date.now()): PublicLiveScore | null | undefined {
+  const stored = parseStored(raw);
   if (!stored) return undefined;
   if (!stored.live) return null;
   return now - Date.parse(stored.live.updatedAt) > LIVE_SCORE_TTL_MS ? null : stored.live;

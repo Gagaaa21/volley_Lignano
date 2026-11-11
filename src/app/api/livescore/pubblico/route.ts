@@ -8,7 +8,7 @@ import { liveScoreStateSchema } from "@/lib/liveScoreSchema";
 import { isScoutTableMissing } from "@/lib/scout/missing";
 import { getPublicMatches } from "@/lib/publicCalendarData";
 import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
-import { readPublicScoutSnapshot } from "@/lib/scout/publicSnapshot";
+import { PUBLIC_LIVE_SCOUT_KEY, publicScoutSnapshotFrom } from "@/lib/scout/publicSnapshot";
 import type { PublicLiveScore } from "@/lib/types";
 
 /**
@@ -70,19 +70,22 @@ export async function GET(request: Request) {
   try {
     const repo = await getRepo();
     // Le due fonti sono indipendenti: se una non risponde, l'altra funziona lo stesso.
-    const [snapshot, compact, stream] = await Promise.all([
+    // La copia dello Scout e i link della diretta video stanno tutti e due in app_settings: una query sola per entrambi
+    // (la regia non chiede i link). Così il link al video non aggiunge letture al database.
+    const [snapshot, settings] = await Promise.all([
       repo.getLiveScoreSnapshot().catch((error: unknown) => {
         console.error("[livescore] diretta pubblica non disponibile:", error);
         return null;
       }),
       // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
-      readPublicScoutSnapshot(repo).catch((error: unknown) => {
+      repo.getAppSettings(direct ? [PUBLIC_LIVE_SCOUT_KEY] : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY]).catch((error: unknown) => {
         console.error("[scout] copia compatta del punteggio live non leggibile:", error);
-        return undefined;
+        return null;
       }),
-      direct ? Promise.resolve(null) : repo.getAppSetting(LIVE_STREAM_KEY).catch(() => null),
     ]);
-    streamSaved = parseStreamSettings(stream) !== null;
+    // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
+    const compact = settings ? publicScoutSnapshotFrom(settings[PUBLIC_LIVE_SCOUT_KEY] ?? null) : undefined;
+    streamSaved = parseStreamSettings(settings?.[LIVE_STREAM_KEY] ?? null) !== null;
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
     if (compact) {

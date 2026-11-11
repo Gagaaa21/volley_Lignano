@@ -1451,6 +1451,13 @@ export const supabaseRepo: Repo = {
     if (error) throw new Error(error.message);
     return (data as { value: string } | null)?.value ?? null;
   },
+  async getAppSettings(keys) {
+    const db = getSupabaseAdmin();
+    const { data, error } = await db.from("app_settings").select("key, value").in("key", keys);
+    if (error) throw new Error(error.message);
+    const found = new Map(((data ?? []) as { key: string; value: string }[]).map((row) => [row.key, row.value]));
+    return Object.fromEntries(keys.map((key) => [key, found.get(key) ?? null]));
+  },
   async setAppSetting(key, value) {
     const db = getSupabaseAdmin();
     const { error } = await db

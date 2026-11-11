@@ -807,6 +807,9 @@ export function createMemoryRepo(store: MemoryStore): Repo {
     async getAppSetting(key) {
       return store.appSettings[key] ?? null;
     },
+    async getAppSettings(keys) {
+      return Object.fromEntries(keys.map((key) => [key, store.appSettings[key] ?? null]));
+    },
     async setAppSetting(key, value) {
       store.appSettings[key] = value;
     },

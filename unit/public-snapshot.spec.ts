@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
 import { addPlayer, addRally, addTimeout, newScoutData, opponentPlayer, setLineup, substitute, updateSettings } from "@/lib/scout/actions";
-import { clearPublicScore, PUBLIC_LIVE_SCOUT_KEY, publishPublicScore, readPublicScoutSnapshot, refreshPublicScore } from "@/lib/scout/publicSnapshot";
+import { clearPublicScore, PUBLIC_LIVE_SCOUT_KEY, publicScoutSnapshotFrom, publishPublicScore, readPublicScoutSnapshot, refreshPublicScore } from "@/lib/scout/publicSnapshot";
 import type { MatchScout, ScoutData } from "@/lib/scout/types";
 import { LIVE_SCORE_TTL_MS } from "@/lib/types";
 
@@ -161,6 +161,17 @@ test.describe("copia compatta del punteggio live", () => {
     await clearPublicScore(repo, "m1");
     await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: `${day}T23:45` });
     expect(await readPublicScoutSnapshot(repo, now)).toBeNull();
+  });
+
+  test("copia dello Scout e link della diretta si leggono con una query sola, e la copia letta così è la stessa", async () => {
+    const repo = createMemoryRepo(createEmptyStore());
+    await publishPublicScore(repo, scoutOf("m1", scoutData({ us: 3, opp: 1 })), MATCH);
+    const settings = await repo.getAppSettings([PUBLIC_LIVE_SCOUT_KEY, "live_stream"]);
+    expect(Object.keys(settings).sort()).toEqual(["live_stream", PUBLIC_LIVE_SCOUT_KEY].sort());
+    expect(settings.live_stream).toBeNull();
+    const now = Date.parse(UPDATED_AT);
+    expect(publicScoutSnapshotFrom(settings[PUBLIC_LIVE_SCOUT_KEY], now)).toEqual(await readPublicScoutSnapshot(repo, now));
+    expect(publicScoutSnapshotFrom(null, now)).toBeUndefined();
   });
 
   test("ferma da più di tre ore non conta più", async () => {

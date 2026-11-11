@@ -105,6 +105,8 @@ export interface Repo {
   // Impostazioni globali del sito (chiave → testo), es. l'ultima richiesta di
   // attivazione delle notifiche. Null se la chiave non è mai stata scritta.
   getAppSetting(key: string): Promise<string | null>;
+  /** Più impostazioni con una lettura sola (le chiavi che mancano valgono null): per le pagine lette di continuo. */
+  getAppSettings(keys: string[]): Promise<Record<string, string | null>>;
   setAppSetting(key: string, value: string): Promise<void>;
 
   // Formazioni partita per set (riservate allo staff)
