@@ -665,6 +665,9 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
   const seen = new Set<string>();
   for (let i = 0; i < 60 && seen.size < 5; i++) {
     await page.clock.runFor(1_500);
+    // L'orologio è finto ma il disegno della pagina no: senza questa attesa a volte si guardava ancora il passo di prima e
+    // un momento lungo un passo solo (la serie in corso, prima del set point) poteva sfuggire.
+    await page.waitForTimeout(150);
     for (const [name, selector] of [
       ["timeout", '[data-grafica-card="timeout"]'],
       ["run", "[data-grafica-run]"],
