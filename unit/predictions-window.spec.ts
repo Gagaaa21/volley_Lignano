@@ -4,15 +4,20 @@ import {
   PREDICTION_GRACE_MINUTES,
   arePredictionsClosed,
   canPredict,
-  hasPredictionOpened,
+  computeLeaderboard,
+  computeMatchResults,
   isMatchLocked,
+  predictedOutcome,
   predictionClosingLabel,
+  predictionClosingSoon,
   predictionClosingTime,
+  rankPositions,
+  scoreSets,
 } from "@/lib/predictions";
-import type { Match } from "@/lib/types";
+import type { Match, MatchPrediction, SetScore } from "@/lib/types";
 
-/** Finestra dei pronostici: si apre il giorno della partita e si chiude 10
- * minuti dopo il suo inizio (o prima, se il risultato è già stato inserito). */
+/** Finestra dei pronostici: sempre aperti, da quando la partita è in calendario, fino a 10 minuti dopo il suo inizio (o
+ * prima, se il risultato è già stato inserito). E come si contano e si mostrano i punti. */
 
 const MIN = 60_000;
 
@@ -100,18 +105,11 @@ test.describe("chiusura anticipata col risultato", () => {
   });
 });
 
-test.describe("apertura: dal giorno della partita", () => {
-  test("il giorno prima è ancora chiuso, dal giorno stesso è aperto", () => {
-    expect(hasPredictionOpened("2026-10-10T18:00", "2026-10-09")).toBe(false);
-    expect(hasPredictionOpened("2026-10-10T18:00", "2026-10-10")).toBe(true);
-    expect(hasPredictionOpened("2026-10-10T18:00", "2026-10-11")).toBe(true);
-  });
-
-  test("canPredict: non prima del giorno, sì dal mattino, non dopo 10 minuti dall'inizio", () => {
+test.describe("apertura: sempre, fino a 10 minuti dopo l'inizio", () => {
+  test("si pronostica anche settimane prima, la sera prima e fino a 10 minuti dopo l'inizio", () => {
     const m = match();
-    const dayStart = new Date("2026-10-10T00:00").getTime();
-    expect(canPredict(m, dayStart - MIN)).toBe(false);
-    expect(canPredict(m, dayStart + MIN)).toBe(true);
+    expect(canPredict(m, at(m, -60 * 24 * 30))).toBe(true); // un mese prima
+    expect(canPredict(m, at(m, -60 * 24))).toBe(true); // il giorno prima
     expect(canPredict(m, at(m, 9))).toBe(true);
     expect(canPredict(m, at(m, 10))).toBe(false);
   });
@@ -127,13 +125,66 @@ test.describe("orario di chiusura mostrato", () => {
   test("10 minuti dopo l'inizio", () => {
     expect(predictionClosingTime("2026-10-10T18:00")).toEqual({ time: "18:10", nextDay: false });
     expect(predictionClosingTime("2026-10-10T20:55")).toEqual({ time: "21:05", nextDay: false });
-    expect(predictionClosingLabel("2026-10-10T18:00")).toBe("alle 18:10");
+    // Una partita alle 23:30 si chiude prima di mezzanotte, una alle 23:55 dopo.
+    expect(predictionClosingTime("2026-10-10T23:30")).toEqual({ time: "23:40", nextDay: false });
+    expect(predictionClosingTime("2026-10-10T23:55")).toEqual({ time: "00:05", nextDay: true });
   });
 
-  test("dopo mezzanotte lo dice", () => {
-    expect(predictionClosingTime("2026-10-10T23:55")).toEqual({ time: "00:05", nextDay: true });
-    expect(predictionClosingLabel("2026-10-10T23:55")).toBe("alle 00:05 (dopo mezzanotte)");
-    // Una partita alle 23:30 ora si chiude prima di mezzanotte.
-    expect(predictionClosingTime("2026-10-10T23:30")).toEqual({ time: "23:40", nextDay: false });
+  test("con il giorno: oggi, domani, oppure la data", () => {
+    const now = new Date("2026-10-10T09:00").getTime();
+    expect(predictionClosingLabel("2026-10-10T18:00", now)).toBe("oggi alle 18:10");
+    expect(predictionClosingLabel("2026-10-11T11:00", now)).toBe("domani alle 11:10");
+    expect(predictionClosingLabel("2026-10-10T23:55", now)).toBe("domani alle 00:05");
+    expect(predictionClosingLabel("2026-10-17T15:30", now)).toBe("sab 17 ott alle 15:40");
+  });
+
+  test("«si chiude presto» nelle ultime 24 ore, non prima e non dopo", () => {
+    const m = match();
+    expect(predictionClosingSoon(m.matchDate, at(m, -60 * 25))).toBe(false);
+    expect(predictionClosingSoon(m.matchDate, at(m, -60 * 23))).toBe(true);
+    expect(predictionClosingSoon(m.matchDate, at(m, 5))).toBe(true);
+    expect(predictionClosingSoon(m.matchDate, at(m, 10))).toBe(false);
+  });
+});
+
+test.describe("punti: per partita, in classifica e a pari merito", () => {
+  const sets = (...pairs: [number, number][]): SetScore[] => pairs.map(([us, them]) => ({ us, them }));
+  const prediction = (staffId: string, matchId: string, setScores: SetScore[]): MatchPrediction =>
+    ({ id: `${staffId}-${matchId}`, matchId, staffId, setScores, tournamentGames: null }) as MatchPrediction;
+
+  test("il risultato previsto si conta dai set: 3–1, 0–3", () => {
+    expect(predictedOutcome(sets([25, 20], [20, 25], [25, 18], [25, 22]))).toEqual({ won: 3, lost: 1 });
+    expect(predictedOutcome(sets([20, 25], [18, 25], [22, 25]))).toEqual({ won: 0, lost: 3 });
+  });
+
+  test("in una partita: un punto per set al più vicino, con esatti e vincitori indovinati; prima chi ha più punti", () => {
+    const m = match({ setScores: sets([25, 20], [22, 25], [25, 18], [25, 23]), resultSetsWon: 3, resultSetsLost: 1 });
+    const results = computeMatchResults(m, [
+      prediction("anna", "m1", sets([25, 20], [25, 22], [25, 15])), // esatto il 1°, vince il 3°
+      prediction("bea", "m1", sets([25, 21], [23, 25], [20, 25], [25, 20])), // più vicina nel 2° e nel 4°
+    ])!;
+    const scores = scoreSets(results);
+    expect(scores.map((s) => [s.staffId, s.points, s.exact, s.judged])).toEqual([
+      ["anna", 2, 1, 3],
+      ["bea", 2, 0, 4],
+    ]);
+    expect(rankPositions(scores)).toEqual([1, 1]);
+  });
+
+  test("la classifica somma le partite, conta in quante si è pronosticato e a pari punti la posizione è la stessa", () => {
+    const m1 = match({ id: "m1", setScores: sets([25, 20], [25, 20], [25, 20]), resultSetsWon: 3, resultSetsLost: 0 });
+    const m2 = match({ id: "m2", setScores: sets([20, 25], [20, 25], [20, 25]), resultSetsWon: 0, resultSetsLost: 3 });
+    const byMatch = new Map<string, MatchPrediction[]>([
+      ["m1", [prediction("anna", "m1", sets([25, 20], [25, 20], [25, 20])), prediction("bea", "m1", sets([25, 10], [25, 10], [25, 10]))]],
+      ["m2", [prediction("bea", "m2", sets([20, 25], [20, 25], [20, 25])), prediction("carla", "m2", sets([25, 10], [25, 10], [25, 10]))]],
+    ]);
+    const board = computeLeaderboard([m1, m2], byMatch);
+    // A pari punti ed esatti viene prima chi ha indovinato più vincitori di set (bea: anche i tre della prima partita).
+    expect(board.map((e) => [e.staffId, e.points, e.exact, e.rightWinner, e.matches])).toEqual([
+      ["bea", 3, 3, 6, 2],
+      ["anna", 3, 3, 3, 1],
+      ["carla", 0, 0, 0, 1],
+    ]);
+    expect(rankPositions(board)).toEqual([1, 1, 3]);
   });
 });

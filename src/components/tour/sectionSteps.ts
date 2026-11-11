@@ -238,21 +238,21 @@ export const SECTION_PRONOSTICI_STEPS: BaseTourStep[] = [
     path: "/admin/pronostici",
     target: "section-pronostici-leaderboard",
     title: "Classifica",
-    body: "Un punto per ogni set in cui il tuo pronostico si è avvicinato di più al risultato reale: la classifica si aggiorna man mano che arrivano i risultati.",
+    body: "Un punto per ogni set in cui il tuo pronostico si è avvicinato di più al risultato reale: la classifica si aggiorna man mano che arrivano i risultati. Sotto, «Come si fanno i punti» lo spiega in breve.",
   },
   {
     id: "section-pronostici-open",
     path: "/admin/pronostici",
     target: "section-pronostici-open",
     title: "Da pronosticare",
-    body: `Vedi già tutte le partite della stagione, ma puoi pronosticarle dal giorno in cui si giocano fino a ${PREDICTION_GRACE_LABEL} dopo l'inizio della partita (l'orario di chiusura è scritto accanto a ogni partita): prima di allora la scheda resta bloccata.`,
+    body: `Puoi pronosticare ogni partita fin da subito e cambiare idea fino a ${PREDICTION_GRACE_LABEL} dopo l'inizio (accanto a ogni partita c'è quando si chiude). Qui vedi anche il tuo pronostico e chi ha già fatto il suo.`,
   },
   {
     id: "section-pronostici-results",
     path: "/admin/pronostici",
     target: "section-pronostici-results",
     title: "Risultati",
-    body: "Per ogni set giocato, chi ha indovinato di più: qui trovi il confronto tra tutti i pronostici e il risultato reale.",
+    body: "Per ogni partita giocata, i punti di ognuno; l'ultima ha la tabella completa, set per set, con in oro chi si è avvicinato di più.",
   },
 ];
 

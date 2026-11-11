@@ -224,7 +224,8 @@ const SECTIONS: Section[] = [
     title: "Pronostici",
     intro: "Pronostica il punteggio di ogni set insieme al resto dello staff.",
     points: [
-      `Tutte le partite della stagione sono visibili fin da subito, ma si può pronosticare solo a partire dal giorno in cui si gioca. I pronostici restano aperti fino a ${PREDICTION_GRACE_LABEL} dopo l'inizio della partita (la pagina indica l'orario di chiusura) e si chiudono prima solo se il risultato è già stato inserito. Dopo la chiusura i pronostici di tutti diventano visibili.`,
+      `Si può pronosticare ogni partita fin da quando è in calendario, e cambiare idea quante volte si vuole, fino a ${PREDICTION_GRACE_LABEL} dopo l'inizio (accanto a ogni partita c'è quando si chiude, in arancione nelle ultime 24 ore); si chiude prima solo se il risultato è già stato inserito. Nell'elenco vedi il tuo pronostico e chi ha già pronosticato; i punteggi degli altri si vedono alla chiusura.`,
+      "Col risultato, una tabella mette a confronto i pronostici di tutti set per set: in oro chi si è avvicinato di più (1 punto per set, con la stella se il punteggio è esatto), in nero chi ha indovinato chi vinceva il set, in grigio chi l'ha sbagliato; in fondo alla riga i punti presi nella partita. La classifica dice anche quanti set ha vinto ognuno su quelli giudicati, gli esatti e le partite pronosticate; a pari punti la posizione è la stessa.",
       "Chi si avvicina di più al risultato reale di un set vince il set: i punti totalizzati compongono la classifica.",
       "Anche le partite dei tornei si pronosticano, una gara alla volta.",
       "Ogni partita porta l'etichetta U14 o U15; il filtro \"Tutte / Under 14 / Under 15\" sopra l'elenco mostra una categoria sola (la classifica resta su tutte le partite).",

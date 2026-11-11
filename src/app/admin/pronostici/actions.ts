@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { parseSetScoresFromFormData, parseTournamentGamesJson } from "@/lib/setScores";
-import { hasPredictionOpened, isMatchLocked, matchHasResult, PREDICTION_GRACE_LABEL, predictionClosingLabel } from "@/lib/predictions";
+import { isMatchLocked, matchHasResult, PREDICTION_GRACE_LABEL, predictionClosingTime } from "@/lib/predictions";
 
 export interface PredictionFormState {
   error?: string;
@@ -27,11 +27,8 @@ export async function savePredictionAction(
   }
   if (isMatchLocked(match.matchDate)) {
     return {
-      error: `I pronostici di questa partita sono chiusi: si chiudevano ${PREDICTION_GRACE_LABEL} dopo l'inizio (${predictionClosingLabel(match.matchDate)}).`,
+      error: `I pronostici di questa partita sono chiusi: si chiudevano ${PREDICTION_GRACE_LABEL} dopo l'inizio (alle ${predictionClosingTime(match.matchDate).time}).`,
     };
-  }
-  if (!hasPredictionOpened(match.matchDate)) {
-    return { error: "Puoi pronosticare questa partita solo a partire dal giorno in cui si gioca." };
   }
 
   if (match.isTournament) {

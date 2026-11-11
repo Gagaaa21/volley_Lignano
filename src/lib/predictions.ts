@@ -1,6 +1,6 @@
 import type { Match, MatchPrediction, SetScore, TournamentGame } from "@/lib/types";
-import { format } from "date-fns";
-import { todayIso } from "@/lib/today";
+import { addDays, format } from "date-fns";
+import { it } from "date-fns/locale";
 
 /** Dopo l'inizio della partita i pronostici restano aperti ancora per 10
  * minuti (regola dello staff: chi arriva in palestra a partita appena
@@ -27,19 +27,10 @@ export function arePredictionsClosed(match: Match, now: number = Date.now()): bo
   return isMatchLocked(match.matchDate, now) || matchHasResult(match);
 }
 
-/** Vero dal primo minuto del giorno della partita: tutte le partite restano
- * visibili nell'elenco "Da pronosticare" fin dall'inizio della stagione, ma
- * si può pronosticare solo a partire dal giorno in cui si gioca. Confronto
- * solo sulla data, come in partite/actions.ts per il risultato reale. */
-export function hasPredictionOpened(matchDate: string, today: string = todayIso()): boolean {
-  return matchDate.slice(0, 10) <= today;
-}
-
-/** Vero se in questo momento si può inviare o modificare un pronostico: dal
- * giorno della partita fino a 10 minuti dopo il suo inizio, e non oltre il
- * risultato. */
+/** Vero se in questo momento si può inviare o modificare un pronostico: sempre, da quando la partita è in calendario,
+ * fino a 10 minuti dopo il suo inizio (e non oltre il risultato). */
 export function canPredict(match: Match, now: number = Date.now()): boolean {
-  return hasPredictionOpened(match.matchDate, todayIso(new Date(now))) && !arePredictionsClosed(match, now);
+  return !arePredictionsClosed(match, now);
 }
 
 /** Ora di chiusura, per mostrarla: «18:10», o «00:05» con `nextDay` se la
@@ -49,10 +40,30 @@ export function predictionClosingTime(matchDate: string): { time: string; nextDa
   return { time: format(closes, "HH:mm"), nextDay: format(closes, "yyyy-MM-dd") !== matchDate.slice(0, 10) };
 }
 
-/** «alle 18:10» (o «alle 00:05 (dopo mezzanotte)») per le frasi in pagina. */
-export function predictionClosingLabel(matchDate: string): string {
-  const { time, nextDay } = predictionClosingTime(matchDate);
-  return nextDay ? `alle ${time} (dopo mezzanotte)` : `alle ${time}`;
+/** Quando si chiudono, rispetto ad adesso: «oggi alle 18:10», «domani alle 00:05», «sab 14 nov alle 15:40». */
+export function predictionClosingLabel(matchDate: string, now: number = Date.now()): string {
+  const closes = new Date(new Date(matchDate).getTime() + PREDICTION_GRACE_MINUTES * MINUTE_MS);
+  const day = format(closes, "yyyy-MM-dd");
+  const today = new Date(now);
+  const when =
+    day === format(today, "yyyy-MM-dd")
+      ? "oggi"
+      : day === format(addDays(today, 1), "yyyy-MM-dd")
+        ? "domani"
+        : format(closes, "EEE d MMM", { locale: it });
+  return `${when} alle ${format(closes, "HH:mm")}`;
+}
+
+/** Vero se si chiudono entro 24 ore: in elenco l'orario si colora, per non dimenticarsene. */
+export function predictionClosingSoon(matchDate: string, now: number = Date.now()): boolean {
+  const closes = new Date(matchDate).getTime() + PREDICTION_GRACE_MINUTES * MINUTE_MS;
+  return closes > now && closes - now <= 24 * 60 * MINUTE_MS;
+}
+
+/** Il risultato che un pronostico prevede: set vinti e persi da Lignano («3–1»). */
+export function predictedOutcome(setScores: SetScore[]): { won: number; lost: number } {
+  const won = setScores.filter((s) => s.us > s.them).length;
+  return { won, lost: setScores.length - won };
 }
 
 /**
@@ -213,10 +224,49 @@ export function matchHasResult(match: Match): boolean {
   return Boolean(match.setScores && match.setScores.length > 0);
 }
 
-export interface LeaderboardEntry {
+/** Tutti i set giudicati di una partita (per un torneo, quelli di tutte le gare), nello stesso ordine. */
+export function judgedSets(match: Match, predictions: MatchPrediction[]): MatchSetResult[] {
+  return match.isTournament
+    ? (computeTournamentMatchResults(match, predictions) ?? []).flatMap((g) => g.sets)
+    : (computeMatchResults(match, predictions) ?? []);
+}
+
+export interface PredictionScore {
   staffId: string;
+  /** Un punto per ogni set in cui il suo pronostico è stato il più vicino. */
   points: number;
-  setsPredicted: number;
+  /** Set in cui ha indovinato il punteggio esatto. */
+  exact: number;
+  /** Set in cui ha indovinato chi lo vinceva. */
+  rightWinner: number;
+  /** Set giudicati (pronosticati e giocati). */
+  judged: number;
+}
+
+/** I punti di ognuno su un insieme di set giudicati (una partita, o tutte): più punti prima, poi più esatti. */
+export function scoreSets(sets: MatchSetResult[]): PredictionScore[] {
+  const byStaff = new Map<string, PredictionScore>();
+  for (const set of sets) {
+    for (const entry of set.rankings) {
+      const score = byStaff.get(entry.staffId) ?? { staffId: entry.staffId, points: 0, exact: 0, rightWinner: 0, judged: 0 };
+      score.judged += 1;
+      if (entry.isWinner) score.points += 1;
+      if (entry.exactMatch) score.exact += 1;
+      if (entry.correctWinner) score.rightWinner += 1;
+      byStaff.set(entry.staffId, score);
+    }
+  }
+  return [...byStaff.values()].sort((a, b) => b.points - a.points || b.exact - a.exact || b.rightWinner - a.rightWinner);
+}
+
+/** Posizione in classifica a pari punti condivisa («1, 1, 3»). */
+export function rankPositions(scores: Pick<PredictionScore, "points">[]): number[] {
+  return scores.map((score) => 1 + scores.filter((other) => other.points > score.points).length);
+}
+
+export interface LeaderboardEntry extends PredictionScore {
+  /** Partite con risultato in cui aveva un pronostico giudicato. */
+  matches: number;
 }
 
 /** Somma i punti (1 per ogni set vinto, vedi rankSetPredictions) per
@@ -226,31 +276,14 @@ export function computeLeaderboard(
   matches: Match[],
   predictionsByMatch: Map<string, MatchPrediction[]>,
 ): LeaderboardEntry[] {
-  const points = new Map<string, number>();
-  const setsPredicted = new Map<string, number>();
-
+  const allSets: MatchSetResult[] = [];
+  const matchCount = new Map<string, number>();
   for (const match of matches) {
-    const predictions = predictionsByMatch.get(match.id) ?? [];
-    const setResults = match.isTournament
-      ? (computeTournamentMatchResults(match, predictions) ?? []).flatMap((g) => g.sets)
-      : computeMatchResults(match, predictions);
-    if (!setResults) continue;
-    for (const result of setResults) {
-      for (const entry of result.rankings) {
-        setsPredicted.set(entry.staffId, (setsPredicted.get(entry.staffId) ?? 0) + 1);
-        if (entry.isWinner) {
-          points.set(entry.staffId, (points.get(entry.staffId) ?? 0) + 1);
-        }
-      }
+    const sets = judgedSets(match, predictionsByMatch.get(match.id) ?? []);
+    allSets.push(...sets);
+    for (const staffId of new Set(sets.flatMap((set) => set.rankings.map((entry) => entry.staffId)))) {
+      matchCount.set(staffId, (matchCount.get(staffId) ?? 0) + 1);
     }
   }
-
-  const staffIds = new Set([...points.keys(), ...setsPredicted.keys()]);
-  return Array.from(staffIds)
-    .map((staffId) => ({
-      staffId,
-      points: points.get(staffId) ?? 0,
-      setsPredicted: setsPredicted.get(staffId) ?? 0,
-    }))
-    .sort((a, b) => b.points - a.points || b.setsPredicted - a.setsPredicted);
+  return scoreSets(allSets).map((score) => ({ ...score, matches: matchCount.get(score.staffId) ?? 0 }));
 }

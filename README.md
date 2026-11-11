@@ -150,11 +150,16 @@ staff (Developer e Admin).
   convocate con il numero di maglia, mai formazioni, note né assenze;
   serve il permesso «Partite», e con `?ids=` segue la
   selezione della finestra delle convocazioni anche se non è ancora salvata.
-- **Pronostici** (`src/lib/predictions.ts`) — si aprono il giorno della
-  partita e si chiudono **10 minuti dopo l'inizio** (`PREDICTION_GRACE_MINUTES`),
-  o subito se il risultato è già stato inserito; pagina e azione dicono
-  l'orario di chiusura. Dopo la chiusura i pronostici di tutti diventano
-  visibili.
+- **Pronostici** (`src/lib/predictions.ts`) — sempre aperti, da quando la
+  partita è in calendario, fino a **10 minuti dopo l'inizio**
+  (`PREDICTION_GRACE_MINUTES`), o subito se il risultato è già stato inserito;
+  accanto a ogni partita c'è quando si chiude («oggi alle 18:10», in arancione
+  nelle ultime 24 ore). Nell'elenco il proprio pronostico e chi ha già
+  pronosticato (solo i nomi: i punteggi degli altri si vedono alla chiusura).
+  Col risultato, una tabella pronostici contro risultato set per set con i
+  punti di ognuno (`PredictionViews.tsx`: oro il più vicino, stella l'esatto);
+  classifica con posizioni a pari merito, set vinti su giudicati, esatti e
+  partite (`scoreSets`, `rankPositions`, `computeLeaderboard`).
 - **Trasferte** (`/admin/trasferte`, solo U14/U15, sezione «super riservata») —
   per ogni partita fuori casa i **mezzi** (auto, pulmino, pullman…) con di chi
   è il mezzo, autista, numero di telefono, posti per le atlete e partenza, e

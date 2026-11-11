@@ -65,15 +65,16 @@ export function PredictionForm({
             squadra deve arrivare a 3 set vinti.
           </FieldHint>
 
-          <div className="overflow-x-auto rounded-2xl border border-border bg-surface-muted p-3 sm:p-4">
-            <div className="grid min-w-[19rem] grid-cols-[5.5rem_repeat(5,minmax(0,1fr))] items-center gap-1.5">
+          {/* Sul telefono le cinque colonne stanno nello schermo: etichette e spazi più stretti. */}
+          <div className="overflow-x-auto rounded-2xl border border-border bg-surface-muted p-2.5 sm:p-4">
+            <div className="grid grid-cols-[4rem_repeat(5,minmax(0,1fr))] items-center gap-1 sm:grid-cols-[5.5rem_repeat(5,minmax(0,1fr))] sm:gap-1.5">
               <span />
               {Array.from({ length: MAX_SETS }, (_, i) => (
-                <span key={i} className="text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                <span key={i} className="text-center text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground sm:text-[11px] sm:tracking-[0.06em]">
                   Set {i + 1}
                 </span>
               ))}
-              <span className="text-sm font-semibold text-foreground">Lignano</span>
+              <span className="text-xs font-semibold text-foreground sm:text-sm">Lignano</span>
               {Array.from({ length: MAX_SETS }, (_, i) => (
                 <Input
                   key={`us-${i}`}
@@ -87,7 +88,7 @@ export function PredictionForm({
                   aria-label={`Punti Lignano, set ${i + 1}`}
                 />
               ))}
-              <span className="text-sm font-semibold text-muted-foreground">Avversaria</span>
+              <span className="text-xs font-semibold text-muted-foreground sm:text-sm">Avversaria</span>
               {Array.from({ length: MAX_SETS }, (_, i) => (
                 <Input
                   key={`them-${i}`}
