@@ -80,7 +80,7 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
             </li>
             <li>A casa, prima della partita, prova l&apos;indirizzo di verifica: nell&apos;anteprima deve essere tutto verde. Poi rimetti quello della grafica.</li>
             <li>
-              Alla partita, nello Scout: «Accendi la diretta» (in video la copertina, la telecamera non si vede), poi «Inizia il riscaldamento» quando le squadre
+              Alla partita, nello Scout la diretta è già accesa (in video la copertina, la telecamera non si vede): «Inizia il riscaldamento» quando le squadre
               entrano in campo. Riscaldamento ufficiale, presentazione e punteggio seguono l&apos;orario della partita.
             </li>
           </ol>

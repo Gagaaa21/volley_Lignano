@@ -64,7 +64,7 @@ test.describe("copia compatta del punteggio live", () => {
       data = setLineup(data, "us", { positions: ["p1", "p2", "p3", "p4", "p5", "p6"], libero: null, hosts: [null, null] }, T0, "l1");
       data = addRally(data, { actor: "us", how: "attack", player: "p1" }, T0 + 1000, "r1");
       data = substitute(data, "us", 2, "p7", T0 + 2000, "s1");
-      const match = { ...MATCH, isHome: true, location: "Palazzetto", matchDate: "2026-10-31T18:00", isFriendly: false };
+      const match = { ...MATCH, isHome: true, location: "Palazzetto", matchDate: "2026-10-17T18:00", isFriendly: false };
       await publishPublicScore(repo, scoutOf("m1", data), match);
       const raw = (await repo.getAppSetting(PUBLIC_LIVE_SCOUT_KEY))!;
       expect(raw.length).toBeLessThan(2_500);
@@ -147,16 +147,19 @@ test.describe("copia compatta del punteggio live", () => {
     const repo = createMemoryRepo(createEmptyStore());
     const saved = await repo.saveMatchScout("m1", scoutData({ us: 0, opp: 0 }), null, null);
     if (!saved.ok) throw new Error("scout non salvato");
-    await publishPublicScore(repo, saved.scout, { ...MATCH, matchDate: "2026-10-31T18:00" });
+    // La partita è lo stesso giorno del salvataggio (adesso), la sera: il punteggio esce solo intorno al suo orario.
+    const saving = new Date(saved.scout.updatedAt);
+    const day = `${saving.getFullYear()}-${String(saving.getMonth() + 1).padStart(2, "0")}-${String(saving.getDate()).padStart(2, "0")}`;
+    await publishPublicScore(repo, saved.scout, { ...MATCH, matchDate: `${day}T23:00` });
     const now = Date.parse(saved.scout.updatedAt);
-    expect((await readPublicScoutSnapshot(repo, now))?.info?.date).toBe("2026-10-31T18:00");
-    await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: "2026-10-31T18:30", location: "Palestra nuova" });
-    expect((await readPublicScoutSnapshot(repo, now))?.info).toMatchObject({ date: "2026-10-31T18:30", venue: "Palestra nuova" });
+    expect((await readPublicScoutSnapshot(repo, now))?.info?.date).toBe(`${day}T23:00`);
+    await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: `${day}T23:30`, location: "Palestra nuova" });
+    expect((await readPublicScoutSnapshot(repo, now))?.info).toMatchObject({ date: `${day}T23:30`, venue: "Palestra nuova" });
     // Un'altra partita modificata non tocca quella in diretta; senza niente in diretta non si scrive niente.
     await refreshPublicScore(repo, "m2", { ...MATCH, matchDate: "2026-11-01T10:00" });
-    expect((await readPublicScoutSnapshot(repo, now))?.info?.date).toBe("2026-10-31T18:30");
+    expect((await readPublicScoutSnapshot(repo, now))?.info?.date).toBe(`${day}T23:30`);
     await clearPublicScore(repo, "m1");
-    await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: "2026-10-31T19:00" });
+    await refreshPublicScore(repo, "m1", { ...MATCH, matchDate: `${day}T23:45` });
     expect(await readPublicScoutSnapshot(repo, now)).toBeNull();
   });
 

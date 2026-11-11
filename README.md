@@ -707,8 +707,12 @@ staff (Developer e Admin).
     il Live score in Partita (elenco «numero · nome» per i giocatori in campo e
     per i cambi). Se la colonna non c'è ancora su Supabase, atlete e partite
     funzionano lo stesso: il salvataggio riprova senza il numero e lo dice.
-  - **Punteggio live pubblico**: lo Scout ha `settings.publicLive` (interruttore
-    nella preparazione e pulsante «Accendi la diretta» / «Spegni la diretta»). `/api/livescore/
+  - **Punteggio live pubblico**: lo Scout ha `settings.publicLive`, **acceso di partenza**
+    negli scout nuovi (`DEFAULT_SETTINGS`; quelli salvati prima senza la voce restano spenti), con
+    interruttore nella preparazione e pulsante «Accendi la diretta» / «Spegni la diretta». Esce sul
+    sito solo intorno all'orario della partita (`inMatchWindow`: dal suo giorno, o da 12 ore prima se
+    viene prima, a 6 ore dopo l'inizio), così uno scout preparato prima o fatto dopo dal video non
+    risulta «in diretta». `/api/livescore/
     pubblico` unisce il Live score e lo Scout acceso (`getPublicLiveScout`,
     `src/lib/scout/publicScore.ts`): squadre, punti, set, chi batte e time-out
     usati per il banner; per la grafica della diretta video anche numeri di

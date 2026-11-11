@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
-import { addPlayer, addRally, addTimeout, endSet, newScoutData, opponentPlayer, scoutReducer, setLineup, substitute, updateSettings } from "@/lib/scout/actions";
+import { DEFAULT_SETTINGS, addPlayer, addRally, addTimeout, endSet, newScoutData, opponentPlayer, scoutReducer, setLineup, substitute, updateSettings } from "@/lib/scout/actions";
 import { deriveScout } from "@/lib/scout/derive";
 import { scoutDataSchema } from "@/lib/scout/schema";
-import { latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
+import { inMatchWindow, latestPublicLive, toPublicScoutScore } from "@/lib/scout/publicScore";
 import { publicLiveScoreSchema } from "@/lib/scout/publicSnapshot";
 import { backupKey, parseBackup, sameScout, scoutContent } from "@/lib/scout/sync";
 import type { ScoutData, ScoutHow } from "@/lib/scout/types";
@@ -14,8 +14,9 @@ import { LIVE_SCORE_TTL_MS, type MatchInput, type PublicLiveScore } from "@/lib/
 const T0 = Date.UTC(2026, 9, 17, 9, 0, 0);
 const MATCH = { team: "u14u15" as const, category: "U15" as const, opponent: "Pol. Esempio" };
 
+/** Uno scout con il punteggio live spento (di partenza è acceso): così le prove lo accendono quando serve. */
 function base(): ScoutData {
-  let data = newScoutData({ us: [], opp: [] });
+  let data = newScoutData({ us: [], opp: [] }, { publicLive: false });
   data = addPlayer(data, "us", { id: "a1", name: "Giulia Bianchi", number: "4", libero: false });
   data = addPlayer(data, "opp", opponentPlayer("7"));
   return data;
@@ -33,9 +34,27 @@ const live = (data: ScoutData, updatedAt = "2026-10-17T09:30:00.000Z") =>
   toPublicScoutScore({ ...data, updatedAt }, MATCH);
 
 test.describe("punteggio live dallo scout", () => {
-  test("spento di default: non esce niente, anche con dei punti", () => {
-    expect(base().settings.publicLive).toBe(false);
+  test("acceso di partenza in uno scout nuovo; spento non esce niente, anche con dei punti", () => {
+    expect(newScoutData({ us: [], opp: [] }).settings.publicLive).toBe(true);
+    expect(DEFAULT_SETTINGS.publicLive).toBe(true);
     expect(live(play(base(), 5, 3))).toBeNull();
+  });
+
+  test("esce solo intorno all'orario della partita: dal suo giorno a 6 ore dopo l'inizio (uno scout fatto dopo non è «in diretta»)", () => {
+    const on = play(updateSettings(base(), { publicLive: true }), 5, 3);
+    const match = { ...MATCH, matchDate: "2026-10-17T15:00" };
+    const at = (iso: string) => toPublicScoutScore({ ...on, updatedAt: iso }, match);
+    expect(at(new Date("2026-10-17T00:30").toISOString())).not.toBeNull(); // il mattino della partita
+    expect(at(new Date("2026-10-17T16:00").toISOString())).not.toBeNull(); // in corso
+    expect(at(new Date("2026-10-17T20:59").toISOString())).not.toBeNull(); // quasi 6 ore dopo
+    expect(at(new Date("2026-10-17T21:01").toISOString())).toBeNull(); // oltre
+    expect(at(new Date("2026-10-16T22:00").toISOString())).toBeNull(); // il giorno prima
+    expect(at(new Date("2026-10-20T18:00").toISOString())).toBeNull(); // dal video, giorni dopo
+    // Una partita appena dopo mezzanotte: si comincia 12 ore prima, la sera precedente.
+    expect(inMatchWindow("2026-10-18T00:30", new Date("2026-10-17T13:00").toISOString())).toBe(true);
+    expect(inMatchWindow("2026-10-18T00:30", new Date("2026-10-17T12:00").toISOString())).toBe(false);
+    expect(inMatchWindow(undefined, "2026-10-20T18:00:00.000Z")).toBe(true); // senza data della partita: sempre
+    expect(inMatchWindow("2026-10-17T15:00", "non è una data")).toBe(false);
   });
 
   test("acceso ma senza punti: partita «non iniziata» a 0–0, senza battuta né time-out", () => {
@@ -58,6 +77,8 @@ test.describe("punteggio live dallo scout", () => {
 
   test("spento, o chiuso a mano senza nemmeno un punto: niente", () => {
     expect(live(base())).toBeNull();
+    // Acceso (di partenza) ma senza punti: la partita «non iniziata», per la grafica della diretta video.
+    expect(live(newScoutData({ us: [], opp: [] }))).toMatchObject({ notStarted: true });
     expect(live({ ...updateSettings(base(), { publicLive: true }), finished: true })).toBeNull();
   });
 
@@ -166,7 +187,8 @@ test.describe("punteggio live dallo scout: la grafica della diretta video", () =
     { id: "p1", name: "Gaia Riva", number: "1", libero: true },
     { id: "p10", name: "Ilaria Costa", number: "10", libero: false },
   ];
-  const DATED = { ...MATCH, isHome: true, location: "Palazzetto di Lignano", matchDate: "2026-10-31T18:00", isFriendly: false };
+  // Lo stesso giorno degli scout di prova (salvati il 17 ottobre): fuori dal giorno della partita non esce niente.
+  const DATED = { ...MATCH, isHome: true, location: "Palazzetto di Lignano", matchDate: "2026-10-17T18:00", isFriendly: false };
 
   function withLineup(names = false): ScoutData {
     let data = newScoutData({ us: [], opp: [] }, { publicLive: true, publicNames: names });
@@ -180,7 +202,7 @@ test.describe("punteggio live dallo scout: la grafica della diretta video", () =
     expect(result).toMatchObject({
       notStarted: true,
       lineup: { set: 1, positions: [{ number: "7" }, { number: "12" }, { number: "3" }, { number: "9" }, { number: "15" }, { number: "4" }], libero: { number: "1" } },
-      info: { date: "2026-10-31T18:00", venue: "Palazzetto di Lignano", home: true, friendly: false },
+      info: { date: "2026-10-17T18:00", venue: "Palazzetto di Lignano", home: true, friendly: false },
     });
     expect(json(result)).not.toMatch(/Rossi|Anna|"p7"|"p1"/);
     // Senza data della partita (le prove, i dati di prima) non c'è la presentazione.

@@ -540,7 +540,7 @@ export function ScoutSetup({
         <CardBody>
           <Toggle
             label="Accendi la diretta"
-            description="Nella grafica del video: copertina, riscaldamento, presentazione, punteggio, numeri di squadra, i nostri cambi e la nostra formazione con i numeri di maglia. Sul sito: le due squadre, i punti, i set e chi batte (risultato non ufficiale), dal primo punto. Mai chi ha fatto punto né i dettagli degli scambi. La spegni quando vuoi."
+            description="Accesa di partenza: il giorno della partita, fino a 6 ore dopo l'inizio, va sul sito e nella grafica del video. Nella grafica: copertina, riscaldamento, presentazione, punteggio, numeri di squadra, i nostri cambi e la nostra formazione con i numeri di maglia. Sul sito: le due squadre, i punti, i set e chi batte (risultato non ufficiale), dal primo punto. Mai chi ha fatto punto né i dettagli degli scambi. Spegnila qui se non la vuoi."
             checked={data.settings.publicLive}
             onChange={(e) => dispatch({ type: "settings", patch: { publicLive: e.target.checked } })}
             data-scout-public-live

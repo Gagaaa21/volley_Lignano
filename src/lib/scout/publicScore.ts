@@ -16,6 +16,27 @@ import { currentServer, deriveScout, isDecisive, setTarget, type ScoutCourt, typ
 import { estimateMinutes, setRecapCounts, type SetRecapCounts } from "./stats";
 import type { MatchScout, ScoutPlayer, ScoutSettings } from "./types";
 
+/** Fin quando dopo l'inizio lo Scout può ancora mandare il punteggio al sito (un ritardo, una partita lunga). */
+export const PUBLIC_AFTER_START_MS = 6 * 60 * 60 * 1000;
+
+/** Quanto prima dell'inizio, al più presto, se la partita è appena dopo mezzanotte (il giorno della partita comincerebbe tardi). */
+export const PUBLIC_BEFORE_START_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Vero se uno scout salvato in quel momento (`at`, ISO) può andare sul sito: dal giorno della partita (da mezzanotte, o da
+ * 12 ore prima se viene prima) a PUBLIC_AFTER_START_MS dopo l'inizio. Il punteggio live è acceso di partenza: senza questo,
+ * uno scout preparato giorni prima o fatto dopo (dal video) comparirebbe sul sito come una partita «in diretta». Senza data
+ * della partita, sempre.
+ */
+export function inMatchWindow(matchDate: string | undefined, at: string): boolean {
+  if (!matchDate) return true;
+  const when = Date.parse(at);
+  if (!Number.isFinite(when)) return false;
+  const start = new Date(matchDate.slice(0, 16)).getTime();
+  const from = Math.min(new Date(`${matchDate.slice(0, 10)}T00:00`).getTime(), start - PUBLIC_BEFORE_START_MS);
+  return when >= from && when <= start + PUBLIC_AFTER_START_MS;
+}
+
 /** I cambi del set in corso che la risposta pubblica porta (gli ultimi): bastano per annunciare un cambio doppio o triplo. */
 export const PUBLIC_SUBS_MAX = 6;
 
@@ -141,7 +162,8 @@ function publicTeams(match: Pick<Match, "opponent">, home: { score: number; sets
  * nomi solo con `publicNames` acceso). Mai i dettagli degli scambi né chi ha
  * fatto punto, e MAI le statistiche di una singola atleta (ordine del
  * proprietario: i numeri sono solo di squadra; lo controlla la prova «mai le
- * statistiche di una singola atleta»). Esce solo se lo staff ha acceso «Punteggio live»; il resto
+ * statistiche di una singola atleta»). Esce solo con «Punteggio live» acceso (lo è di partenza) e solo intorno all'orario
+ * della partita (inMatchWindow); il resto
  * dello scout resta riservato. Finché non c'è un punto è la partita «non
  * iniziata» (0–0, `notStarted`): il sito pubblico non la mostra, la grafica
  * della diretta video sì, così la barra (e la presentazione) c'è appena si
@@ -151,7 +173,7 @@ export function toPublicScoutScore(
   scout: Pick<MatchScout, "settings" | "events" | "finished" | "updatedAt"> & Partial<Pick<MatchScout, "roster">>,
   match: PublicMatch,
 ): PublicLiveScore | null {
-  if (!scout.settings.publicLive) return null;
+  if (!scout.settings.publicLive || !inMatchWindow(match.matchDate, scout.updatedAt)) return null;
   const view = deriveScout(scout);
   const roster = scout.roster?.us ?? [];
   const names = scout.settings.publicNames === true;

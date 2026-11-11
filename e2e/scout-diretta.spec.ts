@@ -93,14 +93,17 @@ test("Scout: il punteggio live si accende dalla preparazione, sul sito si vede s
   await page.getByLabel("Numeri di maglia dell'avversaria").fill("14");
   await page.getByLabel("Numeri di maglia dell'avversaria").press("Enter");
 
-  // Di partenza il punteggio live è spento; si accende con l'interruttore della preparazione.
+  // Di partenza il punteggio live è acceso; l'interruttore della preparazione lo spegne e lo riaccende.
   const toggle = page.locator("[data-scout-public-live]");
+  await expect(toggle).toBeChecked();
+  await expect(liveBadge(page)).toBeVisible();
+  await expect(liveBadge(page)).toContainText("Live sul sito");
+  await page.getByText("Accendi la diretta", { exact: true }).click();
   await expect(toggle).not.toBeChecked();
   await expect(liveBadge(page)).toHaveCount(0);
   await page.getByText("Accendi la diretta", { exact: true }).click();
   await expect(toggle).toBeChecked();
   await expect(liveBadge(page)).toBeVisible();
-  await expect(liveBadge(page)).toContainText("Live sul sito");
   await page.locator("[data-scout-start]").click();
   await expect(score(page)).toHaveText("0–0");
   await expect(sync(page)).toContainText("Salvato");
@@ -315,8 +318,10 @@ test("Scout: prima del via la diretta video mostra la copertina; «Inizia il ris
   await page.goto(`/admin/scout/${matchId}`);
   await expect(page.getByRole("heading", { name: "Prima di cominciare" })).toBeVisible();
 
-  // Il tasto c'è solo con il live acceso.
+  // Il tasto c'è solo con il live acceso, e di partenza lo è: spento sparisce, riacceso torna.
   const panel = page.locator("[data-scout-warmup-panel]");
+  await expect(panel).toBeVisible();
+  await page.getByText("Accendi la diretta", { exact: true }).click();
   await expect(panel).toHaveCount(0);
   await page.getByText("Accendi la diretta", { exact: true }).click();
   await expect(panel).toBeVisible();

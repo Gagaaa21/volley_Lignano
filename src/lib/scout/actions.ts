@@ -34,13 +34,16 @@ export const DEFAULT_SETTINGS: ScoutSettings = {
   setPoints: 25,
   lastSetPoints: 15,
   firstServer: "us",
-  publicLive: false,
+  // Acceso di partenza (scelta del proprietario): si spegne dallo Scout. Sul sito esce solo intorno all'orario della
+  // partita (vedi inMatchWindow in publicScore.ts), così uno scout fatto dopo, dal video, non risulta «in diretta».
+  publicLive: true,
   publicNames: false,
   warmupAt: null,
   level: "base",
 };
 
-/** Impostazioni complete anche per uno scout salvato prima che esistessero i livelli (o il punteggio live). */
+/** Impostazioni complete anche per uno scout salvato prima che esistessero i livelli (o il punteggio live): quelli, senza la
+ * voce, restano spenti come erano. */
 export function normalizeSettings(settings: Omit<ScoutSettings, "publicLive" | "level"> & Partial<Pick<ScoutSettings, "publicLive" | "level">>): ScoutSettings {
   return { ...settings, publicLive: settings.publicLive ?? false, level: levelOf(settings) };
 }
