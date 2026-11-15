@@ -57,10 +57,11 @@ test.describe("numeri del set", () => {
     const view = deriveScout(data);
     const set = view.sets[0];
     const counts = setRecapCounts(set);
-    // Noi: attacco 2, muro 1, errori loro 2 (battuta, ricezione), ace = il resto fino a 25.
+    // Noi: attacco 2, muro 1, un errore loro (la battuta); la loro ricezione sbagliata è un nostro ace (come negli scout
+    // ufficiali), ace = il resto fino a 25.
     expect(counts.us.attack).toBe(2);
     expect(counts.us.block).toBe(1);
-    expect(counts.us.gifts).toBe(2);
+    expect(counts.us.gifts).toBe(1);
     expect(counts.us.attack + counts.us.block + counts.us.ace + counts.us.gifts).toBe(set.score.us);
     // Loro: attacco 3 e un ace; un solo punto è un nostro errore.
     expect(counts.opp).toMatchObject({ attack: 3, block: 0, ace: 1, gifts: 1 });
@@ -101,7 +102,7 @@ test.describe("resoconto nel punteggio pubblico", () => {
   test("dopo il set chiuso c'è il resoconto di quel set, durata compresa, e tiene fino al set dopo", () => {
     let data = endSet(firstSet(), "opp", T0 + 3_000_000, "end1");
     const closed = live(data);
-    expect(closed?.recap).toMatchObject({ n: 1, home: { attack: 2, block: 1, gifts: 2 }, away: { attack: 3, ace: 1, gifts: 1 } });
+    expect(closed?.recap).toMatchObject({ n: 1, home: { attack: 2, block: 1, gifts: 1 }, away: { attack: 3, ace: 1, gifts: 1 } });
     // 24 scambi a 30 secondi uno dall'altro dal primo punto al 25°: stima per difetto, in minuti.
     expect(closed?.recap?.minutes).toBeGreaterThanOrEqual(10);
     // Nel secondo set il resoconto è ancora quello del primo, finché non si chiude il secondo.

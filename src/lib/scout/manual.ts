@@ -146,12 +146,19 @@ export const GLOSSARY: { term: string; text: string }[] = [
     text: "Dopo aver recuperato la battuta, le giocatrici cambiano posizione in senso orario. Sbagliare l'ordine di battuta o la posizione è un fallo di squadra. Nel tabellino la 1ª rotazione è quella con cui comincia il set e si passa alla successiva a ogni cambio palla; se segui la formazione, lo Scout ruota la squadra da solo.",
   },
   { term: "Sanzione", text: "Penalità dell'arbitro (cartellino) che assegna il punto all'avversaria." },
+  {
+    term: "Errore generale",
+    text: "Un punto dato all'avversaria senza darlo a nessuna giocatrice: non si sceglie chi, conta tra gli errori della squadra ma non nel V-P di nessuna.",
+  },
   { term: "Scambio", text: "Dalla battuta al punto assegnato: lo Scout ne registra uno alla volta. Si chiama anche azione o rally." },
   { term: "Set", text: "Una parte della partita: vince chi arriva per primo a 25 punti con almeno due di scarto (15 nel set decisivo)." },
   { term: "Tocco", text: "Ogni volta che una giocatrice (o il muro) tocca la palla. Lo Scout segna il tocco che chiude lo scambio e, nel livello Con ricezioni, la ricezione, con chi l'ha fatta e con che voto." },
   { term: "Tocco di rete", text: "Fallo: una giocatrice tocca la rete mentre gioca la palla." },
   { term: "Trattenuta", text: "Fallo: la palla non rimbalza ma viene accompagnata o trattenuta." },
-  { term: "V-P", text: "Punti fatti meno errori e attacchi murati: dice se una giocatrice ha dato più di quanto ha tolto." },
+  {
+    term: "V-P",
+    text: "Punti fatti meno tutti gli errori (battuta, ricezione, attacco, murati e altri errori): dice se una giocatrice ha dato più di quanto ha tolto. L'errore generale non pesa sul V-P di nessuna.",
+  },
   {
     term: "Voto",
     text: "Quanto è riuscito un tocco, da # (perfetto) a = (errore): # perfetto, + positivo, ! neutro, - negativo, / scarso, = errore. Il nome del voto cambia un po' con il fondamentale.",
@@ -711,6 +718,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           ["Battiamo fuori.", "Punto loro > Errore nostro > Battuta sbagliata > la giocatrice che ha battuto (con la formazione va da sola a chi batte)"],
           ["L'arbitro fischia doppia a una nostra giocatrice.", "Punto loro > Errore nostro > Doppia > la giocatrice"],
           ["L'arbitro fischia rotazione sbagliata a loro.", "Punto nostro > Errore loro > Rotazione / posizione (nessuna giocatrice)"],
+          ["Diamo un punto a loro, ma non è colpa di una giocatrice precisa.", "Punto loro > Errore nostro > Errore generale (nessuna giocatrice, non pesa sul V-P di nessuna)"],
         ],
         keepTogether: true,
       },
@@ -785,7 +793,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         type: "callout",
         kind: "warning",
         title: "Ace o ricezione sbagliata?",
-        text: "Se la palla cade a terra **senza che nessuna la tocchi**, è un **ace** di chi batte: non segnare la ricezione e tocca **Punto loro > Ace**. La ricezione sbagliata (**=**) è solo quando la palla viene toccata e poi va fuori o a terra.",
+        text: "Se la palla cade a terra **senza che nessuna la tocchi**, è un **ace** di chi batte: non segnare la ricezione e tocca **Punto loro > Ace**. La ricezione sbagliata (**=**) è solo quando la palla viene toccata e poi va fuori o a terra. Nel tabellino, come negli scout ufficiali, la ricezione sbagliata è **anche un ace** di chi batte: la ricevitrice ha un errore in ricezione, chi batte un punto in battuta.",
       },
       {
         type: "callout",
@@ -1376,7 +1384,8 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         rows: [
           ["BP", "Punti fatti mentre si batteva (break point)."],
           ["Cambio palla", "Punto fatto da chi riceve: si conquista la battuta (side-out)."],
-          ["V-P", "Punti fatti meno errori e attacchi murati."],
+          ["V-P", "Punti fatti meno tutti gli errori: battuta, ricezione, attacco, murati e altri (alzata, difesa, muro, falli). Si rifà a mano con le colonne del tabellino."],
+          ["Altri Err", "Gli errori che non hanno una colonna loro: alzata, difesa, errore a muro e falli (rete, invasione, doppia…)."],
           ["Pos% / Prf%", "Ricezioni positive (# e +) e perfette (#) sulle ricezioni segnate."],
         ],
         keepTogether: true,

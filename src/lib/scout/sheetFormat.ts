@@ -49,7 +49,7 @@ export function setMarkLabel(mark: SheetSetMark, set: number): string {
 
 export interface SheetColumn {
   key: string;
-  group: "Punti" | "Battuta" | "Ricezione" | "Attacco" | "Muro";
+  group: "Punti" | "Battuta" | "Ricezione" | "Attacco" | "Muro" | "Altri";
   label: string;
   title: string;
   /** Il testo della cella; `team` dice cosa si segna per quella squadra. */
@@ -63,7 +63,13 @@ export interface SheetColumn {
 export const SHEET_COLUMNS: SheetColumn[] = [
   { key: "punti-tot", group: "Punti", label: "Tot", title: "Punti fatti: attacchi vincenti, muri e ace", text: (r) => sheetCount(r.points), first: true, strong: true },
   { key: "punti-bp", group: "Punti", label: "BP", title: "Di quei punti, quelli fatti mentre la propria squadra batteva (break point)", text: (r) => sheetCount(r.bp) },
-  { key: "punti-vp", group: "Punti", label: "V-P", title: "Punti fatti meno errori e attacchi murati", text: (r) => sheetBalance(r.balance) },
+  {
+    key: "punti-vp",
+    group: "Punti",
+    label: "V-P",
+    title: "Punti fatti meno tutti gli errori (battuta, ricezione, attacco, murati e altri errori)",
+    text: (r) => sheetBalance(r.balance),
+  },
   { key: "battuta-tot", group: "Battuta", label: "Tot", title: "Battute", text: (r) => sheetCount(r.serves), first: true },
   { key: "battuta-err", group: "Battuta", label: "Err", title: "Battute sbagliate", text: (r) => sheetCount(r.serveErrors) },
   { key: "battuta-pt", group: "Battuta", label: "Pt", title: "Ace", text: (r) => sheetCount(r.aces) },
@@ -75,6 +81,14 @@ export const SHEET_COLUMNS: SheetColumn[] = [
   { key: "attacco-mur", group: "Attacco", label: "Mur", title: "Attacchi murati dall'avversaria", text: (r) => sheetCount(r.blocked) },
   { key: "attacco-pt", group: "Attacco", label: "Pt", title: "Attacchi vincenti", text: (r) => sheetCount(r.kills), strong: true },
   { key: "muro-pt", group: "Muro", label: "Pt", title: "Muri vincenti", text: (r) => sheetCount(r.blocks), first: true },
+  {
+    key: "altri-err",
+    group: "Altri",
+    label: "Err",
+    title: "Altri errori: alzata, difesa, errore a muro e falli (rete, invasione, doppia…)",
+    text: (r) => sheetCount(r.otherErrors),
+    first: true,
+  },
 ];
 
 /** I gruppi delle colonne con quante ne prendono, per la prima riga dell'intestazione. */
@@ -99,13 +113,14 @@ export const POINTS_WON: { key: keyof SheetPointsWon; label: string; title: stri
 /** La legenda del tabellino (stesse parole nella pagina e nel PDF: niente simboli che il font del PDF non ha). */
 export const SHEET_LEGEND: [string, string][] = [
   ["BP", "Break point: punti fatti mentre la propria squadra batteva"],
-  ["V-P", "Vinti - persi: punti fatti meno errori e attacchi murati"],
+  ["V-P", "Vinti - persi: punti fatti meno tutti gli errori (battuta, ricezione, attacco, murati, altri)"],
   ["Pt", "Punti"],
   ["Err", "Errori"],
   ["Mur", "Murati"],
+  ["Altri Err", "Alzata, difesa, errore a muro e falli (rete, invasione, doppia...)"],
   ["Pos%", "Ricezioni positive (# e +)"],
   ["Prf%", "Ricezioni perfette (#)"],
-  ["Er.Av", "Punti da errori dell'avversaria"],
+  ["Er.Av", "Punti da errori dell'avversaria (la ricezione sbagliata conta come ace di chi batte)"],
   ["CP", "Cambio palla: punti fatti in ricezione"],
 ];
 
@@ -121,7 +136,7 @@ export const SHEET_MARKS: [string, string][] = [
 /** La nota sotto al tabellino: cosa manca, a seconda del livello. */
 export function sheetFootnote(level: ScoutLevel): string {
   const always =
-    "Risultato calcolato con lo scout, non ufficiale. Le battute di ogni giocatrice si contano quando si segue la formazione (o si segnano le battute); il totale della squadra c'è sempre. Le durate sono stimate dall'ora del primo e dell'ultimo punto.";
+    "Risultato calcolato con lo scout, non ufficiale. Come negli scout ufficiali una ricezione sbagliata è anche un ace di chi batte; l'errore generale e i falli di squadra senza giocatrice pesano solo sulla squadra. Le battute di ogni giocatrice si contano quando si segue la formazione (o si segnano le battute); il totale della squadra c'è sempre. Le durate sono stimate dall'ora del primo e dell'ultimo punto.";
   if (level === "base") return `${always} A livello Base delle ricezioni si segnano solo quelle sbagliate: le altre colonne della ricezione restano vuote.`;
   return `${always} A livello Con ricezioni si segnano le ricezioni nostre, non quelle dell'avversaria.`;
 }

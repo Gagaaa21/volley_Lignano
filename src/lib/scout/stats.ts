@@ -1,6 +1,7 @@
-import { deriveScout, type ScoutScore, type ScoutSet, type ScoutView } from "./derive";
+import { deriveScout, type ScoutRally, type ScoutScore, type ScoutSet, type ScoutView } from "./derive";
 import { isManualPlayer } from "./actions";
 import { effectiveLevel, hasTouches, higherLevel } from "./levels";
+import { chargedToPlayer, isServeHow } from "./rules";
 import { effectiveTouches, isPositiveGrade } from "./touches";
 import {
   otherSide,
@@ -312,6 +313,32 @@ export function emptyTeam(side: ScoutSide): TeamStats {
   };
 }
 
+/** Come si è vinto un punto, come nei tabellini ufficiali: con un attacco, un muro, un ace, oppure per un errore dell'avversaria. */
+export type PointKind = "attack" | "block" | "ace" | "gift";
+
+/**
+ * Come è stato vinto il punto di uno scambio. Il punto «sul campo» è di chi ha agito (attacco, muro, ace). Gli errori e i falli
+ * sono regali dell'avversaria, tranne la ricezione sbagliata: negli scout ufficiali (Data Volley) una ricezione «=» è sempre
+ * l'ace di chi batte, quindi il punto si conta come ace, comunque sia stato segnato («Punto loro: ace» o la ricezione «=»).
+ */
+export function pointKind(rally: Pick<ScoutRally, "actor" | "winner" | "how" | "server">): PointKind {
+  if (rally.actor === rally.winner) return rally.how === "attack" ? "attack" : rally.how === "block" ? "block" : "ace";
+  if (rally.how === "receptionError" && rally.winner === rally.server) return "ace";
+  return "gift";
+}
+
+/**
+ * Chi ha battuto in uno scambio: la battuta segnata, altrimenti chi ha fatto l'ace o sbagliato la battuta, altrimenti chi era in
+ * posizione 1 (con la formazione). `undefined` se non si sa; `null` se c'era la battuta ma senza dire chi.
+ */
+export function serverOf(rally: Pick<ScoutRally, "touches" | "server" | "closedBy" | "how" | "actor" | "player" | "court">): string | null | undefined {
+  const serve = rally.touches.find((touch) => touch.skill === "serve" && touch.side === rally.server);
+  if (serve) return serve.player;
+  if (rally.closedBy === "outcome" && isServeHow(rally.how) && rally.actor === rally.server && rally.player) return rally.player;
+  const id = rally.court[rally.server]?.positions[0];
+  return id ? id : undefined;
+}
+
 /** Punti fatti perché l'avversaria ha sbagliato o ha commesso un fallo. */
 export function pointsFromErrors(team: TeamStats): number {
   return team.points - team.attack - team.block - team.ace;
@@ -370,13 +397,9 @@ export function setRecapCounts(set: ScoutSet): Record<ScoutSide, SetRecapCounts>
   let streak = 0;
   for (const rally of set.rallies) {
     const team = counts[rally.winner];
-    if (rally.actor === rally.winner) {
-      if (rally.how === "attack") team.attack += 1;
-      else if (rally.how === "block") team.block += 1;
-      else team.ace += 1;
-    } else {
-      team.gifts += 1;
-    }
+    const kind = pointKind(rally);
+    if (kind === "gift") team.gifts += 1;
+    else team[kind] += 1;
     streak = rally.winner === streakSide ? streak + 1 : 1;
     streakSide = rally.winner;
     if (streak > team.run) team.run = streak;
@@ -485,25 +508,26 @@ export function computeStats(view: ScoutView, roster: ScoutRoster, options: Stat
     if (r.winner === r.server) teams[r.server].breakPoints += 1;
     else teams[r.winner].sideOuts += 1;
 
+    const kind = pointKind(r);
+    if (kind !== "gift") teams[r.winner][kind] += 1;
     const line = lineOf(r.actor, r.player);
     if (r.winner === r.actor) {
       // Punto «sul campo»: attacco, muro o ace di chi ha agito.
-      const bp = r.server === r.actor ? 1 : 0;
-      if (r.how === "attack") {
-        teams[r.actor].attack += 1;
-        line.kills += 1;
-      } else if (r.how === "block") {
-        teams[r.actor].block += 1;
-        line.stuffs += 1;
-      } else {
-        teams[r.actor].ace += 1;
-        line.aces += 1;
-      }
-      line.bp += bp;
+      if (kind === "attack") line.kills += 1;
+      else if (kind === "block") line.stuffs += 1;
+      else line.aces += 1;
+      if (r.server === r.actor) line.bp += 1;
     } else {
       teams[r.actor].committed[r.how] += 1;
       teams[r.actor].errors += 1;
-      addError(line, r.how);
+      // L'errore generale non è di nessuna; i falli di squadra solo se si è detto chi (vedi chargedToPlayer).
+      if (chargedToPlayer(r.how, r.player)) addError(line, r.how);
+      // La ricezione sbagliata è anche l'ace di chi batteva (se non si sa chi, va in «Non assegnato» della sua squadra).
+      if (kind === "ace") {
+        const serving = lineOf(r.server, serverOf(r) ?? null);
+        serving.aces += 1;
+        serving.bp += 1;
+      }
     }
 
     const touches = effectiveTouches(r);

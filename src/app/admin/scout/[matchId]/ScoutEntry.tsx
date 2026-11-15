@@ -201,6 +201,8 @@ function ErrorPicker({ scorer, onPick, onClose }: { scorer: ScoutSide; onPick: (
   const groups: { title: string; hows: ScoutHow[] }[] = [
     { title: "Errori di gioco", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "error") },
     { title: "Falli fischiati dall'arbitro", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "foul") },
+    // L'errore generale: il punto va all'altra squadra senza darlo a nessuna giocatrice (non si chiede chi, non pesa sul V-P).
+    { title: "Senza giocatrice", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "general") },
   ];
   return (
     <Sheet
@@ -213,7 +215,7 @@ function ErrorPicker({ scorer, onPick, onClose }: { scorer: ScoutSide; onPick: (
         {groups.map((group) => (
           <div key={group.title}>
             <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{group.title}</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={group.hows.length === 1 ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
               {group.hows.map((how) => (
                 <button
                   key={how}

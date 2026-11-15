@@ -138,7 +138,8 @@ function RallyEditDialog({
       dispatch({
         type: "update",
         id: rally.id,
-        patch: { actor, how, player: player || null, victim: how === "block" ? victim || null : null },
+        // L'errore generale non è di nessuna giocatrice: anche se prima ce n'era una, si toglie.
+        patch: { actor, how, player: how === "generalError" ? null : player || null, victim: how === "block" ? victim || null : null },
       });
     }
     for (const touch of rally.touches) {
@@ -234,6 +235,7 @@ function RallyEditDialog({
                 </Select>
               </div>
 
+              {how !== "generalError" && (
               <div>
                 <Label htmlFor="scout-edit-player">Giocatrice</Label>
                 <Select id="scout-edit-player" value={player} onChange={(e) => setPlayer(e.target.value)}>
@@ -245,6 +247,7 @@ function RallyEditDialog({
                   ))}
                 </Select>
               </div>
+              )}
 
               {how === "block" && (
                 <div>

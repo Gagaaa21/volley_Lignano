@@ -267,3 +267,54 @@ test.describe("durata, stagione e partite vecchie", () => {
     expect(sheet.us.total.points).toBe(0);
   });
 });
+
+test.describe("come si contano errori e ace (V-P)", () => {
+  test("la ricezione sbagliata è anche un ace di chi batte: stesso conto in tutti e due i modi di segnarla", () => {
+    // Con la formazione: batte loro n. 1, la nostra libero riceve male (scambio chiuso dalla ricezione «=»).
+    let data = setLineup(setLineup(roster({ firstServer: "opp", level: "ricezioni" }), "us", OURS, T0, id()), "opp", THEIRS, T0, id());
+    data = addTouch(data, { side: "us", skill: "reception", player: "ul", grade: "=" }, at(data), id());
+    // Poi battiamo noi (la n. 2 dopo la rotazione) e la loro ricezione sbagliata è segnata come esito.
+    data = point(data, "us", "attack", "u4");
+    data = point(data, "opp", "receptionError");
+    const sheet = buildSheet(data);
+    const libero = sheet.us.lines.find((line) => line.id === "ul")!;
+    expect(libero).toMatchObject({ receptionErrors: 1, balance: -1, points: 0 });
+    // Il loro punto è un ace della n. 1 (in battuta), non un regalo.
+    expect(sheet.opp.won).toMatchObject({ ace: 1, gifts: 0 });
+    expect(sheet.opp.lines.find((line) => line.id === "opp-1")).toMatchObject({ aces: 1, bp: 1, points: 1 });
+    // Il nostro: ace di chi batteva (la n. 2 dopo la rotazione), break point compreso.
+    expect(sheet.us.won).toMatchObject({ ace: 1, attack: 1, gifts: 0 });
+    expect(sheet.us.lines.find((line) => line.id === "u2")).toMatchObject({ aces: 1, bp: 1, points: 1 });
+  });
+
+  test("l'errore generale dà il punto all'avversaria ma non pesa sul V-P di nessuna (né su «Non assegnato»)", () => {
+    let data = roster();
+    data = point(data, "us", "attack", "u2");
+    data = point(data, "us", "generalError");
+    data = point(data, "opp", "generalError");
+    const view = deriveScout(data);
+    expect(view.rallies.map((rally) => rally.winner)).toEqual(["us", "opp", "us"]);
+    const sheet = buildSheet(data, view);
+    expect(sheet.us.lines.some((line) => line.id === "?")).toBe(false);
+    expect(sheet.opp.lines.some((line) => line.id === "?")).toBe(false);
+    expect(sheet.us.total).toMatchObject({ points: 1, balance: 1, otherErrors: 0 });
+    // Per la squadra che riceve il punto è un errore dell'avversaria.
+    expect(sheet.opp.won).toMatchObject({ gifts: 1 });
+    expect(sheet.us.won).toMatchObject({ attack: 1, gifts: 1 });
+  });
+
+  test("il V-P si rifà con le colonne: punti − battute, ricezioni e attacchi sbagliati − murati − altri errori", () => {
+    let data = roster();
+    data = point(data, "us", "attack", "u1");
+    data = point(data, "us", "serveError", "u1");
+    data = point(data, "us", "digError", "u1");
+    data = point(data, "us", "setError", "u1");
+    data = point(data, "us", "netFault", "u1");
+    data = point(data, "us", "receptionError", "u1");
+    data = addRally(data, { actor: "opp", how: "block", player: null, victim: "u1" }, at(data), id());
+    const u1 = buildSheet(data).us.lines.find((line) => line.id === "u1")!;
+    expect(u1).toMatchObject({ points: 1, serveErrors: 1, receptionErrors: 1, attackErrors: 0, blocked: 1, otherErrors: 3 });
+    expect(u1.balance).toBe(u1.points - u1.serveErrors - u1.receptionErrors - u1.attackErrors - u1.blocked - u1.otherErrors);
+    expect(u1.balance).toBe(-5);
+  });
+});

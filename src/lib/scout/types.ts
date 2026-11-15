@@ -19,7 +19,8 @@ export function otherSide(side: ScoutSide): ScoutSide {
 /**
  * Come è finito lo scambio. Si registra l'azione di chi l'ha compiuta:
  * - attack / block / ace: punto per chi li fa (palla a terra nel campo avversario);
- * - tutto il resto sono errori o falli di chi li commette: il punto va all'altra squadra.
+ * - tutto il resto sono errori o falli di chi li commette: il punto va all'altra squadra. L'errore generale
+ *   («generalError») è della squadra e di nessuna giocatrice: dà il punto all'avversaria e non pesa sul V-P di nessuna.
  */
 export const SCOUT_HOWS = [
   "attack",
@@ -38,6 +39,7 @@ export const SCOUT_HOWS = [
   "fourHits",
   "rotationFault",
   "sanction",
+  "generalError",
 ] as const;
 export type ScoutHow = (typeof SCOUT_HOWS)[number];
 

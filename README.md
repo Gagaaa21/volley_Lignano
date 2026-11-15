@@ -408,7 +408,8 @@ staff (Developer e Admin).
   posizione di partenza in ogni set, un rettangolo per chi è entrata o la
   libero, i set cerchiati dove la squadra ha battuto per prima), Punti Tot/BP/V-P,
   Battuta Tot/Err/Pt, Ricezione Tot/Err/Pos%/(Prf%), Attacco Err/Mur/Pt,
-  Muro Pt, i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
+  Muro Pt, Altri Err (alzata, difesa, muro, falli: così il V-P si rifà a mano
+  con le colonne), i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
   sotto, per ogni squadra i punti fatti meno persi in ogni rotazione,
   ricezioni e punti in cambio palla (CP), battute e break point (BP), e in
   mezzo (a Con ricezioni) il cambio palla dopo ricezione positiva o
@@ -418,7 +419,12 @@ staff (Developer e Admin).
   formati in `sheetFormat.ts`, usati insieme da pagina e PDF), quindi vale
   anche per le partite scoutizzate prima; le battute di ogni giocatrice si
   contano quando si sa chi batteva (`serverOf`: la battuta segnata, chi ha fatto
-  l'ace o sbagliato la battuta, oppure la posizione 1 con la formazione). Sotto
+  l'ace o sbagliato la battuta, oppure la posizione 1 con la formazione). Come
+  negli scout ufficiali una **ricezione sbagliata è anche un ace** di chi batte
+  (`pointKind` in `stats.ts`: stesso conto se si segna «Punto loro: ace» o la
+  ricezione «=»); l'**errore generale** (in fondo agli errori, senza
+  giocatrice) e i falli di squadra senza giocatrice pesano solo sulla squadra,
+  non sul V-P di nessuna (`chargedToPlayer` in `rules.ts`). Sotto
   il tabellino ci sono le **analisi** (tutta la partita o un set: break point,
   cambio palla, «come si è fatto punto», errori e falli, andamento del
   punteggio e, con le ricezioni, la ricezione e la sua mappa). Il PDF

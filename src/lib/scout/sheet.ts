@@ -1,6 +1,5 @@
 import { deriveScout, setTarget, type ScoutRally, type ScoutScore, type ScoutSet, type ScoutView } from "./derive";
 import { effectiveLevel } from "./levels";
-import { isServeHow } from "./rules";
 import {
   computeStats,
   emptyGrades,
@@ -8,6 +7,7 @@ import {
   hasActivity,
   percent,
   pointsFromErrors,
+  serverOf,
   type PlayerDetail,
   type PlayerStats,
   type SideAnalysis,
@@ -41,6 +41,11 @@ export interface SheetNumbers {
   blocked: number;
   kills: number;
   blocks: number;
+  /**
+   * Gli errori che non hanno una colonna loro: alzata, difesa, errore a muro e falli (rete, invasione, doppia…). Con questi il
+   * V-P si rifà a mano: punti − battute sbagliate − ricezioni sbagliate − attacchi sbagliati − murati − altri errori.
+   */
+  otherErrors: number;
 }
 
 /** In un set: posizione di partenza (1-6), «in» se è entrata dopo (o è la libero), null se non ha giocato. */
@@ -142,20 +147,14 @@ export function partialsOf(set: Pick<ScoutSet, "rallies">, target: number): Scou
   return out;
 }
 
-/**
- * Chi ha battuto in uno scambio: la battuta segnata, altrimenti chi ha fatto l'ace o sbagliato la battuta, altrimenti chi era in
- * posizione 1 (con la formazione). `undefined` se non si sa; `null` se c'era la battuta ma senza dire chi.
- */
-export function serverOf(rally: Pick<ScoutRally, "touches" | "server" | "closedBy" | "how" | "actor" | "player" | "court">): string | null | undefined {
-  const serve = rally.touches.find((touch) => touch.skill === "serve" && touch.side === rally.server);
-  if (serve) return serve.player;
-  if (rally.closedBy === "outcome" && isServeHow(rally.how) && rally.actor === rally.server && rally.player) return rally.player;
-  const id = rally.court[rally.server]?.positions[0];
-  return id ? id : undefined;
-}
+/** Chi ha battuto in uno scambio: sta in stats.ts (serve anche ai conti degli ace), qui per chi lo prendeva dal tabellino. */
+export { serverOf } from "./stats";
 
 /** Quello che serve di una riga del tabellino di sempre (una giocatrice, o la somma di una squadra). */
-type RowInput = Pick<PlayerStats, "points" | "bp" | "balance" | "aces" | "serveErrors" | "receptionErrors" | "kills" | "attackErrors" | "blocked" | "stuffs"> & {
+type RowInput = Pick<
+  PlayerStats,
+  "points" | "bp" | "balance" | "aces" | "serveErrors" | "receptionErrors" | "kills" | "attackErrors" | "blocked" | "stuffs" | "blockErrors" | "otherErrors"
+> & {
   detail: Pick<PlayerDetail, "receptions" | "reception">;
 };
 
@@ -178,6 +177,7 @@ function numbersOf(p: RowInput, serves: number | null, tracksReceptions: boolean
     blocked: p.blocked,
     kills: p.kills,
     blocks: p.stuffs,
+    otherErrors: p.blockErrors + p.otherErrors,
   };
 }
 
@@ -194,6 +194,8 @@ function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean
     attackErrors: 0,
     blocked: 0,
     stuffs: 0,
+    blockErrors: 0,
+    otherErrors: 0,
     detail: { receptions: 0, reception: emptyGrades() },
   };
   for (const p of players) {
@@ -207,6 +209,8 @@ function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean
     total.attackErrors += p.attackErrors;
     total.blocked += p.blocked;
     total.stuffs += p.stuffs;
+    total.blockErrors += p.blockErrors;
+    total.otherErrors += p.otherErrors;
     total.detail.receptions += p.detail.receptions;
     for (const grade of SCOUT_GRADES) total.detail.reception[grade] += p.detail.reception[grade];
   }

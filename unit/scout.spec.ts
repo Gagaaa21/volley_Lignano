@@ -341,13 +341,13 @@ test.describe("operazioni sui dati", () => {
  *  2  noi   ace           Bea           (noi)        2-0
  *  3  noi   muro          Anna su n.5   (noi)        3-0
  *  4  loro  attacco       n.9           (noi)        3-1
- *  5  noi   ricezione ✗   Carla         (loro)       3-2
+ *  5  noi   ricezione ✗   Carla         (loro)       3-2   (nel tabellino è anche un ace loro)
  *  6  loro  battuta ✗     n.5           (loro)       4-2
  *  7  noi   attacco ✗     Anna          (noi)        4-3
  *  8  loro  muro          n.9 su Bea    (loro)       4-4
  *  9  noi   attacco       (non so chi)  (loro)       5-4
  * 10  noi   tocco rete    Bea           (noi)        5-5
- * 11  loro  sanzione      (squadra)     (loro)       6-5
+ * 11  loro  sanzione      (squadra)     (loro)       6-5   (della squadra: nella riga di nessuna)
  */
 function sampleMatch(): ScoutData {
   let data = emptyMatch({ firstServer: "us" });
@@ -383,8 +383,9 @@ test.describe("tabellino", () => {
     expect(us.longestRun).toBe(3);
 
     expect(opp.points).toBe(5);
-    expect([opp.attack, opp.block, opp.ace]).toEqual([1, 1, 0]);
-    expect(opp.points - opp.attack - opp.block - opp.ace).toBe(3);
+    // La nostra ricezione sbagliata è un loro ace (come negli scout ufficiali): restano due regali (attacco fuori e rete nostri).
+    expect([opp.attack, opp.block, opp.ace]).toEqual([1, 1, 1]);
+    expect(opp.points - opp.attack - opp.block - opp.ace).toBe(2);
     expect(opp.errors).toBe(2);
     expect(opp.committed.serveError).toBe(1);
     expect(opp.committed.sanction).toBe(1);
@@ -412,14 +413,17 @@ test.describe("tabellino", () => {
     const [n5, n9, oppNobody] = players.opp;
     expect(n5).toMatchObject({ number: "5", serveErrors: 1, blocked: 1, points: 0, errors: 1, balance: -2 });
     expect(n9).toMatchObject({ number: "9", kills: 1, stuffs: 1, points: 2, bp: 1, balance: 2 });
-    expect(oppNobody).toMatchObject({ id: UNASSIGNED_ID, otherErrors: 1, errors: 1, balance: -1 });
+    // Loro «Non assegnato»: l'ace della battuta su cui Carla ha sbagliato la ricezione (chi batteva non si sa); la sanzione è
+    // della squadra e non va nella riga di nessuna.
+    expect(oppNobody).toMatchObject({ id: UNASSIGNED_ID, aces: 1, points: 1, bp: 1, otherErrors: 0, errors: 0, balance: 1 });
 
     // Il tabellino è coerente con i totali di squadra.
     for (const side of ["us", "opp"] as const) {
       const lines = players[side];
       const team = statsOf(sampleMatch())[side];
       expect(lines.reduce((sum, p) => sum + p.points, 0)).toBe(team.attack + team.block + team.ace);
-      expect(lines.reduce((sum, p) => sum + p.errors, 0)).toBe(team.errors);
+      // Tutti gli errori sono nelle righe, tranne la sanzione loro: è della squadra (vedi chargedToPlayer).
+      expect(lines.reduce((sum, p) => sum + p.errors, 0)).toBe(team.errors - (side === "opp" ? 1 : 0));
     }
   });
 
@@ -598,5 +602,24 @@ test.describe("salvataggio: forma valida", () => {
     }));
     expect(scoutDataSchema.safeParse({ ...emptyMatch(), events: many }).success).toBe(false);
     expect(scoutDataSchema.safeParse({ ...emptyMatch(), events: many.slice(0, 300) }).success).toBe(true);
+  });
+});
+
+test.describe("errore generale", () => {
+  test("è un errore di squadra: non chiede chi, sta in fondo agli errori, con il suo gruppo", () => {
+    expect(SCOUT_HOWS).toContain("generalError");
+    expect(ERROR_HOWS[ERROR_HOWS.length - 1]).toBe("generalError");
+    expect(HOW_META.generalError).toMatchObject({ label: "Errore generale", scores: false, group: "general" });
+    expect(asksPlayer("generalError")).toBe(false);
+    expect(asksPlayerFor("us", "generalError")).toBe(false);
+    expect(rallyWinner("generalError", "us")).toBe("opp");
+    // Si salva e si rilegge come ogni altro esito.
+    const data = rally(emptyMatch(), "us", "generalError");
+    expect(scoutDataSchema.safeParse(data).success).toBe(true);
+    const stats = statsOf(data);
+    expect(stats.opp.points).toBe(1);
+    expect(stats.us.committed.generalError).toBe(1);
+    expect(stats.us.errors).toBe(1);
+    expect(stats.players.us.some((p) => p.id === UNASSIGNED_ID)).toBe(false);
   });
 });

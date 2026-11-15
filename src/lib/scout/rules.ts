@@ -3,8 +3,11 @@ import { otherSide, type ScoutHow, type ScoutSide } from "./types";
 /** Il fondamentale a cui appartiene l'ultima azione: serve per le colonne del tabellino. */
 export type ScoutSkill = "serve" | "reception" | "attack" | "block" | "set" | "dig" | "foul";
 
-/** Punto «sul campo» (palla a terra), errore di un fondamentale, oppure fallo fischiato dall'arbitro. */
-export type ScoutHowGroup = "point" | "error" | "foul";
+/**
+ * Punto «sul campo» (palla a terra), errore di un fondamentale, fallo fischiato dall'arbitro, oppure errore generale: della
+ * squadra, senza una giocatrice a cui darlo.
+ */
+export type ScoutHowGroup = "point" | "error" | "foul" | "general";
 
 export interface ScoutHowMeta {
   label: string;
@@ -16,13 +19,14 @@ export interface ScoutHowMeta {
 }
 
 /**
- * Le 16 conclusioni possibili di uno scambio. Seguono le Regole di Gioco
+ * Le 17 conclusioni possibili di uno scambio. Seguono le Regole di Gioco
  * FIVB/FIPAV (si segna un punto mettendo la palla a terra nel campo avversario,
  * per un fallo o per una penalizzazione dell'avversaria) e i codici
  * degli scout ufficiali: battuta (S), ricezione (R), attacco (A), muro (B),
  * alzata (E), difesa (D) con esito vincente (#) o errore (=); i falli
  * fischiati — rete, invasione, doppia, trattenuta, quattro tocchi, rotazione —
- * sono i «punti senza fondamentale» dei file Data Volley.
+ * sono i «punti senza fondamentale» dei file Data Volley. L'errore generale è il punto dato all'avversaria senza
+ * dire di chi è la colpa: non va nel V-P di nessuna giocatrice.
  */
 export const HOW_META: Record<ScoutHow, ScoutHowMeta> = {
   attack: {
@@ -58,7 +62,7 @@ export const HOW_META: Record<ScoutHow, ScoutHowMeta> = {
     skill: "reception",
     scores: false,
     group: "error",
-    hint: "Palla toccata in ricezione e mandata fuori o a terra",
+    hint: "Palla toccata in ricezione e mandata fuori o a terra: nel tabellino è anche un ace di chi batte",
   },
   attackError: {
     label: "Attacco sbagliato",
@@ -86,7 +90,7 @@ export const HOW_META: Record<ScoutHow, ScoutHowMeta> = {
     skill: "dig",
     scores: false,
     group: "error",
-    hint: "Difesa mandata fuori o palla a terra",
+    hint: "Palla difendibile giocata male. Se l'attacco loro era imprendibile, è «Punto loro: attacco»",
   },
   netFault: {
     label: "Tocco di rete",
@@ -137,6 +141,13 @@ export const HOW_META: Record<ScoutHow, ScoutHowMeta> = {
     group: "foul",
     hint: "Penalità (cartellino): il punto va all'avversaria",
   },
+  generalError: {
+    label: "Errore generale",
+    skill: "foul",
+    scores: false,
+    group: "general",
+    hint: "Punto all'avversaria senza darlo a nessuna giocatrice",
+  },
 };
 
 /** Errori nell'ordine in cui si propongono: prima i fondamentali, poi i falli. */
@@ -154,6 +165,7 @@ export const ERROR_HOWS: ScoutHow[] = [
   "fourHits",
   "rotationFault",
   "sanction",
+  "generalError",
 ];
 
 /** I tre modi di fare punto «sul campo», nell'ordine dei pulsanti. */
@@ -168,10 +180,22 @@ export function rallyWinner(how: ScoutHow, actor: ScoutSide): ScoutSide {
   return HOW_META[how].scores ? actor : otherSide(actor);
 }
 
-/** Falli di squadra, non di una singola giocatrice: nei file Data Volley sono i codici «$$» senza giocatrice. */
-export const TEAM_FAULT_HOWS: ScoutHow[] = ["rotationFault", "sanction"];
+/**
+ * Falli ed errori di squadra, non di una singola giocatrice: nei file Data Volley sono i codici «$$» senza giocatrice. Senza
+ * una giocatrice indicata non vanno nella riga di nessuna (né in «Non assegnato»): pesano solo sulla squadra.
+ */
+export const TEAM_FAULT_HOWS: ScoutHow[] = ["rotationFault", "sanction", "generalError"];
 
-/** Per questi esiti il «chi» non si chiede: la rotazione sbagliata e le sanzioni riguardano la squadra. */
+/**
+ * L'errore va nella riga di una giocatrice? Mai l'errore generale (è di nessuna, per definizione); i falli di squadra solo se
+ * qualcuno ha indicato chi; tutto il resto sì (in «Non assegnato» se non si sa chi).
+ */
+export function chargedToPlayer(how: ScoutHow, player: string | null): boolean {
+  if (how === "generalError") return false;
+  return !(TEAM_FAULT_HOWS.includes(how) && player === null);
+}
+
+/** Per questi esiti il «chi» non si chiede: la rotazione sbagliata, le sanzioni e l'errore generale riguardano la squadra. */
 export function asksPlayer(how: ScoutHow): boolean {
   return !TEAM_FAULT_HOWS.includes(how);
 }
