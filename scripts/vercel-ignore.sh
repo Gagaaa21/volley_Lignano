@@ -23,6 +23,7 @@ if git diff --quiet "$previous" HEAD -- . \
   ':(exclude)README.md' \
   ':(exclude)CLAUDE.md' \
   ':(exclude)AGENTS.md' \
+  ':(exclude).claude' \
   ':(exclude)playwright.config.ts' \
   ':(exclude)playwright.unit.config.ts'; then
   echo "Dall'ultima pubblicazione cambiano solo prove, documentazione o script: si salta."
