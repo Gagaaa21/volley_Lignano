@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /**
  * La pulsantiera della diretta: su un tablet in palestra, come uno Stream Deck. Un tocco e nella grafica di Streamlabs / OBS
- * parte una scritta animata con il suo suono («MONSTER BLOCK», «ACE»…). Riservata a chi ha il permesso «Scout».
+ * parte una scritta animata («MONSTER BLOCK», «ACE»…; il Monster block anche con il suo grido). Riservata a chi ha il permesso «Scout».
  */
 export default async function PulsantieraPage() {
   const session = await requireStaffPage("scout");

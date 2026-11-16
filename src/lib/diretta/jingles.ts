@@ -1,10 +1,10 @@
 import { defaultSoundUrl, soundUrl, type CueKind } from "./cues";
 
 /**
- * I suoni della pulsantiera della diretta. Di partenza ogni tasto ha un file originale con la voce da stadio (vedi
- * defaultSoundUrl in cues.ts); lo staff può caricarne uno suo al posto (soundUrl). Se un file non parte, suona il jingle creato
- * qui nel browser con la Web Audio API (nessun file da scaricare): la scritta ha sempre il suo suono. Suonano nella grafica di
- * Streamlabs / OBS (la sorgente browser manda l'audio nella diretta) e, per provarli, sul tablet.
+ * I suoni della pulsantiera della diretta. Di partenza solo il Monster block ha un suono, il file con la voce da stadio (vedi
+ * defaultSoundUrl in cues.ts; se non parte, il jingle creato qui con la Web Audio API); gli altri tasti sono solo animazione.
+ * Lo staff può caricare un file suo su qualsiasi tasto (soundUrl). Suonano nella grafica di Streamlabs / OBS (la sorgente
+ * browser manda l'audio nella diretta) e, per provarli, sul tablet.
  */
 
 type Ctx = AudioContext;
@@ -115,66 +115,19 @@ function boom(ctx: Ctx, out: AudioNode, t0: number, start: number, gain = 0.9) {
   noise(ctx, out, t0, { start, dur: 0.35, gain: gain * 0.5, filter: "lowpass", freq: 500 });
 }
 
-function clap(ctx: Ctx, out: AudioNode, t0: number, start: number, gain = 0.45) {
-  noise(ctx, out, t0, { start, dur: 0.12, gain, filter: "bandpass", freq: 1500, q: 1.2 });
-  noise(ctx, out, t0, { start: start + 0.012, dur: 0.1, gain: gain * 0.7, filter: "bandpass", freq: 2200, q: 1.5 });
+const NOTE = { C3: 130.81, F3: 174.61, G3: 196, C4: 261.63, E4: 329.63, F4: 349.23, A4: 440 };
+
+/** «Dun… DUNNN»: un tonfo come un muro che si chiude, due accordi di ottoni e un piatto (il Monster block senza il suo file). */
+function monsterJingle(ctx: Ctx, out: AudioNode, t0: number) {
+  boom(ctx, out, t0, 0, 1);
+  stab(ctx, out, t0, 0.08, 0.32, [NOTE.C3, NOTE.G3, NOTE.C4, NOTE.E4]);
+  boom(ctx, out, t0, 0.5, 1);
+  stab(ctx, out, t0, 0.5, 1.2, [NOTE.F3, NOTE.C4, NOTE.F4, NOTE.A4], 0.14);
+  noise(ctx, out, t0, { start: 0.5, dur: 1.4, gain: 0.25, filter: "highpass", freq: 6000 });
 }
 
-const NOTE = { C3: 130.81, F3: 174.61, G3: 196, C4: 261.63, E4: 329.63, F4: 349.23, G4: 392, A4: 440, C5: 523.25, E5: 659.25, G5: 783.99, C6: 1046.5, E6: 1318.5 };
-
-const JINGLES: Record<CueKind, (ctx: Ctx, out: AudioNode, t0: number) => void> = {
-  // «Dun… DUNNN»: un tonfo come un muro che si chiude, due accordi di ottoni e un piatto.
-  monsterBlock(ctx, out, t0) {
-    boom(ctx, out, t0, 0, 1);
-    stab(ctx, out, t0, 0.08, 0.32, [NOTE.C3, NOTE.G3, NOTE.C4, NOTE.E4]);
-    boom(ctx, out, t0, 0.5, 1);
-    stab(ctx, out, t0, 0.5, 1.2, [NOTE.F3, NOTE.C4, NOTE.F4, NOTE.A4], 0.14);
-    noise(ctx, out, t0, { start: 0.5, dur: 1.4, gain: 0.25, filter: "highpass", freq: 6000 });
-  },
-  // Un arpeggio che sale veloce e una pioggia di scintille.
-  ace(ctx, out, t0) {
-    [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq, i) => tone(ctx, out, t0, { type: "triangle", freq, start: i * 0.07, dur: 0.18, gain: 0.32 }));
-    tone(ctx, out, t0, { type: "triangle", freq: NOTE.C6, start: 0.3, dur: 0.7, gain: 0.28 });
-    tone(ctx, out, t0, { type: "triangle", freq: NOTE.E6, start: 0.3, dur: 0.7, gain: 0.2 });
-    for (let i = 0; i < 10; i++) tone(ctx, out, t0, { type: "sine", freq: 2200 + ((i * 733) % 2400), start: 0.32 + i * 0.06, dur: 0.12, gain: 0.08 });
-  },
-  // Uno «swoosh» che sale e il colpo: la palla che parte e arriva a terra.
-  attack(ctx, out, t0) {
-    noise(ctx, out, t0, { start: 0, dur: 0.38, gain: 0.5, filter: "bandpass", freq: 300, to: 4000, q: 0.8 });
-    boom(ctx, out, t0, 0.36, 1);
-    stab(ctx, out, t0, 0.38, 0.22, [NOTE.G3, NOTE.G4]);
-    stab(ctx, out, t0, 0.62, 0.9, [NOTE.C4, NOTE.E4, NOTE.G4, NOTE.C5], 0.12);
-  },
-  // Una nota che risale (la palla ripresa all'ultimo) e due note allegre.
-  dig(ctx, out, t0) {
-    tone(ctx, out, t0, { type: "sine", freq: 260, to: 1300, start: 0, dur: 0.32, gain: 0.35 });
-    noise(ctx, out, t0, { start: 0.3, dur: 0.06, gain: 0.4, filter: "bandpass", freq: 1800 });
-    tone(ctx, out, t0, { type: "square", freq: NOTE.E5, start: 0.4, dur: 0.16, gain: 0.12 });
-    tone(ctx, out, t0, { type: "square", freq: NOTE.G5, start: 0.58, dur: 0.5, gain: 0.12 });
-  },
-  // Un rullo di tamburo che cresce, il piatto e l'accordo finale.
-  rally(ctx, out, t0) {
-    for (let i = 0; i < 18; i++) noise(ctx, out, t0, { start: i * 0.05, dur: 0.05, gain: 0.08 + i * 0.015, filter: "bandpass", freq: 1800, q: 0.9 });
-    boom(ctx, out, t0, 0.92, 0.8);
-    noise(ctx, out, t0, { start: 0.92, dur: 1.3, gain: 0.3, filter: "highpass", freq: 5000 });
-    stab(ctx, out, t0, 0.92, 1, [NOTE.C4, NOTE.E4, NOTE.G4, NOTE.C5], 0.11);
-  },
-  // Il coro dello stadio: battimani a ritmo e una fanfara «For-za Li-gna-no!».
-  cheer(ctx, out, t0) {
-    [0, 0.3, 0.6, 0.75, 0.9].forEach((start) => clap(ctx, out, t0, start));
-    const melody: [number, number, number][] = [
-      [NOTE.G4, 1.1, 0.22],
-      [NOTE.G4, 1.34, 0.22],
-      [NOTE.C5, 1.58, 0.18],
-      [NOTE.C5, 1.78, 0.18],
-      [NOTE.E5, 1.98, 0.55],
-    ];
-    for (const [freq, start, dur] of melody) stab(ctx, out, t0, start, dur, [freq, freq / 2], 0.1, 2600);
-  },
-};
-
-/** Suona il jingle originale di un tasto. Non fa niente dove l'audio non c'è. */
-export function playJingle(kind: CueKind, volume = 0.8): void {
+/** Suona il jingle di riserva del Monster block. Non fa niente dove l'audio non c'è. */
+function playMonsterJingle(volume = 0.8): void {
   const ctx = audioContext();
   if (!ctx) return;
   const master = ctx.createGain();
@@ -183,7 +136,7 @@ export function playJingle(kind: CueKind, volume = 0.8): void {
   limiter.threshold.value = -10;
   limiter.ratio.value = 8;
   master.connect(limiter).connect(ctx.destination);
-  JINGLES[kind](ctx, master, ctx.currentTime + 0.03);
+  monsterJingle(ctx, master, ctx.currentTime + 0.03);
 }
 
 const loaded = new Map<string, HTMLAudioElement>();
@@ -213,22 +166,32 @@ function playFile(url: string, fallback: () => void): void {
   audio.play().catch(fallback);
 }
 
-/** L'indirizzo del suono di un tasto: il file caricato dallo staff se c'è (con la sua versione), se no quello originale. */
-function cueUrl(kind: CueKind, uploaded: number | null): string {
+/** Ferma il suono in corso: una scritta nuova (anche senza suono) non si porta dietro il grido di quella prima. */
+function stopPlaying(): void {
+  playing?.pause();
+  playing = null;
+}
+
+/** L'indirizzo del suono di un tasto: il file caricato dallo staff se c'è (con la sua versione), se no quello di partenza. */
+function cueUrl(kind: CueKind, uploaded: number | null): string | null {
   return uploaded ? soundUrl(kind, uploaded) : defaultSoundUrl(kind);
 }
 
-/** Prepara il suono di un tasto (si scarica subito, così al tocco parte senza attesa). */
+/** Prepara il suono di un tasto, se ne ha uno (si scarica subito, così al tocco parte senza attesa). */
 export function preloadCue(kind: CueKind, uploaded: number | null): void {
-  fileFor(cueUrl(kind, uploaded));
+  const url = cueUrl(kind, uploaded);
+  if (url) fileFor(url);
 }
 
 /**
- * Suona il suono di un tasto: il file caricato dallo staff, se c'è; se no (o se non parte) quello originale con la voce da
- * stadio; se nemmeno quello parte, il jingle creato qui con la Web Audio API. Una scritta non resta mai muta.
+ * Suona il suono di un tasto: il file caricato dallo staff, se c'è; se no quello di partenza (solo il Monster block, con il
+ * jingle creato qui con la Web Audio API se il file non parte). Gli altri tasti senza un file caricato sono solo animazione.
  */
 export function playCue(kind: CueKind, uploaded: number | null): void {
-  const original = () => playFile(defaultSoundUrl(kind), () => playJingle(kind));
-  if (uploaded) playFile(soundUrl(kind, uploaded), original);
-  else original();
+  stopPlaying();
+  const original = defaultSoundUrl(kind);
+  // Il suono di partenza c'è solo per il Monster block: se il suo file non parte, il jingle di riserva.
+  const fallback = original ? () => playFile(original, () => playMonsterJingle()) : () => {};
+  if (uploaded) playFile(soundUrl(kind, uploaded), fallback);
+  else fallback();
 }

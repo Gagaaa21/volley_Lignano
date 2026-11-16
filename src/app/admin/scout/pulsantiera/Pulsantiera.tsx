@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, BrickWall, ExternalLink, Flame, Megaphone, Music, Play, Repeat, Shield, Trash2, Upload, Volume2, VolumeX, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
-import { CUE_COOLDOWN_MS, CUE_DURATION_MS, CUE_KINDS, CUE_META, MAX_SOUND_BYTES, type CueKind } from "@/lib/diretta/cues";
+import { CUE_COOLDOWN_MS, CUE_DURATION_MS, CUE_KINDS, CUE_META, defaultSoundUrl, MAX_SOUND_BYTES, type CueKind } from "@/lib/diretta/cues";
 import { playCue } from "@/lib/diretta/jingles";
 import { removeCueSoundAction, sendCueAction, uploadCueSoundAction } from "./actions";
 
@@ -92,7 +92,7 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
           </Link>
           <div>
             <h1 className="font-display text-xl font-bold leading-tight text-foreground">Pulsantiera della diretta</h1>
-            <p className="text-[13px] text-muted-foreground">Un tocco e la scritta parte nella grafica di Streamlabs, con il suo suono.</p>
+            <p className="text-[13px] text-muted-foreground">Un tocco e la scritta parte nella grafica di Streamlabs (il Monster block anche con il suo grido).</p>
           </div>
         </div>
         <Button variant={localSound ? "soft" : "outline"} onClick={toggleLocalSound} aria-pressed={localSound} data-pulsantiera-local-sound>
@@ -157,10 +157,11 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
           Suoni dei tasti
         </summary>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          Ogni tasto ha un suono originale: una voce da stadio che grida la scritta («MONSTER BLOCK! MONSTER BLOCK!») con tamburi e
-          ottoni, fatto apposta (nessun problema di diritti su YouTube). Puoi mettere un file tuo al suo posto: mp3, m4a, ogg o wav, al
-          massimo {Math.round(MAX_SOUND_BYTES / 1000)} kB. Attenzione: i suoni delle partite in TV (come il «Monster block» della
-          SuperLega), le canzoni e le sigle sono protetti e possono far silenziare o bloccare la diretta su YouTube.
+          Il Monster block ha il suo grido «MONSTER BLOCK! MONSTER BLOCK!» con tamburi e ottoni, fatto apposta (nessun problema di
+          diritti su YouTube); gli altri tasti sono solo animazione, senza suono. Se vuoi, su qualsiasi tasto puoi mettere un file tuo:
+          mp3, m4a, ogg o wav, al massimo {Math.round(MAX_SOUND_BYTES / 1000)} kB. Attenzione: i suoni delle partite in TV (come il
+          «Monster block» della SuperLega), le canzoni e le sigle sono protetti e possono far silenziare o bloccare la diretta su
+          YouTube.
         </p>
         <ul className="mt-3 divide-y divide-border-subtle">
           {CUE_KINDS.map((kind) => (
@@ -196,6 +197,8 @@ function SoundRow({
 }) {
   const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
+  // Solo il Monster block ha un suono di partenza: gli altri tasti, senza un file caricato, sono solo animazione.
+  const original = defaultSoundUrl(kind) !== null;
 
   function upload(file: File) {
     const data = new FormData();
@@ -220,10 +223,10 @@ function SoundRow({
       <span className="min-w-[10rem] flex-1">
         <span className="block text-sm font-semibold text-foreground">{CUE_META[kind].button}</span>
         <span className="text-[13px] text-muted-foreground" data-sound-source>
-          {version ? "Il tuo file" : "Suono originale"}
+          {version ? "Il tuo file" : original ? "Suono originale" : "Solo animazione, senza suono"}
         </span>
       </span>
-      <Button size="sm" variant="outline" onClick={() => playPreview(kind, sounds)} data-sound-play>
+      <Button size="sm" variant="outline" disabled={!version && !original} onClick={() => playPreview(kind, sounds)} data-sound-play>
         <Play className="h-4 w-4" />
         Ascolta
       </Button>
@@ -246,7 +249,7 @@ function SoundRow({
       {version && (
         <Button size="sm" variant="quiet" disabled={disabled || pending} onClick={remove} data-sound-remove>
           <Trash2 className="h-4 w-4" />
-          Torna all&apos;originale
+          {original ? "Torna all’originale" : "Togli il suono"}
         </Button>
       )}
     </li>

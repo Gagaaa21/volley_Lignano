@@ -1,5 +1,8 @@
 """Rifà i suoni di partenza della pulsantiera della diretta (public/diretta/suoni/*.mp3, vedi src/lib/diretta/cues.ts).
 
+Oggi sul sito c'è solo monsterBlock.mp3 (scelta del proprietario: gli altri tasti sono solo animazione, DEFAULT_SOUND_KINDS);
+lo script sa fare anche gli altri, se un giorno tornassero a servire.
+
 Tutto originale e libero, quindi sicuro su YouTube:
 - le voci sono sintetiche, fatte con piper (pip install piper-tts) e voci libere prese da huggingface.co/rhasspy/piper-voices:
   en_US-bryce-medium (pubblico dominio), en_US-joe-medium (CC0), it_IT-paola-medium (CC0);

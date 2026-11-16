@@ -101,7 +101,7 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
           </div>
           <p className="text-sm text-muted-foreground">
             <b className="font-semibold text-foreground">Pulsantiera:</b> su un altro tablet, come uno Stream Deck: un tocco e nella grafica parte
-            una scritta animata con il suo suono, una voce da stadio («MONSTER BLOCK! MONSTER BLOCK!», «ACE!»…). Perché il suono entri nella diretta, nella «Browser
+            una scritta animata («MONSTER BLOCK», «ACE!»…); il Monster block anche con il suo grido «MONSTER BLOCK! MONSTER BLOCK!». Perché il suono entri nella diretta, nella «Browser
             Source» accendi «Control audio via OBS» (in Streamlabs: l&apos;audio della sorgente nel mixer).
           </p>
           <Link

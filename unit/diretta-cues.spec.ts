@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import {
@@ -6,6 +6,7 @@ import {
   defaultSoundUrl,
   CUE_KINDS,
   CUE_META,
+  DEFAULT_SOUND_KINDS,
   DEFAULT_SOUNDS_VERSION,
   EMPTY_CUES,
   parseCues,
@@ -85,10 +86,17 @@ test.describe("pulsantiera della diretta", () => {
     expect(parseSound("")).toBeNull();
   });
 
-  test("ogni tasto ha il suo suono originale: un mp3 piccolo in public, chiamato con la versione", () => {
+  test("solo il Monster block ha un suono di partenza (un mp3 piccolo in public, con la versione); gli altri tasti sono muti", () => {
+    expect(DEFAULT_SOUND_KINDS).toEqual(["monsterBlock"]);
     for (const kind of CUE_KINDS) {
+      const path = join(process.cwd(), "public", "diretta", "suoni", `${kind}.mp3`);
+      if (kind !== "monsterBlock") {
+        expect(defaultSoundUrl(kind)).toBeNull();
+        expect(existsSync(path)).toBe(false);
+        continue;
+      }
       expect(defaultSoundUrl(kind)).toBe(`/diretta/suoni/${kind}.mp3?v=${DEFAULT_SOUNDS_VERSION}`);
-      const file = readFileSync(join(process.cwd(), "public", "diretta", "suoni", `${kind}.mp3`));
+      const file = readFileSync(path);
       // Un mp3 vero (sincronismo del primo frame, nessun tag con metadati) e leggero: la grafica li scarica tutti e sei.
       expect([file[0], file[1] & 0xe0]).toEqual([0xff, 0xe0]);
       expect(file.length).toBeGreaterThan(10_000);

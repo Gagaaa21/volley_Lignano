@@ -77,10 +77,12 @@ test("pulsantiera: un tocco manda la scritta, i suoni si caricano, si servono co
   expect(reading.cue).toMatchObject({ kind: "ace", sound: null });
   expect(Object.keys(reading.cue).sort()).toEqual(["age", "id", "kind", "sound"]);
 
-  // Il suono del tasto: carica un file, lo si scarica come audio, poi si torna al suono originale.
+  // Il suono del tasto: l'Ace è solo animazione; si carica un file, lo si scarica come audio, poi lo si toglie e torna muto.
   await page.locator("[data-pulsantiera-sounds] summary").click();
   const row = page.locator('[data-sound-row="ace"]');
-  await expect(row.locator("[data-sound-source]")).toHaveText("Suono originale");
+  await expect(row.locator("[data-sound-source]")).toHaveText("Solo animazione, senza suono");
+  await expect(row.locator("[data-sound-play]")).toBeDisabled();
+  await expect(page.locator('[data-sound-row="monsterBlock"] [data-sound-source]')).toHaveText("Suono originale");
   const file = wav();
   await row.locator("[data-sound-file]").setInputFiles({ name: "jingle.wav", mimeType: "audio/wav", buffer: file });
   await expect(row.locator("[data-sound-source]")).toHaveText("Il tuo file");
@@ -94,7 +96,7 @@ test("pulsantiera: un tocco manda la scritta, i suoni si caricano, si servono co
   expect((await sound.body()).length).toBe(file.length);
 
   await row.locator("[data-sound-remove]").click();
-  await expect(row.locator("[data-sound-source]")).toHaveText("Suono originale");
+  await expect(row.locator("[data-sound-source]")).toHaveText("Solo animazione, senza suono");
   expect((await page.request.get(`/api/diretta/suono/ace?v=${version}`)).status()).toBe(404);
 
   // Un file che non è audio si rifiuta.

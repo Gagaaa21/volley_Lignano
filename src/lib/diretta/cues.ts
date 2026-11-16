@@ -94,7 +94,7 @@ export function withSound(stored: StoredCues, kind: CueKind, version: number | n
   return { ...stored, sounds };
 }
 
-/** La versione del suono caricato per quel tasto, o null se si usa il suono originale. */
+/** La versione del suono caricato per quel tasto, o null se si usa quello di partenza (o nessuno). */
 export function soundVersion(stored: StoredCues, kind: CueKind): number | null {
   return stored.sounds[kind] ?? null;
 }
@@ -130,15 +130,18 @@ export function soundUrl(kind: CueKind, version: number): string {
 }
 
 /**
- * Il suono di partenza di ogni tasto: una voce da stadio («MONSTER BLOCK! MONSTER BLOCK!», «ACE! ACE!», «FORZA LIGNANO!»…)
- * sopra tamburi, ottoni e piatti. Tutto originale e libero (voci sintetiche CC0 / pubblico dominio, musica fatta apposta, vedi
- * README): niente problemi di diritti su YouTube. File statici in public/diretta/suoni, pochi kB l'uno; quando si rifanno si
- * alza DEFAULT_SOUNDS_VERSION, così la rete (che li tiene per un anno) scarica quelli nuovi.
+ * I tasti con un suono di partenza: solo il Monster block, con la voce da stadio «MONSTER BLOCK! MONSTER BLOCK!» sopra tamburi,
+ * ottoni e piatti (scelta del proprietario: gli altri tasti sono solo animazione, senza suono). Tutto originale e libero (voce
+ * sintetica di pubblico dominio, musica fatta apposta, vedi README): niente problemi di diritti su YouTube. File statico in
+ * public/diretta/suoni, pochi kB; quando si rifà si alza DEFAULT_SOUNDS_VERSION, così la rete (che lo tiene per un anno)
+ * scarica quello nuovo. Lo staff può comunque caricare un file suo su qualsiasi tasto (soundUrl).
  */
+export const DEFAULT_SOUND_KINDS: readonly CueKind[] = ["monsterBlock"];
 export const DEFAULT_SOUNDS_VERSION = 1;
 
-export function defaultSoundUrl(kind: CueKind): string {
-  return `/diretta/suoni/${kind}.mp3?v=${DEFAULT_SOUNDS_VERSION}`;
+/** L'indirizzo del suono di partenza di un tasto, o null se il tasto è solo animazione. */
+export function defaultSoundUrl(kind: CueKind): string | null {
+  return DEFAULT_SOUND_KINDS.includes(kind) ? `/diretta/suoni/${kind}.mp3?v=${DEFAULT_SOUNDS_VERSION}` : null;
 }
 
 /** Il file caricato com'è salvato: tipo e contenuto in base64 (pochi kB, in una chiave a parte che si legge solo per scaricarlo). */

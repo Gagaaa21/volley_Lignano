@@ -8,6 +8,7 @@ import {
   CUE_COOLDOWN_MS,
   CUE_META,
   cueSoundKey,
+  defaultSoundUrl,
   isCueKind,
   LIVE_CUES_KEY,
   MAX_SOUND_BYTES,
@@ -46,7 +47,7 @@ export async function sendCueAction(kind: string): Promise<CueResult> {
   }
 }
 
-/** Carica un file audio al posto del suono originale di un tasto (mp3, m4a, ogg, wav; al massimo 400 kB). */
+/** Carica un file audio per un tasto, al posto del suono di partenza o dove non c'è (mp3, m4a, ogg, wav; al massimo 400 kB). */
 export async function uploadCueSoundAction(formData: FormData): Promise<CueResult> {
   const session = await requireStaffPage("scout");
   const kind = String(formData.get("kind") ?? "");
@@ -71,7 +72,7 @@ export async function uploadCueSoundAction(formData: FormData): Promise<CueResul
   }
 }
 
-/** Toglie il suono caricato: il tasto torna al suono originale. */
+/** Toglie il suono caricato: il Monster block torna al suo grido, gli altri tasti tornano senza suono. */
 export async function removeCueSoundAction(kind: string): Promise<CueResult> {
   const session = await requireStaffPage("scout");
   if (!isCueKind(kind)) return { ok: false, error: "Tasto sconosciuto." };
@@ -82,7 +83,8 @@ export async function removeCueSoundAction(kind: string): Promise<CueResult> {
     await repo.setAppSetting(LIVE_CUES_KEY, JSON.stringify(withSound(stored, kind, null)));
     await repo.setAppSetting(cueSoundKey(kind), "");
     revalidatePath("/admin/scout/pulsantiera");
-    return { ok: true, message: `«${CUE_META[kind].button}» torna al suono originale.` };
+    const back = defaultSoundUrl(kind) ? "torna al suono originale" : "torna senza suono, solo animazione";
+    return { ok: true, message: `«${CUE_META[kind].button}» ${back}.` };
   } catch (error) {
     console.error("[removeCueSoundAction]", error);
     return { ok: false, error: "Non è stato possibile togliere il suono. Riprova." };
