@@ -91,10 +91,13 @@ export interface SheetTeam {
   perSet: SheetSetRow[];
   won: SheetPointsWon;
   rotations: SheetRotation[];
-  /** Battute dell'avversaria da ricevere (quelle sbagliate no) e punti fatti in ricezione (cambio palla, senza le battute sbagliate). */
+  /**
+   * Battute dell'avversaria da ricevere (quelle sbagliate no) e «Punti CP» come nel tabellino di Data Volley: i punti fatti
+   * (attacco, muro) mentre si riceve, senza gli errori dell'avversaria. È il «Tot» dei punti meno il «BP».
+   */
   receptionsFaced: number;
   sideOutPoints: number;
-  /** Battute e punti fatti in battuta (break point). */
+  /** Battute e «Punti BP» come in Data Volley: i punti fatti (ace, attacco, muro) mentre si batte, cioè la somma della colonna BP. */
   serves: number;
   breakPoints: number;
   /** Il cambio palla dopo una ricezione positiva o negativa, quando si segnano le ricezioni. */
@@ -236,11 +239,14 @@ function setMark(set: ScoutSet, side: ScoutSide, id: string, played: Set<string>
   return played.has(id) ? "in" : null;
 }
 
-/** Il cambio palla dopo una ricezione positiva (# +) o negativa (! - /), dai voti segnati. */
+/**
+ * Il cambio palla dopo una ricezione positiva (# +) o negativa (- !), con i gruppi del tabellino di Data Volley («1° attacco
+ * dopo ricezione positiva (+#) / negativa (-!)»): la ricezione scarsa (/), che torna di là, non ha un primo attacco e resta fuori.
+ */
 function sideOutByReception(analysis: SideAnalysis): NonNullable<SheetTeam["sideOutByReception"]> {
   const sum = (grades: ("#" | "+" | "!" | "-" | "/")[]) =>
     grades.reduce((acc, grade) => ({ total: acc.total + analysis.sideOutByGrade[grade].total, won: acc.won + analysis.sideOutByGrade[grade].won }), { total: 0, won: 0 });
-  return { positive: sum(["#", "+"]), negative: sum(["!", "-", "/"]) };
+  return { positive: sum(["#", "+"]), negative: sum(["-", "!"]) };
 }
 
 function rotationsOf(analysis: SideAnalysis): SheetRotation[] {
@@ -290,13 +296,14 @@ export function buildSheet(data: Pick<ScoutData, "settings" | "events" | "roster
       sets: playedSets.map((set) => setMark(set, side, p.id, playedBySet.get(set.n)![side])),
       active: hasActivity(p) || serveCount[side].has(p.id),
     }));
+    const total = sumOf(stats.players[side], teamStats.served, tracksReceptions);
     return {
       side,
       tracksServes: tracksServes[side],
       tracksReceptions,
       firstServes: playedSets.filter((set) => set.firstServer === side).map((set) => set.n),
       lines,
-      total: sumOf(stats.players[side], teamStats.served, tracksReceptions),
+      total,
       perSet: perSetStats.map(({ n, stats: s }) => {
         const t = side === "us" ? s.us : s.opp;
         return { n, won: wonOf(t), ...sumOf(s.players[side], t.served, tracksReceptions) };
@@ -304,9 +311,9 @@ export function buildSheet(data: Pick<ScoutData, "settings" | "events" | "roster
       won: wonOf(teamStats),
       rotations: rotationsOf(stats.analysis[side]),
       receptionsFaced: other.served - other.committed.serveError,
-      sideOutPoints: teamStats.sideOuts - other.committed.serveError,
+      sideOutPoints: total.points - total.bp,
       serves: teamStats.served,
-      breakPoints: teamStats.breakPoints,
+      breakPoints: total.bp,
       sideOutByReception: tracksReceptions ? sideOutByReception(stats.analysis[side]) : null,
     };
   };

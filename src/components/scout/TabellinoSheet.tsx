@@ -320,7 +320,7 @@ export function TabellinoSheet({ sheet, match, over }: { sheet: ScoutSheet; matc
               <p className="text-center text-[11px] font-extrabold uppercase tracking-[0.05em] text-foreground">Cambio palla dopo la ricezione · {US_NAME}</p>
               {[
                 { label: "Ricezione positiva (# +)", cell: sheet.us.sideOutByReception.positive },
-                { label: "Ricezione negativa (! - /)", cell: sheet.us.sideOutByReception.negative },
+                { label: "Ricezione negativa (- !)", cell: sheet.us.sideOutByReception.negative },
               ].map(({ label, cell }) => (
                 <p key={label} className="flex justify-between gap-3">
                   <span className="text-muted-foreground">{label}</span>

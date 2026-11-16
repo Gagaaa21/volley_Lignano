@@ -162,18 +162,23 @@ test.describe("set per set, rotazioni, ricezioni e battute", () => {
     expect(sheet.us.rotations.reduce((n, r) => n + r.lost, 0)).toBe(21);
   });
 
-  test("ricezioni e punti in ricezione (senza le battute sbagliate dall'avversaria), battute e break point", () => {
+  test("ricezioni, Punti CP e Punti BP come Data Volley: solo i punti fatti, senza gli errori dell'avversaria", () => {
     let data = roster({ firstServer: "opp" });
     data = point(data, "opp", "serveError", "opp-1"); // punto nostro: errore loro in battuta
     data = point(data, "opp", "attack"); // battiamo noi, punto loro
-    data = point(data, "us", "attack", "u2"); // battono loro, cambio palla nostro
-    data = point(data, "us", "ace", "u1"); // battiamo noi: break point
+    data = point(data, "us", "attack", "u2"); // battono loro, cambio palla nostro con un attacco: Punto CP
+    data = point(data, "us", "ace", "u1"); // battiamo noi: Punto BP
+    data = point(data, "opp", "attackError"); // battiamo ancora noi, punto da errore loro: non è un Punto BP
+    data = point(data, "opp", "attack"); // battiamo noi, punto loro
+    data = point(data, "opp", "attackError"); // battono loro, cambio palla da errore loro: non è un Punto CP
     const sheet = buildSheet(data);
-    // Loro hanno battuto 2 volte, una sbagliata: una sola ricezione nostra, e un punto in ricezione.
-    expect(sheet.us.receptionsFaced).toBe(1);
+    // Loro hanno battuto 3 volte, una sbagliata: due ricezioni nostre.
+    expect(sheet.us.receptionsFaced).toBe(2);
     expect(sheet.us.sideOutPoints).toBe(1);
-    expect(sheet.us.serves).toBe(2);
+    expect(sheet.us.serves).toBe(4);
     expect(sheet.us.breakPoints).toBe(1);
+    // È il Tot dei punti meno il BP, come nel tabellino di Data Volley (58 − 30 = 28 punti CP).
+    expect(sheet.us.sideOutPoints).toBe(sheet.us.total.points - sheet.us.total.bp);
     expect(perPoint(46, 28)).toBe("1,64");
     expect(perPoint(5, 0)).toBeNull();
   });
@@ -317,5 +322,55 @@ test.describe("come si contano errori e ace (V-P)", () => {
     // Si rifà a mano con le colonne del tabellino: difesa, alzata e rete sbagliate non entrano.
     expect(u1.balance).toBe(u1.points - u1.serveErrors - u1.receptionErrors - u1.attackErrors - u1.blocked);
     expect(u1.balance).toBe(-2);
+  });
+});
+
+test.describe("confronto con un tabellino vero di Data Volley 4 (Serie A1 femminile 2026/27, 1ª giornata)", () => {
+  /**
+   * Il 2° set (25-19) di una partita vera di Serie A1, scambio per scambio come lo pubblica il sito della Lega Volley Femminile
+   * (una riga doppia tolta e un punto mancante rimesso), giocatrici solo con il numero di maglia. Noi siamo la squadra che
+   * vince il set. I numeri attesi sono quelli del tabellino ufficiale stampato da Data Volley 4 per lo stesso set.
+   * Codici: a attacco, b muro, se battuta sbagliata, ae attacco sbagliato, re ricezione sbagliata; «?» = maglia non indicata.
+   */
+  const SET2 =
+    "U a 14|U a 14|U se 10|U a 14|O b 23|U a 7|O a 23|O a 19|U a 7|U ae 11|U a 14|O a 19|U a 14|O a 5|U a 10|O a 19|O a 5|U a 12|" +
+    "U b 7|U a 7|U b 7|U b 12|O a ?|U b 14|O a 11|O se 6|O re 19|U b 10|O a 9|O a 9|U a 14|O a 3|U a 10|U se 11|O a 5|O ae 5|" +
+    "U a 12|U se 10|U ae 12|U a 7|O a 5|U a 7|O re 6|O ae 18";
+  const HOW: Record<string, ScoutHow> = { a: "attack", b: "block", se: "serveError", ae: "attackError", re: "receptionError" };
+
+  function realSet(): ScoutData {
+    // Nel 2° set ha battuto per prima l'avversaria (il set cerchiato nel tabellino DV).
+    let data = newScoutData({ us: [], opp: [] }, { firstServer: "opp" });
+    for (const n of ["7", "10", "11", "12", "14", "20"]) data = addPlayer(data, "us", { id: `t${n}`, name: `Maglia ${n}`, number: n, libero: false });
+    for (const n of ["3", "5", "6", "9", "11", "18", "19", "23"]) data = addPlayer(data, "opp", opponentPlayer(n));
+    for (const rally of SET2.split("|")) {
+      const [team, code, number] = rally.split(" ");
+      const actor: ScoutSide = team === "U" ? "us" : "opp";
+      const player = number === "?" ? null : actor === "us" ? `t${number}` : `opp-${number}`;
+      data = point(data, actor, HOW[code], player);
+    }
+    return data;
+  }
+
+  test("punti vinti, battute, ricezioni ed errori del set sono quelli del tabellino DV4", () => {
+    const sheet = buildSheet(realSet());
+    expect(sheet.sets[0].final).toEqual({ us: 25, opp: 19 });
+    // «Punti vinti» del set: Bat 2, Att 15, Mu 5, Er.Av 3 (i due ace sono le due ricezioni sbagliate dell'avversaria).
+    expect(sheet.us.perSet[0].won).toEqual({ ace: 2, attack: 15, block: 5, gifts: 3 });
+    expect(sheet.opp.perSet[0].won).toEqual({ ace: 0, attack: 13, block: 1, gifts: 5 });
+    // Battuta Tot / Err / Pt: 24 3 2 per noi, 20 1 . per loro.
+    expect(sheet.us.perSet[0]).toMatchObject({ serves: 24, serveErrors: 3, aces: 2 });
+    expect(sheet.opp.perSet[0]).toMatchObject({ serves: 20, serveErrors: 1, aces: 0 });
+    // Ricezione Tot: le battute dell'altra squadra meno quelle sbagliate (19 nostre, 21 loro), e i loro 2 errori in ricezione.
+    expect(sheet.us.receptionsFaced).toBe(19);
+    expect(sheet.opp.receptionsFaced).toBe(21);
+    expect(sheet.opp.perSet[0].receptionErrors).toBe(2);
+    // Il V-P si rifà con le colonne, e i Punti CP sono il Tot meno il BP.
+    for (const team of [sheet.us, sheet.opp]) {
+      for (const line of team.lines) {
+        expect(line.balance).toBe(line.points - line.serveErrors - line.receptionErrors - line.attackErrors - line.blocked);
+      }
+      expect(team.sideOutPoints).toBe(team.total.points - team.total.bp);
+    }
   });
 });

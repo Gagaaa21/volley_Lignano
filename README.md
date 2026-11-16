@@ -411,9 +411,11 @@ staff (Developer e Admin).
   Muro Pt (il V-P si conta come nel report di Data Volley: punti meno battute,
   ricezioni e attacchi sbagliati e murati; alzata, difesa, muro e falli no), i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
   sotto, per ogni squadra i punti fatti meno persi in ogni rotazione,
-  ricezioni e punti in cambio palla (CP), battute e break point (BP), e in
-  mezzo (a Con ricezioni) il cambio palla dopo ricezione positiva o
-  negativa. Lo zero è « . » come nei
+  ricezioni e punti in cambio palla (CP), battute e break point (BP) — come in
+  Data Volley solo i punti fatti, senza gli errori dell'avversaria: CP = Tot − BP —,
+  e in mezzo (a Con ricezioni) il cambio palla dopo ricezione positiva (+#) o
+  negativa (-!). Le regole sono verificate su un tabellino vero di Data Volley 4
+  (un set di Serie A1 rifatto scambio per scambio in `unit/scout-sheet.spec.ts`). Lo zero è « . » come nei
   tabellini ufficiali, «–» vuol dire che a quel livello non si segna. Tutto si
   ricava dagli scambi già segnati (`buildSheet` in `sheet.ts`, colonne e
   formati in `sheetFormat.ts`, usati insieme da pagina e PDF), quindi vale

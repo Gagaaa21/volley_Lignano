@@ -294,7 +294,7 @@ function drawMiddle(c: Ctx, sheet: ScoutSheet, left: number, top: number, width:
     text(c, `CAMBIO PALLA DOPO LA RICEZIONE · ${US_NAME.toUpperCase()}`, left, top - 11, width, 6.8, { bold: true, align: "center" });
     [
       { label: "Ricezione positiva (# +)", cell: byReception.positive },
-      { label: "Ricezione negativa (! - /)", cell: byReception.negative },
+      { label: "Ricezione negativa (- !)", cell: byReception.negative },
     ].forEach(({ label, cell }, i) => {
       const y = top - 28 - i * 13;
       text(c, label, left + 8, y, width * 0.55, 7.5, { color: c.muted });

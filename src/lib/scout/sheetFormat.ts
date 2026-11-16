@@ -112,7 +112,7 @@ export const SHEET_LEGEND: [string, string][] = [
   ["Pos%", "Ricezioni positive (# e +)"],
   ["Prf%", "Ricezioni perfette (#)"],
   ["Er.Av", "Punti da errori dell'avversaria (la ricezione sbagliata conta come ace di chi batte)"],
-  ["CP", "Cambio palla: punti fatti in ricezione"],
+  ["CP", "Cambio palla: punti fatti (attacco, muro) in ricezione, senza gli errori dell'avversaria"],
 ];
 
 /** Cosa vuol dire un numero o un segno nella colonna dei set e nelle celle. */
