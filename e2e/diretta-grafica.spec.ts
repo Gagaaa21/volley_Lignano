@@ -696,6 +696,11 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
   await corner.close();
 });
 
+/** Come dentro Streamlabs / OBS: la loro sorgente browser aggiunge `window.obsstudio`. */
+const ASIF_OBS = () => {
+  (window as unknown as { obsstudio: object }).obsstudio = {};
+};
+
 test("?verifica=1 dice la misura vera della sorgente: verde a 1920×1080, rossa e con cosa correggere se è piccola o storta", async ({ browser }) => {
   for (const [width, height, status, text] of [
     [1920, 1080, "ok", "Adatta allo schermo"],
@@ -703,14 +708,16 @@ test("?verifica=1 dice la misura vera della sorgente: verde a 1920×1080, rossa 
     [800, 600, "ratio", "Adatta allo schermo"],
   ] as const) {
     const context = await browser.newContext({ viewport: { width, height }, serviceWorkers: "block" });
+    await context.addInitScript(ASIF_OBS);
     const page = await context.newPage();
     await page.goto("/diretta/grafica?verifica=1");
     const verify = page.locator("[data-grafica-verify]");
     await expect(verify).toHaveAttribute("data-grafica-verify", status);
+    await expect(verify).toHaveAttribute("data-grafica-verify-host", "obs");
     await expect(page.locator("[data-grafica-verify-size]")).toHaveText(`${width} × ${height}`);
     await expect(verify).toContainText(text);
     // Dice anche dove gira la pagina (dentro Streamlabs / OBS o in un browser, e quale Chrome): serve se qualcosa non torna.
-    await expect(page.locator("[data-grafica-verify-browser]")).toContainText(/browser, Chrome \d+/);
+    await expect(page.locator("[data-grafica-verify-browser]")).toContainText(/Streamlabs \/ OBS, Chrome \d+/);
     // Sotto, la partita finta.
     await expect(page.locator("[data-grafica-demo]")).toHaveCount(1);
     if (status === "ok") await page.screenshot(shots("verifica"));
@@ -718,7 +725,26 @@ test("?verifica=1 dice la misura vera della sorgente: verde a 1920×1080, rossa 
   }
 });
 
+test("?verifica=1 in un browser normale (tablet): niente allarme rosso né riquadro al centro, una striscia in basso", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1180, height: 734 }, serviceWorkers: "block" });
+  const page = await context.newPage();
+  await page.goto("/diretta/grafica?verifica=1");
+  const verify = page.locator("[data-grafica-verify]");
+  await expect(verify).toHaveAttribute("data-grafica-verify", "ratio");
+  await expect(verify).toHaveAttribute("data-grafica-verify-host", "browser");
+  await expect(page.locator("[data-grafica-verify-size]")).toHaveText("1180 × 734");
+  await expect(verify).toContainText("qui la misura dello schermo non conta");
+  await expect(verify).not.toContainText("Proporzioni sbagliate");
+  await expect(page.locator("[data-grafica-verify-browser]")).toContainText(/browser, Chrome \d+/);
+  // La striscia sta in basso: il centro, dove passano le grafiche, resta libero.
+  const box = (await page.locator("[data-grafica-verify-panel]").boundingBox())!;
+  expect(box.y).toBeGreaterThan(734 * 0.7);
+  await expect(page.locator("[data-grafica-demo]")).toHaveCount(1);
+  await context.close();
+});
+
 test("?verifica=1 resta al centro anche nel Chrome vecchio di Streamlabs / OBS, che non conosce translate", async ({ page }) => {
+  await page.addInitScript(ASIF_OBS);
   await page.goto("/diretta/grafica?verifica=1");
   const panel = page.locator("[data-grafica-verify-panel]");
   await expect(panel).toBeVisible();

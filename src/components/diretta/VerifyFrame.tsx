@@ -21,10 +21,15 @@ export function checkSource(width: number, height: number): SourceCheck {
   return width >= SOURCE_WIDTH ? "ok" : "small";
 }
 
-/** Dove gira la pagina: dentro Streamlabs / OBS (che aggiungono `window.obsstudio`) o in un browser, e con quale Chrome. */
+/** Dentro Streamlabs / OBS: la loro sorgente browser aggiunge `window.obsstudio`. */
+function inObs(): boolean {
+  return "obsstudio" in window;
+}
+
+/** Dove gira la pagina: dentro Streamlabs / OBS o in un browser, e con quale Chrome. */
 function browserName(): string {
   const chrome = /Chrome\/(\d+)/.exec(navigator.userAgent)?.[1];
-  const host = "obsstudio" in window ? "Streamlabs / OBS" : "browser";
+  const host = inObs() ? "Streamlabs / OBS" : "browser";
   return chrome ? `${host}, Chrome ${chrome}` : host;
 }
 
@@ -32,12 +37,15 @@ function browserName(): string {
  * La schermata di verifica (`?verifica=1`), da guardare nell'anteprima di Streamlabs / OBS prima della partita: gli angoli
  * verdi devono toccare gli angoli del video, il riquadro tratteggiato è l'area sicura dove stanno le grafiche, e al centro la
  * misura vera della sorgente con quello che c'è da correggere. Sotto, la partita finta mostra le grafiche al loro posto.
+ * Aperta in un browser normale (tablet, telefono, computer) la misura dello schermo non conta: niente allarme rosso e niente
+ * riquadro al centro sopra le grafiche, solo una striscia in basso che lo spiega (la verifica vera si fa dentro Streamlabs / OBS).
  * Niente translate per centrare: il browser dentro Streamlabs / OBS può essere un Chrome vecchio che non lo conosce.
  */
 export function VerifyFrame() {
-  const [size, setSize] = useState<{ width: number; height: number; dpr: number; browser: string } | null>(null);
+  const [size, setSize] = useState<{ width: number; height: number; dpr: number; browser: string; obs: boolean } | null>(null);
   useEffect(() => {
-    const read = () => setSize({ width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio || 1, browser: browserName() });
+    const read = () =>
+      setSize({ width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio || 1, browser: browserName(), obs: inObs() });
     read();
     window.addEventListener("resize", read);
     return () => window.removeEventListener("resize", read);
@@ -47,8 +55,34 @@ export function VerifyFrame() {
   const good = status === "ok";
   const color = good ? "#22c55e" : "#ef4444";
 
+  if (!size.obs) {
+    // In un browser normale: una striscia in basso, che non copre le grafiche e non dà l'allarme.
+    return (
+      <div className="pointer-events-none fixed inset-0 z-50" data-grafica-verify={status} data-grafica-verify-host="browser">
+        <div className="absolute inset-[5%] border-[0.15rem] border-dashed border-white/40" />
+        <div className="absolute inset-x-0 bottom-[1.4rem] flex justify-center px-[2rem]">
+          <div className="max-w-[84rem] rounded-[1rem] px-[2rem] py-[1rem] text-white shadow-2xl" style={{ background: `${INK}e6` }} data-grafica-verify-panel>
+            <p className="text-[1.5rem] font-semibold leading-snug">
+              <span className="grafica-type mr-[0.8rem] tracking-[0.12em]" style={{ color: SUN }}>
+                Anteprima nel browser
+              </span>
+              <span className="tabular-nums" data-grafica-verify-size>
+                {size.width} × {size.height}
+              </span>
+              {" · "}qui la misura dello schermo non conta, la grafica si adatta da sola. La verifica della misura serve dentro
+              Streamlabs / OBS: lì la sorgente va a {SOURCE_WIDTH} × {SOURCE_HEIGHT}.
+            </p>
+            <p className="mt-[0.3rem] text-[1.15rem] text-white/60" data-grafica-verify-browser>
+              Pagina aperta in: {size.browser}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-50" data-grafica-verify={status}>
+    <div className="pointer-events-none fixed inset-0 z-50" data-grafica-verify={status} data-grafica-verify-host="obs">
       <div className="absolute inset-0 border-[0.35rem]" style={{ borderColor: color }} />
       {/* Gli angoli: devono combaciare con quelli del video. */}
       {(["left-0 top-0 border-l-[0.9rem] border-t-[0.9rem]", "right-0 top-0 border-r-[0.9rem] border-t-[0.9rem]", "bottom-0 left-0 border-b-[0.9rem] border-l-[0.9rem]", "bottom-0 right-0 border-b-[0.9rem] border-r-[0.9rem]"] as const).map(
