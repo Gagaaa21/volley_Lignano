@@ -1,5 +1,6 @@
 import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { getRepo } from "@/lib/db";
+import { LIVE_CUES_KEY, publicCueFrom, publicCueSounds, type CueKind, type PublicCue } from "@/lib/diretta/cues";
 import { withPregame } from "@/lib/diretta/pregame";
 import { isMatchTime, LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
 import { opponentLogoFor } from "@/lib/federation/teamLogos";
@@ -59,6 +60,11 @@ import type { PublicLiveScore } from "@/lib/types";
  * punteggio in diretta non finito, o una partita U14/U15 senza risultato tra due ore prima e tre ore dopo l'inizio
  * (`isMatchTime`). La home mostra allora «Guarda la diretta video». Non per la regia, che non ne ha bisogno e legge ogni
  * secondo.
+ *
+ * `cue`: l'ultima scritta animata mandata dalla pulsantiera della diretta («MONSTER BLOCK», «ACE»…, vedi
+ * src/lib/diretta/cues.ts), solo se è di pochi secondi fa. Sta in app_settings e si legge nella stessa query della copia dello
+ * Scout: la pulsantiera non aggiunge letture. Solo il tipo di scritta, mai una giocatrice. `cueSounds`: i suoni caricati dallo
+ * staff (tasto → versione), perché la grafica li prepari prima del tocco.
  */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
@@ -67,18 +73,20 @@ export async function GET(request: Request) {
   let fromLiveScore: PublicLiveScore | null = null;
   let fromScout: PublicLiveScore | null = null;
   let streamSaved = false;
+  let cue: PublicCue | null = null;
+  let cueSounds: Partial<Record<CueKind, number>> = {};
   try {
     const repo = await getRepo();
     // Le due fonti sono indipendenti: se una non risponde, l'altra funziona lo stesso.
-    // La copia dello Scout e i link della diretta video stanno tutti e due in app_settings: una query sola per entrambi
-    // (la regia non chiede i link). Così il link al video non aggiunge letture al database.
+    // La copia dello Scout, i link della diretta video e la pulsantiera stanno in app_settings: una query sola per tutti
+    // (la regia non chiede i link). Così il link al video e le scritte animate non aggiungono letture al database.
     const [snapshot, settings] = await Promise.all([
       repo.getLiveScoreSnapshot().catch((error: unknown) => {
         console.error("[livescore] diretta pubblica non disponibile:", error);
         return null;
       }),
       // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
-      repo.getAppSettings(direct ? [PUBLIC_LIVE_SCOUT_KEY] : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY]).catch((error: unknown) => {
+      repo.getAppSettings(direct ? [PUBLIC_LIVE_SCOUT_KEY, LIVE_CUES_KEY] : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY, LIVE_CUES_KEY]).catch((error: unknown) => {
         console.error("[scout] copia compatta del punteggio live non leggibile:", error);
         return null;
       }),
@@ -86,6 +94,8 @@ export async function GET(request: Request) {
     // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
     const compact = settings ? publicScoutSnapshotFrom(settings[PUBLIC_LIVE_SCOUT_KEY] ?? null) : undefined;
     streamSaved = parseStreamSettings(settings?.[LIVE_STREAM_KEY] ?? null) !== null;
+    cue = publicCueFrom(settings?.[LIVE_CUES_KEY] ?? null, Date.now());
+    cueSounds = publicCueSounds(settings?.[LIVE_CUES_KEY] ?? null);
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
     if (compact) {
@@ -130,7 +140,7 @@ export async function GET(request: Request) {
   }
   const cdn = live ? "max-age=5, stale-while-revalidate=5" : "max-age=30, stale-while-revalidate=30";
   return Response.json(
-    direct ? { live } : { live, video },
+    direct ? { live, cue, cueSounds } : { live, video, cue, cueSounds },
     { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": cdn } },
   );
 }

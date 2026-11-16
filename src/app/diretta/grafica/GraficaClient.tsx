@@ -2,6 +2,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { CueBurst } from "@/components/diretta/CueBurst";
 import { FullScreen } from "@/components/diretta/FullScreen";
 import { LowerThird } from "@/components/diretta/LowerThird";
 import { PregameBanner } from "@/components/diretta/PregameBanner";
@@ -10,7 +11,9 @@ import { ScorebugWide } from "@/components/diretta/ScorebugWide";
 import { VerifyFrame } from "@/components/diretta/VerifyFrame";
 import { cn } from "@/lib/cn";
 import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
+import { CUE_DURATION_MS, CUE_KINDS, soundUrl, type CueKind, type PublicCue } from "@/lib/diretta/cues";
 import { clampDelaySeconds, nextOffset, stampOf, takeDue, type Reading } from "@/lib/diretta/delay";
+import { playJingle, playSound, preloadSound } from "@/lib/diretta/jingles";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
 
@@ -44,6 +47,8 @@ const FETCH_TIMEOUT_MS = 4_000;
 const RETRY_MS = 1_500;
 /** Ogni quanto si guarda la coda del ritardo. */
 const QUEUE_MS = 250;
+/** Nella partita finta, ogni quanto parte una scritta della pulsantiera (una dopo l'altra, tutte). */
+const DEMO_CUE_MS = 12_000;
 
 const clock = () => Date.now();
 
@@ -90,6 +95,10 @@ const parseInterval = (value: string | null): number => {
  * cambia con un messaggio, come la scala), `?intervallo=8` (secondi tra una lettura e l'altra, e si ferma a scheda nascosta:
  * per chi guarda dalla pagina /diretta). Senza `intervallo` è la grafica di Streamlabs / OBS: legge ogni secondo, senza la
  * copia della CDN, così il punto entra nel video subito dopo il tocco nello Scout.
+ *
+ * Le scritte della pulsantiera («MONSTER BLOCK», «ACE»…, vedi src/lib/diretta/cues.ts) arrivano con la stessa lettura: al
+ * centro, con il loro jingle. Il suono solo nella grafica di Streamlabs / OBS (entra nella diretta); chi guarda dalla pagina
+ * /diretta vede la scritta, in silenzio, quando il video arriva a quel punto (il ritardo).
  */
 export function GraficaClient() {
   const params = useSearchParams();
@@ -101,6 +110,18 @@ export function GraficaClient() {
   const livePollMs = viewer ? parseInterval(params.get("intervallo")) : DIRECT_POLL_MS;
   const endpoint = viewer ? ENDPOINT : DIRECT_ENDPOINT;
   const [feed, dispatch] = useReducer(feedReducer, INITIAL_FEED);
+  // La scritta della pulsantiera in onda (una alla volta: una nuova prende il posto della vecchia).
+  const [cue, setCue] = useState<{ id: string; kind: CueKind } | null>(null);
+  const cueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showCue = useRef((id: string, kind: CueKind, sound: number | null) => {
+    if (cueTimer.current) clearTimeout(cueTimer.current);
+    setCue({ id, kind });
+    cueTimer.current = setTimeout(() => setCue((current) => (current?.id === id ? null : current)), CUE_DURATION_MS);
+    // Il suono entra nella diretta solo dalla grafica di Streamlabs / OBS: chi guarda da /diretta ha già l'audio del video.
+    if (viewer) return;
+    if (sound) playSound(soundUrl(kind, sound), kind);
+    else playJingle(kind);
+  });
 
   // Ritardo e scala del punteggio: dall'indirizzo, poi dai messaggi della pagina /diretta.
   const [delaySeconds, setDelaySeconds] = useState(() => clampDelaySeconds(params.get("ritardo")));
@@ -144,6 +165,8 @@ export function GraficaClient() {
     let inFlight = false;
     let shown = false;
     let lastStamp: number | null = null;
+    // L'ultima scritta della pulsantiera già vista: quella presente alla prima lettura non riparte (era di prima).
+    let lastCue: string | null | undefined = undefined;
     let timer: ReturnType<typeof setTimeout> | null = null;
     // Il ritmo dell'ultima lettura riuscita: dopo una lettura andata male si riprova presto, mai più tardi di così.
     let cadence = IDLE_POLL_MS;
@@ -161,7 +184,7 @@ export function GraficaClient() {
       try {
         const res = await fetch(endpoint, { signal: controller.signal });
         if (res.ok) {
-          const data = (await res.json()) as { live: PublicLiveScore | null };
+          const data = (await res.json()) as { live: PublicLiveScore | null; cue?: PublicCue | null; cueSounds?: Partial<Record<CueKind, number>> };
           const live = data.live && data.live.team === "u14u15" ? data.live : null;
           if (!cancelled) {
             const reading: Reading = { at: clock(), stamp: stampOf(live), live };
@@ -175,6 +198,19 @@ export function GraficaClient() {
               queue.current.push(reading);
             }
             lastStamp = reading.stamp;
+            // I suoni caricati si preparano subito, così al tocco partono senza attesa (solo dove si sentono).
+            if (!viewer) for (const [kind, version] of Object.entries(data.cueSounds ?? {})) if (version) preloadSound(soundUrl(kind as CueKind, version));
+            const fresh = data.cue ?? null;
+            if (lastCue === undefined) {
+              lastCue = fresh?.id ?? null;
+            } else if (fresh && fresh.id !== lastCue) {
+              lastCue = fresh.id;
+              // Con il ritardo (pagina /diretta) la scritta aspetta che il video arrivi a quel momento.
+              const wait = viewer ? Math.max(0, delayMs.current - fresh.age) : 0;
+              setTimeout(() => {
+                if (!cancelled) showCue.current(fresh.id, fresh.kind, fresh.sound);
+              }, wait);
+            }
           }
           delay = !live || live.finished ? IDLE_POLL_MS : !viewer && live.notStarted && live.pregame ? PREGAME_POLL_MS : livePollMs;
           cadence = delay;
@@ -210,7 +246,17 @@ export function GraficaClient() {
     };
     step();
     const timer = setInterval(step, DEMO_STEP_MS);
-    return () => clearInterval(timer);
+    // E ogni tanto una scritta della pulsantiera, tutte a giro (con il jingle: serve a provare l'audio in Streamlabs).
+    let cueIndex = 0;
+    const cues = setInterval(() => {
+      const kind = CUE_KINDS[cueIndex % CUE_KINDS.length];
+      showCue.current(`prova-${cueIndex}`, kind, null);
+      cueIndex += 1;
+    }, DEMO_CUE_MS);
+    return () => {
+      clearInterval(timer);
+      clearInterval(cues);
+    };
   }, [demo]);
 
   // Con una grafica in onda o in coda l'ora corre: conto alla rovescia, transizioni, la prossima della coda.
@@ -268,6 +314,7 @@ export function GraficaClient() {
           </div>
         )}
         {live && full && <FullScreen card={full} live={live} now={now} />}
+        {cue && !fullOn && <CueBurst key={cue.id} kind={cue.kind} />}
         {verify && <VerifyFrame />}
       </main>
     </>

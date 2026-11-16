@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, ChevronDown, Copy, ExternalLink, Video } from "lucide-react";
+import Link from "next/link";
+import { Check, ChevronDown, Copy, ExternalLink, LayoutGrid, Video } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FieldError, FieldHint, Input, Label } from "@/components/ui/Field";
@@ -98,6 +99,19 @@ export function DirettaCard({ initial }: { initial: StreamSettings | null }) {
               Guarda la partita finta
             </a>
           </div>
+          <p className="text-sm text-muted-foreground">
+            <b className="font-semibold text-foreground">Pulsantiera:</b> su un altro tablet, come uno Stream Deck: un tocco e nella grafica parte
+            una scritta animata con il suo jingle («MONSTER BLOCK», «ACE»…). Perché il suono entri nella diretta, nella «Browser
+            Source» accendi «Control audio via OBS» (in Streamlabs: l&apos;audio della sorgente nel mixer).
+          </p>
+          <Link
+            href="/admin/scout/pulsantiera"
+            className="inline-flex w-fit items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-primary hover:underline"
+            data-diretta-pulsantiera
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Apri la pulsantiera
+          </Link>
           <p className="text-xs text-muted-foreground">
             Il punteggio entra nel video circa un secondo dopo il tocco nello Scout, qualunque sia il ritardo di YouTube. Incolla il link della diretta YouTube
             qui sotto, con «La grafica è già nel video»: i genitori la trovano anche dal sito, con «Guarda la diretta video» nella home. I passi completi sono

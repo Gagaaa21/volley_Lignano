@@ -569,6 +569,18 @@ staff (Developer e Admin).
     (`pickNextMatch`, dalla cache del calendario pubblico, in `GET /api/diretta`), e in alto c'è
     «Condividi» (foglio di condivisione del telefono, o copia del link). Sotto il video «Apri su
     YouTube (chat, TV)».
+    **La pulsantiera** (`/admin/scout/pulsantiera`, permesso «Scout»): su un altro tablet, come
+    uno Stream Deck, sei tasti grandi (Monster block, Ace, Super attacco, Difesa spettacolare,
+    Che scambio!, Forza Lignano). Un tocco salva l'ultima scritta in `app_settings`
+    (`live_cues`, `src/lib/diretta/cues.ts`) e la grafica la legge con la stessa query del
+    punteggio (`cue` e `cueSounds` in `/api/livescore/pubblico`: nessuna lettura in più): al
+    centro parte la scritta animata (`CueBurst.tsx`) con il suo jingle. Solo la scritta, mai
+    una giocatrice (ordine del proprietario). I jingle sono originali, creati nel browser con
+    la Web Audio API (`jingles.ts`, nessun problema di diritti); ogni tasto può avere un file
+    audio caricato dallo staff (al massimo 400 kB, in `app_settings` a parte, servito una
+    volta per versione da `/api/diretta/suono/[tipo]?v=`). Il suono esce solo dalla grafica di
+    Streamlabs / OBS («Control audio via OBS» nella Browser Source); su /diretta la scritta
+    arriva in silenzio, con il ritardo del video. Una scritta già vecchia (15 s) non riparte.
     **La grafica** (`/diretta/grafica`, `GraficaClient.tsx`): pagina con lo sfondo trasparente,
     anche da mettere in Streamlabs Desktop o OBS come «Browser Source» 1920×1080, con
     «Adatta allo schermo» (la grafica entra nel video e ai genitori basta il link di YouTube: i

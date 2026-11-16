@@ -832,6 +832,104 @@
     transform: scaleX(1);
   }
 }
+/* Pulsantiera della diretta: la barra del tasto in onda si svuota mentre la scritta è nel video. */
+@keyframes pulsantiera-bar {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+/* Le scritte della pulsantiera nella grafica (src/components/diretta/CueBurst.tsx): lampo, onda d'urto, fascia che entra,
+   scritta che «sbatte» con un tremolio, scintille, uscita. Solo trasformazioni e trasparenza: leggere anche in OBS. */
+@keyframes cue-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes cue-ring {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+@keyframes cue-band-in {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(0) skewX(-12deg);
+  }
+}
+@keyframes cue-slam {
+  0% {
+    opacity: 0;
+    transform: scale(2.8);
+    filter: blur(1rem);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.93);
+    filter: blur(0);
+  }
+  72% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes cue-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-0.5rem, 0.3rem);
+  }
+  40% {
+    transform: translate(0.45rem, -0.35rem);
+  }
+  60% {
+    transform: translate(-0.3rem, -0.2rem);
+  }
+  80% {
+    transform: translate(0.2rem, 0.25rem);
+  }
+}
+@keyframes cue-spark {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(var(--reach)) scale(0.3);
+  }
+}
+@keyframes cue-out {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
 /* Gli effetti misurati (src/components/diretta/Effects.tsx e dintorni): coriandoli, il lampo sulla riga di chi segna,
    l'entrata con un piccolo rimbalzo. */
 @keyframes grafica-confetti {
