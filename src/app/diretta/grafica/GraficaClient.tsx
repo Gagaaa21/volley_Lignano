@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { CueBurst } from "@/components/diretta/CueBurst";
 import { FullScreen } from "@/components/diretta/FullScreen";
@@ -100,6 +100,15 @@ const parseInterval = (value: string | null): number => {
  * centro, con il loro jingle. Il suono solo nella grafica di Streamlabs / OBS (entra nella diretta); chi guarda dalla pagina
  * /diretta vede la scritta, in silenzio, quando il video arriva a quel punto (il ritardo).
  */
+/** Niente da ascoltare: dove gira la pagina non cambia mentre è aperta. */
+const subscribeNothing = () => () => {};
+
+/** Il riquadro 16:9 più grande che entra nella finestra (in un browser normale, vedi `preview`). */
+const STAGE_WIDTH = "min(100vw, 177.778vh)";
+const STAGE_HEIGHT = "min(56.25vw, 100vh)";
+/** Lo sfondo dell'anteprima con la partita finta: un palazzetto in penombra, così le grafiche si vedono come in TV. */
+const PREVIEW_BACKDROP = "radial-gradient(ellipse at 50% 28%, #41588a 0%, #1d2747 52%, #0a0f1f 100%)";
+
 export function GraficaClient() {
   const params = useSearchParams();
   const verify = params.get("verifica") === "1";
@@ -109,6 +118,10 @@ export function GraficaClient() {
   const viewer = params.get("intervallo") !== null;
   const livePollMs = viewer ? parseInterval(params.get("intervallo")) : DIRECT_POLL_MS;
   const endpoint = viewer ? ENDPOINT : DIRECT_ENDPOINT;
+  // Anteprima: la pagina aperta in un browser normale (telefono, tablet, computer), non in Streamlabs / OBS (che aggiungono
+  // `window.obsstudio`) né sopra il video della pagina /diretta. Lì la grafica sta tutta intera in un riquadro 16:9 al centro,
+  // come una TV: sul telefono in verticale è piccola ma intera (e si invita a girarlo), in orizzontale riempie lo schermo.
+  const preview = useSyncExternalStore(subscribeNothing, () => !viewer && !("obsstudio" in window), () => false);
   const [feed, dispatch] = useReducer(feedReducer, INITIAL_FEED);
   // La scritta della pulsantiera in onda (una alla volta: una nuova prende il posto della vecchia).
   const [cue, setCue] = useState<{ id: string; kind: CueKind } | null>(null);
@@ -283,9 +296,25 @@ export function GraficaClient() {
 
   return (
     <>
-      <style>{`html{font-size:calc(100vw / 120 * ${scale / 100}) !important;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}`}</style>
+      <style>{`html{font-size:calc(${preview ? STAGE_WIDTH : "100vw"} / 120 * ${scale / 100}) !important;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}`}</style>
+      {preview && demo && <style>{"html,body{background:#05070f!important}"}</style>}
       <main
-        className="fixed inset-0 overflow-hidden"
+        className={cn("fixed overflow-hidden", !preview && "inset-0")}
+        // Il riquadro centrato con i margini (non con translate: vedi le altre grafiche); con la partita finta, lo sfondo.
+        style={
+          preview
+            ? {
+                left: "50%",
+                top: "50%",
+                width: STAGE_WIDTH,
+                height: STAGE_HEIGHT,
+                marginLeft: `calc(${STAGE_WIDTH} / -2)`,
+                marginTop: `calc(${STAGE_HEIGHT} / -2)`,
+                background: demo ? PREVIEW_BACKDROP : undefined,
+              }
+            : undefined
+        }
+        data-grafica-preview={preview ? "" : undefined}
         data-grafica={live ? "live" : "idle"}
         data-grafica-demo={demo ? "" : undefined}
         data-grafica-delay={delaySeconds}
@@ -315,8 +344,19 @@ export function GraficaClient() {
         )}
         {live && full && <FullScreen card={full} live={live} now={now} />}
         {cue && !fullOn && <CueBurst key={cue.id} kind={cue.kind} />}
-        {verify && <VerifyFrame />}
       </main>
+      {verify && <VerifyFrame />}
+      {preview && (
+        // Sul telefono in verticale la TV è stretta: un invito a girarlo (misure in px, non legate alla grafica).
+        <p
+          className="pointer-events-none fixed inset-x-0 top-[12px] hidden justify-center px-[16px] portrait:flex"
+          data-grafica-rotate
+        >
+          <span className="rounded-full bg-black/70 px-[14px] py-[6px] text-[13px] font-semibold text-white">
+            Gira il telefono in orizzontale per vederla più grande
+          </span>
+        </p>
+      )}
     </>
   );
 }

@@ -733,7 +733,7 @@ test("?verifica=1 in un browser normale (tablet): niente allarme rosso né riqua
   await expect(verify).toHaveAttribute("data-grafica-verify", "ratio");
   await expect(verify).toHaveAttribute("data-grafica-verify-host", "browser");
   await expect(page.locator("[data-grafica-verify-size]")).toHaveText("1180 × 734");
-  await expect(verify).toContainText("qui la misura dello schermo non conta");
+  await expect(verify).toContainText("qui la misura non conta");
   await expect(verify).not.toContainText("Proporzioni sbagliate");
   await expect(page.locator("[data-grafica-verify-browser]")).toContainText(/browser, Chrome \d+/);
   // La striscia sta in basso: il centro, dove passano le grafiche, resta libero.
@@ -741,6 +741,38 @@ test("?verifica=1 in un browser normale (tablet): niente allarme rosso né riqua
   expect(box.y).toBeGreaterThan(734 * 0.7);
   await expect(page.locator("[data-grafica-demo]")).toHaveCount(1);
   await context.close();
+});
+
+test("dal telefono l'anteprima è una TV 16:9 intera: in verticale piccola con l'invito a girarlo, in orizzontale piena", async ({ browser }) => {
+  for (const [width, height, portrait] of [
+    [390, 844, true],
+    [844, 390, false],
+  ] as const) {
+    const context = await browser.newContext({ viewport: { width, height }, serviceWorkers: "block", isMobile: true, hasTouch: true });
+    const page = await context.newPage();
+    await page.goto("/diretta/grafica?prova=1");
+    const main = page.locator("main[data-grafica-preview]");
+    await expect(main).toHaveCount(1);
+    await expect(page.locator("main")).toHaveAttribute("data-grafica", "live");
+    const box = (await main.boundingBox())!;
+    const stageWidth = Math.min(width, (height * 16) / 9);
+    expect(Math.abs(box.width - stageWidth)).toBeLessThan(2);
+    expect(Math.abs(box.height - (stageWidth * 9) / 16)).toBeLessThan(2);
+    // Al centro della finestra, tutta dentro.
+    expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - height / 2)).toBeLessThan(2);
+    // Le grafiche a schermo intero (la partita finta comincia con la presentazione) riempiono la TV, non la finestra.
+    const card = page.locator("[data-grafica-card]").first();
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    const cardBox = (await card.boundingBox())!;
+    expect(Math.abs(cardBox.width - box.width)).toBeLessThan(2);
+    expect(Math.abs(cardBox.y - box.y)).toBeLessThan(2);
+    // Lo sfondo da palazzetto, e l'invito a girare il telefono solo in verticale.
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(5, 7, 15)");
+    await expect(page.locator("[data-grafica-rotate]")).toBeVisible({ visible: portrait });
+    await page.screenshot(shots(portrait ? "anteprima-telefono-verticale" : "anteprima-telefono-orizzontale"));
+    await context.close();
+  }
 });
 
 test("?verifica=1 resta al centro anche nel Chrome vecchio di Streamlabs / OBS, che non conosce translate", async ({ page }) => {

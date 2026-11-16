@@ -56,26 +56,24 @@ export function VerifyFrame() {
   const color = good ? "#22c55e" : "#ef4444";
 
   if (!size.obs) {
-    // In un browser normale: una striscia in basso, che non copre le grafiche e non dà l'allarme.
+    // In un browser normale: una striscia in basso, che non copre le grafiche e non dà l'allarme. Misure in px: deve leggersi
+    // anche sul telefono, dove la grafica (e quindi i rem) è piccola.
     return (
-      <div className="pointer-events-none fixed inset-0 z-50" data-grafica-verify={status} data-grafica-verify-host="browser">
-        <div className="absolute inset-[5%] border-[0.15rem] border-dashed border-white/40" />
-        <div className="absolute inset-x-0 bottom-[1.4rem] flex justify-center px-[2rem]">
-          <div className="max-w-[84rem] rounded-[1rem] px-[2rem] py-[1rem] text-white shadow-2xl" style={{ background: `${INK}e6` }} data-grafica-verify-panel>
-            <p className="text-[1.5rem] font-semibold leading-snug">
-              <span className="grafica-type mr-[0.8rem] tracking-[0.12em]" style={{ color: SUN }}>
-                Anteprima nel browser
-              </span>
-              <span className="tabular-nums" data-grafica-verify-size>
-                {size.width} × {size.height}
-              </span>
-              {" · "}qui la misura dello schermo non conta, la grafica si adatta da sola. La verifica della misura serve dentro
-              Streamlabs / OBS: lì la sorgente va a {SOURCE_WIDTH} × {SOURCE_HEIGHT}.
-            </p>
-            <p className="mt-[0.3rem] text-[1.15rem] text-white/60" data-grafica-verify-browser>
-              Pagina aperta in: {size.browser}
-            </p>
-          </div>
+      <div className="pointer-events-none fixed inset-x-0 bottom-[12px] z-50 flex justify-center px-[12px]" data-grafica-verify={status} data-grafica-verify-host="browser">
+        <div className="max-w-[560px] rounded-[10px] px-[12px] py-[6px] text-white shadow-2xl" style={{ background: `${INK}e6` }} data-grafica-verify-panel>
+          <p className="text-[12px] font-semibold leading-snug">
+            <span className="grafica-type mr-[6px] tracking-[0.1em]" style={{ color: SUN }}>
+              Anteprima
+            </span>
+            <span className="tabular-nums" data-grafica-verify-size>
+              {size.width} × {size.height}
+            </span>
+            {" · "}qui la misura non conta: la verifica serve in Streamlabs / OBS ({SOURCE_WIDTH} × {SOURCE_HEIGHT})
+            <span className="font-normal text-white/60" data-grafica-verify-browser>
+              {" · "}
+              {size.browser}
+            </span>
+          </p>
         </div>
       </div>
     );

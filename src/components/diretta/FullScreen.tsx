@@ -114,7 +114,7 @@ function Frame({ card, now, live, children, party = false, word }: { card: FullC
   const entering = now - card.startedAt < STINGER_MS;
   const leaving = card.until - now < FULL_EXIT_MS;
   return (
-    <div className="pointer-events-none fixed inset-0 z-30" data-grafica-full={card.kind} data-grafica-card={card.kind}>
+    <div className="pointer-events-none absolute inset-0 z-30" data-grafica-full={card.kind} data-grafica-card={card.kind}>
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ animation: leaving ? "grafica-full-out 380ms ease-in 300ms both" : "grafica-full-in 520ms ease-out 330ms both" }}
