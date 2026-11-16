@@ -8,6 +8,7 @@ import {
   percent,
   pointsFromErrors,
   serverOf,
+  UNASSIGNED_ID,
   type PlayerDetail,
   type PlayerStats,
   type SideAnalysis,
@@ -41,11 +42,6 @@ export interface SheetNumbers {
   blocked: number;
   kills: number;
   blocks: number;
-  /**
-   * Gli errori che non hanno una colonna loro: alzata, difesa, errore a muro e falli (rete, invasione, doppia…). Con questi il
-   * V-P si rifà a mano: punti − battute sbagliate − ricezioni sbagliate − attacchi sbagliati − murati − altri errori.
-   */
-  otherErrors: number;
 }
 
 /** In un set: posizione di partenza (1-6), «in» se è entrata dopo (o è la libero), null se non ha giocato. */
@@ -151,10 +147,7 @@ export function partialsOf(set: Pick<ScoutSet, "rallies">, target: number): Scou
 export { serverOf } from "./stats";
 
 /** Quello che serve di una riga del tabellino di sempre (una giocatrice, o la somma di una squadra). */
-type RowInput = Pick<
-  PlayerStats,
-  "points" | "bp" | "balance" | "aces" | "serveErrors" | "receptionErrors" | "kills" | "attackErrors" | "blocked" | "stuffs" | "blockErrors" | "otherErrors"
-> & {
+type RowInput = Pick<PlayerStats, "points" | "bp" | "balance" | "aces" | "serveErrors" | "receptionErrors" | "kills" | "attackErrors" | "blocked" | "stuffs"> & {
   detail: Pick<PlayerDetail, "receptions" | "reception">;
 };
 
@@ -177,8 +170,12 @@ function numbersOf(p: RowInput, serves: number | null, tracksReceptions: boolean
     blocked: p.blocked,
     kills: p.kills,
     blocks: p.stuffs,
-    otherErrors: p.blockErrors + p.otherErrors,
   };
+}
+
+/** Ha almeno un numero che compare nelle colonne del tabellino (punti, battute, ricezioni, attacchi, muri). */
+function numbersShown(p: PlayerStats, served: boolean): boolean {
+  return served || p.points + p.serveErrors + p.receptionErrors + p.attackErrors + p.blocked + p.detail.receptions > 0;
 }
 
 /** La somma delle righe di una squadra (le percentuali si rifanno sui totali). */
@@ -194,8 +191,6 @@ function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean
     attackErrors: 0,
     blocked: 0,
     stuffs: 0,
-    blockErrors: 0,
-    otherErrors: 0,
     detail: { receptions: 0, reception: emptyGrades() },
   };
   for (const p of players) {
@@ -209,8 +204,6 @@ function sumOf(players: PlayerStats[], serves: number, tracksReceptions: boolean
     total.attackErrors += p.attackErrors;
     total.blocked += p.blocked;
     total.stuffs += p.stuffs;
-    total.blockErrors += p.blockErrors;
-    total.otherErrors += p.otherErrors;
     total.detail.receptions += p.detail.receptions;
     for (const grade of SCOUT_GRADES) total.detail.reception[grade] += p.detail.reception[grade];
   }
@@ -286,7 +279,9 @@ export function buildSheet(data: Pick<ScoutData, "settings" | "events" | "roster
     const tracksReceptions = level === "ricezioni" && side === "us";
     const teamStats = side === "us" ? stats.us : stats.opp;
     const other = side === "us" ? stats.opp : stats.us;
-    const lines: SheetLine[] = stats.players[side].map((p) => ({
+    // «Non assegnato» solo se ha un numero che si vede nel tabellino (come in Data Volley, un fallo senza giocatrice non ha riga).
+    const shown = stats.players[side].filter((p) => p.id !== UNASSIGNED_ID || numbersShown(p, serveCount[side].has(p.id)));
+    const lines: SheetLine[] = shown.map((p) => ({
       ...numbersOf(p, tracksServes[side] ? (serveCount[side].get(p.id) ?? 0) : null, tracksReceptions),
       id: p.id,
       number: p.number,

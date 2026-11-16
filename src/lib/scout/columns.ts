@@ -62,7 +62,7 @@ const positive = (row: Row) => row.detail.reception["#"] + row.detail.reception[
 const POINTS: Column[] = [
   { group: "Punti", label: "Tot", title: "Punti fatti: attacchi vincenti, muri e ace", kind: "strong", value: (r) => r.points, sep: true, pdf: "Punti" },
   { group: "Punti", label: "BP", title: "Punti fatti mentre la propria squadra batteva (break point)", kind: "count", value: (r) => r.bp, pdf: "BP" },
-  { group: "Punti", label: "V‑P", title: "Punti fatti meno errori e attacchi murati", kind: "balance", value: (r) => r.balance, pdf: "V-P" },
+  { group: "Punti", label: "V‑P", title: "Punti meno battute, ricezioni e attacchi sbagliati e murati (come Data Volley)", kind: "balance", value: (r) => r.balance, pdf: "V-P" },
 ];
 
 const SERVE_SHORT: Column[] = [

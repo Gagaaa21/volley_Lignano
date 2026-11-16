@@ -297,13 +297,13 @@ test.describe("come si contano errori e ace (V-P)", () => {
     const sheet = buildSheet(data, view);
     expect(sheet.us.lines.some((line) => line.id === "?")).toBe(false);
     expect(sheet.opp.lines.some((line) => line.id === "?")).toBe(false);
-    expect(sheet.us.total).toMatchObject({ points: 1, balance: 1, otherErrors: 0 });
+    expect(sheet.us.total).toMatchObject({ points: 1, balance: 1 });
     // Per la squadra che riceve il punto è un errore dell'avversaria.
     expect(sheet.opp.won).toMatchObject({ gifts: 1 });
     expect(sheet.us.won).toMatchObject({ attack: 1, gifts: 1 });
   });
 
-  test("il V-P si rifà con le colonne: punti − battute, ricezioni e attacchi sbagliati − murati − altri errori", () => {
+  test("il V-P come in Data Volley: punti − battute, ricezioni e attacchi sbagliati − murati (alzata, difesa e falli no)", () => {
     let data = roster();
     data = point(data, "us", "attack", "u1");
     data = point(data, "us", "serveError", "u1");
@@ -313,8 +313,9 @@ test.describe("come si contano errori e ace (V-P)", () => {
     data = point(data, "us", "receptionError", "u1");
     data = addRally(data, { actor: "opp", how: "block", player: null, victim: "u1" }, at(data), id());
     const u1 = buildSheet(data).us.lines.find((line) => line.id === "u1")!;
-    expect(u1).toMatchObject({ points: 1, serveErrors: 1, receptionErrors: 1, attackErrors: 0, blocked: 1, otherErrors: 3 });
-    expect(u1.balance).toBe(u1.points - u1.serveErrors - u1.receptionErrors - u1.attackErrors - u1.blocked - u1.otherErrors);
-    expect(u1.balance).toBe(-5);
+    expect(u1).toMatchObject({ points: 1, serveErrors: 1, receptionErrors: 1, attackErrors: 0, blocked: 1 });
+    // Si rifà a mano con le colonne del tabellino: difesa, alzata e rete sbagliate non entrano.
+    expect(u1.balance).toBe(u1.points - u1.serveErrors - u1.receptionErrors - u1.attackErrors - u1.blocked);
+    expect(u1.balance).toBe(-2);
   });
 });

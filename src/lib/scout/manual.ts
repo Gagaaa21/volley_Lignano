@@ -157,7 +157,7 @@ export const GLOSSARY: { term: string; text: string }[] = [
   { term: "Trattenuta", text: "Fallo: la palla non rimbalza ma viene accompagnata o trattenuta." },
   {
     term: "V-P",
-    text: "Punti fatti meno tutti gli errori (battuta, ricezione, attacco, murati e altri errori): dice se una giocatrice ha dato più di quanto ha tolto. L'errore generale non pesa sul V-P di nessuna.",
+    text: "Punti fatti meno battute, ricezioni e attacchi sbagliati e attacchi murati, come nel report di Data Volley: dice se una giocatrice ha dato più di quanto ha tolto. Alzata, difesa, muro, falli ed errore generale non contano.",
   },
   {
     term: "Voto",
@@ -1384,8 +1384,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
         rows: [
           ["BP", "Punti fatti mentre si batteva (break point)."],
           ["Cambio palla", "Punto fatto da chi riceve: si conquista la battuta (side-out)."],
-          ["V-P", "Punti fatti meno tutti gli errori: battuta, ricezione, attacco, murati e altri (alzata, difesa, muro, falli). Si rifà a mano con le colonne del tabellino."],
-          ["Altri Err", "Gli errori che non hanno una colonna loro: alzata, difesa, errore a muro e falli (rete, invasione, doppia…)."],
+          ["V-P", "Punti fatti meno battute, ricezioni e attacchi sbagliati e attacchi murati, come nel report di Data Volley: si rifà a mano con le colonne del tabellino. Alzata, difesa, muro e falli non contano (sono nelle analisi)."],
           ["Pos% / Prf%", "Ricezioni positive (# e +) e perfette (#) sulle ricezioni segnate."],
         ],
         keepTogether: true,

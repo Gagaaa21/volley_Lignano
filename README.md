@@ -408,8 +408,8 @@ staff (Developer e Admin).
   posizione di partenza in ogni set, un rettangolo per chi è entrata o la
   libero, i set cerchiati dove la squadra ha battuto per prima), Punti Tot/BP/V-P,
   Battuta Tot/Err/Pt, Ricezione Tot/Err/Pos%/(Prf%), Attacco Err/Mur/Pt,
-  Muro Pt, Altri Err (alzata, difesa, muro, falli: così il V-P si rifà a mano
-  con le colonne), i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
+  Muro Pt (il V-P si conta come nel report di Data Volley: punti meno battute,
+  ricezioni e attacchi sbagliati e murati; alzata, difesa, muro e falli no), i totali e i **punti vinti set per set** (Bat, Att, Mu, Er.Av);
   sotto, per ogni squadra i punti fatti meno persi in ogni rotazione,
   ricezioni e punti in cambio palla (CP), battute e break point (BP), e in
   mezzo (a Con ricezioni) il cambio palla dopo ricezione positiva o

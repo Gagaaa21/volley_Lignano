@@ -407,7 +407,8 @@ test.describe("tabellino", () => {
     const [carla, anna, bea, nobody] = players.us;
     expect(carla).toMatchObject({ points: 0, receptionErrors: 1, errors: 1, blocked: 0, balance: -1 });
     expect(anna).toMatchObject({ kills: 1, stuffs: 1, aces: 0, points: 2, bp: 2, attackErrors: 1, errors: 1, blocked: 0, balance: 1 });
-    expect(bea).toMatchObject({ aces: 1, points: 1, bp: 1, otherErrors: 1, errors: 1, blocked: 1, balance: -1 });
+    // Il tocco di rete è un errore, ma come in Data Volley non entra nel V-P (solo battuta, ricezione, attacco e murati).
+    expect(bea).toMatchObject({ aces: 1, points: 1, bp: 1, otherErrors: 1, errors: 1, blocked: 1, balance: 0 });
     expect(nobody).toMatchObject({ name: "Non assegnato", kills: 1, points: 1, bp: 0, errors: 0, balance: 1 });
 
     const [n5, n9, oppNobody] = players.opp;

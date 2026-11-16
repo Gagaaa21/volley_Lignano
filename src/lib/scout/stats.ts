@@ -190,7 +190,10 @@ export interface PlayerStats {
   errors: number;
   /** Suoi attacchi murati dall'avversaria. */
   blocked: number;
-  /** Punti fatti meno errori e attacchi murati (il «V-P» del tabellino). */
+  /**
+   * Il «V-P» (vinti − persi) del tabellino, contato come nel report di Data Volley: punti fatti meno battute, ricezioni e
+   * attacchi sbagliati e attacchi murati. Gli altri errori (alzata, difesa, muro) e i falli non entrano, come in DV.
+   */
   balance: number;
   /** Battute, ricezioni, attacchi, difese… segnati: servono ai livelli con i tocchi. */
   detail: PlayerDetail;
@@ -276,7 +279,8 @@ export function hasActivity(p: PlayerStats): boolean {
 function finishPlayer(p: PlayerStats): PlayerStats {
   const points = p.kills + p.stuffs + p.aces;
   const errors = p.serveErrors + p.receptionErrors + p.attackErrors + p.blockErrors + p.otherErrors;
-  return { ...p, points, errors, balance: points - errors - p.blocked };
+  // Il V-P come in Data Volley: solo gli errori che hanno una colonna nel tabellino (battuta, ricezione, attacco) e i murati.
+  return { ...p, points, errors, balance: points - p.serveErrors - p.receptionErrors - p.attackErrors - p.blocked };
 }
 
 /** Per numero di maglia (chi non ce l'ha in fondo), poi per nome. */
