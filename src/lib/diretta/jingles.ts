@@ -1,9 +1,10 @@
-import type { CueKind } from "./cues";
+import { defaultSoundUrl, soundUrl, type CueKind } from "./cues";
 
 /**
- * I jingle originali della pulsantiera della diretta, creati nel browser con la Web Audio API: nessun file da scaricare e
- * nessun problema di diritti su YouTube. Ogni jingle dura un paio di secondi e accompagna la scritta animata (vedi cues.ts).
- * Suonano nella grafica di Streamlabs / OBS (la sorgente browser manda l'audio nella diretta) e, per provarli, sul tablet.
+ * I suoni della pulsantiera della diretta. Di partenza ogni tasto ha un file originale con la voce da stadio (vedi
+ * defaultSoundUrl in cues.ts); lo staff può caricarne uno suo al posto (soundUrl). Se un file non parte, suona il jingle creato
+ * qui nel browser con la Web Audio API (nessun file da scaricare): la scritta ha sempre il suo suono. Suonano nella grafica di
+ * Streamlabs / OBS (la sorgente browser manda l'audio nella diretta) e, per provarli, sul tablet.
  */
 
 type Ctx = AudioContext;
@@ -186,20 +187,48 @@ export function playJingle(kind: CueKind, volume = 0.8): void {
 }
 
 const loaded = new Map<string, HTMLAudioElement>();
+/** Il suono che sta suonando: una scritta nuova lo ferma (mai due grida una sopra l'altra). */
+let playing: HTMLAudioElement | null = null;
 
-/** Prepara un suono caricato (si scarica subito, così al tocco parte senza attesa). */
-export function preloadSound(url: string): void {
-  if (typeof window === "undefined" || loaded.has(url)) return;
-  const audio = new Audio(url);
-  audio.preload = "auto";
-  loaded.set(url, audio);
+function fileFor(url: string): HTMLAudioElement | null {
+  if (typeof window === "undefined" || typeof Audio === "undefined") return null;
+  let audio = loaded.get(url);
+  if (!audio) {
+    audio = new Audio(url);
+    audio.preload = "auto";
+    loaded.set(url, audio);
+  }
+  return audio;
 }
 
-/** Suona un file caricato; se non parte (formato, rete) suona il jingle originale al suo posto. */
-export function playSound(url: string, fallback: CueKind): void {
-  preloadSound(url);
-  const audio = loaded.get(url);
-  if (!audio) return;
+/** Suona un file; se non parte (formato, rete, file mancante) chiama `fallback`. */
+function playFile(url: string, fallback: () => void): void {
+  const audio = fileFor(url);
+  if (!audio) return fallback();
+  if (playing && playing !== audio) {
+    playing.pause();
+  }
+  playing = audio;
   audio.currentTime = 0;
-  audio.play().catch(() => playJingle(fallback));
+  audio.play().catch(fallback);
+}
+
+/** L'indirizzo del suono di un tasto: il file caricato dallo staff se c'è (con la sua versione), se no quello originale. */
+function cueUrl(kind: CueKind, uploaded: number | null): string {
+  return uploaded ? soundUrl(kind, uploaded) : defaultSoundUrl(kind);
+}
+
+/** Prepara il suono di un tasto (si scarica subito, così al tocco parte senza attesa). */
+export function preloadCue(kind: CueKind, uploaded: number | null): void {
+  fileFor(cueUrl(kind, uploaded));
+}
+
+/**
+ * Suona il suono di un tasto: il file caricato dallo staff, se c'è; se no (o se non parte) quello originale con la voce da
+ * stadio; se nemmeno quello parte, il jingle creato qui con la Web Audio API. Una scritta non resta mai muta.
+ */
+export function playCue(kind: CueKind, uploaded: number | null): void {
+  const original = () => playFile(defaultSoundUrl(kind), () => playJingle(kind));
+  if (uploaded) playFile(soundUrl(kind, uploaded), original);
+  else original();
 }

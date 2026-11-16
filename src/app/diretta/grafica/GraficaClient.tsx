@@ -11,9 +11,9 @@ import { ScorebugWide } from "@/components/diretta/ScorebugWide";
 import { VerifyFrame } from "@/components/diretta/VerifyFrame";
 import { cn } from "@/lib/cn";
 import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
-import { CUE_DURATION_MS, CUE_KINDS, soundUrl, type CueKind, type PublicCue } from "@/lib/diretta/cues";
+import { CUE_DURATION_MS, CUE_KINDS, type CueKind, type PublicCue } from "@/lib/diretta/cues";
 import { clampDelaySeconds, nextOffset, stampOf, takeDue, type Reading } from "@/lib/diretta/delay";
-import { playJingle, playSound, preloadSound } from "@/lib/diretta/jingles";
+import { playCue, preloadCue } from "@/lib/diretta/jingles";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
 
@@ -119,8 +119,7 @@ export function GraficaClient() {
     cueTimer.current = setTimeout(() => setCue((current) => (current?.id === id ? null : current)), CUE_DURATION_MS);
     // Il suono entra nella diretta solo dalla grafica di Streamlabs / OBS: chi guarda da /diretta ha già l'audio del video.
     if (viewer) return;
-    if (sound) playSound(soundUrl(kind, sound), kind);
-    else playJingle(kind);
+    playCue(kind, sound);
   });
 
   // Ritardo e scala del punteggio: dall'indirizzo, poi dai messaggi della pagina /diretta.
@@ -198,8 +197,9 @@ export function GraficaClient() {
               queue.current.push(reading);
             }
             lastStamp = reading.stamp;
-            // I suoni caricati si preparano subito, così al tocco partono senza attesa (solo dove si sentono).
-            if (!viewer) for (const [kind, version] of Object.entries(data.cueSounds ?? {})) if (version) preloadSound(soundUrl(kind as CueKind, version));
+            // I suoni dei tasti (quelli caricati dallo staff o gli originali) si preparano subito, così al tocco partono senza
+            // attesa; solo dove si sentono. Si scaricano una volta: dopo restano in memoria e nella cache.
+            if (!viewer) for (const kind of CUE_KINDS) preloadCue(kind, data.cueSounds?.[kind] ?? null);
             const fresh = data.cue ?? null;
             if (lastCue === undefined) {
               lastCue = fresh?.id ?? null;

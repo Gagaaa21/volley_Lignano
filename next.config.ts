@@ -51,6 +51,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // I suoni della pulsantiera della diretta (vedi src/lib/diretta/cues.ts): si chiamano sempre con la versione (?v=), quindi
+        // la rete e la grafica di Streamlabs / OBS li tengono per un anno senza richiederli.
+        source: "/diretta/suoni/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         // La pagina del genitore ha il codice segreto nell'indirizzo: non deve finire nei motori di ricerca né nell'«indirizzo di
         // provenienza» che il browser manda ad altri siti (vedi anche i metadati della pagina).
         source: "/disponibilita/:path*",

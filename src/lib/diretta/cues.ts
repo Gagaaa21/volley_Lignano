@@ -94,7 +94,7 @@ export function withSound(stored: StoredCues, kind: CueKind, version: number | n
   return { ...stored, sounds };
 }
 
-/** La versione del suono caricato per quel tasto, o null se si usa il jingle originale. */
+/** La versione del suono caricato per quel tasto, o null se si usa il suono originale. */
 export function soundVersion(stored: StoredCues, kind: CueKind): number | null {
   return stored.sounds[kind] ?? null;
 }
@@ -127,6 +127,18 @@ export function publicCueSounds(raw: string | null | undefined): Partial<Record<
 /** L'indirizzo del suono caricato per un tasto (con la versione: la rete lo tiene per sempre). */
 export function soundUrl(kind: CueKind, version: number): string {
   return `/api/diretta/suono/${kind}?v=${version}`;
+}
+
+/**
+ * Il suono di partenza di ogni tasto: una voce da stadio («MONSTER BLOCK! MONSTER BLOCK!», «ACE! ACE!», «FORZA LIGNANO!»…)
+ * sopra tamburi, ottoni e piatti. Tutto originale e libero (voci sintetiche CC0 / pubblico dominio, musica fatta apposta, vedi
+ * README): niente problemi di diritti su YouTube. File statici in public/diretta/suoni, pochi kB l'uno; quando si rifanno si
+ * alza DEFAULT_SOUNDS_VERSION, così la rete (che li tiene per un anno) scarica quelli nuovi.
+ */
+export const DEFAULT_SOUNDS_VERSION = 1;
+
+export function defaultSoundUrl(kind: CueKind): string {
+  return `/diretta/suoni/${kind}.mp3?v=${DEFAULT_SOUNDS_VERSION}`;
 }
 
 /** Il file caricato com'è salvato: tipo e contenuto in base64 (pochi kB, in una chiave a parte che si legge solo per scaricarlo). */

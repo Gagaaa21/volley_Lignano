@@ -841,8 +841,9 @@
     transform: scaleX(0);
   }
 }
-/* Le scritte della pulsantiera nella grafica (src/components/diretta/CueBurst.tsx): lampo, onda d'urto, fascia che entra,
-   scritta che «sbatte» con un tremolio, scintille, uscita. Solo trasformazioni e trasparenza: leggere anche in OBS. */
+/* Le scritte della pulsantiera nella grafica (src/components/diretta/CueBurst.tsx), da cartone animato: lampo, raggi, onda
+   d'urto, fascia che entra, lettere che saltano e ballano, una scena per tasto (bocca del mostro, palla infuocata, fulmini,
+   fumetto, ping-pong, bandiere), scintille, uscita. Solo trasformazioni e trasparenza: leggere anche in OBS. */
 @keyframes cue-flash {
   0% {
     opacity: 0;
@@ -864,6 +865,24 @@
     transform: scale(2.6);
   }
 }
+@keyframes cue-rays-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes cue-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 @keyframes cue-band-in {
   0% {
     transform: translateX(-120%) skewX(-12deg);
@@ -872,24 +891,63 @@
     transform: translateX(0) skewX(-12deg);
   }
 }
-@keyframes cue-slam {
+@keyframes cue-letter {
   0% {
     opacity: 0;
-    transform: scale(2.8);
-    filter: blur(1rem);
+    transform: translateY(-5rem) scale(0.2) rotate(-30deg);
   }
   55% {
     opacity: 1;
-    transform: scale(0.93);
-    filter: blur(0);
+    transform: translateY(0.8rem) scale(1.22) rotate(8deg);
   }
-  72% {
-    transform: scale(1.05);
+  78% {
+    transform: translateY(-0.4rem) scale(0.94) rotate(-3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+@keyframes cue-wiggle {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  100% {
+    transform: translateY(-0.45rem) scale(1.03) rotate(var(--tilt));
+  }
+}
+@keyframes cue-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.15);
   }
   100% {
     opacity: 1;
     transform: scale(1);
-    filter: blur(0);
+  }
+}
+@keyframes cue-swing {
+  0% {
+    opacity: 0;
+    transform: translateY(-6rem) rotate(-14deg);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(0) rotate(10deg);
+  }
+  60% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  80% {
+    transform: translateY(0) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
   }
 }
 @keyframes cue-shake {
@@ -918,6 +976,250 @@
   100% {
     opacity: 0;
     transform: rotate(var(--angle)) translateX(var(--reach)) scale(0.3);
+  }
+}
+@keyframes cue-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+/* Monster block: le mascelle mordono due volte (con il grido), gli occhi guardano in giro, la palla rimbalza sul muro. */
+@keyframes cue-chomp-top {
+  0% {
+    opacity: 0;
+    transform: translateY(-10rem);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-3rem);
+  }
+  22% {
+    transform: translateY(0.5rem);
+  }
+  30% {
+    transform: translateY(-1.8rem);
+  }
+  60% {
+    transform: translateY(-2.6rem);
+  }
+  68% {
+    transform: translateY(0.5rem);
+  }
+  78% {
+    transform: translateY(-1.6rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-1.2rem);
+  }
+}
+@keyframes cue-chomp-bottom {
+  0% {
+    opacity: 0;
+    transform: translateY(10rem);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(3rem);
+  }
+  22% {
+    transform: translateY(-0.5rem);
+  }
+  30% {
+    transform: translateY(1.8rem);
+  }
+  60% {
+    transform: translateY(2.6rem);
+  }
+  68% {
+    transform: translateY(-0.5rem);
+  }
+  78% {
+    transform: translateY(1.6rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(1.2rem);
+  }
+}
+@keyframes cue-look {
+  0% {
+    transform: translateX(-1.3rem);
+  }
+  100% {
+    transform: translateX(1.3rem);
+  }
+}
+@keyframes cue-blink {
+  0%,
+  42%,
+  52%,
+  100% {
+    transform: scaleY(1);
+  }
+  47% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes cue-ball-block {
+  0% {
+    opacity: 1;
+    transform: translate(72rem, -8rem);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6);
+  }
+  40% {
+    transform: translate(27rem, 0);
+    animation-timing-function: cubic-bezier(0.1, 0.5, 0.4, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(80rem, -46rem);
+  }
+}
+/* Ace e Super attacco: la palla con la scia di fuoco che corre (e si schianta). */
+@keyframes cue-comet {
+  0% {
+    transform: translateX(var(--from));
+  }
+  100% {
+    transform: translateX(var(--to));
+  }
+}
+@keyframes cue-comet-hit {
+  0% {
+    opacity: 1;
+    transform: translateX(var(--from)) scale(1);
+  }
+  88% {
+    opacity: 1;
+    transform: translateX(var(--to)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--to)) scale(1.8);
+  }
+}
+@keyframes cue-flicker {
+  0% {
+    opacity: 0.75;
+    transform: scaleY(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1.12);
+  }
+}
+@keyframes cue-bolt {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  8% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  16% {
+    opacity: 0.25;
+  }
+  24% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.15;
+    transform: scale(0.95);
+  }
+}
+@keyframes cue-throb {
+  0% {
+    transform: scale(1) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1.05) rotate(1.5deg);
+  }
+}
+/* Salvataggio: la palla cade, viene salvata all'ultimo (si schiaccia un attimo) e vola via; il fumetto ondeggia. */
+@keyframes cue-dig-ball {
+  0% {
+    transform: translate(0, -48rem) scale(1, 1);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+  }
+  36% {
+    transform: translate(0, 6.5rem) scale(1, 1);
+    animation-timing-function: linear;
+  }
+  40% {
+    transform: translate(0, 7rem) scale(1.25, 0.75);
+    animation-timing-function: cubic-bezier(0.1, 0.5, 0.4, 1);
+  }
+  100% {
+    transform: translate(-12rem, -62rem) scale(1, 1);
+  }
+}
+@keyframes cue-wobble {
+  0% {
+    transform: rotate(-4deg);
+  }
+  100% {
+    transform: rotate(4deg);
+  }
+}
+/* Che scambio!: la palla va e viene ad arco. */
+@keyframes cue-pingpong-x {
+  0% {
+    transform: translateX(-34rem);
+  }
+  100% {
+    transform: translateX(34rem);
+  }
+}
+@keyframes cue-pingpong-y {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.3, 0.7, 0.5, 1);
+  }
+  50% {
+    transform: translateY(-8rem);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.3);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+/* Forza Lignano: le bandiere salgono e sventolano. */
+@keyframes cue-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(30rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes cue-flag-swing {
+  0% {
+    transform: rotate(-7deg);
+  }
+  100% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes cue-flag {
+  0% {
+    transform: skewY(-5deg) scaleX(1);
+  }
+  100% {
+    transform: skewY(5deg) scaleX(0.9);
   }
 }
 @keyframes cue-out {

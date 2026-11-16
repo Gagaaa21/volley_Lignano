@@ -574,10 +574,17 @@ staff (Developer e Admin).
     Che scambio!, Forza Lignano). Un tocco salva l'ultima scritta in `app_settings`
     (`live_cues`, `src/lib/diretta/cues.ts`) e la grafica la legge con la stessa query del
     punteggio (`cue` e `cueSounds` in `/api/livescore/pubblico`: nessuna lettura in più): al
-    centro parte la scritta animata (`CueBurst.tsx`) con il suo jingle. Solo la scritta, mai
-    una giocatrice (ordine del proprietario). I jingle sono originali, creati nel browser con
-    la Web Audio API (`jingles.ts`, nessun problema di diritti); ogni tasto può avere un file
-    audio caricato dallo staff (al massimo 400 kB, in `app_settings` a parte, servito una
+    centro parte la scritta animata (`CueBurst.tsx`, una scena per tasto) con il suo suono.
+    Solo la scritta, mai una giocatrice (ordine del proprietario). Il suono di partenza è un
+    file originale per tasto in `public/diretta/suoni/` (voce da stadio «MONSTER BLOCK!
+    MONSTER BLOCK!», «ACE! ACE!», «SUPER ATTACCO!», «CHE DIFESA!», «CHE SCAMBIO!», «FORZA
+    LIGNANO!» su tamburi, ottoni, piatti e folla; mp3 mono da 96 kbit/s, 30–45 kB, -14 LUFS,
+    tenuti in cache un anno: quando si rifanno si alza `DEFAULT_SOUNDS_VERSION`). Le voci sono
+    sintetiche e libere, fatte con piper (voci `en_US-bryce-medium` di pubblico dominio,
+    `en_US-joe-medium` e `it_IT-paola-medium` CC0), la musica è sintetizzata apposta: nessun
+    problema di diritti su YouTube. Lo script che li rifà è `scripts/suoni-pulsantiera.py`. Se
+    un file non parte suona il jingle creato nel browser con la Web Audio API (`jingles.ts`,
+    `playCue`); ogni tasto può avere un file audio caricato dallo staff (al massimo 400 kB, in `app_settings` a parte, servito una
     volta per versione da `/api/diretta/suono/[tipo]?v=`). Il suono esce solo dalla grafica di
     Streamlabs / OBS («Control audio via OBS» nella Browser Source); su /diretta la scritta
     arriva in silenzio, con il ritardo del video. Una scritta già vecchia (15 s) non riparte.

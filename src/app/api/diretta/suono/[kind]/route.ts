@@ -5,7 +5,7 @@ type RouteContext = { params: Promise<{ kind: string }> };
 
 /**
  * Il suono caricato dallo staff per un tasto della pulsantiera (vedi src/lib/diretta/cues.ts), per la grafica della diretta.
- * Senza accesso (la grafica in Streamlabs / OBS non ha una sessione), ma è solo un jingle. L'indirizzo porta la versione
+ * Senza accesso (la grafica in Streamlabs / OBS non ha una sessione), ma è solo un suono di pochi secondi. L'indirizzo porta la versione
  * (`?v=` l'istante del caricamento), quindi la risposta non cambia mai: la rete di Vercel e il browser la tengono un anno, e il
  * database la legge una volta sola per ogni suono nuovo. Legge sempre l'archivio vero.
  */

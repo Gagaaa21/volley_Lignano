@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import {
   CUE_FRESH_MS,
+  defaultSoundUrl,
   CUE_KINDS,
   CUE_META,
+  DEFAULT_SOUNDS_VERSION,
   EMPTY_CUES,
   parseCues,
   parseSound,
@@ -79,5 +83,16 @@ test.describe("pulsantiera della diretta", () => {
     expect(parseSound(JSON.stringify({ type: "audio/mpeg", data: "AAAA" }))).toEqual({ type: "audio/mpeg", data: "AAAA" });
     expect(parseSound(JSON.stringify({ type: "text/html", data: "PGgxPg==" }))).toBeNull();
     expect(parseSound("")).toBeNull();
+  });
+
+  test("ogni tasto ha il suo suono originale: un mp3 piccolo in public, chiamato con la versione", () => {
+    for (const kind of CUE_KINDS) {
+      expect(defaultSoundUrl(kind)).toBe(`/diretta/suoni/${kind}.mp3?v=${DEFAULT_SOUNDS_VERSION}`);
+      const file = readFileSync(join(process.cwd(), "public", "diretta", "suoni", `${kind}.mp3`));
+      // Un mp3 vero (sincronismo del primo frame, nessun tag con metadati) e leggero: la grafica li scarica tutti e sei.
+      expect([file[0], file[1] & 0xe0]).toEqual([0xff, 0xe0]);
+      expect(file.length).toBeGreaterThan(10_000);
+      expect(file.length).toBeLessThan(80_000);
+    }
   });
 });
