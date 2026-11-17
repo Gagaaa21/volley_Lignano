@@ -578,14 +578,17 @@ staff (Developer e Admin).
     Solo la scritta, mai una giocatrice (ordine del proprietario). Di partenza solo il Monster
     block ha un suono (scelta del proprietario: gli altri tasti sono solo animazione): il file
     `public/diretta/suoni/monsterBlock.mp3`: uno speaker da arena americana che urla
-    «MOOONSTEEEER BLOOOOOCK!» (vocali allungate a mano da un grido chiaro, perché scritte così il
-    modello di voce si confonde) con l'eco grande del palazzetto, su una musica rock originale
-    a 138 bpm (power chord distorti sintetizzati, batteria con rullata di tom, piatti, folla);
+    «MOOONSTEEEER BLOOOOOCK!» con l'eco del palazzetto, su una musica rock originale a 138 bpm
+    (power chord distorti sintetizzati, batteria con rullata di tom che sale, piatti, folla). Le
+    vocali sono allungate a mano da un grido chiaro (scritte così il modello di voce si confonde)
+    con il vocoder WORLD (`pyworld`): la melodia non è quella vera rallentata, che scende e
+    sembrava «uno che precipita», ma disegnata da speaker: MOOON tiene la nota, STEEEER sale,
+    BLOOOOOCK sale ancora e resta in alto con un leggero vibrato, il volume cresce;
     non è una copia di quello della SuperLega / Lega Volley Femminile. La voce è sintetica, fatta con
     Chatterbox (Resemble AI, licenza MIT) partendo da una voce maschile a sua volta sintetica
     (Kokoro, Apache 2.0, `am_fenrir`): non imita nessuna persona vera. mp3 mono da 96 kbit/s,
-    -14 LUFS, 4,5 s (la scritta resta in onda `CUE_DURATION_MS`, 4,8 s), in cache un anno:
-    quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 4), `DEFAULT_SOUND_KINDS` dice quali
+    -14 LUFS, 4,75 s (la scritta resta in onda `CUE_DURATION_MS`, 5 s), in cache un anno:
+    quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 5), `DEFAULT_SOUND_KINDS` dice quali
     tasti ce l'hanno.
     La voce è sintetica e libera, fatta con piper (voci `en_US-bryce-medium` di pubblico dominio
     e `en_US-joe-medium` CC0), la musica è sintetizzata apposta: nessun problema di diritti su

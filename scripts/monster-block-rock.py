@@ -61,13 +61,14 @@ def build(path, name):
     E2, D2, G2, A2 = hz(40), hz(38), hz(43), hz(45)
     vs = 0.32
     # La botta finale cade appena finisce il grido, sul tempo.
-    hit = vs + vlen + 0.2
-    total = hit + 1.5
+    # Prima finisce il grido, poi i due accordi d'attacco («ta-ta») e la botta («TAAAN»): niente chitarre sopra la parola.
+    hit = vs + vlen + 0.1 + BEAT
+    total = hit + 1.1
     music = np.zeros(int(SR * (total + 0.6))); vox = np.zeros_like(music)
 
     # Entrata: accordo pieno, piatto, cassa.
     place(music, guitar(E2, 0.32, 0.42), 0.0); place(music, rock_kick(1.0), 0.0); place(music, crash(1.8, 0.32), 0.0)
-    place(vox, arena(v, wet=0.36), vs)
+    place(vox, arena(v, wet=0.18), vs)
     # Sotto il grido: chitarre stoppate in ottavi e batteria rock (cassa sull'1 e sul 3, rullante sul 2 e sul 4).
     fill = hit - 2 * BEAT
     at, k = 0.55, 0
@@ -80,9 +81,11 @@ def build(path, name):
         place(music, rock_kick(0.75) if k % 2 == 0 else rock_snare(0.42), b)
         if k % 2 == 0: place(music, rock_kick(0.5), b + E8)
         k += 1
-    # Rullata di tom prima della botta: dall'alto verso il basso.
-    for j, f in enumerate((220, 220, 165, 165, 120, 120, 90, 90)):
-        place(music, tom(f, 0.34), fill + j * BEAT / 4)
+    # Rullata di tom prima della botta: dal basso verso l'alto (sale, non cade), e un «whoosh» che sale sotto l'ultima vocale.
+    from mix3 import riser
+    place(music, hp(riser(1.0, 0.09), 2500), hit - 1.0)
+    for j, f in enumerate((90, 90, 120, 120, 165, 165, 220, 220)):
+        place(music, tom(f, 0.26), fill + j * BEAT / 4)
     # Il riff finale: G5 - A5 corti, poi E5 lungo, e il pubblico che esplode.
     place(music, guitar(G2, BEAT * 0.45, 0.4), hit - BEAT)
     place(music, guitar(A2, BEAT * 0.45, 0.4), hit - BEAT / 2)
@@ -94,7 +97,7 @@ def build(path, name):
 
     n = int(SR * total)
     venv = np.sqrt(onepole_lp(vox[:n] ** 2, 10) + 1e-12); venv /= np.max(venv)
-    buf = music[:n] * (1 - 0.7 * np.clip(venv * 2.5, 0, 1)) + vox[:n] * 1.25
+    buf = music[:n] * (1 - 0.8 * np.clip(venv * 2.5, 0, 1)) + vox[:n] * 1.3
     buf = hp(buf, 30)
     buf = np.tanh(1.3 * buf / np.max(np.abs(buf))) / np.tanh(1.3)
     fade = int(SR * 0.4); buf[-fade:] *= np.linspace(1, 0, fade) ** 2
