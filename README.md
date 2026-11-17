@@ -577,12 +577,15 @@ staff (Developer e Admin).
     centro parte la scritta animata (`CueBurst.tsx`, una scena per tasto).
     Solo la scritta, mai una giocatrice (ordine del proprietario). Di partenza solo il Monster
     block ha un suono (scelta del proprietario: gli altri tasti sono solo animazione): il file
-    `public/diretta/suoni/monsterBlock.mp3` (voce da stadio «MONSTER BLOCK! MONSTER BLOCK!» su
-    tamburi, ottoni, piatti e folla; mp3 mono da 96 kbit/s, -14 LUFS, in cache un anno: quando
-    si rifà si alza `DEFAULT_SOUNDS_VERSION`, `DEFAULT_SOUND_KINDS` dice quali tasti ce l'hanno).
+    `public/diretta/suoni/monsterBlock.mp3`: voce robotica da speaker carico «MONSTER BLOCK!» e
+    poi a scatti «MON-MON-MONSTER BLOCK!», col «mostro» un'ottava sotto, su una musica originale
+    a 174 bpm in Mi maggiore (cassa dritta, basso, rullata, riff di synth, trombetta da stadio,
+    folla); non è una copia di quello della SuperLega / Lega Volley Femminile. mp3 mono da 96
+    kbit/s, -14 LUFS, in cache un anno: quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 2),
+    `DEFAULT_SOUND_KINDS` dice quali tasti ce l'hanno.
     La voce è sintetica e libera, fatta con piper (voci `en_US-bryce-medium` di pubblico dominio
     e `en_US-joe-medium` CC0), la musica è sintetizzata apposta: nessun problema di diritti su
-    YouTube. Lo script che lo rifà è `scripts/suoni-pulsantiera.py`. Se il file non parte suona
+    YouTube. Lo rifà `scripts/monster-block.py` (usa le funzioni di `scripts/suoni-pulsantiera.py`). Se il file non parte suona
     un jingle creato nel browser con la Web Audio API (`jingles.ts`, `playCue`); ogni tasto può
     avere un file audio caricato dallo staff (al massimo 400 kB, in `app_settings` a parte, servito una
     volta per versione da `/api/diretta/suono/[tipo]?v=`). Il suono esce solo dalla grafica di

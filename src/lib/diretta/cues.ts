@@ -137,7 +137,7 @@ export function soundUrl(kind: CueKind, version: number): string {
  * scarica quello nuovo. Lo staff può comunque caricare un file suo su qualsiasi tasto (soundUrl).
  */
 export const DEFAULT_SOUND_KINDS: readonly CueKind[] = ["monsterBlock"];
-export const DEFAULT_SOUNDS_VERSION = 1;
+export const DEFAULT_SOUNDS_VERSION = 2;
 
 /** L'indirizzo del suono di partenza di un tasto, o null se il tasto è solo animazione. */
 export function defaultSoundUrl(kind: CueKind): string | null {
