@@ -579,20 +579,22 @@ staff (Developer e Admin).
     block ha un suono (scelta del proprietario: gli altri tasti sono solo animazione): il file
     `public/diretta/suoni/monsterBlock.mp3`: uno speaker da arena americana che urla
     «MOOONSTEEEER BLOOOOOCK!» con l'eco del palazzetto, su una musica rock originale a 138 bpm
-    (power chord distorti sintetizzati, batteria con rullata di tom che sale, piatti, folla). Le
-    vocali sono allungate a mano da un grido chiaro (scritte così il modello di voce si confonde)
-    con il vocoder WORLD (`pyworld`): la melodia non è quella vera rallentata, che scende e
-    sembrava «uno che precipita», ma disegnata da speaker: MOOON tiene la nota, STEEEER sale,
-    BLOOOOOCK sale ancora e resta in alto con un leggero vibrato, il volume cresce;
+    (power chord distorti sintetizzati, batteria con rullata di tom che sale, piatti, folla). Il
+    modo di dirlo è quello della dimostrazione registrata dal proprietario: «MON» corto che sale,
+    «STEEEER» lunga (quasi un secondo) che sale piano e tiene, «BLOOOCK» che salta in alto, fa il
+    picco e ricade fino alla «CK», con il volume che cala. Durate, melodia e volume sono misurati
+    su quella registrazione e dati, con il vocoder WORLD (`pyworld`), a un grido chiaro della voce
+    sintetica (scritto «MOOONSTEEEER» il modello di voce si confonde); della registrazione non c'è
+    nessun pezzo, e la voce non è quella del proprietario;
     non è una copia di quello della SuperLega / Lega Volley Femminile. La voce è sintetica, fatta con
     Chatterbox (Resemble AI, licenza MIT) partendo da una voce maschile a sua volta sintetica
     (Kokoro, Apache 2.0, `am_fenrir`): non imita nessuna persona vera. mp3 mono da 96 kbit/s,
-    -14 LUFS, 4,75 s (la scritta resta in onda `CUE_DURATION_MS`, 5 s), in cache un anno:
-    quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 5), `DEFAULT_SOUND_KINDS` dice quali
+    -14 LUFS, 4,6 s (la scritta resta in onda `CUE_DURATION_MS`, 5 s), in cache un anno:
+    quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 6), `DEFAULT_SOUND_KINDS` dice quali
     tasti ce l'hanno.
     La voce è sintetica e libera, fatta con piper (voci `en_US-bryce-medium` di pubblico dominio
     e `en_US-joe-medium` CC0), la musica è sintetizzata apposta: nessun problema di diritti su
-    YouTube. Lo rifanno `scripts/allunga-vocali.py` (le vocali) e `scripts/monster-block-rock.py` (voce
+    YouTube. Lo rifanno `scripts/voce-come-dimostrazione.py` (durate e melodia) e `scripts/monster-block-rock.py` (voce
     e musica; usa `scripts/monster-block-arena.py`, `scripts/monster-block.py` e `scripts/suoni-pulsantiera.py`). Se il file non parte suona
     un jingle creato nel browser con la Web Audio API (`jingles.ts`, `playCue`); ogni tasto può
     avere un file audio caricato dallo staff (al massimo 400 kB, in `app_settings` a parte, servito una
