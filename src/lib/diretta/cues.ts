@@ -37,8 +37,8 @@ export const CUE_META: Record<CueKind, CueMeta> = {
   cheer: { button: "Forza Lignano", kicker: "TUTTI INSIEME", title: "FORZA LIGNANO!", hint: "Per il tifo, quando serve una spinta" },
 };
 
-/** Quanto resta in onda una scritta (animazione di entrata e di uscita comprese): quanto il grido del Monster block, 4,4 s. */
-export const CUE_DURATION_MS = 4_600;
+/** Quanto resta in onda una scritta (animazione di entrata e di uscita comprese): quanto il suono del Monster block, 4,5 s. */
+export const CUE_DURATION_MS = 4_800;
 /**
  * Una scritta più vecchia di così non parte più: chi apre (o ricarica) la grafica dopo non vede ripartire quella di prima. Con
  * il ritardo della pagina /diretta la scritta si mostra comunque dopo i secondi del ritardo (vedi GraficaClient).
@@ -130,14 +130,14 @@ export function soundUrl(kind: CueKind, version: number): string {
 }
 
 /**
- * I tasti con un suono di partenza: solo il Monster block, con lo speaker da arena americana che urla «MONSTER BLOCK! MONSTER
- * BLOCK!» sopra una musica fatta apposta (scelta del proprietario: gli altri tasti sono solo animazione, senza suono). Tutto
+ * I tasti con un suono di partenza: solo il Monster block, con lo speaker da arena americana che urla «MOOONSTEEEER
+ * BLOOOOOCK!» sopra una musica rock fatta apposta (scelta del proprietario: gli altri tasti sono solo animazione, senza suono). Tutto
  * originale e libero (voce sintetica fatta con un modello MIT, musica sintetizzata, vedi README): niente problemi su YouTube. File statico in
  * public/diretta/suoni, pochi kB; quando si rifà si alza DEFAULT_SOUNDS_VERSION, così la rete (che lo tiene per un anno)
  * scarica quello nuovo. Lo staff può comunque caricare un file suo su qualsiasi tasto (soundUrl).
  */
 export const DEFAULT_SOUND_KINDS: readonly CueKind[] = ["monsterBlock"];
-export const DEFAULT_SOUNDS_VERSION = 3;
+export const DEFAULT_SOUNDS_VERSION = 4;
 
 /** L'indirizzo del suono di partenza di un tasto, o null se il tasto è solo animazione. */
 export function defaultSoundUrl(kind: CueKind): string | null {
