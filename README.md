@@ -578,8 +578,13 @@ staff (Developer e Admin).
     Solo la scritta, mai una giocatrice (ordine del proprietario). Di partenza solo il Monster
     block ha un suono (scelta del proprietario: gli altri tasti sono solo animazione): il file
     `public/diretta/suoni/monsterBlock.mp3`: uno speaker da arena americana che urla
-    «MOOONSTEEEER BLOOOOOCK!» con l'eco del palazzetto, su una musica rock originale a 138 bpm
-    (power chord distorti sintetizzati, batteria con rullata di tom che sale, piatti, folla). Il
+    «MOOONSTEEEER BLOOOOOCK!» con l'eco del palazzetto, su una musica aggressiva originale in Mi:
+    entrata con due colpi d'accordo distorto, rombo basso distorto e piatto al contrario sotto la
+    voce, poi accordi d'attacco e la botta con «BRAAAM» di ottoni distorti, bassi che crollano,
+    doppia cassa, piatti e folla (`scripts/monster-block-aggressivo.py`, pezzi in
+    `scripts/musica-aggressiva.py`). La voce è quella della versione 6 (sotto c'era una musica rock,
+    lì quasi muta): il tratto con lo speaker è preso così com'è, perché il modello di voce non ridà
+    mai la stessa identica presa. Il
     modo di dirlo è quello della dimostrazione registrata dal proprietario: «MON» corto che sale,
     «STEEEER» lunga (quasi un secondo) che sale piano e tiene, «BLOOOCK» che salta in alto, fa il
     picco e ricade fino alla «CK», con il volume che cala. Durate, melodia e volume sono misurati
@@ -589,8 +594,8 @@ staff (Developer e Admin).
     non è una copia di quello della SuperLega / Lega Volley Femminile. La voce è sintetica, fatta con
     Chatterbox (Resemble AI, licenza MIT) partendo da una voce maschile a sua volta sintetica
     (Kokoro, Apache 2.0, `am_fenrir`): non imita nessuna persona vera. mp3 mono da 96 kbit/s,
-    -14 LUFS, 4,6 s (la scritta resta in onda `CUE_DURATION_MS`, 5 s), in cache un anno:
-    quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 6), `DEFAULT_SOUND_KINDS` dice quali
+    -14,8 LUFS, 4,75 s (la scritta resta in onda `CUE_DURATION_MS`, 5 s), in cache un anno:
+    quando si rifà si alza `DEFAULT_SOUNDS_VERSION` (ora 7), `DEFAULT_SOUND_KINDS` dice quali
     tasti ce l'hanno.
     La voce è sintetica e libera, fatta con piper (voci `en_US-bryce-medium` di pubblico dominio
     e `en_US-joe-medium` CC0), la musica è sintetizzata apposta: nessun problema di diritti su

@@ -37,7 +37,7 @@ export const CUE_META: Record<CueKind, CueMeta> = {
   cheer: { button: "Forza Lignano", kicker: "TUTTI INSIEME", title: "FORZA LIGNANO!", hint: "Per il tifo, quando serve una spinta" },
 };
 
-/** Quanto resta in onda una scritta (animazione di entrata e di uscita comprese): quanto il suono del Monster block, 4,6 s. */
+/** Quanto resta in onda una scritta (animazione di entrata e di uscita comprese): quanto il suono del Monster block, 4,75 s. */
 export const CUE_DURATION_MS = 5_000;
 /**
  * Una scritta più vecchia di così non parte più: chi apre (o ricarica) la grafica dopo non vede ripartire quella di prima. Con
@@ -131,13 +131,13 @@ export function soundUrl(kind: CueKind, version: number): string {
 
 /**
  * I tasti con un suono di partenza: solo il Monster block, con lo speaker da arena americana che urla «MOOONSTEEEER
- * BLOOOOOCK!» sopra una musica rock fatta apposta (scelta del proprietario: gli altri tasti sono solo animazione, senza suono). Tutto
+ * BLOOOOOCK!» sopra una musica aggressiva fatta apposta (scelta del proprietario: gli altri tasti sono solo animazione, senza suono). Tutto
  * originale e libero (voce sintetica fatta con un modello MIT, musica sintetizzata, vedi README): niente problemi su YouTube. File statico in
  * public/diretta/suoni, pochi kB; quando si rifà si alza DEFAULT_SOUNDS_VERSION, così la rete (che lo tiene per un anno)
  * scarica quello nuovo. Lo staff può comunque caricare un file suo su qualsiasi tasto (soundUrl).
  */
 export const DEFAULT_SOUND_KINDS: readonly CueKind[] = ["monsterBlock"];
-export const DEFAULT_SOUNDS_VERSION = 6;
+export const DEFAULT_SOUNDS_VERSION = 7;
 
 /** L'indirizzo del suono di partenza di un tasto, o null se il tasto è solo animazione. */
 export function defaultSoundUrl(kind: CueKind): string | null {
