@@ -14,6 +14,7 @@ import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
 import { CUE_DURATION_MS, CUE_KINDS, type CueKind, type PublicCue } from "@/lib/diretta/cues";
 import { clampDelaySeconds, nextOffset, stampOf, takeDue, type Reading } from "@/lib/diretta/delay";
 import { playCue, preloadCue } from "@/lib/diretta/jingles";
+import { CUE_CHANNEL, CUE_EVENT, realtimeSocketUrl, RING_MIN_GAP_MS, type RealtimeConfig } from "@/lib/diretta/realtime";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
 
@@ -36,6 +37,15 @@ const PREGAME_POLL_MS = 3_000;
 const LIVE_POLL_MS = 2_000;
 /** …altrimenti ogni 15, per accorgersi di una partita che comincia. */
 const IDLE_POLL_MS = 15_000;
+/**
+ * In Streamlabs / OBS senza il campanello in tempo reale della pulsantiera (canale non collegato) si rilegge senza partita ogni
+ * 5 secondi invece che ogni 15: una scritta arriva comunque presto e non diventa mai troppo vecchia per partire.
+ */
+const NO_RING_IDLE_POLL_MS = 5_000;
+/** Lettura della sola scritta, quando suona il campanello: se non risponde in fretta si lascia perdere (c'è la lettura normale). */
+const CUE_FETCH_TIMEOUT_MS = 3_000;
+/** Una scritta letta per il campanello appena aperta la grafica parte solo se è di pochi secondi fa (non quella di prima). */
+const RING_FRESH_MS = 5_000;
 /** Con una grafica in onda (o in coda) si aggiorna l'ora ogni decimo di secondo: conto alla rovescia, transizioni, coda. */
 const TICK_MS = 100;
 /**
@@ -109,7 +119,7 @@ const STAGE_HEIGHT = "min(56.25vw, 100vh)";
 /** Lo sfondo dell'anteprima con la partita finta: un palazzetto in penombra, così le grafiche si vedono come in TV. */
 const PREVIEW_BACKDROP = "radial-gradient(ellipse at 50% 28%, #41588a 0%, #1d2747 52%, #0a0f1f 100%)";
 
-export function GraficaClient() {
+export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig | null }) {
   const params = useSearchParams();
   const verify = params.get("verifica") === "1";
   const demo = verify || params.get("prova") === "1";
@@ -133,6 +143,26 @@ export function GraficaClient() {
     // Il suono entra nella diretta solo dalla grafica di Streamlabs / OBS: chi guarda da /diretta ha già l'audio del video.
     if (viewer) return;
     playCue(kind, sound);
+  });
+
+  // L'ultima scritta già vista (undefined = nessuna lettura ancora): quella presente alla prima lettura non riparte (era di prima).
+  const lastCue = useRef<string | null | undefined>(undefined);
+  // Il campanello in tempo reale della pulsantiera è collegato (vedi src/lib/diretta/realtime.ts).
+  const ringOn = useRef(false);
+  /** Una scritta letta (dal punteggio o, con `fromRing`, dal campanello): parte se è nuova; con il ritardo, quando arriva il video. */
+  const takeCue = useRef((fresh: PublicCue | null, fromRing: boolean) => {
+    if (!fresh) {
+      if (lastCue.current === undefined) lastCue.current = null;
+      return;
+    }
+    if (fresh.id === lastCue.current) return;
+    const first = lastCue.current === undefined;
+    lastCue.current = fresh.id;
+    // Alla prima lettura la scritta che c'era già non riparte; col campanello invece è appena stata mandata.
+    if (first && !(fromRing && fresh.age < RING_FRESH_MS)) return;
+    // Con il ritardo (pagina /diretta) la scritta aspetta che il video arrivi a quel momento.
+    const wait = viewer ? Math.max(0, delayMs.current - fresh.age) : 0;
+    setTimeout(() => showCue.current(fresh.id, fresh.kind, fresh.sound), wait);
   });
 
   // Ritardo e scala del punteggio: dall'indirizzo, poi dai messaggi della pagina /diretta.
@@ -177,8 +207,6 @@ export function GraficaClient() {
     let inFlight = false;
     let shown = false;
     let lastStamp: number | null = null;
-    // L'ultima scritta della pulsantiera già vista: quella presente alla prima lettura non riparte (era di prima).
-    let lastCue: string | null | undefined = undefined;
     let timer: ReturnType<typeof setTimeout> | null = null;
     // Il ritmo dell'ultima lettura riuscita: dopo una lettura andata male si riprova presto, mai più tardi di così.
     let cadence = IDLE_POLL_MS;
@@ -213,19 +241,10 @@ export function GraficaClient() {
             // I suoni dei tasti (quelli caricati dallo staff o gli originali) si preparano subito, così al tocco partono senza
             // attesa; solo dove si sentono. Si scaricano una volta: dopo restano in memoria e nella cache.
             if (!viewer) for (const kind of CUE_KINDS) preloadCue(kind, data.cueSounds?.[kind] ?? null);
-            const fresh = data.cue ?? null;
-            if (lastCue === undefined) {
-              lastCue = fresh?.id ?? null;
-            } else if (fresh && fresh.id !== lastCue) {
-              lastCue = fresh.id;
-              // Con il ritardo (pagina /diretta) la scritta aspetta che il video arrivi a quel momento.
-              const wait = viewer ? Math.max(0, delayMs.current - fresh.age) : 0;
-              setTimeout(() => {
-                if (!cancelled) showCue.current(fresh.id, fresh.kind, fresh.sound);
-              }, wait);
-            }
+            takeCue.current(data.cue ?? null, false);
           }
-          delay = !live || live.finished ? IDLE_POLL_MS : !viewer && live.notStarted && live.pregame ? PREGAME_POLL_MS : livePollMs;
+          const idle = !viewer && !ringOn.current ? NO_RING_IDLE_POLL_MS : IDLE_POLL_MS;
+          delay = !live || live.finished ? idle : !viewer && live.notStarted && live.pregame ? PREGAME_POLL_MS : livePollMs;
           cadence = delay;
         }
       } catch {
@@ -247,6 +266,84 @@ export function GraficaClient() {
       if (viewer) document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [demo, viewer, livePollMs, endpoint]);
+
+  // Il campanello della pulsantiera (solo in Streamlabs / OBS, solo con Supabase): appena suona si rilegge la scritta, così va in
+  // onda subito invece di aspettare la lettura successiva. Il messaggio non si usa: la scritta vera la dice il sito.
+  useEffect(() => {
+    if (!realtime || viewer || demo) return;
+    let cancelled = false;
+    let inFlight = false;
+    let again = false;
+    let lastRing = 0;
+    let trailing: ReturnType<typeof setTimeout> | null = null;
+    let close: (() => void) | null = null;
+    async function readCue() {
+      if (inFlight) {
+        again = true;
+        return;
+      }
+      inFlight = true;
+      const controller = new AbortController();
+      const abort = setTimeout(() => controller.abort(), CUE_FETCH_TIMEOUT_MS);
+      try {
+        const res = await fetch("/api/diretta/scritta", { signal: controller.signal, cache: "no-store" });
+        if (res.ok && !cancelled) {
+          const data = (await res.json()) as { cue: PublicCue | null; cueSounds?: Partial<Record<CueKind, number>> };
+          for (const kind of CUE_KINDS) preloadCue(kind, data.cueSounds?.[kind] ?? null);
+          takeCue.current(data.cue ?? null, true);
+        }
+      } catch {
+        // Lettura persa: la scritta arriva con la lettura normale del punteggio.
+      } finally {
+        clearTimeout(abort);
+        inFlight = false;
+      }
+      if (again && !cancelled) {
+        again = false;
+        void readCue();
+      }
+    }
+    const ring = () => {
+      const now = clock();
+      // Campanelli troppo vicini (o uno scherzo ripetuto) fanno una lettura sola.
+      if (now - lastRing < RING_MIN_GAP_MS) {
+        if (!trailing) trailing = setTimeout(() => {
+          trailing = null;
+          lastRing = clock();
+          void readCue();
+        }, RING_MIN_GAP_MS - (now - lastRing));
+        return;
+      }
+      lastRing = now;
+      void readCue();
+    };
+    void import("@supabase/realtime-js")
+      .then(({ RealtimeClient }) => {
+        if (cancelled) return;
+        const client = new RealtimeClient(realtimeSocketUrl(realtime.url), { params: { apikey: realtime.key } });
+        const channel = client.channel(CUE_CHANNEL);
+        channel.on("broadcast", { event: CUE_EVENT }, ring);
+        channel.subscribe((status) => {
+          const was = ringOn.current;
+          ringOn.current = status === "SUBSCRIBED";
+          // Appena collegato (anche dopo una caduta) si rilegge: una scritta mandata nel frattempo non si perde.
+          if (ringOn.current && !was) ring();
+        });
+        close = () => {
+          void channel.unsubscribe();
+          client.disconnect();
+        };
+      })
+      .catch(() => {
+        // Senza il canale la grafica legge come prima (più spesso, vedi NO_RING_IDLE_POLL_MS).
+      });
+    return () => {
+      cancelled = true;
+      ringOn.current = false;
+      if (trailing) clearTimeout(trailing);
+      close?.();
+    };
+  }, [realtime, viewer, demo]);
 
   // La partita finta: un passo ogni tanto, in ciclo.
   useEffect(() => {

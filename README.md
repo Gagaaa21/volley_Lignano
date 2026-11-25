@@ -572,9 +572,21 @@ staff (Developer e Admin).
     **La pulsantiera** (`/admin/scout/pulsantiera`, permesso «Scout»): su un altro tablet, come
     uno Stream Deck, sei tasti grandi (Monster block, Ace, Super attacco, Difesa spettacolare,
     Che scambio!, Forza Lignano). Un tocco salva l'ultima scritta in `app_settings`
-    (`live_cues`, `src/lib/diretta/cues.ts`) e la grafica la legge con la stessa query del
-    punteggio (`cue` e `cueSounds` in `/api/livescore/pubblico`: nessuna lettura in più): al
-    centro parte la scritta animata (`CueBurst.tsx`, una scena per tasto).
+    (`live_cues`, `src/lib/diretta/cues.ts`) e suona un «campanello» su un canale in tempo reale
+    di Supabase (Realtime broadcast, canale `pulsantiera`, `src/lib/diretta/realtime.ts` e
+    `realtimeServer.ts`): la grafica in Streamlabs / OBS lo ascolta e rilegge subito la sola
+    scritta da `/api/diretta/scritta` (una lettura leggera), così va in onda in meno di un
+    secondo anche senza partita in diretta. Prima arrivava solo con la lettura del punteggio,
+    che senza partita è ogni 15 secondi: in ritardo e, oltre i 15 secondi, persa. Il messaggio
+    del canale è solo un campanello (il canale è pubblico): la scritta vera la dice il sito, e
+    campanelli troppo vicini fanno una lettura sola. La chiave nel browser è quella
+    «publishable» di Supabase (nessun accesso ai dati: tutte le tabelle con RLS, nessun
+    permesso per anon, bucket privato). Se il canale non si collega, la grafica senza partita
+    rilegge ogni 5 secondi invece di 15. La scritta continua ad arrivare anche con la query
+    del punteggio (`cue` e `cueSounds` in `/api/livescore/pubblico`). Mentre la pulsantiera è
+    aperta il tablet tiene sveglia la funzione di Vercel (`keepWarmAction` ogni 4 minuti),
+    così il primo tocco non aspetta l'avvio da freddo. Al centro parte la scritta animata
+    (`CueBurst.tsx`, una scena per tasto).
     Solo la scritta, mai una giocatrice (ordine del proprietario). Di partenza solo il Monster
     block ha un suono (scelta del proprietario: gli altri tasti sono solo animazione): il file
     `public/diretta/suoni/monsterBlock.mp3`: uno speaker da arena americana che urla

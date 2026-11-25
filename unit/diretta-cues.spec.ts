@@ -18,6 +18,7 @@ import {
   withCue,
   withSound,
 } from "@/lib/diretta/cues";
+import { CUE_CHANNEL, CUE_EVENT, realtimeSocketUrl, SUPABASE_PUBLISHABLE_KEY } from "@/lib/diretta/realtime";
 
 /**
  * La pulsantiera della diretta: le scritte animate («MONSTER BLOCK», «ACE»…) che lo staff manda dal tablet. Si salva solo
@@ -102,5 +103,16 @@ test.describe("pulsantiera della diretta", () => {
       expect(file.length).toBeGreaterThan(10_000);
       expect(file.length).toBeLessThan(80_000);
     }
+  });
+
+  test("il campanello in tempo reale: canale e indirizzo giusti, e solo la chiave pubblica (mai quella del server)", () => {
+    expect(CUE_CHANNEL).toBe("pulsantiera");
+    expect(CUE_EVENT).toBe("scritta");
+    expect(realtimeSocketUrl("https://abc.supabase.co")).toBe("wss://abc.supabase.co/realtime/v1");
+    expect(realtimeSocketUrl("https://abc.supabase.co/")).toBe("wss://abc.supabase.co/realtime/v1");
+    // La chiave nel browser è quella «publishable»: mai una chiave segreta o di servizio.
+    expect(SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")).toBe(true);
+    const shared = readFileSync(join(process.cwd(), "src", "lib", "diretta", "realtime.ts"), "utf8");
+    expect(shared).not.toMatch(/SERVICE_ROLE|sb_secret_/);
   });
 });

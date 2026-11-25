@@ -7,7 +7,10 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { CUE_COOLDOWN_MS, CUE_DURATION_MS, CUE_KINDS, CUE_META, defaultSoundUrl, MAX_SOUND_BYTES, type CueKind } from "@/lib/diretta/cues";
 import { playCue } from "@/lib/diretta/jingles";
-import { removeCueSoundAction, sendCueAction, uploadCueSoundAction } from "./actions";
+import { keepWarmAction, removeCueSoundAction, sendCueAction, uploadCueSoundAction } from "./actions";
+
+/** Ogni quanto il tablet tiene «sveglio» il server mentre la pulsantiera è aperta (Vercel lo addormenta dopo qualche minuto). */
+const KEEP_WARM_MS = 4 * 60_000;
 
 /** Il colore di ogni tasto (come i tasti di uno Stream Deck: si riconoscono a colpo d'occhio) e la sua icona. */
 const LOOK: Record<CueKind, { background: string; icon: ComponentType<{ className?: string }> }> = {
@@ -36,7 +39,8 @@ function playPreview(kind: CueKind, sounds: Record<string, number>) {
 }
 
 /**
- * La pulsantiera: sei tasti grandi, un tocco manda in onda la scritta (nella grafica di Streamlabs / OBS circa un secondo dopo).
+ * La pulsantiera: sei tasti grandi, un tocco manda in onda la scritta (nella grafica di Streamlabs / OBS in meno di un secondo, grazie al campanello in tempo
+ * reale: vedi src/lib/diretta/realtime.ts).
  * Il tasto toccato si illumina finché la scritta è in onda; un secondo tocco subito dopo aspetta (CUE_COOLDOWN_MS). Il suono
  * esce dalla diretta, non dal tablet: «Suono anche qui» serve per provarlo. Sotto, i suoni: ascolta, carica il tuo, torna
  * all'originale.
@@ -50,6 +54,20 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
   const localSound = chosenLocalSound ?? storedLocalSound;
   const [pending, startTransition] = useTransition();
   const lastTap = useRef(0);
+
+  // Il server resta sveglio finché la pulsantiera è aperta e in vista: il primo tocco non aspetta l'avvio da freddo.
+  useEffect(() => {
+    const warm = () => {
+      if (document.visibilityState === "visible") void keepWarmAction().catch(() => {});
+    };
+    warm();
+    const timer = setInterval(warm, KEEP_WARM_MS);
+    document.addEventListener("visibilitychange", warm);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", warm);
+    };
+  }, []);
 
   useEffect(() => {
     if (!onAir) return;
@@ -148,7 +166,7 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
         role={message?.tone === "error" ? "alert" : "status"}
         data-pulsantiera-message
       >
-        {message?.text ?? "La scritta compare nella grafica circa un secondo dopo il tocco. Solo la scritta: nessuna giocatrice."}
+        {message?.text ?? "La scritta compare nella grafica in meno di un secondo, anche prima della partita. Solo la scritta: nessuna giocatrice."}
       </p>
 
       <details className="rounded-2xl border border-border-subtle bg-surface p-4" data-pulsantiera-sounds>

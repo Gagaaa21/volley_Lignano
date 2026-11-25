@@ -66,6 +66,18 @@ test("grafica: la scritta della pulsantiera entra al centro ed esce da sola; que
   await expect(page.locator("[data-grafica-cue]")).toHaveCount(0);
 });
 
+test("grafica senza partita in diretta: la scritta arriva lo stesso in pochi secondi (prima si rileggeva ogni 15)", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const state: { cue: Cue | null } = { cue: null };
+  await page.route(/\/api\/livescore\/pubblico/, (route) => route.fulfill({ json: { live: null, cue: state.cue, cueSounds: {} } }));
+  await page.goto("/diretta/grafica");
+  await expect(page.locator("main")).toHaveAttribute("data-grafica", "idle");
+  await page.waitForTimeout(1500);
+  state.cue = { id: "a-casa", kind: "ace", age: 200, sound: null };
+  // Senza il campanello in tempo reale (qui non c'è Supabase) la grafica rilegge ogni 5 secondi: arriva entro 6.
+  await expect(page.locator('[data-grafica-cue="ace"]')).toBeVisible({ timeout: 6500 });
+});
+
 test("pulsantiera: un tocco manda la scritta, i suoni si caricano, si servono come audio e si tolgono", async ({ page }) => {
   test.setTimeout(120_000);
   await loginAsDev(page);
@@ -76,6 +88,12 @@ test("pulsantiera: un tocco manda la scritta, i suoni si caricano, si servono co
   const reading = await (await page.request.get("/api/livescore/pubblico?regia=1")).json();
   expect(reading.cue).toMatchObject({ kind: "ace", sound: null });
   expect(Object.keys(reading.cue).sort()).toEqual(["age", "id", "kind", "sound"]);
+  // La lettura leggera che la grafica fa quando suona il campanello: la stessa scritta, nessuna copia della rete.
+  const light = await page.request.get("/api/diretta/scritta");
+  expect(light.headers()["cache-control"]).toBe("no-store");
+  const lightReading = await light.json();
+  expect(lightReading.cue).toMatchObject({ id: reading.cue.id, kind: "ace", sound: null });
+  expect(Object.keys(lightReading).sort()).toEqual(["cue", "cueSounds"]);
 
   // Il suono del tasto: l'Ace è solo animazione; si carica un file, lo si scarica come audio, poi lo si toglie e torna muto.
   await page.locator("[data-pulsantiera-sounds] summary").click();

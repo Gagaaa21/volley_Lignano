@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { realtimeConfig } from "@/lib/diretta/realtimeServer";
 import { GraficaClient } from "./GraficaClient";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default function GraficaPage() {
     <>
       <style>{"html,body{background:transparent!important;margin:0!important;overflow:hidden!important}html{color-scheme:light!important}"}</style>
       <Suspense fallback={null}>
-        <GraficaClient />
+        <GraficaClient realtime={realtimeConfig()} />
       </Suspense>
     </>
   );

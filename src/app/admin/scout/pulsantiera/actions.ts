@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
+import { ringCue } from "@/lib/diretta/realtimeServer";
 import {
   CUE_COOLDOWN_MS,
   CUE_META,
@@ -23,8 +24,9 @@ export type CueResult = { ok: true; message: string } | { ok: false; error: stri
 const TEST_MODE_ERROR = "In «Modalità prova» la pulsantiera non va in diretta: esci dalla modalità prova e riprova.";
 
 /**
- * Manda in onda una scritta animata (vedi src/lib/diretta/cues.ts): la grafica di Streamlabs / OBS la vede alla prossima
- * lettura, circa un secondo dopo. Riservata a chi ha il permesso «Scout», come la scheda Diretta. Non in «Modalità prova»: la
+ * Manda in onda una scritta animata (vedi src/lib/diretta/cues.ts): la salva e suona il campanello in tempo reale (vedi
+ * src/lib/diretta/realtime.ts), così la grafica di Streamlabs / OBS la rilegge subito; se il campanello non arriva, la vede
+ * alla lettura successiva. Riservata a chi ha il permesso «Scout», come la scheda Diretta. Non in «Modalità prova»: la
  * grafica legge l'archivio vero.
  */
 export async function sendCueAction(kind: string): Promise<CueResult> {
@@ -39,7 +41,9 @@ export async function sendCueAction(kind: string): Promise<CueResult> {
     if (stored.last && now - stored.last.at >= 0 && now - stored.last.at < CUE_COOLDOWN_MS) {
       return { ok: false, error: "Un attimo: è appena partita un'altra scritta." };
     }
-    await repo.setAppSetting(LIVE_CUES_KEY, JSON.stringify(withCue(stored, kind, randomUUID(), now)));
+    const id = randomUUID();
+    await repo.setAppSetting(LIVE_CUES_KEY, JSON.stringify(withCue(stored, kind, id, now)));
+    await ringCue(id);
     return { ok: true, message: `In onda: ${CUE_META[kind].button}` };
   } catch (error) {
     console.error("[sendCueAction]", error);
@@ -89,4 +93,12 @@ export async function removeCueSoundAction(kind: string): Promise<CueResult> {
     console.error("[removeCueSoundAction]", error);
     return { ok: false, error: "Non è stato possibile togliere il suono. Riprova." };
   }
+}
+
+/**
+ * Non fa niente: il tablet la chiama ogni pochi minuti mentre la pulsantiera è aperta, così il server di Vercel resta «sveglio»
+ * e il primo tocco non aspetta l'avvio da freddo (anche un paio di secondi). Nessun dato, nessuna lettura.
+ */
+export async function keepWarmAction(): Promise<number> {
+  return Date.now();
 }
