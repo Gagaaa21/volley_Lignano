@@ -10,8 +10,9 @@ import { FieldError } from "@/components/ui/Field";
 import { CallUpsSection } from "./CallUpsSection";
 import { LineupEditor } from "./LineupEditor";
 import { saveCallUpsAndLineupAction, type CallUpsAndLineupFormState } from "./actions";
+import { canPlayInCategory } from "@/lib/category";
 import { emptyMatchLineupSets } from "@/lib/types";
-import type { Athlete, MatchLineup, SetLineup } from "@/lib/types";
+import type { Athlete, Category, MatchLineup, SetLineup } from "@/lib/types";
 
 const initialState: CallUpsAndLineupFormState = {};
 
@@ -34,6 +35,7 @@ function SubmitButton() {
 export function CallUpsAndLineupsDialog({
   matchId,
   title,
+  matchCategory = null,
   allAthletes,
   initialCalledUpIds,
   initialLineup,
@@ -43,6 +45,9 @@ export function CallUpsAndLineupsDialog({
 }: {
   matchId: string;
   title: string;
+  /** La categoria della partita: prima le sue atlete, e in Under 14 le Under 15 non si convocano (vedi canPlayInCategory). */
+  matchCategory?: Category | null;
+  /** Già in ordine per le convocazioni (vedi orderForCallUps). */
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
@@ -75,7 +80,12 @@ export function CallUpsAndLineupsDialog({
   const convocationsHref = `/api/partite/${matchId}/convocazioni/pdf?ids=${[...calledUp].join(",")}`;
   const lineupsHref = `/api/partite/${matchId}/formazioni/pdf`;
 
+  const callable = (athlete: Athlete) => canPlayInCategory(athlete.category, matchCategory);
+
   function toggleCalledUp(athleteId: string) {
+    const athlete = allAthletes.find((a) => a.id === athleteId);
+    // Chi non può giocare in questa categoria si può solo togliere (se era già convocata), mai aggiungere.
+    if (athlete && !callable(athlete) && !calledUp.has(athleteId)) return;
     setCalledUp((prev) => {
       const next = new Set(prev);
       if (next.has(athleteId)) {
@@ -154,9 +164,10 @@ export function CallUpsAndLineupsDialog({
               </div>
               <CallUpsSection
                 athletes={allAthletes}
+                matchCategory={matchCategory}
                 calledUp={calledUp}
                 onToggle={toggleCalledUp}
-                onSelectAll={() => setCalledUp(new Set(allAthletes.map((a) => a.id)))}
+                onSelectAll={() => setCalledUp(new Set(allAthletes.filter((a) => callable(a) || calledUp.has(a.id)).map((a) => a.id)))}
                 onSelectNone={() => setCalledUp(new Set())}
                 absences={absences}
               />

@@ -108,6 +108,34 @@ export function categoryDotClass(category: Category | null): string {
   return category ? CATEGORY_DOT[category] : NO_CATEGORY_DOT;
 }
 
+/**
+ * Chi si può convocare in una partita di quella categoria: in Under 15 giocano anche le Under 14 (più giovani), in Under 14 le
+ * Under 15 no. Senza categoria (della partita o dell'atleta) non si esclude nessuna.
+ */
+export function canPlayInCategory(athlete: Category | null, match: Category | null): boolean {
+  return !(match === "U14" && athlete === "U15");
+}
+
+/**
+ * Il gruppo di un'atleta nell'elenco delle convocazioni: 0 la categoria della partita, 1 l'altra categoria che può giocare
+ * (le Under 14 in una partita Under 15), 2 senza categoria, 3 chi non può giocare (le Under 15 in una partita Under 14).
+ * Una partita senza categoria tiene tutte insieme.
+ */
+export function callUpGroup(athlete: Category | null, match: Category | null): 0 | 1 | 2 | 3 {
+  if (!match) return 0;
+  if (!canPlayInCategory(athlete, match)) return 3;
+  if (athlete === match) return 0;
+  return athlete ? 1 : 2;
+}
+
+/** L'elenco delle convocazioni con prima la categoria della partita (vedi callUpGroup); dentro ogni gruppo l'ordine resta quello di partenza. */
+export function orderForCallUps<T extends { category: Category | null }>(athletes: readonly T[], match: Category | null): T[] {
+  return athletes
+    .map((athlete, index) => ({ athlete, index, group: callUpGroup(athlete.category, match) }))
+    .sort((a, b) => a.group - b.group || a.index - b.index)
+    .map(({ athlete }) => athlete);
+}
+
 export const MINIVOLLEY_GROUP_LABELS: Record<MinivolleyGroup, string> = {
   lignano: "CDA Lignano",
   san_michele: "CDA San Michele",

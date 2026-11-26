@@ -7,6 +7,7 @@ import { z } from "zod";
 import { getActiveRepo } from "@/lib/db";
 import { requireStaffPage } from "@/lib/auth/guard";
 import { notifyCalendarChange } from "@/lib/push";
+import { canPlayInCategory, categoryLabel } from "@/lib/category";
 import { parseClockTime } from "@/lib/clockTime";
 import { matchToInput } from "@/lib/matchInput";
 import {
@@ -373,6 +374,21 @@ export async function saveCallUpsAndLineupAction(
   const parsed = lineupSchema.safeParse({ sets: rawSets });
   if (!parsed.success) {
     return { error: "Dati non validi." };
+  }
+
+  // In Under 14 le Under 15 non giocano: la finestra non le fa convocare, e qui si rifiuta chi arriva da una finestra vecchia
+  // (per esempio aperta prima di cambiare la categoria di un'atleta). Chi era già convocata resta: la toglie lo staff.
+  const before = new Set(match.calledUpAthleteIds);
+  const added = new Set(calledUpAthleteIds.filter((id) => !before.has(id)));
+  if (match.category && added.size > 0) {
+    const blocked = (await repo.listAthletes({ team: match.team })).filter(
+      (athlete) => added.has(athlete.id) && !canPlayInCategory(athlete.category, match.category),
+    );
+    if (blocked.length > 0) {
+      const names = blocked.map((athlete) => athlete.fullName).join(", ");
+      const verb = blocked.length === 1 ? "non può" : "non possono";
+      return { error: `${names}: ${verb} giocare in ${categoryLabel(match.category)}. Togli la convocazione e salva di nuovo.` };
+    }
   }
 
   const input: MatchInput = { ...matchToInput(match), calledUpAthleteIds };

@@ -11,7 +11,7 @@ import { matchTitle } from "@/lib/calendar";
 import { CategoryTag } from "@/components/ui/CategoryTag";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { MATCH_NO_CATEGORY_LABEL, orderForCallUps } from "@/lib/category";
 import { todayIso } from "@/lib/today";
 import { MatchDetailsCard } from "../MatchDetailsCard";
 import { MatchResultCard } from "../MatchResultCard";
@@ -50,7 +50,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     repo.getMatchLineup(id),
   ]);
 
-  const activeAthletes = allAthletes.filter((a) => a.isActive);
+  // Nelle convocazioni prima le atlete della categoria della partita (in Under 15 poi le Under 14; in Under 14 le Under 15 in
+  // fondo, oscurate: vedi orderForCallUps).
+  const activeAthletes = orderForCallUps(
+    allAthletes.filter((a) => a.isActive),
+    match.category,
+  );
 
   // Le assenze (solo U14/U15) si gestiscono nella sezione Assenze; qui servono solo all'avviso accanto alle convocate che non ci
   // saranno. Finché la tabella non c'è, nessun avviso.
@@ -108,6 +113,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <MatchWorkspace
         matchId={id}
         title={matchTitle(match)}
+        matchCategory={match.category}
         allAthletes={activeAthletes}
         initialCalledUpIds={match.calledUpAthleteIds}
         initialLineup={lineup}

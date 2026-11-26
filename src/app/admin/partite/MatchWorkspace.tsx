@@ -6,7 +6,8 @@ import { FileLink } from "@/components/files/FileLink";
 import { Button } from "@/components/ui/Button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { CallUpsAndLineupsDialog } from "./CallUpsAndLineupsDialog";
-import type { Athlete, MatchLineup } from "@/lib/types";
+import { canPlayInCategory } from "@/lib/category";
+import type { Athlete, Category, MatchLineup } from "@/lib/types";
 
 /** Tasto in fondo alla pagina partita che apre la finestra unica per
  * convocazioni e formazioni: tenerla separata dal form dei dettagli la
@@ -14,6 +15,7 @@ import type { Athlete, MatchLineup } from "@/lib/types";
 export function MatchWorkspace({
   matchId,
   title,
+  matchCategory = null,
   allAthletes,
   initialCalledUpIds,
   initialLineup,
@@ -22,6 +24,9 @@ export function MatchWorkspace({
 }: {
   matchId: string;
   title: string;
+  /** La categoria della partita (vedi CallUpsAndLineupsDialog). */
+  matchCategory?: Category | null;
+  /** Già in ordine per le convocazioni (vedi orderForCallUps). */
   allAthletes: Athlete[];
   initialCalledUpIds: string[];
   initialLineup: MatchLineup | null;
@@ -33,6 +38,8 @@ export function MatchWorkspace({
   const [open, setOpen] = useState(false);
   const calledUpCount = initialCalledUpIds.length;
   const calledUpButAbsent = initialCalledUpIds.filter((id) => absences[id]).length;
+  // «su quante»: solo chi si può convocare in questa categoria (in Under 14 le Under 15 no).
+  const callableCount = allAthletes.filter((a) => canPlayInCategory(a.category, matchCategory)).length;
 
   return (
     <>
@@ -45,7 +52,7 @@ export function MatchWorkspace({
             <div>
               <p className="font-display text-base font-bold text-foreground">Convocazioni e formazioni</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                <span className="tabular font-semibold text-foreground">{calledUpCount}</span> su {allAthletes.length}{" "}
+                <span className="tabular font-semibold text-foreground">{calledUpCount}</span> su {callableCount}{" "}
                 convocate · formazioni per set ed esportazione PDF
               </p>
               {calledUpButAbsent > 0 && (
@@ -95,6 +102,7 @@ export function MatchWorkspace({
         <CallUpsAndLineupsDialog
           matchId={matchId}
           title={title}
+          matchCategory={matchCategory}
           allAthletes={allAthletes}
           initialCalledUpIds={initialCalledUpIds}
           initialLineup={initialLineup}
