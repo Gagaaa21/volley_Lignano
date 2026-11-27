@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Non serve dire a tutti con che cosa è fatto il sito (l'intestazione «X-Powered-By: Next.js»).
+  poweredByHeader: false,
   // La foto del certificato medico arriva con un'azione del modulo: il telefono la rimpicciolisce prima (di solito qualche
   // centinaio di KB, al massimo 2,5 MB: vedi src/lib/medical/photo.ts), ma il limite di serie di 1 MB non basterebbe.
   experimental: {
@@ -44,7 +46,8 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          // In più, senza toccare script e stili: nessun «base» che sposti gli indirizzi relativi, nessun plugin/oggetto incorporato.
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },

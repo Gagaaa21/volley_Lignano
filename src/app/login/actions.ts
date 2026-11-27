@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getRepo } from "@/lib/db";
 import { verifyTypedPassword } from "@/lib/auth/password";
+import { UNKNOWN_ACCOUNT_HASH } from "@/lib/auth/passwordCost";
 import { setSessionCookie } from "@/lib/auth/session";
 import {
   loginFailuresKey,
@@ -38,7 +39,11 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
 
   const repo = await getRepo();
   const staff = await repo.getStaffByUsername(parsed.data.username.trim());
-  if (!staff) return WRONG;
+  if (!staff) {
+    // Si fa lo stesso lavoro di un account vero: un rifiuto subito, più veloce, direbbe quali nomi utente non esistono.
+    await verifyTypedPassword(parsed.data.password, UNKNOWN_ACCOUNT_HASH);
+    return WRONG;
+  }
 
   // Freno ai tentativi: un account con troppe password sbagliate di fila non ne accetta altre per un po' (vedi loginThrottle.ts).
   // Se le impostazioni non si leggono o non si scrivono l'accesso funziona come prima: il freno non deve mai chiudere fuori.
