@@ -49,6 +49,6 @@ test("eliminare una partita: avviso acceso di partenza solo se deve ancora comin
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Elimina", exact: true }).click();
     await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
-    expect((await page.request.get(`/admin/partite/${id}`)).status()).toBe(404);
+    await expect(page.locator(`a[href="/admin/partite/${id}"]`)).toHaveCount(0);
   }
 });
