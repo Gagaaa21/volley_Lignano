@@ -1,5 +1,5 @@
 import { getRepo } from "@/lib/db";
-import { LIVE_CUES_KEY, publicCueFrom, publicCueSounds } from "@/lib/diretta/cues";
+import { LIVE_CUE_LAST_KEY, LIVE_CUES_KEY, publicCueFrom, publicCueSounds } from "@/lib/diretta/cues";
 
 // La scritta appena mandata, subito: mai una copia della rete o del browser.
 export const dynamic = "force-dynamic";
@@ -12,11 +12,15 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   let raw: string | null = null;
+  let rawLast: string | null = null;
   try {
-    raw = await (await getRepo()).getAppSetting(LIVE_CUES_KEY);
+    // L'ultima scritta e i suoni stanno in due chiavi (vedi cues.ts): una query sola.
+    const settings = await (await getRepo()).getAppSettings([LIVE_CUES_KEY, LIVE_CUE_LAST_KEY]);
+    raw = settings[LIVE_CUES_KEY] ?? null;
+    rawLast = settings[LIVE_CUE_LAST_KEY] ?? null;
   } catch (error) {
     console.error("[pulsantiera] scritta non leggibile:", error);
     return Response.json({ cue: null, cueSounds: {} }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
-  return Response.json({ cue: publicCueFrom(raw, Date.now()), cueSounds: publicCueSounds(raw) }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ cue: publicCueFrom(raw, Date.now(), rawLast), cueSounds: publicCueSounds(raw) }, { headers: { "Cache-Control": "no-store" } });
 }

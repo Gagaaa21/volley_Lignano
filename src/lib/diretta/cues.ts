@@ -13,6 +13,11 @@ import { z } from "zod";
  */
 
 export const LIVE_CUES_KEY = "live_cues";
+/**
+ * L'ultima scritta mandata, in una chiave a parte rispetto ai suoni (LIVE_CUES_KEY): un tocco e il caricamento di un suono fatti
+ * nello stesso momento (da due tablet) non si cancellano a vicenda, perché ognuno riscrive solo la sua chiave.
+ */
+export const LIVE_CUE_LAST_KEY = "live_cue_last";
 
 export const CUE_KINDS = ["monsterBlock", "ace", "attack", "dig", "rally", "cheer"] as const;
 export type CueKind = (typeof CUE_KINDS)[number];
@@ -44,6 +49,11 @@ export const CUE_DURATION_MS = 5_000;
  * il ritardo della pagina /diretta la scritta si mostra comunque dopo i secondi del ritardo (vedi GraficaClient).
  */
 export const CUE_FRESH_MS = 15_000;
+/**
+ * Per chi guarda dalla pagina /diretta la scritta resta nella risposta più a lungo: quella pagina legge ogni pochi secondi e
+ * dalla copia della rete di Vercel (qualche secondo vecchia), e con 15 secondi una scritta poteva scadere tra due letture.
+ */
+export const CUE_VIEWER_FRESH_MS = 30_000;
 /** Il tablet non manda due scritte una sopra l'altra: tra un tocco e l'altro (anche di tasti diversi) almeno questo. */
 export const CUE_COOLDOWN_MS = 1_500;
 
@@ -55,8 +65,12 @@ export const cueSoundKey = (kind: CueKind) => `live_cue_sound:${kind}`;
 
 const kindSchema = z.enum(CUE_KINDS);
 
+const lastSchema = z.object({ id: z.string().min(1).max(64), kind: kindSchema, at: z.number().int().min(0) });
+export type LastCue = z.infer<typeof lastSchema>;
+
 const storedSchema = z.object({
-  last: z.object({ id: z.string().min(1).max(64), kind: kindSchema, at: z.number().int().min(0) }).nullable(),
+  /** Dove stava l'ultima scritta prima di LIVE_CUE_LAST_KEY: si legge ancora, ma non si scrive più. */
+  last: lastSchema.nullable(),
   /** Per ogni tasto con un suono caricato, la sua versione (l'istante del caricamento): cambia l'indirizzo, quindi la cache. */
   sounds: z.record(z.string(), z.number().int().min(0)),
 });
@@ -83,8 +97,27 @@ export function parseCues(raw: string | null | undefined): StoredCues {
   }
 }
 
-export function withCue(stored: StoredCues, kind: CueKind, id: string, at: number): StoredCues {
-  return { ...stored, last: { id, kind, at } };
+/** L'ultima scritta salvata in LIVE_CUE_LAST_KEY, o null se manca o non si legge. */
+export function parseLastCue(raw: string | null | undefined): LastCue | null {
+  if (!raw) return null;
+  try {
+    const parsed = lastSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** L'ultima scritta: quella della sua chiave, o quella dentro LIVE_CUES_KEY se è più recente (salvata prima della chiave a parte). */
+export function lastCueOf(stored: StoredCues, rawLast: string | null | undefined): LastCue | null {
+  const own = parseLastCue(rawLast);
+  if (own && stored.last) return own.at >= stored.last.at ? own : stored.last;
+  return own ?? stored.last;
+}
+
+/** Il valore da salvare in LIVE_CUE_LAST_KEY per una scritta mandata adesso. */
+export function lastCueValue(kind: CueKind, id: string, at: number): string {
+  return JSON.stringify({ id, kind, at } satisfies LastCue);
 }
 
 export function withSound(stored: StoredCues, kind: CueKind, version: number | null): StoredCues {
@@ -110,12 +143,17 @@ export interface PublicCue {
   sound: number | null;
 }
 
-export function publicCueFrom(raw: string | null | undefined, now: number): PublicCue | null {
+export function publicCueFrom(
+  raw: string | null | undefined,
+  now: number,
+  rawLast: string | null | undefined = null,
+  freshMs: number = CUE_FRESH_MS,
+): PublicCue | null {
   const stored = parseCues(raw);
-  const last = stored.last;
+  const last = lastCueOf(stored, rawLast);
   if (!last) return null;
   const age = Math.max(0, now - last.at);
-  if (age > CUE_FRESH_MS) return null;
+  if (age > freshMs) return null;
   return { id: last.id, kind: last.kind, age, sound: soundVersion(stored, last.kind) };
 }
 
@@ -145,7 +183,12 @@ export function defaultSoundUrl(kind: CueKind): string | null {
 }
 
 /** Il file caricato com'è salvato: tipo e contenuto in base64 (pochi kB, in una chiave a parte che si legge solo per scaricarlo). */
-const soundFileSchema = z.object({ type: z.enum(SOUND_TYPES), data: z.string().min(1) });
+const soundFileSchema = z.object({
+  type: z.enum(SOUND_TYPES),
+  data: z.string().min(1),
+  /** La versione con cui è stato caricato (la stessa di LIVE_CUES_KEY): l'indirizzo con un'altra versione non lo serve. */
+  version: z.number().int().min(0).optional(),
+});
 export type StoredSound = z.infer<typeof soundFileSchema>;
 
 export function parseSound(raw: string | null | undefined): StoredSound | null {

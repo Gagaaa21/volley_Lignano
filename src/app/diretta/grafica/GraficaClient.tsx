@@ -440,7 +440,8 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
           </div>
         )}
         {live && full && <FullScreen card={full} live={live} now={now} />}
-        {cue && !fullOn && <CueBurst key={cue.id} kind={cue.kind} />}
+        {/* La scritta anche sopra una grafica a schermo intero: il suono parte comunque, e scritta e grido vanno insieme. */}
+        {cue && <CueBurst key={cue.id} kind={cue.kind} />}
       </main>
       {verify && <VerifyFrame />}
       {preview && (

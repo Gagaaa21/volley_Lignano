@@ -9,8 +9,9 @@ type RouteContext = { params: Promise<{ kind: string }> };
  * (`?v=` l'istante del caricamento), quindi la risposta non cambia mai: la rete di Vercel e il browser la tengono un anno, e il
  * database la legge una volta sola per ogni suono nuovo. Legge sempre l'archivio vero.
  */
-export async function GET(_request: Request, { params }: RouteContext) {
+export async function GET(request: Request, { params }: RouteContext) {
   const { kind } = await params;
+  const asked = Number(new URL(request.url).searchParams.get("v"));
   if (!isCueKind(kind)) return new Response("Not found", { status: 404 });
   let sound = null;
   try {
@@ -19,7 +20,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
     console.error("[diretta] suono non disponibile:", error);
     return new Response("Unavailable", { status: 503, headers: { "Cache-Control": "no-store" } });
   }
-  if (!sound) return new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  // Un file salvato con la sua versione si serve solo a quell'indirizzo: la risposta si tiene un anno, e con un'altra versione
+  // (un file cambiato nel frattempo) la rete terrebbe il suono sbagliato sotto l'indirizzo vecchio.
+  if (!sound || (sound.version !== undefined && sound.version !== asked)) {
+    return new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  }
   const bytes = Buffer.from(sound.data, "base64");
   return new Response(bytes, {
     headers: {

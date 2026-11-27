@@ -163,7 +163,12 @@ function playFile(url: string, fallback: () => void): void {
   }
   playing = audio;
   audio.currentTime = 0;
-  audio.play().catch(fallback);
+  audio.play().catch((error: unknown) => {
+    // Fermato da una scritta nuova mentre partiva (pause → AbortError): non è un file che non va, e non deve ripartire il suono
+    // di prima sopra la scritta nuova. Il ripiego solo per un file che davvero non suona.
+    if (playing !== audio || (error instanceof DOMException && error.name === "AbortError")) return;
+    fallback();
+  });
 }
 
 /** Ferma il suono in corso: una scritta nuova (anche senza suono) non si porta dietro il grido di quella prima. */

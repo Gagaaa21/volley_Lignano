@@ -15,7 +15,8 @@ import {
   publicCueSounds,
   soundTypeOf,
   soundUrl,
-  withCue,
+  lastCueValue,
+  CUE_VIEWER_FRESH_MS,
   withSound,
 } from "@/lib/diretta/cues";
 import { CUE_CHANNEL, CUE_EVENT, realtimeSocketUrl, SUPABASE_PUBLISHABLE_KEY } from "@/lib/diretta/realtime";
@@ -38,19 +39,32 @@ test.describe("pulsantiera della diretta", () => {
     expect(CUE_META.monsterBlock).toMatchObject({ kicker: "MONSTER", title: "BLOCK" });
   });
 
-  test("si salva l'ultima scritta; al pubblico va solo se è fresca, con i secondi che ha", () => {
-    const stored = withCue(EMPTY_CUES, "ace", "c1", T0);
-    const raw = JSON.stringify(stored);
-    expect(publicCueFrom(raw, T0 + 800)).toEqual({ id: "c1", kind: "ace", age: 800, sound: null });
-    expect(publicCueFrom(raw, T0 + CUE_FRESH_MS + 1)).toBeNull();
+  test("si salva l'ultima scritta (nella sua chiave); al pubblico va solo se è fresca, con i secondi che ha", () => {
+    const sounds = JSON.stringify(EMPTY_CUES);
+    const last = lastCueValue("ace", "c1", T0);
+    expect(publicCueFrom(sounds, T0 + 800, last)).toEqual({ id: "c1", kind: "ace", age: 800, sound: null });
+    expect(publicCueFrom(sounds, T0 + CUE_FRESH_MS + 1, last)).toBeNull();
+    // Alla pagina /diretta (copia della rete, letture ogni pochi secondi) resta più a lungo.
+    expect(publicCueFrom(sounds, T0 + CUE_FRESH_MS + 1, last, CUE_VIEWER_FRESH_MS)?.id).toBe("c1");
+    expect(publicCueFrom(sounds, T0 + CUE_VIEWER_FRESH_MS + 1, last, CUE_VIEWER_FRESH_MS)).toBeNull();
     // Un orologio del server un filo indietro non dà un'età negativa.
-    expect(publicCueFrom(raw, T0 - 50)?.age).toBe(0);
+    expect(publicCueFrom(sounds, T0 - 50, last)?.age).toBe(0);
     // Una nuova prende il posto della vecchia.
-    expect(publicCueFrom(JSON.stringify(withCue(stored, "monsterBlock", "c2", T0 + 2000)), T0 + 2100)).toMatchObject({ id: "c2", kind: "monsterBlock" });
+    expect(publicCueFrom(sounds, T0 + 2100, lastCueValue("monsterBlock", "c2", T0 + 2000))).toMatchObject({ id: "c2", kind: "monsterBlock" });
+    // Quella salvata prima della chiave a parte (dentro i suoni) vale ancora, se è la più recente.
+    const legacy = JSON.stringify({ last: { id: "vecchia", kind: "dig", at: T0 + 5000 }, sounds: {} });
+    expect(publicCueFrom(legacy, T0 + 5100)?.id).toBe("vecchia");
+    expect(publicCueFrom(legacy, T0 + 6100, lastCueValue("ace", "nuova", T0 + 6000))?.id).toBe("nuova");
+  });
+
+  test("tocco e suono non si cancellano: il tocco non tocca i suoni, il caricamento non tocca il tocco", () => {
+    // Un suono caricato (che riscrive la chiave dei suoni) dopo un tocco: la scritta resta, con il suono nuovo.
+    const sounds = JSON.stringify(withSound(EMPTY_CUES, "monsterBlock", T0 + 10));
+    expect(publicCueFrom(sounds, T0 + 20, lastCueValue("monsterBlock", "c1", T0))).toMatchObject({ id: "c1", sound: T0 + 10 });
   });
 
   test("mai statistiche di una singola atleta: la scritta pubblica ha solo id, tipo, età e suono", () => {
-    const raw = JSON.stringify({ ...withCue(EMPTY_CUES, "monsterBlock", "c1", T0), player: "a1", extra: { name: "Anna" } });
+    const raw = JSON.stringify({ last: { id: "c1", kind: "monsterBlock", at: T0 }, sounds: {}, player: "a1", extra: { name: "Anna" } });
     const cue = publicCueFrom(raw, T0 + 100);
     expect(cue).not.toBeNull();
     expect(Object.keys(cue!).sort()).toEqual(["age", "id", "kind", "sound"]);
@@ -67,8 +81,7 @@ test.describe("pulsantiera della diretta", () => {
   test("i suoni caricati: versione per tasto, si tolgono, e i tasti che non esistono si ignorano", () => {
     let stored = withSound(EMPTY_CUES, "ace", T0);
     expect(publicCueSounds(JSON.stringify(stored))).toEqual({ ace: T0 });
-    const raw = JSON.stringify(withCue(stored, "ace", "c1", T0 + 10));
-    expect(publicCueFrom(raw, T0 + 20)).toMatchObject({ sound: T0 });
+    expect(publicCueFrom(JSON.stringify(stored), T0 + 20, lastCueValue("ace", "c1", T0 + 10))).toMatchObject({ sound: T0 });
     stored = withSound(stored, "ace", null);
     expect(publicCueSounds(JSON.stringify(stored))).toEqual({});
     expect(publicCueSounds(JSON.stringify({ last: null, sounds: { ace: 1, vecchio: 2 } }))).toEqual({ ace: 1 });

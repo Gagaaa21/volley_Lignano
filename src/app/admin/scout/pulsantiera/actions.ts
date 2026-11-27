@@ -11,11 +11,13 @@ import {
   cueSoundKey,
   defaultSoundUrl,
   isCueKind,
+  lastCueOf,
+  lastCueValue,
+  LIVE_CUE_LAST_KEY,
   LIVE_CUES_KEY,
   MAX_SOUND_BYTES,
   parseCues,
   soundTypeOf,
-  withCue,
   withSound,
 } from "@/lib/diretta/cues";
 
@@ -35,14 +37,16 @@ export async function sendCueAction(kind: string): Promise<CueResult> {
   if (session.testMode) return { ok: false, error: TEST_MODE_ERROR };
   try {
     const repo = await getRepo();
-    const stored = parseCues(await repo.getAppSetting(LIVE_CUES_KEY));
+    const settings = await repo.getAppSettings([LIVE_CUES_KEY, LIVE_CUE_LAST_KEY]);
+    const last = lastCueOf(parseCues(settings[LIVE_CUES_KEY] ?? null), settings[LIVE_CUE_LAST_KEY] ?? null);
     const now = Date.now();
     // Due tocchi di fila (anche da due tablet) non si accavallano: il secondo aspetta un attimo.
-    if (stored.last && now - stored.last.at >= 0 && now - stored.last.at < CUE_COOLDOWN_MS) {
+    if (last && now - last.at >= 0 && now - last.at < CUE_COOLDOWN_MS) {
       return { ok: false, error: "Un attimo: è appena partita un'altra scritta." };
     }
     const id = randomUUID();
-    await repo.setAppSetting(LIVE_CUES_KEY, JSON.stringify(withCue(stored, kind, id, now)));
+    // Solo la sua chiave: i suoni (LIVE_CUES_KEY) non si toccano, così un caricamento in corso non si perde e non cancella il tocco.
+    await repo.setAppSetting(LIVE_CUE_LAST_KEY, lastCueValue(kind, id, now));
     await ringCue(id);
     return { ok: true, message: `In onda: ${CUE_META[kind].button}` };
   } catch (error) {
@@ -65,9 +69,11 @@ export async function uploadCueSoundAction(formData: FormData): Promise<CueResul
   try {
     const data = Buffer.from(await file.arrayBuffer()).toString("base64");
     const repo = await getRepo();
-    await repo.setAppSetting(cueSoundKey(kind), JSON.stringify({ type, data }));
+    // La stessa versione nel file e nell'elenco dei suoni: l'indirizzo del suono la porta, e la rete tiene solo quella giusta.
+    const version = Date.now();
+    await repo.setAppSetting(cueSoundKey(kind), JSON.stringify({ type, data, version }));
     const stored = parseCues(await repo.getAppSetting(LIVE_CUES_KEY));
-    await repo.setAppSetting(LIVE_CUES_KEY, JSON.stringify(withSound(stored, kind, Date.now())));
+    await repo.setAppSetting(LIVE_CUES_KEY, JSON.stringify(withSound(stored, kind, version)));
     revalidatePath("/admin/scout/pulsantiera");
     return { ok: true, message: `Suono caricato per «${CUE_META[kind].button}».` };
   } catch (error) {

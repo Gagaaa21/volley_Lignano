@@ -1,6 +1,15 @@
 import { manualLogoFor } from "@/components/calendar/manualTeamLogos";
 import { getRepo } from "@/lib/db";
-import { LIVE_CUES_KEY, publicCueFrom, publicCueSounds, type CueKind, type PublicCue } from "@/lib/diretta/cues";
+import {
+  CUE_FRESH_MS,
+  CUE_VIEWER_FRESH_MS,
+  LIVE_CUE_LAST_KEY,
+  LIVE_CUES_KEY,
+  publicCueFrom,
+  publicCueSounds,
+  type CueKind,
+  type PublicCue,
+} from "@/lib/diretta/cues";
 import { withPregame } from "@/lib/diretta/pregame";
 import { isMatchTime, LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
 import { opponentLogoFor } from "@/lib/federation/teamLogos";
@@ -86,15 +95,20 @@ export async function GET(request: Request) {
         return null;
       }),
       // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
-      repo.getAppSettings(direct ? [PUBLIC_LIVE_SCOUT_KEY, LIVE_CUES_KEY] : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY, LIVE_CUES_KEY]).catch((error: unknown) => {
-        console.error("[scout] copia compatta del punteggio live non leggibile:", error);
-        return null;
-      }),
+      repo
+        .getAppSettings(
+          direct ? [PUBLIC_LIVE_SCOUT_KEY, LIVE_CUES_KEY, LIVE_CUE_LAST_KEY] : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY, LIVE_CUES_KEY, LIVE_CUE_LAST_KEY],
+        )
+        .catch((error: unknown) => {
+          console.error("[scout] copia compatta del punteggio live non leggibile:", error);
+          return null;
+        }),
     ]);
     // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
     const compact = settings ? publicScoutSnapshotFrom(settings[PUBLIC_LIVE_SCOUT_KEY] ?? null) : undefined;
     streamSaved = parseStreamSettings(settings?.[LIVE_STREAM_KEY] ?? null) !== null;
-    cue = publicCueFrom(settings?.[LIVE_CUES_KEY] ?? null, Date.now());
+    // Alla pagina /diretta (copia della rete, letture ogni pochi secondi) la scritta resta più a lungo: non scade tra due letture.
+    cue = publicCueFrom(settings?.[LIVE_CUES_KEY] ?? null, Date.now(), settings?.[LIVE_CUE_LAST_KEY] ?? null, direct ? CUE_FRESH_MS : CUE_VIEWER_FRESH_MS);
     cueSounds = publicCueSounds(settings?.[LIVE_CUES_KEY] ?? null);
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
