@@ -16,7 +16,7 @@ import {
   type BoardTimeout,
 } from "@/lib/diretta/tabellone";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
-import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
+import { TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
 /** Il punteggio come la grafica di Streamlabs: anche a 0–0 appena si accende il live, e senza la copia della rete di Vercel. */
 const SCORE_URL = "/api/livescore/pubblico?prima=1&regia=1";
@@ -221,9 +221,13 @@ export function TabelloneClient() {
                 side={side}
                 team={live[side]}
                 finished={live.finished}
-                serving={live.serving === side}
+                serving={!live.finished && live.serving === side}
                 timeoutsUsed={live.timeouts[side]}
-                timeoutLeft={shownTimeout?.side === side && now !== null ? Math.max(0, Math.ceil((shownTimeout.endsAt - now) / 1000)) : null}
+                timeoutLeft={
+                  shownTimeout?.side === side && now !== null
+                    ? Math.min(TIMEOUT_SECONDS, Math.max(0, Math.ceil((shownTimeout.endsAt - now) / 1000)))
+                    : null
+                }
               />
             ))}
           </div>
@@ -303,12 +307,17 @@ function TeamPanel({
       aria-label={team.name}
       data-board-team={side}
     >
-      <div className="flex items-center gap-[1.6vmin] px-[3vmin] pt-[2vmin]">
-        <span className={cn("shrink-0 transition-opacity", serving ? "opacity-100" : "opacity-0")} data-board-serving={serving || undefined}>
+      {/* Il nome al centro; il pallone di chi batte a sinistra, senza spostare il nome. */}
+      <div className="relative px-[8.6vmin] pt-[2vmin] text-center">
+        <span
+          className={cn("absolute left-[3vmin] top-[2.2vmin] transition-opacity", serving ? "opacity-100" : "opacity-0")}
+          data-board-serving={serving || undefined}
+        >
           <Volleyball className="h-[5.4vmin] w-[5.4vmin] text-[#facc15]" aria-hidden />
           <span className="sr-only">{serving ? "Batte" : ""}</span>
         </span>
-        <p className="min-w-0 truncate font-display text-[5.6vmin] font-extrabold uppercase leading-tight tracking-[0.02em]">{team.name}</p>
+        {/* Un nome lungo va su due righe, mai tagliato a metà. */}
+        <p className="line-clamp-2 break-words font-display text-[5.2vmin] font-extrabold uppercase leading-[1.1] tracking-[0.02em]">{team.name}</p>
       </div>
 
       <div className="relative grid min-h-0 flex-1 place-items-center">
@@ -324,7 +333,7 @@ function TeamPanel({
           </p>
         )}
         <p
-          className="tabular font-display font-extrabold leading-none text-[min(36vh,22vw)] portrait:text-[min(21vh,44vw)]"
+          className="tabular font-display font-extrabold leading-none text-[min(42vh,24vw)] portrait:text-[min(26vh,46vw)]"
           aria-label={finished ? `Set vinti ${team.sets}` : `Punti ${team.score}`}
           data-board-points={side}
         >
