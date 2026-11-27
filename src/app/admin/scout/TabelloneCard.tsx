@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-
-const PATH = "/diretta/tabellone";
+import { BOARD_PATH as PATH } from "@/lib/diretta/tabellone";
 
 /**
- * «Tabellone per la palestra»: un tablet al posto del tabellone segnapunti (vedi /diretta/tabellone), con il punteggio dello
- * Scout. Qui l'indirizzo da aprire o copiare e la partita finta per provarlo.
+ * «Tabellone per la palestra»: un tablet al posto del tabellone segnapunti (vedi /tabellone), con il punteggio dello Scout. Non è
+ * pubblico: si apre con l'accesso dello staff. Qui il pulsante per aprirlo, l'indirizzo da copiare e la partita finta per provarlo.
  */
 export function TabelloneCard() {
   const [copied, setCopied] = useState(false);
@@ -31,7 +30,8 @@ export function TabelloneCard() {
           <h2 className="font-display text-base font-bold text-foreground">Tabellone per la palestra</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Un tablet al posto del tabellone segnapunti: punti, set vinti, chi batte e time-out (con il conto dei 30 secondi), presi dallo Scout
-            ogni secondo. Aprilo sul tablet, in orizzontale, e tocca «Schermo intero». Funziona con la diretta accesa nello Scout (lo è di partenza).
+            ogni secondo, anche con la diretta spenta. Non è pubblico: sul tablet accedi con il tuo account, poi aprilo da qui, in orizzontale, e tocca
+            «Schermo intero».
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <a

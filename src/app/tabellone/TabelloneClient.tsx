@@ -18,13 +18,17 @@ import {
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
-/** Il punteggio come la grafica di Streamlabs: anche a 0–0 appena si accende il live, e senza la copia della rete di Vercel. */
-const SCORE_URL = "/api/livescore/pubblico?prima=1&regia=1";
+/** Il punteggio dello Scout per il tabellone: solo con l'accesso dello staff, anche con la diretta spenta (vedi boardSnapshot.ts). */
+const SCORE_URL = "/api/scout/tabellone";
 const FETCH_TIMEOUT_MS = 4_000;
 const SWAP_KEY = "vl-tabellone-lati";
 
+/** Perché il tablet non riceve il punteggio: sessione scaduta o account senza lo Scout. */
+type Denied = "login" | "permission";
+
 interface BoardState {
   loaded: boolean;
+  denied: Denied | null;
   live: PublicLiveScore | null;
   timeout: BoardTimeout | null;
   /** L'ultima lettura riuscita (millisecondi). */
@@ -65,14 +69,15 @@ function subscribeSwap(listener: () => void) {
 const clock = new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
 
 /**
- * Il tabellone per la palestra: un tablet che fa da tabellone segnapunti quando quello della palestra non funziona. Rilegge il
- * punteggio dello Scout ogni secondo (è un dispositivo solo, come la grafica di Streamlabs) e mostra solo squadre, punti, set
- * vinti, chi batte e time-out (con il conto dei 30 secondi). Mai una giocatrice. `?prova=1`: la partita finta, per provarlo a casa.
+ * Il tabellone per la palestra: un tablet che fa da tabellone segnapunti quando quello della palestra non funziona. Non è
+ * pubblico: lo apre lo staff con il permesso «Scout» e lo vede chi è in palestra. Rilegge il punteggio dello Scout ogni secondo
+ * mentre si gioca, anche con la diretta spenta, e mostra solo squadre, punti, set vinti, chi batte e time-out (con il conto dei
+ * 30 secondi). Mai una giocatrice. `?prova=1`: la partita finta, per provarlo a casa.
  */
 export function TabelloneClient() {
   const params = useSearchParams();
   const demo = params.get("prova") === "1";
-  const [state, setState] = useState<BoardState>({ loaded: false, live: null, timeout: null, okAt: null });
+  const [state, setState] = useState<BoardState>({ loaded: false, denied: null, live: null, timeout: null, okAt: null });
   const [now, setNow] = useState<number | null>(null);
   const swapped = useSyncExternalStore(subscribeSwap, readSwap, () => false);
   const [fullscreen, setFullscreen] = useState<{ can: boolean; on: boolean }>({ can: false, on: false });
@@ -83,7 +88,7 @@ export function TabelloneClient() {
   const apply = useRef((live: PublicLiveScore | null, at: number) => {
     timeout.current = nextBoardTimeout(previous.current, live, timeout.current, at);
     previous.current = live;
-    setState({ loaded: true, live, timeout: timeout.current, okAt: at });
+    setState({ loaded: true, denied: null, live, timeout: timeout.current, okAt: at });
   });
 
   // L'orologio: l'ora in alto, il conto del time-out e l'avviso di connessione persa.
@@ -109,6 +114,13 @@ export function TabelloneClient() {
       let delay = BOARD_RETRY_MS;
       try {
         const response = await fetch(SCORE_URL, { cache: "no-store", signal: controller.signal });
+        if (response.status === 401 || response.status === 403) {
+          // Il tablet non è (più) collegato con un account dello staff con lo Scout: lo si dice e si riprova con calma.
+          const denied: Denied = response.status === 401 ? "login" : "permission";
+          if (!stopped) setState((current) => ({ ...current, loaded: true, denied, live: null, timeout: null }));
+          delay = boardPollDelay(null, document.visibilityState === "hidden");
+          return;
+        }
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = (await response.json()) as { live?: PublicLiveScore | null };
         if (stopped) return;
@@ -120,8 +132,8 @@ export function TabelloneClient() {
       } finally {
         clearTimeout(abort);
         inFlight = null;
+        if (!stopped) timer = setTimeout(read, delay);
       }
-      if (!stopped) timer = setTimeout(read, delay);
     };
     void read();
     // Riacceso lo schermo si rilegge subito, senza aspettare il ritmo lento.
@@ -189,10 +201,10 @@ export function TabelloneClient() {
     else void document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  const { live, okAt, loaded } = state;
+  const { live, okAt, loaded, denied } = state;
   const stale = !demo && now !== null && okAt !== null && now - okAt > BOARD_STALE_MS;
   const shownTimeout = state.timeout && now !== null && now < state.timeout.endsAt + BOARD_TIMEOUT_LINGER_MS ? state.timeout : null;
-  const phase = !loaded ? "loading" : !live ? "waiting" : live.finished ? "finished" : live.notStarted ? "pregame" : "live";
+  const phase = !loaded ? "loading" : denied ? "denied" : !live ? "waiting" : live.finished ? "finished" : live.notStarted ? "pregame" : "live";
 
   return (
     <main
@@ -236,11 +248,23 @@ export function TabelloneClient() {
         <div className="flex flex-1 flex-col items-center justify-center gap-[3vmin] px-[6vmin] text-center">
           <Volleyball className="h-[12vmin] w-[12vmin] text-[#facc15]" aria-hidden />
           <p className="font-display text-[7vmin] font-extrabold uppercase leading-none tracking-[0.04em]">
-            {loaded ? "In attesa della partita" : "Collegamento…"}
+            {!loaded ? "Collegamento…" : denied === "login" ? "Accedi di nuovo" : denied ? "Serve lo Scout" : "In attesa della partita"}
           </p>
           {loaded && (
-            <p className="max-w-[90vmin] text-[3.4vmin] leading-snug text-white/60">
-              Il tabellone si accende da solo quando nello Scout della partita la diretta è accesa (lo è di partenza), poco prima dell&apos;orario.
+            <p className="max-w-[90vmin] text-[3.4vmin] leading-snug text-white/60" data-board-message>
+              {denied === "login" ? (
+                <>
+                  L&apos;accesso di questo tablet è scaduto.{" "}
+                  <a href="/login" className="font-semibold text-white underline underline-offset-4">
+                    Accedi
+                  </a>{" "}
+                  con l&apos;account dello staff, poi riapri il tabellone dallo Scout.
+                </>
+              ) : denied ? (
+                "Questo account non ha il permesso «Scout»: accedi con un account che ce l'ha."
+              ) : (
+                "Il tabellone si accende da solo appena si prepara lo Scout della partita di oggi (anche con la diretta spenta) e segue ogni punto."
+              )}
             </p>
           )}
           {now !== null && <p className="tabular font-display text-[16vmin] font-extrabold leading-none text-white/85">{clock.format(now)}</p>}

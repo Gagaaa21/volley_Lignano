@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { requireStaffPage } from "@/lib/auth/guard";
 import { TabelloneClient } from "./TabelloneClient";
 
 export const metadata: Metadata = {
@@ -13,9 +14,12 @@ export const viewport: Viewport = {
 
 /**
  * Il tabellone per la palestra (vedi TabelloneClient): un tablet al posto del tabellone segnapunti, con il punteggio dello
- * Scout. Sempre scuro, a tutto schermo, senza menu del sito né barre di scorrimento.
+ * Scout. Non è pubblico: lo apre solo lo staff con il permesso «Scout» (il tablet resta collegato), e lo vede solo chi è in
+ * palestra. Fuori dall'area riservata per non avere menu del sito né guida sopra: sempre scuro, a tutto schermo, senza barre di
+ * scorrimento.
  */
-export default function TabellonePage() {
+export default async function TabellonePage() {
+  await requireStaffPage("scout");
   return (
     <>
       <style>{"html,body{background:#050f18!important;margin:0!important;overflow:hidden!important}html{color-scheme:dark!important}"}</style>

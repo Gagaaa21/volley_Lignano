@@ -2,13 +2,17 @@ import { TIMEOUT_MS } from "@/lib/timeoutClock";
 import type { PublicLiveScore } from "@/lib/types";
 
 /**
- * Il tabellone per la palestra (/diretta/tabellone): un tablet che fa da tabellone segnapunti, con il punteggio dello Scout (o
- * del Live score). Solo squadre, punti, set e time-out: mai una giocatrice. Qui solo i conti, senza React, così si provano da soli.
+ * Il tabellone per la palestra (/tabellone): un tablet che fa da tabellone segnapunti, con il punteggio dello Scout. Non è
+ * pubblico (serve l'accesso dello staff con lo Scout) e funziona anche con la diretta spenta (vedi src/lib/scout/boardSnapshot.ts).
+ * Solo squadre, punti, set e time-out: mai una giocatrice. Qui solo i conti, senza React, così si provano da soli.
  */
+
+/** Dove sta il tabellone: fuori dall'area riservata, per non avere sopra menu e guida del sito. */
+export const BOARD_PATH = "/tabellone";
 
 /** Ogni quanto rilegge il punteggio: ogni secondo mentre si gioca (è un dispositivo solo, come la grafica di Streamlabs). */
 export const BOARD_LIVE_POLL_MS = 1_000;
-/** Live acceso ma ancora nessun punto: il primo punto compare entro 3 secondi. */
+/** Scout preparato ma ancora nessun punto: il primo punto compare entro 3 secondi. */
 export const BOARD_PREGAME_POLL_MS = 3_000;
 /** Nessuna partita in diretta, o partita finita: basta ogni 10 secondi (il piano gratuito conta ogni lettura). */
 export const BOARD_IDLE_POLL_MS = 10_000;

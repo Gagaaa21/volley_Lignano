@@ -6,6 +6,7 @@ import { Bell, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { buildOpenInChromeUrl, usePwaInstall } from "./PwaInstallContext";
 import { OVERLAY_PATH } from "@/lib/diretta/overlayEvents";
+import { BOARD_PATH } from "@/lib/diretta/tabellone";
 import { hasTeamSubscription, subscribeTeam, syncPush } from "@/lib/pwa/teamPush";
 import { pushSupported, withPushDeps } from "./browserPush";
 import type { TrainingTeam } from "@/lib/types";
@@ -104,10 +105,11 @@ export function PwaClient() {
       ? readActiveTeamCookie()
       : "u14u15";
 
-  // La grafica della diretta video (letta da OBS) deve restare pulita: niente avvisi sopra il video, niente service worker.
-  const overlay = pathname?.startsWith(OVERLAY_PATH) ?? false;
+  // La grafica della diretta video (letta da OBS) e il tabellone della palestra (un tablet dello staff a tutto schermo) devono
+  // restare puliti: niente avvisi sopra, niente service worker, nessuna iscrizione alle notifiche del sito pubblico.
+  const overlay = (pathname?.startsWith(OVERLAY_PATH) || pathname?.startsWith(BOARD_PATH)) ?? false;
   // Chi guarda la diretta (pagina /diretta) non vuole avvisi sopra il video.
-  const watching = pathname?.startsWith("/diretta") ?? false;
+  const watching = (pathname?.startsWith("/diretta") || overlay) ?? false;
 
   useEffect(() => {
     if (overlay) return;

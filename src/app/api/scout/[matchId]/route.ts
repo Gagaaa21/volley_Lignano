@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireScoutAccess, withScoutStore } from "@/lib/scout/access";
+import { clearBoardScore, publishBoardScore } from "@/lib/scout/boardSnapshot";
 import { clearPublicScore, publishPublicScore } from "@/lib/scout/publicSnapshot";
 import { scoutDataSchema } from "@/lib/scout/schema";
 
@@ -10,21 +11,22 @@ import { scoutDataSchema } from "@/lib/scout/schema";
  * stata salvata un'altra), DELETE lo azzera. Sempre no-store: lo usa chi segna
  * i punti in diretta.
  *
- * Salvando o azzerando si aggiorna anche la copia compatta del punteggio live
- * per il sito pubblico (src/lib/scout/publicSnapshot.ts).
+ * Salvando o azzerando si aggiornano anche la copia compatta del punteggio live
+ * per il sito pubblico (src/lib/scout/publicSnapshot.ts) e quella del tabellone
+ * della palestra (src/lib/scout/boardSnapshot.ts, anche con la diretta spenta).
  */
 const NO_STORE = { "Cache-Control": "no-store" };
 
 /**
  * Lavora a risposta già partita e non può far fallire la richiesta: chi segna i punti ha già il suo «Salvato», un errore
- * qui al massimo lascia il sito pubblico un giro indietro (si rimette a posto al salvataggio dopo).
+ * qui al massimo lascia il sito pubblico o il tabellone della palestra un giro indietro (si rimette a posto al salvataggio dopo).
  */
 function afterResponse(matchId: string, task: () => Promise<void>) {
   after(async () => {
     try {
       await task();
     } catch (error) {
-      console.error(`[scout ${matchId}] copia pubblica del punteggio non aggiornata:`, error);
+      console.error(`[scout ${matchId}] copia del punteggio (sito o tabellone) non aggiornata:`, error);
     }
   });
 }
@@ -74,7 +76,10 @@ export async function PUT(request: Request, { params }: RouteContext) {
     );
   }
   // In modalità prova lo scout sta in un archivio separato: sul sito pubblico non deve arrivare niente.
-  if (!access.sandboxed) afterResponse(matchId, () => publishPublicScore(access.repo, result.scout, access.match));
+  if (!access.sandboxed) {
+    afterResponse(matchId, () => publishPublicScore(access.repo, result.scout, access.match));
+    afterResponse(matchId, () => publishBoardScore(access.repo, result.scout, access.match));
+  }
   return NextResponse.json({ version: result.scout.version, updatedAt: result.scout.updatedAt }, { headers: NO_STORE });
 }
 
@@ -85,6 +90,9 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   const done = await withScoutStore(() => access.repo.deleteMatchScout(matchId));
   if (done instanceof NextResponse) return done;
-  if (!access.sandboxed) afterResponse(matchId, () => clearPublicScore(access.repo, matchId));
+  if (!access.sandboxed) {
+    afterResponse(matchId, () => clearPublicScore(access.repo, matchId));
+    afterResponse(matchId, () => clearBoardScore(access.repo, matchId));
+  }
   return NextResponse.json({ ok: true }, { headers: NO_STORE });
 }
