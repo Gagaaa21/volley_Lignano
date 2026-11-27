@@ -53,7 +53,8 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
 
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecretKey());
+    // Solo l'algoritmo con cui il sito firma (HS256): un token con un altro algoritmo nell'intestazione non vale.
+    const { payload } = await jwtVerify(token, getSecretKey(), { algorithms: ["HS256"] });
     return payload as unknown as SessionPayload;
   } catch {
     return null;

@@ -30,12 +30,12 @@ test("rinnovo e cambio di indirizzo mantengono la squadra", async ({ page }) => 
   const before = await counts();
 
   // 1. Nuova iscrizione dal sito Minivolley.
-  await subscribe(page.request, { endpoint: "https://push.example/e2e-1", keys: KEYS, team: "minivolley" });
+  await subscribe(page.request, { endpoint: "https://fcm.googleapis.com/fcm/send/e2e-1", keys: KEYS, team: "minivolley" });
   expect(await counts()).toEqual({ u14u15: before.u14u15, minivolley: before.minivolley + 1 });
 
   // 2. Rinnovo silenzioso fatto da una pagina U14/U15: la squadra resta Minivolley.
   await subscribe(page.request, {
-    endpoint: "https://push.example/e2e-1",
+    endpoint: "https://fcm.googleapis.com/fcm/send/e2e-1",
     keys: { ...KEYS, auth: "e2e-auth-nuova" },
     team: "u14u15",
     refresh: true,
@@ -44,16 +44,16 @@ test("rinnovo e cambio di indirizzo mantengono la squadra", async ({ page }) => 
 
   // 3. Il browser cambia indirizzo (pushsubscriptionchange): l'iscrizione si sposta, squadra invariata, nessun doppione.
   await subscribe(page.request, {
-    endpoint: "https://push.example/e2e-2",
+    endpoint: "https://fcm.googleapis.com/fcm/send/e2e-2",
     keys: KEYS,
-    oldEndpoint: "https://push.example/e2e-1",
+    oldEndpoint: "https://fcm.googleapis.com/fcm/send/e2e-1",
     refresh: true,
   });
   expect(await counts()).toEqual({ u14u15: before.u14u15, minivolley: before.minivolley + 1 });
 
   // 4. Un rinnovo per un indirizzo sconosciuto è una iscrizione nuova, con la squadra indicata.
   await subscribe(page.request, {
-    endpoint: "https://push.example/e2e-3",
+    endpoint: "https://fcm.googleapis.com/fcm/send/e2e-3",
     keys: KEYS,
     team: "u14u15",
     refresh: true,
@@ -61,11 +61,19 @@ test("rinnovo e cambio di indirizzo mantengono la squadra", async ({ page }) => 
   expect(await counts()).toEqual({ u14u15: before.u14u15 + 1, minivolley: before.minivolley + 1 });
 
   // Pulizia.
-  for (const endpoint of ["https://push.example/e2e-2", "https://push.example/e2e-3"]) {
+  for (const endpoint of ["https://fcm.googleapis.com/fcm/send/e2e-2", "https://fcm.googleapis.com/fcm/send/e2e-3"]) {
     const response = await page.request.delete("/api/push/subscribe", { data: { endpoint } });
     expect(response.ok()).toBe(true);
   }
   expect(await counts()).toEqual(before);
+});
+
+test("un indirizzo che non è di un servizio push dei browser viene rifiutato", async ({ request }) => {
+  // La route è pubblica e il server contatta poi quell'indirizzo a ogni avviso: un sito qualsiasi, la rete interna o http non passano.
+  for (const endpoint of ["https://push.example/estraneo", "http://fcm.googleapis.com/fcm/send/e2e-http", "https://127.0.0.1/e2e"]) {
+    const response = await request.post("/api/push/subscribe", { data: { endpoint, keys: KEYS, team: "u14u15" } });
+    expect(response.status(), endpoint).toBe(400);
+  }
 });
 
 test("una squadra, una volta scelta, non cambia più: nemmeno con un'app vecchia o dall'area riservata", async ({ page }) => {
@@ -79,7 +87,7 @@ test("una squadra, una volta scelta, non cambia più: nemmeno con un'app vecchia
       minivolley: Number(/\((\d+)\)/.exec(mini ?? "")?.[1]),
     };
   };
-  const endpoint = "https://push.example/e2e-squadra";
+  const endpoint = "https://fcm.googleapis.com/fcm/send/e2e-squadra";
   const before = await counts();
 
   await subscribe(page.request, { endpoint, keys: KEYS, team: "minivolley" });

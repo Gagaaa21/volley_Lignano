@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { areValidPushKeys, isAllowedPushEndpoint } from "@/lib/pushEndpoint";
 import { planSubscription } from "@/lib/pushSubscribe";
 import type { TrainingTeam } from "@/lib/types";
 
@@ -23,6 +24,11 @@ export async function POST(request: Request) {
   const auth = body?.keys?.auth;
 
   if (typeof endpoint !== "string" || typeof p256dh !== "string" || typeof auth !== "string") {
+    return NextResponse.json({ error: "Dati di iscrizione non validi." }, { status: 400 });
+  }
+  // La route è pubblica e il server contatta poi questo indirizzo a ogni avviso: solo i servizi push dei browser (vedi
+  // src/lib/pushEndpoint.ts), mai un indirizzo scelto a piacere.
+  if (!isAllowedPushEndpoint(endpoint) || !areValidPushKeys(p256dh, auth)) {
     return NextResponse.json({ error: "Dati di iscrizione non validi." }, { status: 400 });
   }
   // Se il client non manda "team" (es. bundle non aggiornato in cache),

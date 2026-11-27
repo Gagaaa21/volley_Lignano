@@ -21,7 +21,7 @@ test.beforeEach(async ({ page, context }) => {
 
 test("sul sito di Minivolley, con il permesso già dato ma senza la sua iscrizione, si invita ad attivarla; quella di U14/U15 resta com'è", async ({ page }) => {
   test.setTimeout(150_000);
-  const u14 = `https://push.example/${uniqueName("u14-")}`;
+  const u14 = `https://fcm.googleapis.com/fcm/send/${uniqueName("u14-")}`;
   await loginAsDev(page);
   await addRow(page, u14, "u14u15");
   const before = await counts(page);
@@ -54,7 +54,7 @@ test("sul sito di Minivolley, con il permesso già dato ma senza la sua iscrizio
 
 test("sul sito di U14/U15 chi segue solo Minivolley viene invitato ad attivare U14/U15, e Minivolley non si tocca", async ({ page }) => {
   test.setTimeout(150_000);
-  const s3 = `https://push.example/${uniqueName("s3-")}`;
+  const s3 = `https://fcm.googleapis.com/fcm/send/${uniqueName("s3-")}`;
   await loginAsDev(page);
   await addRow(page, s3, "minivolley");
   await registerWorkers(page, ["/minivolley"]);
@@ -77,8 +77,8 @@ test("sul sito di U14/U15 chi segue solo Minivolley viene invitato ad attivare U
 
 test("area riservata: il selettore squadra non sposta né crea iscrizioni; si collega solo l'account", async ({ page }) => {
   test.setTimeout(180_000);
-  const u14 = `https://push.example/${uniqueName("u14-")}`;
-  const s3 = `https://push.example/${uniqueName("s3-")}`;
+  const u14 = `https://fcm.googleapis.com/fcm/send/${uniqueName("u14-")}`;
+  const s3 = `https://fcm.googleapis.com/fcm/send/${uniqueName("s3-")}`;
   await loginAsDev(page);
   await addRow(page, u14, "u14u15");
   await addRow(page, s3, "minivolley");
@@ -115,7 +115,7 @@ test("area riservata: il selettore squadra non sposta né crea iscrizioni; si co
 
 test("chi seguiva Minivolley con l'iscrizione di prima passa al worker di Minivolley, e quello di «/» torna libero", async ({ page }) => {
   test.setTimeout(150_000);
-  const old = `https://push.example/${uniqueName("vecchia-")}`;
+  const old = `https://fcm.googleapis.com/fcm/send/${uniqueName("vecchia-")}`;
   await loginAsDev(page);
   const base = await counts(page);
   // Com'era prima: una sola iscrizione per browser, sul worker di «/», con la squadra scelta di volta in volta (qui Minivolley).

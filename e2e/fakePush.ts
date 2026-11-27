@@ -36,7 +36,7 @@ export function installFakePush(seed: Record<string, string>) {
         const all = load();
         const scope = scopeOf(registration);
         if (!all[scope]) {
-          all[scope] = `https://push.example/e2e-${scope.replace(/\W/g, "") || "root"}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+          all[scope] = `https://fcm.googleapis.com/fcm/send/e2e-${scope.replace(/\W/g, "") || "root"}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
           save(all);
         }
         return make(all[scope]);
