@@ -9,6 +9,7 @@ import { CategoryTag } from "@/components/ui/CategoryTag";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ConfirmSubmitButton } from "@/components/forms/ConfirmSubmitButton";
 import { MATCH_NO_CATEGORY_LABEL } from "@/lib/category";
+import { nowLocalIso } from "@/lib/today";
 import { deleteMatchAction } from "../../actions";
 import { MatchForm } from "../../MatchForm";
 
@@ -47,8 +48,18 @@ export default async function EditMatchPage({ params }: { params: Promise<{ id: 
           <p className="text-sm font-bold text-foreground">Elimina partita</p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">Sparisce dal calendario insieme a convocazioni, formazioni e scout.</p>
         </div>
-        <form action={deleteMatchAction}>
+        <form action={deleteMatchAction} className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <input type="hidden" name="id" value={match.id} />
+          {/* Si avvisa di partenza solo per una partita che deve ancora cominciare: non per una già giocata, né per una prova finita. */}
+          <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-foreground" data-delete-notify>
+            <input
+              type="checkbox"
+              name="notify"
+              defaultChecked={match.matchDate.slice(0, 16) > nowLocalIso()}
+              className="h-4 w-4 rounded border-border-strong accent-[var(--primary)]"
+            />
+            Avvisa chi segue il calendario
+          </label>
           <ConfirmSubmitButton confirmMessage={`Eliminare la partita ${matchTitle(match)}? Sparisce dal calendario insieme a convocazioni, formazioni, scout e trasferta. Non si può annullare.`} variant="danger" size="sm">
             <Trash2 className="h-4 w-4" />
             Elimina

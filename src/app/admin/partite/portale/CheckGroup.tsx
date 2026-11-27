@@ -274,6 +274,8 @@ function OrphanRow({
         <form action={deleteMatchAction}>
           <input type="hidden" name="id" value={match.id} />
           <input type="hidden" name="returnTo" value="/admin/partite/portale" />
+          {/* Una partita che il portale non ha più: le famiglie si avvisano, come sempre. */}
+          <input type="hidden" name="notify" value="on" />
           <ConfirmSubmitButton
             confirmMessage={`Eliminare la partita vs ${match.opponent}? Sparisce dal calendario insieme a convocazioni, formazioni e scout.`}
             variant="danger-ghost"

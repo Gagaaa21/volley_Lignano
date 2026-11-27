@@ -272,7 +272,9 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   await clearBoardScore(repo, id).catch((error: unknown) => console.error("[deleteMatchAction] tabellone non svuotato:", error));
   // E le scelte a mano sulle segnalazioni dei genitori (stanno tra le impostazioni del sito, senza legami con la partita).
   await repo.clearMatchReporting(id).catch(() => {});
-  if (match) await sendMatchNotice(deletedMatchNotice(match), match, match.id);
+  // Le famiglie si avvisano solo se lo staff lo lascia acceso (di partenza sì per una partita che deve ancora cominciare, no per
+  // una già cominciata, come una prova generale finita): togliere una prova non deve far squillare tutti i telefoni.
+  if (match && formData.get("notify") === "on") await sendMatchNotice(deletedMatchNotice(match), match, match.id);
   revalidatePath("/admin/partite");
   revalidatePath("/admin/partite/portale");
   revalidatePath("/admin");
