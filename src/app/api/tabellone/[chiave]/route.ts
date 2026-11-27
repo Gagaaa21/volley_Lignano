@@ -17,8 +17,8 @@ type RouteContext = { params: Promise<{ chiave: string }> };
  */
 export async function GET(_request: Request, { params }: RouteContext) {
   const { chiave } = await params;
-  if (!isBoardKey(chiave)) return NextResponse.json({ error: "Link non valido." }, { status: 404, headers: NO_STORE });
   try {
+    if (!isBoardKey(chiave)) return NextResponse.json({ error: "Link non valido." }, { status: 404, headers: NO_STORE });
     const raw = await (await getRepo()).getAppSetting(BOARD_SCOUT_KEY);
     return NextResponse.json({ live: boardSnapshotFrom(raw) }, { headers: NO_STORE });
   } catch (error) {

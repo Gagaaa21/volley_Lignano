@@ -16,7 +16,9 @@ async function createMatch(page: Page, opponent: string, when: string): Promise<
   await page.getByLabel("Luogo della partita").fill("Palestra elimina e2e");
   await page.getByLabel("Data e ora").fill(when);
   // Una prova: nessun avviso nemmeno alla creazione.
-  await page.getByLabel("Avvisa chi segue il calendario").uncheck();
+  const notify = page.locator("[data-match-notify] input[name=notify]");
+  await page.locator("[data-match-notify] label").first().click();
+  await expect(notify).not.toBeChecked();
   await page.getByRole("button", { name: /salva partita/i }).click();
   await page.waitForURL(/\/admin\/partite$/, { timeout: 20_000 });
   const href = await page.locator('a[href^="/admin/partite/"]', { hasText: opponent }).first().getAttribute("href");

@@ -2,7 +2,15 @@ import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
 import { addPlayer, addRally, addTimeout, newScoutData, opponentPlayer, setLineup, updateSettings } from "@/lib/scout/actions";
 import { boardHref, boardKey, isBoardKey } from "@/lib/scout/boardLink";
-import { BOARD_SCOUT_KEY, boardSnapshotFrom, clearBoardScore, publishBoardScore, toBoardScore } from "@/lib/scout/boardSnapshot";
+import {
+  BOARD_IN_PLAY_HOLD_MS,
+  BOARD_SCOUT_KEY,
+  boardSnapshotFrom,
+  clearBoardScore,
+  publishBoardScore,
+  refreshBoardScore,
+  toBoardScore,
+} from "@/lib/scout/boardSnapshot";
 import { PUBLIC_LIVE_SCOUT_KEY } from "@/lib/scout/publicSnapshot";
 import type { MatchScout, ScoutData } from "@/lib/scout/types";
 import { LIVE_SCORE_TTL_MS } from "@/lib/types";
@@ -89,4 +97,41 @@ test("il link del tabellone: una chiave lunga e sempre uguale, che si controlla 
   expect(isBoardKey(key)).toBe(true);
   expect(isBoardKey(`${key.slice(0, 31)}${key[31] === "A" ? "B" : "A"}`)).toBe(false);
   for (const wrong of ["", "abc", `${key}x`, key.slice(1), "../../etc/passwd", "a".repeat(32)]) expect(isBoardKey(wrong)).toBe(false);
+});
+
+test("un tabellone solo: la partita in gioco non è coperta da un'altra finita o non cominciata, e non si torna indietro", async () => {
+  const repo = createMemoryRepo(createEmptyStore());
+  const read = async () => {
+    const raw = await repo.getAppSetting(BOARD_SCOUT_KEY);
+    return { matchId: raw ? (JSON.parse(raw) as { matchId: string }).matchId : null, live: boardSnapshotFrom(raw, Date.parse(UPDATED)) };
+  };
+  const at = (iso: string) => ({ updatedAt: iso });
+  const now = Date.parse(UPDATED);
+  // Si gioca la partita «m1» (8-6).
+  await publishBoardScore(repo, scout(8, 6), MATCH, now);
+  // Un salvataggio più vecchio della stessa partita, arrivato dopo: non torna indietro.
+  await publishBoardScore(repo, { ...scout(7, 6), ...at("2026-10-17T09:29:00.000Z") }, MATCH, now);
+  expect((await read()).live).toMatchObject({ home: { score: 8 }, away: { score: 6 } });
+  // La correzione di una partita già finita («m0», della mattina) non copre quella in gioco; nemmeno una non cominciata.
+  const finished = { ...scout(25, 10), matchId: "m0", finished: true };
+  await publishBoardScore(repo, finished, MATCH, now);
+  await publishBoardScore(repo, { ...scout(0, 0), matchId: "m2" }, MATCH, now);
+  expect(await read()).toMatchObject({ matchId: "m1", live: { home: { score: 8 } } });
+  // Un'altra partita in gioco (due Scout insieme) prende il tabellone: vale l'ultimo.
+  await publishBoardScore(repo, { ...scout(3, 1), matchId: "m2" }, MATCH, now);
+  expect(await read()).toMatchObject({ matchId: "m2", live: { home: { score: 3 } } });
+  // Una partita in gioco ma ferma da mezz'ora (Scout abbandonato) non blocca più: la nuova, anche a 0-0, prende il posto.
+  await publishBoardScore(repo, { ...scout(0, 0), matchId: "m3" }, MATCH, now + BOARD_IN_PLAY_HOLD_MS + 1);
+  expect((await read()).matchId).toBe("m3");
+});
+
+test("la partita modificata (avversaria, orario) si rifà subito sul tabellone; quella di un'altra partita no", async () => {
+  const repo = createMemoryRepo(createEmptyStore());
+  const saved = scout(4, 2);
+  await publishBoardScore(repo, saved, MATCH);
+  const withScout = { ...repo, getMatchScout: async (id: string) => (id === "m1" ? saved : null) };
+  await refreshBoardScore(withScout, "m1", { ...MATCH, opponent: "Polisportiva Esempio" });
+  expect(boardSnapshotFrom(await repo.getAppSetting(BOARD_SCOUT_KEY), Date.parse(UPDATED))?.away.name).toBe("Polisportiva Esempio");
+  await refreshBoardScore(withScout, "altra", { ...MATCH, opponent: "Altro nome" });
+  expect(boardSnapshotFrom(await repo.getAppSetting(BOARD_SCOUT_KEY), Date.parse(UPDATED))?.away.name).toBe("Polisportiva Esempio");
 });

@@ -53,14 +53,45 @@ export function toBoardScore(scout: MatchScout, match: PublicMatch): PublicLiveS
   };
 }
 
-/** Mette la copia del tabellone al posto di quella di prima, dopo un salvataggio dello Scout. */
-export async function publishBoardScore(repo: Store, scout: MatchScout, match: PublicMatch): Promise<void> {
+/** Una partita che si sta giocando adesso (né prima del via né finita) e salvata da poco: il tabellone resta su di lei. */
+export const BOARD_IN_PLAY_HOLD_MS = 30 * 60 * 1000;
+
+function inPlay(live: PublicLiveScore, now: number): boolean {
+  return !live.finished && !live.notStarted && now - Date.parse(live.updatedAt) <= BOARD_IN_PLAY_HOLD_MS;
+}
+
+/**
+ * Mette la copia del tabellone al posto di quella di prima, dopo un salvataggio dello Scout. Il tabellone è uno solo, quindi:
+ * - una partita che si sta giocando non viene coperta da un'altra finita o non ancora cominciata (per esempio la correzione di
+ *   uno scambio nello Scout della partita della mattina, mentre si gioca quella del pomeriggio);
+ * - della stessa partita non si torna mai a un salvataggio più vecchio (due salvataggi vicini che finiscono in ordine diverso).
+ */
+export async function publishBoardScore(repo: Store, scout: MatchScout, match: PublicMatch, now = Date.now()): Promise<void> {
   const live = toBoardScore(scout, match);
+  const stored = parseStored(await repo.getAppSetting(BOARD_SCOUT_KEY));
+  if (stored?.live) {
+    if (stored.matchId === scout.matchId) {
+      if (live && Date.parse(stored.live.updatedAt) > Date.parse(live.updatedAt)) return;
+    } else if (inPlay(stored.live, now) && !(live && inPlay(live, now))) {
+      return;
+    }
+  }
   if (live) {
     await repo.setAppSetting(BOARD_SCOUT_KEY, JSON.stringify({ matchId: scout.matchId, live }));
     return;
   }
   await clearBoardScore(repo, scout.matchId);
+}
+
+/**
+ * La partita è stata modificata (avversaria, orario, palazzetto): se è quella sul tabellone, la copia si rifà subito con i dati
+ * nuovi, senza aspettare il tocco successivo nello Scout.
+ */
+export async function refreshBoardScore(repo: Store & Pick<Repo, "getMatchScout">, matchId: string, match: PublicMatch): Promise<void> {
+  const current = parseStored(await repo.getAppSetting(BOARD_SCOUT_KEY));
+  if (!current || current.matchId !== matchId || current.live === null) return;
+  const scout = await repo.getMatchScout(matchId);
+  if (scout) await publishBoardScore(repo, scout, match);
 }
 
 /** Toglie il punteggio del tabellone di una partita (scout azzerato, partita cancellata); quello di un'altra partita resta. */

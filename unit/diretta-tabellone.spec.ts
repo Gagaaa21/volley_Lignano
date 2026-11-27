@@ -5,6 +5,7 @@ import {
   BOARD_LIVE_POLL_MS,
   BOARD_PREGAME_POLL_MS,
   BOARD_TIMEOUT_LINGER_MS,
+  BOARD_TIMEOUT_MAX_GAP_MS,
   boardPollDelay,
   boardSetLabel,
   nextBoardTimeout,
@@ -72,4 +73,14 @@ test("time-out: dell'avversaria, tolto nello Scout, già segnato alla prima lett
   // Prima del via o a partita finita: niente.
   expect(nextBoardTimeout(score(0, 0, { notStarted: true }), score(0, 0, { notStarted: true, timeouts: { home: 1, away: 0 } }), null, 0)).toBeNull();
   expect(nextBoardTimeout(score(24, 20), score(0, 0, { finished: true }), away, 0)).toBeNull();
+});
+
+test("dopo un buco nelle letture (rete persa, schermo spento) un time-out già cominciato non fa partire il conto da 30", () => {
+  const before = score(10, 12);
+  const during = score(10, 12, { timeouts: { home: 1, away: 0 } });
+  // Letture regolari (1–2 secondi): il conto parte.
+  expect(nextBoardTimeout(before, during, null, 10_000, 8_000)?.side).toBe("home");
+  expect(nextBoardTimeout(before, during, null, 10_000, 10_000 - BOARD_TIMEOUT_MAX_GAP_MS)?.side).toBe("home");
+  // Dopo un buco più lungo il time-out può essere cominciato da un pezzo: niente conto.
+  expect(nextBoardTimeout(before, during, null, 30_000, 10_000)).toBeNull();
 });

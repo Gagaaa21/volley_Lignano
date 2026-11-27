@@ -28,6 +28,8 @@ interface BoardState {
   timeout: BoardTimeout | null;
   /** L'ultima lettura riuscita (millisecondi). */
   okAt: number | null;
+  /** Da quando le letture non riescono, se non ne è ancora riuscita nessuna (millisecondi): per dire che il sito non risponde. */
+  failedAt: number | null;
 }
 
 /**
@@ -117,19 +119,19 @@ const clock = new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-dig
 export function TabelloneClient({ chiave }: { chiave: string }) {
   const params = useSearchParams();
   const demo = params.get("prova") === "1";
-  const [state, setState] = useState<BoardState>({ loaded: false, invalid: false, live: null, timeout: null, okAt: null });
+  const [state, setState] = useState<BoardState>({ loaded: false, invalid: false, live: null, timeout: null, okAt: null, failedAt: null });
   const [now, setNow] = useState<number | null>(null);
   const swapped = useSyncExternalStore(sidesChoice.subscribe, sidesChoice.read, () => "normale") === "scambiati";
   const theme = useSyncExternalStore(themeChoice.subscribe, themeChoice.read, () => "scuro" as const);
   const [fullscreen, setFullscreen] = useState<{ can: boolean; on: boolean }>({ can: false, on: false });
 
-  // L'ultima lettura e il time-out in corso, per confrontarli con la lettura nuova (vedi nextBoardTimeout).
-  const previous = useRef<PublicLiveScore | null>(null);
+  // L'ultima lettura (con la sua ora) e il time-out in corso, per confrontarli con la lettura nuova (vedi nextBoardTimeout).
+  const previous = useRef<{ live: PublicLiveScore | null; at: number } | null>(null);
   const timeout = useRef<BoardTimeout | null>(null);
   const apply = useRef((live: PublicLiveScore | null, at: number) => {
-    timeout.current = nextBoardTimeout(previous.current, live, timeout.current, at);
-    previous.current = live;
-    setState({ loaded: true, invalid: false, live, timeout: timeout.current, okAt: at });
+    timeout.current = nextBoardTimeout(previous.current?.live ?? null, live, timeout.current, at, previous.current?.at ?? at);
+    previous.current = { live, at };
+    setState({ loaded: true, invalid: false, live, timeout: timeout.current, okAt: at, failedAt: null });
   });
 
   // L'orologio: l'ora in alto, il conto del time-out e l'avviso di connessione persa.
@@ -157,8 +159,11 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
       try {
         const response = await fetch(url, { cache: "no-store", signal: controller.signal });
         if (response.status === 404) {
-          // La chiave non è più quella giusta: lo si dice (il link nuovo è nello Scout) e si riprova con calma.
-          if (!stopped) setState((current) => ({ ...current, loaded: true, invalid: true, live: null, timeout: null }));
+          // La chiave non è più quella giusta: lo si dice (il link nuovo è nello Scout) e si riprova con calma. Il sito ha risposto:
+          // niente avviso di connessione, e il punteggio di prima non conta più.
+          previous.current = null;
+          timeout.current = null;
+          if (!stopped) setState({ loaded: true, invalid: true, live: null, timeout: null, okAt: Date.now(), failedAt: null });
           delay = boardPollDelay(null, document.visibilityState === "hidden");
           return;
         }
@@ -169,7 +174,9 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
         apply.current(live, Date.now());
         delay = boardPollDelay(live, document.visibilityState === "hidden");
       } catch {
-        // Rete assente o risposta sbagliata: resta l'ultimo punteggio (con l'avviso) e si riprova presto.
+        // Rete assente o risposta sbagliata: resta l'ultimo punteggio (con l'avviso) e si riprova presto. Se non è mai riuscita
+        // una lettura, si segna da quando: dopo qualche secondo il tabellone dice che il sito non risponde.
+        if (!stopped) setState((current) => (current.okAt === null && current.failedAt === null ? { ...current, failedAt: Date.now() } : current));
       } finally {
         clearTimeout(abort);
         inFlight = null;
@@ -240,8 +247,10 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
     else void document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  const { live, okAt, loaded, invalid } = state;
-  const stale = !demo && now !== null && okAt !== null && now - okAt > BOARD_STALE_MS;
+  const { live, okAt, loaded, invalid, failedAt } = state;
+  // Senza letture riuscite da un po' (o mai riuscite): l'avviso arancione in basso.
+  const lastGood = okAt ?? failedAt;
+  const stale = !demo && !invalid && now !== null && lastGood !== null && now - lastGood > BOARD_STALE_MS;
   const shownTimeout = state.timeout && now !== null && now < state.timeout.endsAt + BOARD_TIMEOUT_LINGER_MS ? state.timeout : null;
   const phase = !loaded ? "loading" : invalid ? "invalid" : !live ? "waiting" : live.finished ? "finished" : live.notStarted ? "pregame" : "live";
   const footerButton = "inline-flex items-center gap-[1vmin] rounded-full px-[1.6vmin] py-[1vmin] hover:bg-[var(--b-hover)] hover:text-[var(--b-fg)]";
@@ -322,7 +331,7 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
         {stale ? (
           <span className="inline-flex items-center gap-[1vmin] rounded-full bg-[#f59e0b] px-[2vmin] py-[0.8vmin] font-bold text-black" data-board-stale>
             <WifiOff className="h-[2.8vmin] w-[2.8vmin]" aria-hidden />
-            Senza connessione: ultimo punteggio ricevuto alle {okAt !== null ? clock.format(okAt) : ""}
+            {okAt !== null ? `Senza connessione: ultimo punteggio ricevuto alle ${clock.format(okAt)}` : "Il sito non risponde: riprovo da solo"}
           </span>
         ) : (
           <span>{demo ? "Partita finta di prova" : "Risultato non ufficiale · dallo Scout"}</span>

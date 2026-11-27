@@ -25,6 +25,12 @@ export const BOARD_RETRY_MS = 2_000;
 export const BOARD_STALE_MS = 8_000;
 /** Finito il conto del time-out, il riquadro resta ancora un po' (a zero) e poi si chiude da solo. */
 export const BOARD_TIMEOUT_LINGER_MS = 5_000;
+/**
+ * Il conto del time-out parte solo se la lettura di prima è di poco fa: dopo un buco (rete persa, schermo spento) il time-out
+ * può essere cominciato da un pezzo, e un conto da 30 sarebbe sbagliato. Con le letture ogni secondo, e un nuovo tentativo dopo 2
+ * secondi se una va male, un buco più lungo di così vuol dire che qualcosa si è perso.
+ */
+export const BOARD_TIMEOUT_MAX_GAP_MS = 5_000;
 
 export function boardPollDelay(live: PublicLiveScore | null, hidden: boolean): number {
   if (hidden) return BOARD_HIDDEN_POLL_MS;
@@ -51,18 +57,20 @@ function inPlay(live: PublicLiveScore | null): live is PublicLiveScore {
  * Il time-out da mostrare dopo una lettura. Lo Scout dice solo quanti time-out ha usato ogni squadra nel set: il conto (30
  * secondi) parte quando il tabellone vede il numero salire, cioè circa un secondo dopo il tocco nello Scout. Si chiude quando
  * riprende il gioco (cambia il punteggio o il set), quando il time-out viene tolto nello Scout, o poco dopo la fine del conto.
- * Alla prima lettura (o dopo un buco) un time-out già segnato non fa partire niente: non si sa da quanto dura.
+ * Alla prima lettura, o dopo un buco di più di BOARD_TIMEOUT_MAX_GAP_MS dalla lettura di prima (`previousAt`), un time-out già
+ * segnato non fa partire niente: non si sa da quanto dura.
  */
 export function nextBoardTimeout(
   previous: PublicLiveScore | null,
   next: PublicLiveScore | null,
   current: BoardTimeout | null,
   now: number,
+  previousAt: number = now,
 ): BoardTimeout | null {
   if (!inPlay(next)) return null;
   const sets = next.sets.length;
   const points = next.home.score + next.away.score;
-  if (inPlay(previous) && previous.sets.length === sets) {
+  if (inPlay(previous) && previous.sets.length === sets && now - previousAt <= BOARD_TIMEOUT_MAX_GAP_MS) {
     for (const side of ["home", "away"] as const) {
       if (next.timeouts[side] > previous.timeouts[side]) return { side, endsAt: now + TIMEOUT_MS, sets, points };
     }
