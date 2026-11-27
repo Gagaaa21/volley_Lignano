@@ -4,16 +4,18 @@ import {
   BOARD_IDLE_POLL_MS,
   BOARD_LIVE_POLL_MS,
   BOARD_PREGAME_POLL_MS,
+  BOARD_CLOCK_SLACK_MS,
   BOARD_TIMEOUT_LINGER_MS,
-  BOARD_TIMEOUT_MAX_GAP_MS,
   boardPollDelay,
   boardSetLabel,
+  boardTimeoutSeconds,
   nextBoardTimeout,
+  visibleBoardTimeout,
 } from "@/lib/diretta/tabellone";
 import { TIMEOUT_MS } from "@/lib/timeoutClock";
 import type { PublicLiveScore } from "@/lib/types";
 
-/** Il tabellone per la palestra: quando rilegge, il titolo del set e il conto del time-out ricavato dal numero di time-out. */
+/** Il tabellone per la palestra: quando rilegge, il titolo del set e il conto del time-out dall'ora in cui lo Scout l'ha segnato. */
 
 function score(home: number, away: number, overrides: Partial<PublicLiveScore> = {}): PublicLiveScore {
   return {
@@ -47,40 +49,42 @@ test("il titolo: il set in corso, il tie-break, prima del via e a fine partita",
   expect(boardSetLabel(score(0, 0, { finished: true }))).toBe("Finale");
 });
 
-test("il time-out parte quando il numero sale e dura 30 secondi; chiude se riprende il gioco", () => {
-  const before = score(10, 12);
-  const during = score(10, 12, { timeouts: { home: 1, away: 0 } });
-  const started = nextBoardTimeout(before, during, null, 1_000);
-  expect(started).toEqual({ side: "home", endsAt: 1_000 + TIMEOUT_MS, sets: 0, points: 22 });
-  // Le letture seguenti, con lo stesso numero, lo tengono.
-  expect(nextBoardTimeout(during, during, started, 20_000)).toBe(started);
-  // Un punto: il gioco è ripreso.
-  expect(nextBoardTimeout(during, score(11, 12, { timeouts: { home: 1, away: 0 } }), started, 25_000)).toBeNull();
-  // Finito il conto resta ancora un po', poi si chiude da solo.
-  expect(nextBoardTimeout(during, during, started, started!.endsAt + BOARD_TIMEOUT_LINGER_MS - 1)).toBe(started);
-  expect(nextBoardTimeout(during, during, started, started!.endsAt + BOARD_TIMEOUT_LINGER_MS)).toBeNull();
+const run = (side: "home" | "away", at: number, id = "to-1") => ({ timeoutRun: { side, at, id } });
+
+test("il conto del time-out parte dall'ora dello Scout: 30 secondi, poi resta un po' a zero e sparisce", () => {
+  // Lo Scout l'ha segnato a 10 s; il tabellone lo vede un secondo e mezzo dopo: mancano 29 secondi, non 30.
+  const started = nextBoardTimeout(score(10, 12, { timeouts: { home: 1, away: 0 }, ...run("home", 10_000) }), null, 11_500);
+  expect(started).toEqual({ id: "to-1", side: "home", endsAt: 10_000 + TIMEOUT_MS });
+  expect(boardTimeoutSeconds(started!, 11_500)).toBe(29);
+  // Le letture seguenti dello stesso time-out tengono il conto.
+  expect(nextBoardTimeout(score(10, 12, run("home", 10_000)), started, 20_000)).toBe(started);
+  // Finito il conto resta ancora un po' a zero, poi sparisce.
+  expect(boardTimeoutSeconds(started!, started!.endsAt + 1)).toBe(0);
+  expect(visibleBoardTimeout(started, started!.endsAt + BOARD_TIMEOUT_LINGER_MS - 1)).toBe(started);
+  expect(visibleBoardTimeout(started, started!.endsAt + BOARD_TIMEOUT_LINGER_MS)).toBeNull();
 });
 
-test("time-out: dell'avversaria, tolto nello Scout, già segnato alla prima lettura, set nuovo, partita finita", () => {
-  const away = nextBoardTimeout(score(5, 5), score(5, 5, { timeouts: { home: 0, away: 1 } }), null, 0);
-  expect(away?.side).toBe("away");
-  // Tolto nello Scout (annulla): il conto si chiude.
-  expect(nextBoardTimeout(score(5, 5, { timeouts: { home: 0, away: 1 } }), score(5, 5), away, 2_000)).toBeNull();
-  // Alla prima lettura un time-out già segnato non fa partire il conto: non si sa da quanto dura.
-  expect(nextBoardTimeout(null, score(5, 5, { timeouts: { home: 1, away: 0 } }), null, 0)).toBeNull();
-  // Nel set nuovo i time-out ripartono da zero: nessun conto.
-  expect(nextBoardTimeout(score(24, 20, { timeouts: { home: 2, away: 1 } }), score(0, 0, { sets: [{ home: 25, away: 20 }] }), null, 0)).toBeNull();
-  // Prima del via o a partita finita: niente.
-  expect(nextBoardTimeout(score(0, 0, { notStarted: true }), score(0, 0, { notStarted: true, timeouts: { home: 1, away: 0 } }), null, 0)).toBeNull();
-  expect(nextBoardTimeout(score(24, 20), score(0, 0, { finished: true }), away, 0)).toBeNull();
+test("time-out: il primo punto e il time-out insieme, tabellone aperto a time-out cominciato, ripresa del gioco, tolto, partita finita", () => {
+  // Il primo punto e il time-out arrivano nella stessa lettura (prima c'era lo 0-0 «non iniziata»): il conto c'è.
+  expect(nextBoardTimeout(score(0, 1, { timeouts: { home: 0, away: 1 }, ...run("away", 5_000) }), null, 6_000)?.side).toBe("away");
+  // Tabellone aperto (o rete tornata) 20 secondi dopo il time-out: restano 10 secondi, non 30.
+  const late = nextBoardTimeout(score(3, 3, run("away", 5_000)), null, 25_000);
+  expect(boardTimeoutSeconds(late!, 25_000)).toBe(10);
+  // Un time-out finito da un pezzo (gioco fermo, nessun punto dopo) non si mostra.
+  expect(visibleBoardTimeout(nextBoardTimeout(score(3, 3, run("away", 5_000)), null, 120_000), 120_000)).toBeNull();
+  // Ripreso il gioco (un punto) o tolto nello Scout: la lettura non porta più il time-out e il conto sparisce.
+  expect(nextBoardTimeout(score(4, 3), late, 26_000)).toBeNull();
+  // Un time-out nuovo (l'altra squadra) prende il posto del primo.
+  expect(nextBoardTimeout(score(3, 3, run("home", 24_000, "to-2")), late, 25_000)).toEqual({ id: "to-2", side: "home", endsAt: 24_000 + TIMEOUT_MS });
+  // A partita finita niente.
+  expect(nextBoardTimeout(score(0, 0, { finished: true, ...run("away", 5_000) }), late, 6_000)).toBeNull();
 });
 
-test("dopo un buco nelle letture (rete persa, schermo spento) un time-out già cominciato non fa partire il conto da 30", () => {
-  const before = score(10, 12);
-  const during = score(10, 12, { timeouts: { home: 1, away: 0 } });
-  // Letture regolari (1–2 secondi): il conto parte.
-  expect(nextBoardTimeout(before, during, null, 10_000, 8_000)?.side).toBe("home");
-  expect(nextBoardTimeout(before, during, null, 10_000, 10_000 - BOARD_TIMEOUT_MAX_GAP_MS)?.side).toBe("home");
-  // Dopo un buco più lungo il time-out può essere cominciato da un pezzo: niente conto.
-  expect(nextBoardTimeout(before, during, null, 30_000, 10_000)).toBeNull();
+test("orologio dello Scout avanti rispetto al tablet: il conto parte da quando il tabellone vede il time-out", () => {
+  const ahead = nextBoardTimeout(score(8, 8, run("home", 100_000)), null, 100_000 - BOARD_CLOCK_SLACK_MS - 1_000);
+  expect(ahead?.endsAt).toBe(100_000 - BOARD_CLOCK_SLACK_MS - 1_000 + TIMEOUT_MS);
+  // Un poco avanti (meno del margine): si tiene l'ora dello Scout, e il conto non va mai sopra 30.
+  const slightly = nextBoardTimeout(score(8, 8, run("home", 100_000)), null, 98_000);
+  expect(slightly?.endsAt).toBe(100_000 + TIMEOUT_MS);
+  expect(boardTimeoutSeconds(slightly!, 98_000)).toBe(30);
 });

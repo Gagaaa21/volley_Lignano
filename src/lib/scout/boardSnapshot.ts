@@ -1,5 +1,6 @@
 import type { Repo } from "@/lib/db/repo";
 import { LIVE_SCORE_TTL_MS, type PublicLiveScore } from "@/lib/types";
+import { deriveScout } from "./derive";
 import { toPublicScoutScore, type PublicMatch } from "./publicScore";
 import { publicLiveScoreSchema } from "./publicSnapshot";
 import type { MatchScout } from "./types";
@@ -33,11 +34,20 @@ function parseStored(raw: string | null): z.infer<typeof storedSchema> | null {
 
 /**
  * Il punteggio del tabellone da uno scout: come quello pubblico (stessi conti, stessa finestra intorno all'orario della
- * partita) ma anche con la diretta spenta, e tenendo solo squadre, punti, set, chi batte e time-out.
+ * partita) ma anche con la diretta spenta, e tenendo solo squadre, punti, set, chi batte e time-out. In più il time-out in corso
+ * (`timeoutRun`: l'ultimo del set, se dopo non c'è stato un punto), con l'ora in cui lo Scout l'ha segnato: il tabellone ci fa il
+ * conto dei 30 secondi giusto anche se si apre a time-out cominciato, se il primo punto e il time-out arrivano insieme o se la
+ * rete torna dopo un buco. I time-out usati contano anche prima del primo punto.
  */
 export function toBoardScore(scout: MatchScout, match: PublicMatch): PublicLiveScore | null {
   const full = toPublicScoutScore({ ...scout, settings: { ...scout.settings, publicLive: true } }, match);
   if (!full) return null;
+  const set = full.finished ? null : deriveScout(scout).current;
+  const timeouts = set
+    ? { home: set.timeouts.filter((t) => t.side === "us").length, away: set.timeouts.filter((t) => t.side === "opp").length }
+    : full.timeouts;
+  const last = set?.timeouts[set.timeouts.length - 1];
+  const running = set && last && last.score.us === set.score.us && last.score.opp === set.score.opp ? last : null;
   return {
     team: full.team,
     category: full.category,
@@ -45,9 +55,10 @@ export function toBoardScore(scout: MatchScout, match: PublicMatch): PublicLiveS
     away: { name: full.away.name, color: full.away.color, score: full.away.score, sets: full.away.sets },
     serving: full.serving,
     sets: full.sets,
-    timeouts: full.timeouts,
+    timeouts,
     finished: full.finished,
     ...(full.setRules ? { setRules: full.setRules } : {}),
+    ...(running ? { timeoutRun: { side: running.side === "us" ? ("home" as const) : ("away" as const), at: running.at, id: running.id } } : {}),
     ...(full.notStarted ? { notStarted: true as const } : {}),
     updatedAt: full.updatedAt,
   };

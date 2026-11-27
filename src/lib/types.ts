@@ -802,6 +802,12 @@ export interface PublicLiveScore {
    * vantaggi», «Tie-break», il cambio di campo a metà del decisivo e i numeri a 8 e 16. Solo dallo Scout, a partita in corso.
    */
   setRules?: { target: number; deciding: boolean };
+  /**
+   * Il time-out in corso: chiesto e non ancora ripreso il gioco (nessun punto dopo). Chi l'ha chiesto, quando (ms, orologio del
+   * dispositivo dello Scout) e il suo id. Solo per il tabellone della palestra (vedi src/lib/scout/boardSnapshot.ts), che ci fa il
+   * conto dei 30 secondi; mai nel punteggio pubblico.
+   */
+  timeoutRun?: { side: "home" | "away"; at: number; id: string };
   /** La serie di punti in corso, quando è di almeno RUN_MIN (striscia «Parziale 4-0» sotto la barra). Solo dallo Scout. */
   run?: { side: "home" | "away"; points: number };
   /** I nostri cambi nel set in corso, in ordine (gli ultimi). Solo dallo Scout, con la formazione seguita. */

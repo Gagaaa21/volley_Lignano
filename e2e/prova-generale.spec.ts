@@ -73,14 +73,23 @@ test("prova generale: Scout → grafica e tabellone insieme, Monster block, time
   await expect(obs.locator("main")).toHaveAttribute("data-grafica", "idle");
 
   try {
-    // Lo Scout segna: 3-1.
+    // Come nella prova vera: il primo punto e un time-out loro, toccati a meno di un secondo l'uno dall'altro, arrivano nello stesso
+    // salvataggio. Il tabellone (che prima era a 0-0) fa partire il conto lo stesso, dall'ora del time-out.
     const base = Date.now() - 120_000;
     const events: Event[] = [];
     let n = 0;
     const rally = (actor: "us" | "opp") => events.push({ type: "rally", id: `r${n}`, at: base + ++n * 5_000, actor, how: "attack", player: null, victim: null });
-    for (const actor of ["us", "opp", "us", "us"] as const) rally(actor);
+    rally("us");
+    events.push({ type: "timeout", id: "to-0", at: Date.now(), side: "opp" });
     await page.goto(`/admin/scout/${matchId}`);
     let version = await saveScout(page, matchId, events, null);
+    await expect(tablet.locator('[data-board-timeout-alert="away"]')).toHaveText(/^Time-out (30|29|28|27|26)$/, { timeout: 10_000 });
+    await expect(tablet.locator('[data-board-points="home"]')).toHaveText("1");
+
+    // Si riprende e lo Scout segna: 3-1. Il conto sparisce.
+    for (const actor of ["opp", "us", "us"] as const) rally(actor);
+    version = await saveScout(page, matchId, events, version);
+    await expect(tablet.locator("[data-board-timeout-alert]")).toHaveCount(0, { timeout: 5_000 });
 
     await expect(tablet.locator('[data-board-points="home"]')).toHaveText("3", { timeout: 10_000 });
     await expect(tablet.locator('[data-board-points="away"]')).toHaveText("1");
@@ -100,7 +109,7 @@ test("prova generale: Scout → grafica e tabellone insieme, Monster block, time
     events.push({ type: "timeout", id: "to-1", at: Date.now(), side: "opp" });
     version = await saveScout(page, matchId, events, version);
     await expect(tablet.locator('[data-board-timeout-alert="away"]')).toHaveText(/^Time-out (30|29|28|27|26)$/, { timeout: 5_000 });
-    await expect(tablet.locator('[data-board-timeouts="away"]')).toHaveAttribute("data-used", "1");
+    await expect(tablet.locator('[data-board-timeouts="away"]')).toHaveAttribute("data-used", "2");
 
     // La pulsantiera: Monster block, che compare nella grafica.
     await page.goto("/admin/scout/pulsantiera");

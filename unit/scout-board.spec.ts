@@ -50,7 +50,9 @@ test("anche con la diretta spenta: punti, set, chi batte e time-out; nessuna gio
     updatedAt: UPDATED,
   });
   expect(board?.serving).not.toBeNull();
-  expect(Object.keys(board!).sort()).toEqual(["away", "category", "finished", "home", "serving", "setRules", "sets", "team", "timeouts", "updatedAt"]);
+  expect(Object.keys(board!).sort()).toEqual(["away", "category", "finished", "home", "serving", "setRules", "sets", "team", "timeoutRun", "timeouts", "updatedAt"]);
+  // Il time-out chiesto a 5-3 e senza punti dopo è in corso, con l'ora in cui lo Scout l'ha segnato.
+  expect(board?.timeoutRun).toEqual({ side: "away", at: T0 + 200_000, id: "to1" });
   expect(JSON.stringify(board)).not.toMatch(/Giocatrice|"p7"|lineup|subs|setStats|matchStats|recap|info/);
 });
 
@@ -134,4 +136,16 @@ test("la partita modificata (avversaria, orario) si rifà subito sul tabellone; 
   expect(boardSnapshotFrom(await repo.getAppSetting(BOARD_SCOUT_KEY), Date.parse(UPDATED))?.away.name).toBe("Polisportiva Esempio");
   await refreshBoardScore(withScout, "altra", { ...MATCH, opponent: "Altro nome" });
   expect(boardSnapshotFrom(await repo.getAppSetting(BOARD_SCOUT_KEY), Date.parse(UPDATED))?.away.name).toBe("Polisportiva Esempio");
+});
+
+test("il time-out in corso: c'è finché non si gioca un punto, anche prima del primo punto; a partita finita no", () => {
+  const atZero: MatchScout = { ...scout(0, 0), ...addTimeout(scout(0, 0), "us", T0 + 50_000, "to0") };
+  expect(toBoardScore(atZero, MATCH)).toMatchObject({ notStarted: true, timeouts: { home: 1, away: 0 }, timeoutRun: { side: "home", id: "to0" } });
+  const called: MatchScout = { ...scout(3, 2), ...addTimeout(scout(3, 2), "opp", T0 + 300_000, "to2") };
+  expect(toBoardScore(called, MATCH)?.timeoutRun?.id).toBe("to2");
+  // Un punto dopo il time-out: il gioco è ripreso, niente più time-out in corso (il pallino resta).
+  const resumed: MatchScout = { ...called, ...addRally(called, { actor: "us", how: "attack", player: "p7" }, T0 + 400_000, "dopo") };
+  expect(toBoardScore(resumed, MATCH)).toMatchObject({ timeouts: { home: 0, away: 1 } });
+  expect(toBoardScore(resumed, MATCH)).not.toHaveProperty("timeoutRun");
+  expect(toBoardScore({ ...called, finished: true }, MATCH)).not.toHaveProperty("timeoutRun");
 });

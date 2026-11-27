@@ -8,15 +8,16 @@ import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
 import {
   BOARD_RETRY_MS,
   BOARD_STALE_MS,
-  BOARD_TIMEOUT_LINGER_MS,
   boardPollDelay,
   boardSetLabel,
+  boardTimeoutSeconds,
   nextBoardTimeout,
+  visibleBoardTimeout,
   type BoardSide,
   type BoardTimeout,
 } from "@/lib/diretta/tabellone";
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
-import { TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
+import { TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
 const FETCH_TIMEOUT_MS = 4_000;
 
@@ -125,12 +126,10 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
   const theme = useSyncExternalStore(themeChoice.subscribe, themeChoice.read, () => "scuro" as const);
   const [fullscreen, setFullscreen] = useState<{ can: boolean; on: boolean }>({ can: false, on: false });
 
-  // L'ultima lettura (con la sua ora) e il time-out in corso, per confrontarli con la lettura nuova (vedi nextBoardTimeout).
-  const previous = useRef<{ live: PublicLiveScore | null; at: number } | null>(null);
+  // Il time-out in corso, per tenere il suo conto da una lettura all'altra (vedi nextBoardTimeout).
   const timeout = useRef<BoardTimeout | null>(null);
   const apply = useRef((live: PublicLiveScore | null, at: number) => {
-    timeout.current = nextBoardTimeout(previous.current?.live ?? null, live, timeout.current, at, previous.current?.at ?? at);
-    previous.current = { live, at };
+    timeout.current = nextBoardTimeout(live, timeout.current, at);
     setState({ loaded: true, invalid: false, live, timeout: timeout.current, okAt: at, failedAt: null });
   });
 
@@ -161,7 +160,6 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
         if (response.status === 404) {
           // La chiave non è più quella giusta: lo si dice (il link nuovo è nello Scout) e si riprova con calma. Il sito ha risposto:
           // niente avviso di connessione, e il punteggio di prima non conta più.
-          previous.current = null;
           timeout.current = null;
           if (!stopped) setState({ loaded: true, invalid: true, live: null, timeout: null, okAt: Date.now(), failedAt: null });
           delay = boardPollDelay(null, document.visibilityState === "hidden");
@@ -202,8 +200,21 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
     if (!demo) return;
     const script = demoScript();
     let index = 0;
+    // La partita finta dice solo quanti time-out ci sono: quando il numero sale, il time-out parte adesso, come lo segnerebbe lo
+    // Scout, e resta in corso finché il punteggio non cambia.
+    let last: PublicLiveScore | null = null;
+    let run: { side: "home" | "away"; at: number; id: string; score: string } | null = null;
+    const scoreKey = (frame: PublicLiveScore) => `${frame.sets.length}:${frame.home.score}-${frame.away.score}`;
     const step = () => {
-      apply.current(script[index % script.length], Date.now());
+      const frame = script[index % script.length];
+      if (frame && last && !frame.notStarted && frame.sets.length === last.sets.length) {
+        for (const side of ["home", "away"] as const) {
+          if (frame.timeouts[side] > last.timeouts[side]) run = { side, at: Date.now(), id: `prova-${index}`, score: scoreKey(frame) };
+        }
+      }
+      if (run && (!frame || frame.finished || scoreKey(frame) !== run.score)) run = null;
+      apply.current(frame && run ? { ...frame, timeoutRun: { side: run.side, at: run.at, id: run.id } } : frame, Date.now());
+      last = frame;
       index += 1;
     };
     step();
@@ -251,7 +262,7 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
   // Senza letture riuscite da un po' (o mai riuscite): l'avviso arancione in basso.
   const lastGood = okAt ?? failedAt;
   const stale = !demo && !invalid && now !== null && lastGood !== null && now - lastGood > BOARD_STALE_MS;
-  const shownTimeout = state.timeout && now !== null && now < state.timeout.endsAt + BOARD_TIMEOUT_LINGER_MS ? state.timeout : null;
+  const shownTimeout = now !== null ? visibleBoardTimeout(state.timeout, now) : null;
   const phase = !loaded ? "loading" : invalid ? "invalid" : !live ? "waiting" : live.finished ? "finished" : live.notStarted ? "pregame" : "live";
   const footerButton = "inline-flex items-center gap-[1vmin] rounded-full px-[1.6vmin] py-[1vmin] hover:bg-[var(--b-hover)] hover:text-[var(--b-fg)]";
 
@@ -286,11 +297,7 @@ export function TabelloneClient({ chiave }: { chiave: string }) {
                 finished={live.finished}
                 serving={!live.finished && live.serving === side}
                 timeoutsUsed={live.timeouts[side]}
-                timeoutLeft={
-                  shownTimeout?.side === side && now !== null
-                    ? Math.min(TIMEOUT_SECONDS, Math.max(0, Math.ceil((shownTimeout.endsAt - now) / 1000)))
-                    : null
-                }
+                timeoutLeft={shownTimeout?.side === side && now !== null ? boardTimeoutSeconds(shownTimeout, now) : null}
               />
             ))}
           </div>

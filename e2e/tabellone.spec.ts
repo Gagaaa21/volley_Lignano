@@ -22,6 +22,7 @@ type Live = {
   finished: boolean;
   notStarted?: true;
   setRules?: { target: number; deciding: boolean };
+  timeoutRun?: { side: "home" | "away"; at: number; id: string };
   updatedAt: string;
 };
 
@@ -99,7 +100,13 @@ test("in attesa, poi punti, set, chi batte e time-out dallo Scout; il conto del 
   await expect(page.getByRole("region", { name: "Pol. Esempio" })).toBeVisible();
 
   // Time-out dell'avversaria: il pallino si accende e parte il conto dei 30 secondi.
-  const withTimeout = live(12, 9, { sets: [{ home: 25, away: 20 }], timeouts: { home: 0, away: 1 }, home: { name: "Volley Lignano", color: "#1c5bae", score: 12, sets: 1 } });
+  // Lo Scout dice anche quando l'ha segnato: il conto parte da lì.
+  const withTimeout = live(12, 9, {
+    sets: [{ home: 25, away: 20 }],
+    timeouts: { home: 0, away: 1 },
+    home: { name: "Volley Lignano", color: "#1c5bae", score: 12, sets: 1 },
+    timeoutRun: { side: "away", at: Date.now(), id: "to-e2e" },
+  });
   score.set(withTimeout);
   await expect(page.locator('[data-board-timeouts="away"]')).toHaveAttribute("data-used", "1", { timeout: 5_000 });
   const alert = page.locator('[data-board-timeout-alert="away"]');
@@ -110,7 +117,7 @@ test("in attesa, poi punti, set, chi batte e time-out dallo Scout; il conto del 
   expect(seconds).toBeLessThanOrEqual(28);
   expect(seconds).toBeGreaterThanOrEqual(25);
   // Si riprende a giocare: il conto sparisce, il pallino resta.
-  score.set({ ...withTimeout, home: { ...withTimeout.home, score: 13 } });
+  score.set({ ...withTimeout, timeoutRun: undefined, home: { ...withTimeout.home, score: 13 } });
   await expect(points(page, "home")).toHaveText("13", { timeout: 5_000 });
   await expect(alert).toHaveCount(0);
   await expect(page.locator('[data-board-timeouts="away"]')).toHaveAttribute("data-used", "1");
