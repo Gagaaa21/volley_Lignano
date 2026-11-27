@@ -83,7 +83,13 @@ test("prova generale: Scout → grafica e tabellone insieme, Monster block, time
     events.push({ type: "timeout", id: "to-0", at: Date.now(), side: "opp" });
     await page.goto(`/admin/scout/${matchId}`);
     let version = await saveScout(page, matchId, events, null);
-    await expect(tablet.locator('[data-board-timeout-alert="away"]')).toHaveText(/^Time-out (30|29|28|27|26)$/, { timeout: 10_000 });
+    // Prima del salvataggio il tabellone era «in attesa» (rilegge ogni 10 secondi): lo vede un po' dopo, e il conto tiene conto del
+    // tempo già passato dal tocco nello Scout.
+    const firstAlert = tablet.locator('[data-board-timeout-alert="away"]');
+    await expect(firstAlert).toHaveText(/^Time-out \d+$/, { timeout: 12_000 });
+    const left = Number((await firstAlert.textContent())!.replace(/\D/g, ""));
+    expect(left).toBeGreaterThanOrEqual(15);
+    expect(left).toBeLessThanOrEqual(30);
     await expect(tablet.locator('[data-board-points="home"]')).toHaveText("1");
 
     // Si riprende e lo Scout segna: 3-1. Il conto sparisce.
