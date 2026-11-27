@@ -2,8 +2,9 @@ import { TIMEOUT_MS } from "@/lib/timeoutClock";
 import type { PublicLiveScore } from "@/lib/types";
 
 /**
- * Il tabellone per la palestra (/tabellone): un tablet che fa da tabellone segnapunti, con il punteggio dello Scout. Non è
- * pubblico (serve l'accesso dello staff con lo Scout) e funziona anche con la diretta spenta (vedi src/lib/scout/boardSnapshot.ts).
+ * Il tabellone per la palestra (/tabellone/<chiave>): un tablet che fa da tabellone segnapunti, con il punteggio dello Scout. Non
+ * è sul sito pubblico: si apre solo con il link con la chiave (vedi src/lib/scout/boardLink.ts), senza accesso, e funziona anche
+ * con la diretta spenta (vedi src/lib/scout/boardSnapshot.ts).
  * Solo squadre, punti, set e time-out: mai una giocatrice. Qui solo i conti, senza React, così si provano da soli.
  */
 

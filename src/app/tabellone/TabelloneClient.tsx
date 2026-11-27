@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeftRight, Maximize, Minimize, Volleyball, WifiOff } from "lucide-react";
+import { ArrowLeftRight, Maximize, Minimize, Moon, Sun, Volleyball, WifiOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
 import {
@@ -18,68 +18,109 @@ import {
 import type { PublicLiveScore, PublicLiveScoreTeam } from "@/lib/types";
 import { TIMEOUT_SECONDS, TIMEOUTS_PER_SET } from "@/lib/volleyRules";
 
-/** Il punteggio dello Scout per il tabellone: solo con l'accesso dello staff, anche con la diretta spenta (vedi boardSnapshot.ts). */
-const SCORE_URL = "/api/scout/tabellone";
 const FETCH_TIMEOUT_MS = 4_000;
-const SWAP_KEY = "vl-tabellone-lati";
-
-/** Perché il tablet non riceve il punteggio: sessione scaduta o account senza lo Scout. */
-type Denied = "login" | "permission";
 
 interface BoardState {
   loaded: boolean;
-  denied: Denied | null;
+  /** Il link non è (più) quello giusto: la chiave è cambiata. */
+  invalid: boolean;
   live: PublicLiveScore | null;
   timeout: BoardTimeout | null;
   /** L'ultima lettura riuscita (millisecondi). */
   okAt: number | null;
 }
 
-// I lati (Lignano a sinistra o a destra) restano come li si è lasciati su questo tablet; senza memoria del browser valgono finché
-// la pagina resta aperta.
-let swapMemory = false;
-const swapListeners = new Set<() => void>();
-function readSwap(): boolean {
-  try {
-    const stored = localStorage.getItem(SWAP_KEY);
-    if (stored !== null) return stored === "1";
-  } catch {
-    // Memoria del browser non disponibile.
-  }
-  return swapMemory;
-}
-function writeSwap(value: boolean) {
-  swapMemory = value;
-  try {
-    localStorage.setItem(SWAP_KEY, value ? "1" : "0");
-  } catch {
-    // Non si ricorda alla prossima apertura, ma si scambia lo stesso.
-  }
-  swapListeners.forEach((listener) => listener());
-}
-function subscribeSwap(listener: () => void) {
-  swapListeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    swapListeners.delete(listener);
-    window.removeEventListener("storage", listener);
+/**
+ * Una scelta che resta su questo tablet (memoria del browser); senza memoria vale finché la pagina resta aperta. Letta con
+ * useSyncExternalStore: niente stato copiato in un effetto.
+ */
+function localChoice<T extends string>(key: string, fallback: T, allowed: readonly T[]) {
+  let memory = fallback;
+  const listeners = new Set<() => void>();
+  return {
+    read(): T {
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored !== null && (allowed as readonly string[]).includes(stored)) return stored as T;
+      } catch {
+        // Memoria del browser non disponibile.
+      }
+      return memory;
+    },
+    write(value: T) {
+      memory = value;
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        // Non si ricorda alla prossima apertura, ma vale lo stesso.
+      }
+      listeners.forEach((listener) => listener());
+    },
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      window.addEventListener("storage", listener);
+      return () => {
+        listeners.delete(listener);
+        window.removeEventListener("storage", listener);
+      };
+    },
   };
 }
+
+/** Lignano a sinistra («normale») o a destra («scambiati»). */
+const sidesChoice = localChoice("vl-tabellone-lati", "normale", ["normale", "scambiati"] as const);
+/** Il tema: scuro di partenza (si legge meglio da lontano), chiaro per una palestra molto luminosa. */
+const themeChoice = localChoice("vl-tabellone-tema", "scuro", ["scuro", "chiaro"] as const);
+type BoardTheme = ReturnType<typeof themeChoice.read>;
+
+/**
+ * I colori dei due temi, come variabili CSS: tutto il tabellone li usa, così il tema cambia con un tocco. Il giallo del pallone
+ * e dei time-out nel tema chiaro diventa ambra scuro, che sul bianco si legge; le pillole del conto e dell'avviso restano uguali.
+ */
+const THEMES: Record<BoardTheme, CSSProperties> = {
+  scuro: {
+    "--b-bg": "#050f18",
+    "--b-fg": "#ffffff",
+    "--b-muted": "rgb(255 255 255 / 0.6)",
+    "--b-faint": "rgb(255 255 255 / 0.38)",
+    "--b-panel": "rgb(255 255 255 / 0.045)",
+    "--b-line": "rgb(255 255 255 / 0.1)",
+    "--b-chip": "rgb(255 255 255 / 0.1)",
+    "--b-hover": "rgb(255 255 255 / 0.1)",
+    "--b-accent": "#facc15",
+    "--b-dot-off": "rgb(255 255 255 / 0.25)",
+    "--b-shadow": "0 0 #0000",
+  } as CSSProperties,
+  chiaro: {
+    "--b-bg": "#eef2f6",
+    "--b-fg": "#0b1a2a",
+    "--b-muted": "#475569",
+    "--b-faint": "#5b6b7e",
+    "--b-panel": "#ffffff",
+    "--b-line": "rgb(11 26 42 / 0.12)",
+    "--b-chip": "#e2e8f0",
+    "--b-hover": "rgb(11 26 42 / 0.07)",
+    "--b-accent": "#b45309",
+    "--b-dot-off": "rgb(11 26 42 / 0.28)",
+    "--b-shadow": "0 14px 34px -22px rgb(11 26 42 / 0.45)",
+  } as CSSProperties,
+};
 
 const clock = new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
 
 /**
- * Il tabellone per la palestra: un tablet che fa da tabellone segnapunti quando quello della palestra non funziona. Non è
- * pubblico: lo apre lo staff con il permesso «Scout» e lo vede chi è in palestra. Rilegge il punteggio dello Scout ogni secondo
- * mentre si gioca, anche con la diretta spenta, e mostra solo squadre, punti, set vinti, chi batte e time-out (con il conto dei
- * 30 secondi). Mai una giocatrice. `?prova=1`: la partita finta, per provarlo a casa.
+ * Il tabellone per la palestra: un tablet che fa da tabellone segnapunti quando quello della palestra non funziona. Non è sul
+ * sito pubblico: si apre con il link con la chiave (lo staff lo trova nello Scout), senza accesso e senza scadenza. Rilegge il
+ * punteggio dello Scout ogni secondo mentre si gioca, anche con la diretta spenta, e mostra solo squadre, punti, set vinti, chi
+ * batte e time-out (con il conto dei 30 secondi). Mai una giocatrice. Tema scuro o chiaro. `?prova=1`: la partita finta.
  */
-export function TabelloneClient() {
+export function TabelloneClient({ chiave }: { chiave: string }) {
   const params = useSearchParams();
   const demo = params.get("prova") === "1";
-  const [state, setState] = useState<BoardState>({ loaded: false, denied: null, live: null, timeout: null, okAt: null });
+  const [state, setState] = useState<BoardState>({ loaded: false, invalid: false, live: null, timeout: null, okAt: null });
   const [now, setNow] = useState<number | null>(null);
-  const swapped = useSyncExternalStore(subscribeSwap, readSwap, () => false);
+  const swapped = useSyncExternalStore(sidesChoice.subscribe, sidesChoice.read, () => "normale") === "scambiati";
+  const theme = useSyncExternalStore(themeChoice.subscribe, themeChoice.read, () => "scuro" as const);
   const [fullscreen, setFullscreen] = useState<{ can: boolean; on: boolean }>({ can: false, on: false });
 
   // L'ultima lettura e il time-out in corso, per confrontarli con la lettura nuova (vedi nextBoardTimeout).
@@ -88,7 +129,7 @@ export function TabelloneClient() {
   const apply = useRef((live: PublicLiveScore | null, at: number) => {
     timeout.current = nextBoardTimeout(previous.current, live, timeout.current, at);
     previous.current = live;
-    setState({ loaded: true, denied: null, live, timeout: timeout.current, okAt: at });
+    setState({ loaded: true, invalid: false, live, timeout: timeout.current, okAt: at });
   });
 
   // L'orologio: l'ora in alto, il conto del time-out e l'avviso di connessione persa.
@@ -102,6 +143,7 @@ export function TabelloneClient() {
   // Il punteggio: ogni secondo mentre si gioca, più di rado senza partita (vedi boardPollDelay).
   useEffect(() => {
     if (demo) return;
+    const url = `/api/tabellone/${encodeURIComponent(chiave)}`;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let inFlight: AbortController | null = null;
@@ -113,11 +155,10 @@ export function TabelloneClient() {
       const abort = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
       let delay = BOARD_RETRY_MS;
       try {
-        const response = await fetch(SCORE_URL, { cache: "no-store", signal: controller.signal });
-        if (response.status === 401 || response.status === 403) {
-          // Il tablet non è (più) collegato con un account dello staff con lo Scout: lo si dice e si riprova con calma.
-          const denied: Denied = response.status === 401 ? "login" : "permission";
-          if (!stopped) setState((current) => ({ ...current, loaded: true, denied, live: null, timeout: null }));
+        const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+        if (response.status === 404) {
+          // La chiave non è più quella giusta: lo si dice (il link nuovo è nello Scout) e si riprova con calma.
+          if (!stopped) setState((current) => ({ ...current, loaded: true, invalid: true, live: null, timeout: null }));
           delay = boardPollDelay(null, document.visibilityState === "hidden");
           return;
         }
@@ -147,7 +188,7 @@ export function TabelloneClient() {
       inFlight?.abort();
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [demo]);
+  }, [demo, chiave]);
 
   // La partita finta, in ciclo.
   useEffect(() => {
@@ -188,8 +229,6 @@ export function TabelloneClient() {
     };
   }, []);
 
-  const toggleSwap = () => writeSwap(!swapped);
-
   useEffect(() => {
     const sync = () => setFullscreen({ can: Boolean(document.fullscreenEnabled), on: Boolean(document.fullscreenElement) });
     sync();
@@ -201,29 +240,32 @@ export function TabelloneClient() {
     else void document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  const { live, okAt, loaded, denied } = state;
+  const { live, okAt, loaded, invalid } = state;
   const stale = !demo && now !== null && okAt !== null && now - okAt > BOARD_STALE_MS;
   const shownTimeout = state.timeout && now !== null && now < state.timeout.endsAt + BOARD_TIMEOUT_LINGER_MS ? state.timeout : null;
-  const phase = !loaded ? "loading" : denied ? "denied" : !live ? "waiting" : live.finished ? "finished" : live.notStarted ? "pregame" : "live";
+  const phase = !loaded ? "loading" : invalid ? "invalid" : !live ? "waiting" : live.finished ? "finished" : live.notStarted ? "pregame" : "live";
+  const footerButton = "inline-flex items-center gap-[1vmin] rounded-full px-[1.6vmin] py-[1vmin] hover:bg-[var(--b-hover)] hover:text-[var(--b-fg)]";
 
   return (
     <main
-      className="fixed inset-0 flex select-none flex-col overflow-hidden bg-[#050f18] text-white"
+      className="fixed inset-0 flex select-none flex-col overflow-hidden bg-[var(--b-bg)] text-[var(--b-fg)] transition-colors"
+      style={{ ...THEMES[theme], colorScheme: theme === "chiaro" ? "light" : "dark" }}
       data-tabellone={phase}
+      data-tabellone-theme={theme}
       data-tabellone-swapped={swapped || undefined}
     >
       {live ? (
         <>
           <header className="flex shrink-0 items-center justify-between gap-[2vmin] px-[3vmin] pt-[2.4vmin] text-[4.2vmin] font-bold uppercase leading-none tracking-[0.08em]">
-            <span className="text-[#facc15]" data-board-set-label>
+            <span className="text-[var(--b-accent)]" data-board-set-label>
               {boardSetLabel(live)}
             </span>
             {live.sets.length > 0 && (
-              <span className="tabular min-w-0 truncate text-[3.4vmin] font-semibold normal-case tracking-normal text-white/60" data-board-partials>
+              <span className="tabular min-w-0 truncate text-[3.4vmin] font-semibold normal-case tracking-normal text-[var(--b-muted)]" data-board-partials>
                 {live.sets.map((set) => `${set.home}-${set.away}`).join("  ·  ")}
               </span>
             )}
-            <span className="tabular text-white/60">{now !== null ? clock.format(now) : ""}</span>
+            <span className="tabular text-[var(--b-muted)]">{now !== null ? clock.format(now) : ""}</span>
           </header>
 
           <div className={cn("flex min-h-0 flex-1 gap-[2.4vmin] p-[3vmin] portrait:flex-col", swapped ? "flex-row-reverse portrait:flex-col-reverse" : "flex-row")}>
@@ -246,41 +288,37 @@ export function TabelloneClient() {
         </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-[3vmin] px-[6vmin] text-center">
-          <Volleyball className="h-[12vmin] w-[12vmin] text-[#facc15]" aria-hidden />
+          <Volleyball className="h-[12vmin] w-[12vmin] text-[var(--b-accent)]" aria-hidden />
           <p className="font-display text-[7vmin] font-extrabold uppercase leading-none tracking-[0.04em]">
-            {!loaded ? "Collegamento…" : denied === "login" ? "Accedi di nuovo" : denied ? "Serve lo Scout" : "In attesa della partita"}
+            {!loaded ? "Collegamento…" : invalid ? "Link non più valido" : "In attesa della partita"}
           </p>
           {loaded && (
-            <p className="max-w-[90vmin] text-[3.4vmin] leading-snug text-white/60" data-board-message>
-              {denied === "login" ? (
-                <>
-                  L&apos;accesso di questo tablet è scaduto.{" "}
-                  <a href="/login" className="font-semibold text-white underline underline-offset-4">
-                    Accedi
-                  </a>{" "}
-                  con l&apos;account dello staff, poi riapri il tabellone dallo Scout.
-                </>
-              ) : denied ? (
-                "Questo account non ha il permesso «Scout»: accedi con un account che ce l'ha."
-              ) : (
-                "Il tabellone si accende da solo appena si prepara lo Scout della partita di oggi (anche con la diretta spenta) e segue ogni punto."
-              )}
+            <p className="max-w-[90vmin] text-[3.4vmin] leading-snug text-[var(--b-muted)]" data-board-message>
+              {invalid
+                ? "Questo link del tabellone è cambiato: riaprilo dallo Scout, scheda «Tabellone per la palestra»."
+                : "Il tabellone si accende da solo appena si prepara lo Scout della partita di oggi (anche con la diretta spenta) e segue ogni punto."}
             </p>
           )}
-          {now !== null && <p className="tabular font-display text-[16vmin] font-extrabold leading-none text-white/85">{clock.format(now)}</p>}
+          {now !== null && <p className="tabular font-display text-[16vmin] font-extrabold leading-none opacity-85">{clock.format(now)}</p>}
         </div>
       )}
 
-      <footer className="flex shrink-0 items-center justify-between gap-[2vmin] px-[3vmin] pb-[2vmin] text-[2.2vmin] text-white/35">
-        <button
-          type="button"
-          onClick={toggleSwap}
-          className="inline-flex items-center gap-[1vmin] rounded-full px-[1.6vmin] py-[1vmin] hover:bg-white/10 hover:text-white/70"
-          data-board-swap
-        >
-          <ArrowLeftRight className="h-[2.8vmin] w-[2.8vmin]" aria-hidden />
-          Scambia lati
-        </button>
+      <footer className="flex shrink-0 items-center justify-between gap-[2vmin] px-[3vmin] pb-[2vmin] text-[2.2vmin] text-[var(--b-faint)]">
+        <div className="flex items-center gap-[1vmin]">
+          <button type="button" onClick={() => sidesChoice.write(swapped ? "normale" : "scambiati")} className={footerButton} data-board-swap>
+            <ArrowLeftRight className="h-[2.8vmin] w-[2.8vmin]" aria-hidden />
+            Scambia lati
+          </button>
+          <button
+            type="button"
+            onClick={() => themeChoice.write(theme === "scuro" ? "chiaro" : "scuro")}
+            className={footerButton}
+            data-board-theme-toggle
+          >
+            {theme === "scuro" ? <Sun className="h-[2.8vmin] w-[2.8vmin]" aria-hidden /> : <Moon className="h-[2.8vmin] w-[2.8vmin]" aria-hidden />}
+            {theme === "scuro" ? "Tema chiaro" : "Tema scuro"}
+          </button>
+        </div>
         {stale ? (
           <span className="inline-flex items-center gap-[1vmin] rounded-full bg-[#f59e0b] px-[2vmin] py-[0.8vmin] font-bold text-black" data-board-stale>
             <WifiOff className="h-[2.8vmin] w-[2.8vmin]" aria-hidden />
@@ -290,12 +328,7 @@ export function TabelloneClient() {
           <span>{demo ? "Partita finta di prova" : "Risultato non ufficiale · dallo Scout"}</span>
         )}
         {fullscreen.can ? (
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="inline-flex items-center gap-[1vmin] rounded-full px-[1.6vmin] py-[1vmin] hover:bg-white/10 hover:text-white/70"
-            data-board-fullscreen
-          >
+          <button type="button" onClick={toggleFullscreen} className={footerButton} data-board-fullscreen>
             {fullscreen.on ? <Minimize className="h-[2.8vmin] w-[2.8vmin]" aria-hidden /> : <Maximize className="h-[2.8vmin] w-[2.8vmin]" aria-hidden />}
             {fullscreen.on ? "Esci" : "Schermo intero"}
           </button>
@@ -326,8 +359,8 @@ function TeamPanel({
 }) {
   return (
     <section
-      className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[2.4vmin] bg-white/[0.045] ring-1 ring-white/10"
-      style={{ borderTop: `1.4vmin solid ${team.color}` }}
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[2.4vmin] bg-[var(--b-panel)]"
+      style={{ borderTop: `1.4vmin solid ${team.color}`, boxShadow: "inset 0 0 0 1px var(--b-line), var(--b-shadow)" }}
       aria-label={team.name}
       data-board-team={side}
     >
@@ -337,7 +370,7 @@ function TeamPanel({
           className={cn("absolute left-[3vmin] top-[2.2vmin] transition-opacity", serving ? "opacity-100" : "opacity-0")}
           data-board-serving={serving || undefined}
         >
-          <Volleyball className="h-[5.4vmin] w-[5.4vmin] text-[#facc15]" aria-hidden />
+          <Volleyball className="h-[5.4vmin] w-[5.4vmin] text-[var(--b-accent)]" aria-hidden />
           <span className="sr-only">{serving ? "Batte" : ""}</span>
         </span>
         {/* Un nome lungo va su due righe, mai tagliato a metà. */}
@@ -349,7 +382,7 @@ function TeamPanel({
           <p
             className={cn(
               "tabular absolute top-[1vmin] rounded-full px-[2.6vmin] py-[0.8vmin] text-[4.2vmin] font-extrabold uppercase leading-none tracking-[0.06em]",
-              timeoutLeft <= 10 ? "bg-[#ef4444] text-white" : "bg-[#facc15] text-black",
+              timeoutLeft <= 10 ? "bg-[#dc2626] text-white" : "bg-[#facc15] text-black",
             )}
             data-board-timeout-alert={side}
           >
@@ -367,12 +400,12 @@ function TeamPanel({
 
       <div className="flex items-end justify-between gap-[2vmin] px-[3vmin] pb-[2.4vmin]">
         {finished ? (
-          <span className="text-[3.6vmin] font-bold uppercase tracking-[0.1em] text-white/60">Set vinti</span>
+          <span className="text-[3.6vmin] font-bold uppercase tracking-[0.1em] text-[var(--b-muted)]">Set vinti</span>
         ) : (
           <div className="flex items-center gap-[1.6vmin]">
-            <span className="text-[3vmin] font-bold uppercase tracking-[0.1em] text-white/55">Set</span>
+            <span className="text-[3vmin] font-bold uppercase tracking-[0.1em] text-[var(--b-muted)]">Set</span>
             <span
-              className="tabular grid min-w-[9vmin] place-items-center rounded-[1.4vmin] bg-white/10 px-[1.6vmin] py-[0.4vmin] font-display text-[7.4vmin] font-extrabold leading-tight"
+              className="tabular grid min-w-[9vmin] place-items-center rounded-[1.4vmin] bg-[var(--b-chip)] px-[1.6vmin] py-[0.4vmin] font-display text-[7.4vmin] font-extrabold leading-tight"
               data-board-sets={side}
             >
               {team.sets}
@@ -381,12 +414,13 @@ function TeamPanel({
         )}
         {!finished && (
           <div className="flex items-center gap-[1.4vmin]" data-board-timeouts={side} data-used={timeoutsUsed}>
-            <span className="text-[3vmin] font-bold uppercase tracking-[0.1em] text-white/55">Time-out</span>
+            <span className="text-[3vmin] font-bold uppercase tracking-[0.1em] text-[var(--b-muted)]">Time-out</span>
             {Array.from({ length: TIMEOUTS_PER_SET }, (_, index) => (
               <span
                 key={index}
                 aria-hidden
-                className={cn("h-[4.2vmin] w-[4.2vmin] rounded-full", index < timeoutsUsed ? "bg-[#facc15]" : "ring-[0.5vmin] ring-inset ring-white/25")}
+                className={cn("h-[4.2vmin] w-[4.2vmin] rounded-full", index < timeoutsUsed && "bg-[var(--b-accent)]")}
+                style={index < timeoutsUsed ? undefined : { boxShadow: "inset 0 0 0 0.5vmin var(--b-dot-off)" }}
               />
             ))}
             <span className="sr-only">

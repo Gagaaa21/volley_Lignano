@@ -3,17 +3,17 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { BOARD_PATH as PATH } from "@/lib/diretta/tabellone";
 
 /**
- * «Tabellone per la palestra»: un tablet al posto del tabellone segnapunti (vedi /tabellone), con il punteggio dello Scout. Non è
- * pubblico: si apre con l'accesso dello staff. Qui il pulsante per aprirlo, l'indirizzo da copiare e la partita finta per provarlo.
+ * «Tabellone per la palestra»: un tablet al posto del tabellone segnapunti, con il punteggio dello Scout. Non è sul sito
+ * pubblico: si apre con il link con la chiave (`href`, vedi src/lib/scout/boardLink.ts), senza accesso e senza scadenza. Qui il
+ * pulsante per aprirlo, il link da copiare e la partita finta per provarlo.
  */
-export function TabelloneCard() {
+export function TabelloneCard({ href }: { href: string }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(new URL(PATH, window.location.origin).href);
+      await navigator.clipboard.writeText(new URL(href, window.location.origin).href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -30,12 +30,12 @@ export function TabelloneCard() {
           <h2 className="font-display text-base font-bold text-foreground">Tabellone per la palestra</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Un tablet al posto del tabellone segnapunti: punti, set vinti, chi batte e time-out (con il conto dei 30 secondi), presi dallo Scout
-            ogni secondo, anche con la diretta spenta. Non è pubblico: sul tablet accedi con il tuo account, poi aprilo da qui, in orizzontale, e tocca
-            «Schermo intero».
+            ogni secondo, anche con la diretta spenta. Non è sul sito pubblico: si apre solo con questo link, senza accesso e senza scadenza. Aprilo sul
+            tablet (o mandatelo e salvalo nei preferiti), in orizzontale, e tocca «Schermo intero». Tema scuro o chiaro dal tabellone.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <a
-              href={PATH}
+              href={href}
               target="_blank"
               rel="noopener"
               className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -46,10 +46,10 @@ export function TabelloneCard() {
             </a>
             <Button type="button" variant="outline" onClick={copy} data-tabellone-copy>
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copiato" : "Copia l'indirizzo"}
+              {copied ? "Copiato" : "Copia il link"}
             </Button>
             <a
-              href={`${PATH}?prova=1`}
+              href={`${href}?prova=1`}
               target="_blank"
               rel="noopener"
               className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-primary hover:underline"

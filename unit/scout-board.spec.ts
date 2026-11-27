@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createEmptyStore, createMemoryRepo } from "@/lib/db/memory";
 import { addPlayer, addRally, addTimeout, newScoutData, opponentPlayer, setLineup, updateSettings } from "@/lib/scout/actions";
+import { boardHref, boardKey, isBoardKey } from "@/lib/scout/boardLink";
 import { BOARD_SCOUT_KEY, boardSnapshotFrom, clearBoardScore, publishBoardScore, toBoardScore } from "@/lib/scout/boardSnapshot";
 import { PUBLIC_LIVE_SCOUT_KEY } from "@/lib/scout/publicSnapshot";
 import type { MatchScout, ScoutData } from "@/lib/scout/types";
@@ -78,4 +79,14 @@ test("con la diretta accesa la copia del tabellone è la stessa: la diretta non 
   // E si spegne la diretta a metà: il tabellone continua.
   const switched = { ...scout(6, 4, { publicLive: true }) };
   expect(toBoardScore({ ...switched, ...updateSettings(switched, { publicLive: false }) }, MATCH)).toEqual(off);
+});
+
+test("il link del tabellone: una chiave lunga e sempre uguale, che si controlla senza accesso; le altre no", () => {
+  const key = boardKey();
+  expect(key).toMatch(/^[A-Za-z0-9_-]{32}$/);
+  expect(boardKey()).toBe(key);
+  expect(boardHref()).toBe(`/tabellone/${key}`);
+  expect(isBoardKey(key)).toBe(true);
+  expect(isBoardKey(`${key.slice(0, 31)}${key[31] === "A" ? "B" : "A"}`)).toBe(false);
+  for (const wrong of ["", "abc", `${key}x`, key.slice(1), "../../etc/passwd", "a".repeat(32)]) expect(isBoardKey(wrong)).toBe(false);
 });

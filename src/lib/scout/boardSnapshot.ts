@@ -6,10 +6,10 @@ import type { MatchScout } from "./types";
 import { z } from "zod";
 
 /**
- * Copia compatta del punteggio per il tabellone della palestra (/tabellone): solo chi è in palestra la vede, su un tablet
- * con l'accesso dello staff. A differenza della copia pubblica (publicSnapshot.ts) non dipende dalla diretta: c'è anche con
- * «Punteggio live» spento nello Scout, e non finisce mai sul sito pubblico (si legge solo da /api/scout/tabellone, con la
- * sessione e il permesso «Scout»).
+ * Copia compatta del punteggio per il tabellone della palestra (/tabellone/<chiave>): solo chi è in palestra la vede, sul
+ * tablet con il link. A differenza della copia pubblica (publicSnapshot.ts) non dipende dalla diretta: c'è anche con
+ * «Punteggio live» spento nello Scout, e non finisce mai sul sito pubblico (si legge solo da /api/tabellone/<chiave>, con la
+ * chiave del link, vedi boardLink.ts).
  *
  * Dentro solo quello che il tabellone mostra: squadre, punti, set, chi batte, time-out, set decisivo. Nessuna giocatrice.
  * Valore salvato: `{ matchId, live }`, aggiornato a ogni salvataggio dello Scout; `live` null quando lo scout è azzerato o la

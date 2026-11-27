@@ -22,6 +22,7 @@ import { getScoutHubTourSteps } from "@/components/tour/scoutSteps";
 import { ScoutWelcome } from "@/components/scout/ScoutWelcome";
 import { DirettaCard } from "./DirettaCard";
 import { TabelloneCard } from "./TabelloneCard";
+import { boardHref } from "@/lib/scout/boardLink";
 import { FileLink } from "@/components/files/FileLink";
 import { CategoryFilterLinks } from "@/components/admin/CategoryFilterLinks";
 import { Badge } from "@/components/ui/Badge";
@@ -301,7 +302,7 @@ export default async function ScoutHubPage({ searchParams }: { searchParams: Pro
       {header}
       {welcome}
       <DirettaCard initial={streamSettings} />
-      <TabelloneCard />
+      <TabelloneCard href={boardHref()} />
       {tabs}
       {matches.length === 0 ? (
         <EmptyState
