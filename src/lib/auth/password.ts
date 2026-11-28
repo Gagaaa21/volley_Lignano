@@ -1,9 +1,10 @@
 import "server-only";
 import bcrypt from "bcryptjs";
+import { BCRYPT_COST } from "./passwordCost";
 import { loginPasswordCandidates } from "./passwordInput";
 
 export function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
+  return bcrypt.hash(password, BCRYPT_COST);
 }
 
 export function verifyPassword(password: string, hash: string): Promise<boolean> {

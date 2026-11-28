@@ -510,8 +510,10 @@
   z-index: 40;
   border-bottom: 1px solid var(--border);
   background: color-mix(in oklab, var(--card) 92%, transparent);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  /* La sfocatura con le classi di Tailwind e non con le due proprietà a mano: nel CSS compilato la regola scritta a mano
+     perdeva `backdrop-filter` e teneva solo la versione con il prefisso -webkit-, che capisce soltanto Safari. Su Chrome e
+     Android l'intestazione non sfocava più e quello che le scorreva sotto (titolo, pulsanti) si leggeva attraverso. */
+  @apply backdrop-blur-[16px] backdrop-saturate-[1.4];
 }
 
 /* Schermo intero (Live score, Scout) su iPad e iPhone: la barra di stato con l'ora e la batteria sfoca quello
@@ -638,8 +640,8 @@
   border-radius: 1.5rem;
   border: 1px solid var(--border);
   background: color-mix(in oklab, var(--card) 96%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* Come per page-header: la sfocatura con la classe di Tailwind, che esce con tutte e due le proprietà. */
+  @apply backdrop-blur-[14px];
   box-shadow: var(--shadow-pop);
 }
 

@@ -33,6 +33,7 @@ export default async function OpengraphImage() {
           background: "linear-gradient(135deg, #2b64a1, #193e66)",
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse disegna solo <img>: next/image qui non esiste */}
         <img src={crestSrc} alt="" width={220} height={220} style={{ objectFit: "contain" }} />
         <div
           style={{

@@ -2,6 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { getRepo } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { isAllowedPushEndpoint } from "@/lib/pushEndpoint";
 import type { AdminPage, PushSubscriptionRecord, TrainingTeam } from "@/lib/types";
 
 let configured = false;
@@ -61,9 +62,11 @@ async function sendToSubscriptions(
     tag: payload.tag,
   });
 
-  const result: PushResult = { delivered: 0, removed: 0, failed: 0 };
+  // Anche chi era già iscritto: il server contatta solo i servizi push dei browser, mai un indirizzo che non lo è.
+  const sendable = subscriptions.filter((sub) => isAllowedPushEndpoint(sub.endpoint));
+  const result: PushResult = { delivered: 0, removed: 0, failed: subscriptions.length - sendable.length };
   await Promise.all(
-    subscriptions.map(async (sub) => {
+    sendable.map(async (sub) => {
       try {
         // "urgency: high" dice al servizio push (FCM/APNs/Mozilla) di
         // consegnare subito anche a schermo spento, in risparmio energetico

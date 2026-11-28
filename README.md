@@ -857,7 +857,15 @@ staff (Developer e Admin).
   che chi usa il dispositivo ha attivato con un tocco (`chosen` in
   `subscribeTeam`) non viene mai tolta dalla pulizia automatica. I componenti
   browser (`browserPush.ts`) e la logica (`teamPush.ts`) condividono gli stessi
-  test con un finto servizio push (`e2e/fakePush.ts`).
+  test con un finto servizio push (`e2e/fakePush.ts`, con indirizzi di Google).
+  **Quali indirizzi si accettano**: l'iscrizione la manda chiunque apra il sito
+  (`POST /api/push/subscribe`, senza accesso) e poi è il server a contattare
+  quell'indirizzo a ogni avviso, quindi `src/lib/pushEndpoint.ts` ammette solo i
+  servizi push veri dei browser (Google, Apple, Mozilla, Microsoft), solo https,
+  senza credenziali né porte strane, e con chiavi di lunghezza ragionevole;
+  anche l'invio (`sendToSubscriptions`) salta ciò che non è di quei servizi.
+  Provato in `unit/push-endpoint.spec.ts`. Se un nuovo servizio push non
+  venisse riconosciuto, il suo dominio si aggiunge in quel file.
 - **Classifiche e risultati ufficiali (FIPAV)** — il sito legge dal portale
   della federazione (stessa piattaforma per tutti i comitati, es.
   `udine.federvolley.it`) la classifica del girone di U14 e U15 e i risultati

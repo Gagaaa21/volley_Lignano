@@ -75,7 +75,7 @@ test("si attivano e si disattivano le squadre una per una: sul sito e nel dispos
 
 test("un'iscrizione registrata con la squadra sbagliata si vede, e «Rimetti a posto» la rifà giusta", async ({ page }) => {
   test.setTimeout(180_000);
-  const wrong = `https://push.example/${uniqueName("sbagliata-")}`;
+  const wrong = `https://fcm.googleapis.com/fcm/send/${uniqueName("sbagliata-")}`;
   await loginAsDev(page);
   const base = await counts(page);
   // Come prima dell'aggiornamento: l'iscrizione del dispositivo (sul worker di «/») è registrata come Minivolley.
@@ -109,8 +109,8 @@ test("un'iscrizione registrata con la squadra sbagliata si vede, e «Rimetti a p
 
 test("«Togli tutte le notifiche da qui» le toglie tutte e due dal dispositivo e dal sito", async ({ page }) => {
   test.setTimeout(180_000);
-  const u14 = `https://push.example/${uniqueName("u14-")}`;
-  const s3 = `https://push.example/${uniqueName("s3-")}`;
+  const u14 = `https://fcm.googleapis.com/fcm/send/${uniqueName("u14-")}`;
+  const s3 = `https://fcm.googleapis.com/fcm/send/${uniqueName("s3-")}`;
   await loginAsDev(page);
   const base = await counts(page);
   await addRow(page, u14, "u14u15");
@@ -138,7 +138,7 @@ test("«Togli tutte le notifiche da qui» le toglie tutte e due dal dispositivo 
 
 test("nell'app di Minivolley su iPhone, se ci sono anche le notifiche di Under 14, la pagina lo dice e da lì si tolgono", async ({ page }) => {
   test.setTimeout(180_000);
-  const stray = `https://push.example/${uniqueName("u14-nell-app-s3-")}`;
+  const stray = `https://fcm.googleapis.com/fcm/send/${uniqueName("u14-nell-app-s3-")}`;
   await loginAsDev(page);
   const base = await counts(page);
   // Come prima dell'aggiornamento: dentro l'app di Minivolley c'è un'iscrizione sul worker di «/», registrata come U14/U15.
