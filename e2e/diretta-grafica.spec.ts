@@ -131,9 +131,9 @@ test("sfondo trasparente, nessun avviso del sito e la barra in alto a sinistra c
   for (const target of ["document.documentElement", "document.body"]) {
     expect(await page.evaluate((t) => getComputedStyle(eval(t)).backgroundColor, target)).toBe("rgba(0, 0, 0, 0)");
   }
-  // Su 1920 di larghezza la barra è larga 608 px (38 rem) e sta nell'angolo in alto a sinistra: tutto scala con la larghezza.
+  // Su 1920 di larghezza la barra è larga 544 px (34 rem) e sta nell'angolo in alto a sinistra: tutto scala con la larghezza.
   const box = (await bug.boundingBox())!;
-  expect(box.width).toBeCloseTo(608, 0);
+  expect(box.width).toBeCloseTo(544, 0);
   expect(box.x).toBeCloseTo(64, 0);
   expect(box.y).toBeLessThan(100);
   // Di partenza una barra sola, come in SuperLega: niente barra larga in basso.

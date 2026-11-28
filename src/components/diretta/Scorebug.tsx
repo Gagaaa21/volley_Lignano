@@ -16,7 +16,8 @@ import { TeamMark, tone } from "./TeamMark";
  * squadra la striscia del suo colore (giallo per Lignano), il logo, il nome corto («LIGNANO»), il pallone su chi batte, i
  * time-out usati (due tacche), i set vinti in giallo e i punti nel riquadro bianco, che scorrono in su a ogni punto; sotto, i
  * parziali e, quando serve, l'etichetta che scende: SET POINT / MATCH POINT o la serie in corso. A ogni punto un lampo di luce
- * passa sulla riga di chi segna. Misure in rem: la pagina fissa 1 rem a 1/120 della larghezza (16 px su 1920), così la barra
+ * passa sulla riga di chi segna e il suo riquadro dei punti si accende di giallo per un attimo. Compatta, con i filetti tra
+ * nome, time-out, set e punti, per coprire poco video. Misure in rem: la pagina fissa 1 rem a 1/120 della larghezza (16 px su 1920), così la barra
  * ha lo stesso aspetto con qualunque dimensione della sorgente.
  */
 
@@ -35,11 +36,15 @@ function useRises(value: number): number {
 function TimeoutPips({ used, side }: { used: number; side: Side }) {
   const spent = Math.min(Math.max(used, 0), TIMEOUTS_PER_SET);
   return (
-    <span className="relative flex shrink-0 flex-col justify-center gap-[0.24rem] px-[0.6rem]" data-grafica-timeouts={spent} data-grafica-timeouts-side={side}>
+    <span
+      className="relative flex shrink-0 flex-col justify-center gap-[0.22rem] border-l border-white/10 px-[0.55rem]"
+      data-grafica-timeouts={spent}
+      data-grafica-timeouts-side={side}
+    >
       {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
         <span
           key={i}
-          className={cn("h-[0.38rem] w-[1.1rem] rounded-full", i >= spent && "bg-white/20")}
+          className={cn("h-[0.34rem] w-[1rem] rounded-full", i >= spent && "bg-white/20")}
           style={i < spent ? { background: SUN, boxShadow: "0 0 0.5rem rgba(255,210,63,0.8)" } : undefined}
         />
       ))}
@@ -69,30 +74,30 @@ function TeamRow({
   dimmed: boolean;
 }) {
   return (
-    <div className="relative flex h-[3.3rem] items-stretch overflow-hidden" data-grafica-team={side}>
+    <div className="relative flex h-[3rem] items-stretch overflow-hidden" data-grafica-team={side}>
       {/* Il colore della squadra: una striscia piena (giallo per Lignano, il suo blu qui sparirebbe). */}
-      <span className="relative w-[0.5rem] shrink-0" style={{ background: tone(side, team.color) }} />
-      {/* Il lampo sulla riga di chi ha appena fatto punto. */}
+      <span className="relative w-[0.45rem] shrink-0" style={{ background: tone(side, team.color) }} />
+      {/* Il lampo sulla riga di chi ha appena fatto punto: una lama di luce sottile che la attraversa, come in TV. */}
       {rises > 0 && (
         <span
           key={rises}
           aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(255,210,63,0.75), rgba(255,255,255,0.85), transparent)", animation: "grafica-row-flash 750ms ease-out both" }}
+          className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-[9rem]"
+          style={{ background: "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0) 100%)", animation: "grafica-row-sheen 700ms ease-out both" }}
           data-grafica-flash={side}
         />
       )}
-      <span className={cn("relative grid w-[3.6rem] shrink-0 place-items-center", dimmed && "opacity-55")}>
-        <TeamMark team={team} side={side} className="h-[2.5rem] w-[2.5rem] rounded-[0.5rem] shadow-[0_0.15rem_0.5rem_rgba(0,0,0,0.35)]" />
+      <span className={cn("relative grid w-[3.3rem] shrink-0 place-items-center", dimmed && "opacity-55")}>
+        <TeamMark team={team} side={side} className="h-[2.25rem] w-[2.25rem] rounded-[0.45rem] shadow-[0_0.15rem_0.5rem_rgba(0,0,0,0.35)]" />
       </span>
-      <span className="relative flex min-w-0 flex-1 items-center gap-[0.6rem] pr-[0.4rem]">
-        <span className={cn("grafica-type truncate text-[1.85rem] tracking-[0.03em]", dimmed ? "text-white/55" : "text-white")} data-grafica-name>
+      <span className="relative flex min-w-0 flex-1 items-center gap-[0.55rem] pr-[0.5rem]">
+        <span className={cn("grafica-type truncate text-[1.7rem] tracking-[0.03em]", dimmed ? "text-white/55" : "text-white")} data-grafica-name>
           {winner && <Trophy aria-label="Ha vinto" className="mb-[0.15rem] mr-[0.4rem] inline h-[1.3rem] w-[1.3rem]" style={{ color: SUN }} />}
           {teamShortName(team.name)}
         </span>
         <Volleyball
           aria-label={serving ? "Al servizio" : undefined}
-          className={cn("h-[1.4rem] w-[1.4rem] shrink-0", !serving && "invisible")}
+          className={cn("h-[1.25rem] w-[1.25rem] shrink-0", !serving && "invisible")}
           style={{ color: SUN, filter: "drop-shadow(0 0 0.35rem rgba(255,210,63,0.8))" }}
           data-grafica-serving={serving ? side : undefined}
         />
@@ -100,18 +105,20 @@ function TeamRow({
       {timeouts !== null && <TimeoutPips used={timeouts} side={side} />}
       {showSets && (
         <span
-          className="grafica-type relative grid w-[2.9rem] shrink-0 place-items-center text-[1.9rem] tabular-nums"
+          className="grafica-type relative grid w-[2.6rem] shrink-0 place-items-center border-l border-white/10 text-[1.75rem] tabular-nums"
           style={{ color: SUN, background: "rgba(3,10,40,0.35)" }}
           data-grafica-sets={side}
         >
           {team.sets}
         </span>
       )}
-      {/* I punti: il numero nuovo entra da sotto. Il margine a destra lascia posto al taglio obliquo. */}
-      <span className={cn("relative grid w-[4.8rem] shrink-0 place-items-center overflow-hidden pr-[1rem]", dimmed && "opacity-80")} style={{ background: PAPER }}>
+      {/* I punti: il numero nuovo entra da sotto e, a chi segna, il riquadro si accende di giallo per un attimo. Il margine a
+          destra lascia posto al taglio obliquo. */}
+      <span className={cn("relative grid w-[4.4rem] shrink-0 place-items-center overflow-hidden pr-[0.9rem]", dimmed && "opacity-80")} style={{ background: PAPER }}>
+        {rises > 0 && <span key={rises} aria-hidden className="absolute inset-0" style={{ background: GOLD, animation: "grafica-points-flash 950ms ease-out both" }} />}
         <span
           key={points}
-          className="grafica-type block text-[2.55rem] tabular-nums"
+          className="grafica-type relative block text-[2.35rem] tabular-nums"
           style={{ color: INK, animation: "grafica-roll 420ms cubic-bezier(.2,.8,.2,1)" }}
           data-grafica-score={side}
         >
@@ -203,16 +210,16 @@ export function Scorebug({ live, flags = true }: { live: PublicLiveScore; flags?
   const awayRises = useRises(finished ? 0 : live.away.score);
 
   return (
-    <div className="relative w-[38rem] text-white" data-grafica-bug>
+    <div className="relative w-[34rem] text-white" data-grafica-bug>
       {/* La linguetta sopra: categoria e set in corso. */}
-      <div className="flex h-[2rem] w-fit items-stretch" style={{ filter: DROP }}>
+      <div className="flex h-[1.85rem] w-fit items-stretch" style={{ filter: DROP }}>
         {live.category && (
-          <span className="grafica-type flex items-center px-[0.8rem] text-[1.1rem]" style={{ background: GOLD, color: INK }} data-grafica-category>
+          <span className="grafica-type flex items-center px-[0.75rem] text-[1.02rem]" style={{ background: GOLD, color: INK }} data-grafica-category>
             {live.category}F
           </span>
         )}
         <span
-          className="grafica-type flex items-center pl-[0.8rem] pr-[1.5rem] text-[1.1rem] tracking-[0.1em] text-white"
+          className="grafica-type flex items-center pl-[0.75rem] pr-[1.4rem] text-[1.02rem] tracking-[0.1em] text-white"
           style={{ background: GLASS_DARK, clipPath: cutRight("0.7rem") }}
           data-grafica-phase
         >
@@ -249,7 +256,7 @@ export function Scorebug({ live, flags = true }: { live: PublicLiveScore; flags?
         </div>
         {live.sets.length > 0 && (
           <div
-            className="flex w-fit flex-wrap items-center gap-x-[1rem] gap-y-[0.2rem] py-[0.35rem] pl-[1rem] pr-[1.8rem] text-[1.05rem] font-bold tabular-nums"
+            className="flex w-fit flex-wrap items-center gap-x-[1rem] gap-y-[0.2rem] py-[0.32rem] pl-[1rem] pr-[1.8rem] text-[1rem] font-bold tabular-nums"
             style={{ background: GLASS_DARK, clipPath: cutRight("0.6rem") }}
             data-grafica-partials
           >
