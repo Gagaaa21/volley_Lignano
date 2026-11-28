@@ -57,6 +57,67 @@ export const CUE_VIEWER_FRESH_MS = 30_000;
 /** Il tablet non manda due scritte una sopra l'altra: tra un tocco e l'altro (anche di tasti diversi) almeno questo. */
 export const CUE_COOLDOWN_MS = 1_500;
 
+/**
+ * Il minuto di silenzio (vedi SilenceCard e la pulsantiera): lo staff lo accende prima della partita, con una dedica
+ * facoltativa; la grafica mostra una scritta sobria in basso e nasconde tutto il resto (punteggio, grafiche, scritte, suoni).
+ * Si spegne con «Termina» o da solo dopo SILENCE_MAX_MS, se ci si dimentica. Chiave a parte: non tocca scritte e suoni.
+ */
+export const LIVE_SILENCE_KEY = "live_silence";
+export const SILENCE_MAX_MS = 3 * 60_000;
+export const SILENCE_TEXT_MAX = 80;
+
+const silenceSchema = z.object({
+  id: z.string().min(1).max(64),
+  text: z.string().max(SILENCE_TEXT_MAX).nullable(),
+  at: z.number().int().min(0),
+  until: z.number().int().min(0),
+});
+export type StoredSilence = z.infer<typeof silenceSchema>;
+
+export function parseSilence(raw: string | null | undefined): StoredSilence | null {
+  if (!raw) return null;
+  try {
+    const parsed = silenceSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** La dedica come la scrive lo staff, pulita: spazi in più tolti, al massimo SILENCE_TEXT_MAX caratteri; vuota = nessuna. */
+export function cleanSilenceText(input: string | null | undefined): string | null {
+  const text = (input ?? "").replace(/\s+/g, " ").trim().slice(0, SILENCE_TEXT_MAX).trim();
+  return text === "" ? null : text;
+}
+
+/** Il valore da salvare quando si accende: dura al massimo SILENCE_MAX_MS. */
+export function silenceValue(id: string, text: string | null, at: number): string {
+  return JSON.stringify({ id, text, at, until: at + SILENCE_MAX_MS } satisfies StoredSilence);
+}
+
+/** Il valore da salvare quando si spegne: lo stesso, finito adesso. */
+export function stoppedSilenceValue(stored: StoredSilence, now: number): string {
+  return JSON.stringify({ ...stored, until: Math.min(stored.until, now) } satisfies StoredSilence);
+}
+
+/** È acceso adesso? */
+export function isSilenceOn(stored: StoredSilence | null, now: number): stored is StoredSilence {
+  return Boolean(stored && now < stored.until);
+}
+
+/** Il minuto di silenzio per la grafica: la dedica e da quanto è cominciato (`since`, ms), solo mentre è acceso. */
+export interface PublicSilence {
+  id: string;
+  text: string | null;
+  since: number;
+}
+
+export function publicSilenceFrom(raw: string | null | undefined, now: number): PublicSilence | null {
+  const stored = parseSilence(raw);
+  if (!isSilenceOn(stored, now)) return null;
+  return { id: stored.id, text: stored.text, since: Math.max(0, now - stored.at) };
+}
+
 /** I file audio caricati dallo staff: pochi secondi di jingle, al massimo questo. */
 export const MAX_SOUND_BYTES = 400_000;
 export const SOUND_TYPES = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/ogg", "audio/wav", "audio/x-wav", "audio/webm"] as const;

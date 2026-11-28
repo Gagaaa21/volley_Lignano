@@ -5,10 +5,13 @@ import {
   CUE_VIEWER_FRESH_MS,
   LIVE_CUE_LAST_KEY,
   LIVE_CUES_KEY,
+  LIVE_SILENCE_KEY,
   publicCueFrom,
   publicCueSounds,
+  publicSilenceFrom,
   type CueKind,
   type PublicCue,
+  type PublicSilence,
 } from "@/lib/diretta/cues";
 import { withPregame } from "@/lib/diretta/pregame";
 import { isMatchTime, LIVE_STREAM_KEY, parseStreamSettings } from "@/lib/diretta/streams";
@@ -84,6 +87,7 @@ export async function GET(request: Request) {
   let streamSaved = false;
   let cue: PublicCue | null = null;
   let cueSounds: Partial<Record<CueKind, number>> = {};
+  let silence: PublicSilence | null = null;
   try {
     const repo = await getRepo();
     // Le due fonti sono indipendenti: se una non risponde, l'altra funziona lo stesso.
@@ -97,7 +101,9 @@ export async function GET(request: Request) {
       // undefined = la copia non c'è o non si legge: si ripiega sulla lettura completa qui sotto.
       repo
         .getAppSettings(
-          direct ? [PUBLIC_LIVE_SCOUT_KEY, LIVE_CUES_KEY, LIVE_CUE_LAST_KEY] : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY, LIVE_CUES_KEY, LIVE_CUE_LAST_KEY],
+          direct
+            ? [PUBLIC_LIVE_SCOUT_KEY, LIVE_CUES_KEY, LIVE_CUE_LAST_KEY, LIVE_SILENCE_KEY]
+            : [PUBLIC_LIVE_SCOUT_KEY, LIVE_STREAM_KEY, LIVE_CUES_KEY, LIVE_CUE_LAST_KEY, LIVE_SILENCE_KEY],
         )
         .catch((error: unknown) => {
           console.error("[scout] copia compatta del punteggio live non leggibile:", error);
@@ -110,6 +116,8 @@ export async function GET(request: Request) {
     // Alla pagina /diretta (copia della rete, letture ogni pochi secondi) la scritta resta più a lungo: non scade tra due letture.
     cue = publicCueFrom(settings?.[LIVE_CUES_KEY] ?? null, Date.now(), settings?.[LIVE_CUE_LAST_KEY] ?? null, direct ? CUE_FRESH_MS : CUE_VIEWER_FRESH_MS);
     cueSounds = publicCueSounds(settings?.[LIVE_CUES_KEY] ?? null);
+    // Il minuto di silenzio: la grafica nasconde tutto e mostra la sua scritta (con la dedica, se c'è).
+    silence = publicSilenceFrom(settings?.[LIVE_SILENCE_KEY] ?? null, Date.now());
     const parsed = snapshot ? liveScoreStateSchema.safeParse(snapshot.state) : null;
     if (snapshot && parsed?.success) fromLiveScore = toPublicLiveScore(parsed.data, snapshot.updatedAt);
     if (compact) {
@@ -154,7 +162,7 @@ export async function GET(request: Request) {
   }
   const cdn = live ? "max-age=5, stale-while-revalidate=5" : "max-age=30, stale-while-revalidate=30";
   return Response.json(
-    direct ? { live, cue, cueSounds } : { live, video, cue, cueSounds },
+    direct ? { live, cue, cueSounds, silence } : { live, video, cue, cueSounds, silence },
     { headers: direct ? { "Cache-Control": "no-store" } : { "Cache-Control": "no-store", "Vercel-CDN-Cache-Control": cdn } },
   );
 }

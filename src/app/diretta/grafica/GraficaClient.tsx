@@ -3,6 +3,7 @@
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { CueBurst } from "@/components/diretta/CueBurst";
+import { SILENCE_OUT_MS, SilenceCard } from "@/components/diretta/SilenceCard";
 import { FullScreen } from "@/components/diretta/FullScreen";
 import { LowerThird } from "@/components/diretta/LowerThird";
 import { PregameBanner } from "@/components/diretta/PregameBanner";
@@ -11,9 +12,9 @@ import { ScorebugWide } from "@/components/diretta/ScorebugWide";
 import { VerifyFrame } from "@/components/diretta/VerifyFrame";
 import { cn } from "@/lib/cn";
 import { DEMO_STEP_MS, demoScript } from "@/lib/diretta/demo";
-import { CUE_DURATION_MS, CUE_KINDS, type CueKind, type PublicCue } from "@/lib/diretta/cues";
+import { CUE_DURATION_MS, CUE_KINDS, type CueKind, type PublicCue, type PublicSilence } from "@/lib/diretta/cues";
 import { clampDelaySeconds, nextOffset, stampOf, takeDue, type Reading } from "@/lib/diretta/delay";
-import { playCue, preloadCue } from "@/lib/diretta/jingles";
+import { playCue, preloadCue, stopCueSound } from "@/lib/diretta/jingles";
 import { CUE_CHANNEL, CUE_EVENT, realtimeSocketUrl, RING_MIN_GAP_MS, type RealtimeConfig } from "@/lib/diretta/realtime";
 import { feedReducer, INITIAL_FEED, OPTIONS_MESSAGE, READY_MESSAGE } from "@/lib/diretta/overlayEvents";
 import type { PublicLiveScore } from "@/lib/types";
@@ -133,10 +134,18 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
   // come una TV: sul telefono in verticale è piccola ma intera (e si invita a girarlo), in orizzontale riempie lo schermo.
   const preview = useSyncExternalStore(subscribeNothing, () => !viewer && !("obsstudio" in window), () => false);
   const [feed, dispatch] = useReducer(feedReducer, INITIAL_FEED);
+  // Il minuto di silenzio (vedi LIVE_SILENCE_KEY in cues.ts): la sua scritta in basso e nient'altro. `leaving` durante la
+  // dissolvenza in uscita.
+  const [silence, setSilence] = useState<{ id: string; text: string | null; leaving: boolean } | null>(null);
+  const silenceOn = useRef(false);
+  // L'ultimo stato letto (l'id del minuto di silenzio acceso, o null): la grafica cambia solo quando cambia.
+  const silenceWanted = useRef<string | null>(null);
   // La scritta della pulsantiera in onda (una alla volta: una nuova prende il posto della vecchia).
   const [cue, setCue] = useState<{ id: string; kind: CueKind } | null>(null);
   const cueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showCue = useRef((id: string, kind: CueKind, sound: number | null) => {
+    // Durante il minuto di silenzio niente scritte né suoni.
+    if (silenceOn.current) return;
     if (cueTimer.current) clearTimeout(cueTimer.current);
     setCue({ id, kind });
     cueTimer.current = setTimeout(() => setCue((current) => (current?.id === id ? null : current)), CUE_DURATION_MS);
@@ -163,6 +172,29 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
     // Con il ritardo (pagina /diretta) la scritta aspetta che il video arrivi a quel momento.
     const wait = viewer ? Math.max(0, delayMs.current - fresh.age) : 0;
     setTimeout(() => showCue.current(fresh.id, fresh.kind, fresh.sound), wait);
+  });
+  /**
+   * Il minuto di silenzio letto (dal punteggio o dal campanello): si accende e si spegne quando cambia; con il ritardo (pagina
+   * /diretta) quando il video arriva a quel momento. Accendendolo si ferma il suono in corso e si toglie la scritta.
+   */
+  const takeSilence = useRef((fresh: PublicSilence | null) => {
+    const id = fresh?.id ?? null;
+    if (id === silenceWanted.current) return;
+    silenceWanted.current = id;
+    const wait = viewer ? (fresh ? Math.max(0, delayMs.current - fresh.since) : delayMs.current) : 0;
+    setTimeout(() => {
+      if (silenceWanted.current !== id) return;
+      if (fresh) {
+        silenceOn.current = true;
+        stopCueSound();
+        setCue(null);
+        setSilence({ id: fresh.id, text: fresh.text, leaving: false });
+      } else {
+        silenceOn.current = false;
+        setSilence((current) => (current ? { ...current, leaving: true } : null));
+        setTimeout(() => setSilence((current) => (current?.leaving ? null : current)), SILENCE_OUT_MS);
+      }
+    }, wait);
   });
 
   // Ritardo e scala del punteggio: dall'indirizzo, poi dai messaggi della pagina /diretta.
@@ -224,7 +256,12 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
       try {
         const res = await fetch(endpoint, { signal: controller.signal });
         if (res.ok) {
-          const data = (await res.json()) as { live: PublicLiveScore | null; cue?: PublicCue | null; cueSounds?: Partial<Record<CueKind, number>> };
+          const data = (await res.json()) as {
+            live: PublicLiveScore | null;
+            cue?: PublicCue | null;
+            cueSounds?: Partial<Record<CueKind, number>>;
+            silence?: PublicSilence | null;
+          };
           const live = data.live && data.live.team === "u14u15" ? data.live : null;
           if (!cancelled) {
             const reading: Reading = { at: clock(), stamp: stampOf(live), live };
@@ -241,6 +278,7 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
             // I suoni dei tasti (quelli caricati dallo staff o gli originali) si preparano subito, così al tocco partono senza
             // attesa; solo dove si sentono. Si scaricano una volta: dopo restano in memoria e nella cache.
             if (!viewer) for (const kind of CUE_KINDS) preloadCue(kind, data.cueSounds?.[kind] ?? null);
+            takeSilence.current(data.silence ?? null);
             takeCue.current(data.cue ?? null, false);
           }
           const idle = !viewer && !ringOn.current ? NO_RING_IDLE_POLL_MS : IDLE_POLL_MS;
@@ -288,8 +326,9 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
       try {
         const res = await fetch("/api/diretta/scritta", { signal: controller.signal, cache: "no-store" });
         if (res.ok && !cancelled) {
-          const data = (await res.json()) as { cue: PublicCue | null; cueSounds?: Partial<Record<CueKind, number>> };
+          const data = (await res.json()) as { cue: PublicCue | null; cueSounds?: Partial<Record<CueKind, number>>; silence?: PublicSilence | null };
           for (const kind of CUE_KINDS) preloadCue(kind, data.cueSounds?.[kind] ?? null);
+          takeSilence.current(data.silence ?? null);
           takeCue.current(data.cue ?? null, true);
         }
       } catch {
@@ -390,6 +429,11 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
   const pregame = live?.pregame ?? null;
   const scoreOn = !pregame;
   const banner = pregame && pregame !== "cover" && !fullOn ? pregame : null;
+  // Il minuto di silenzio: quello vero, o nella partita finta con `?silenzio=1` (e `&dedica=…`) per vederlo prima.
+  const demoSilence = demo && params.get("silenzio") === "1" ? { id: "prova", text: params.get("dedica")?.slice(0, 80) || null, leaving: false } : null;
+  const silenceShown = silence ?? demoSilence;
+  // Intanto tutto il resto sparisce piano: la telecamera fa vedere le squadre in campo.
+  const quiet = silenceShown !== null && !silenceShown.leaving;
 
   return (
     <>
@@ -417,31 +461,34 @@ export function GraficaClient({ realtime = null }: { realtime?: RealtimeConfig |
         data-grafica-delay={delaySeconds}
         data-grafica-style={style}
       >
-        {live && banner && (
-          <div className="absolute inset-x-0 top-[3.4rem] flex justify-center px-[2rem]">
-            <PregameBanner live={live} phase={banner} />
-          </div>
-        )}
-        {live && scoreOn && showSmall && (
-          <div className={cn("absolute inset-0 flex px-[4rem] py-[3.4rem] transition-opacity duration-300", POSITIONS[position], fullOn && "opacity-0")}>
-            <Scorebug live={live} />
-          </div>
-        )}
-        {live && scoreOn && showWide && (
-          <div className={cn("absolute inset-x-0 bottom-[2.5rem] flex justify-center px-[2rem] transition-opacity duration-300", fullOn && "opacity-0")}>
-            <ScorebugWide live={live} />
-          </div>
-        )}
-        {live && scoreOn && (timeout || sub || moment) && !fullOn && (
-          <div className={cn("absolute flex flex-col gap-[0.8rem]", stripRight ? "right-[4rem] items-end" : "left-[4rem] items-start", showWide ? "bottom-[12.5rem]" : "bottom-[3.6rem]")}>
-            {sub && <LowerThird card={sub} live={live} now={now} />}
-            {moment && <LowerThird card={moment} live={live} now={now} />}
-            {timeout && <LowerThird card={timeout} live={live} now={now} />}
-          </div>
-        )}
-        {live && full && <FullScreen card={full} live={live} now={now} />}
-        {/* La scritta anche sopra una grafica a schermo intero: il suono parte comunque, e scritta e grido vanno insieme. */}
-        {cue && <CueBurst key={cue.id} kind={cue.kind} />}
+        <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: quiet ? 0 : 1 }} data-grafica-quiet={quiet ? "" : undefined}>
+          {live && banner && (
+            <div className="absolute inset-x-0 top-[3.4rem] flex justify-center px-[2rem]">
+              <PregameBanner live={live} phase={banner} />
+            </div>
+          )}
+          {live && scoreOn && showSmall && (
+            <div className={cn("absolute inset-0 flex px-[4rem] py-[3.4rem] transition-opacity duration-300", POSITIONS[position], fullOn && "opacity-0")}>
+              <Scorebug live={live} />
+            </div>
+          )}
+          {live && scoreOn && showWide && (
+            <div className={cn("absolute inset-x-0 bottom-[2.5rem] flex justify-center px-[2rem] transition-opacity duration-300", fullOn && "opacity-0")}>
+              <ScorebugWide live={live} />
+            </div>
+          )}
+          {live && scoreOn && (timeout || sub || moment) && !fullOn && (
+            <div className={cn("absolute flex flex-col gap-[0.8rem]", stripRight ? "right-[4rem] items-end" : "left-[4rem] items-start", showWide ? "bottom-[12.5rem]" : "bottom-[3.6rem]")}>
+              {sub && <LowerThird card={sub} live={live} now={now} />}
+              {moment && <LowerThird card={moment} live={live} now={now} />}
+              {timeout && <LowerThird card={timeout} live={live} now={now} />}
+            </div>
+          )}
+          {live && full && <FullScreen card={full} live={live} now={now} />}
+          {/* La scritta anche sopra una grafica a schermo intero: il suono parte comunque, e scritta e grido vanno insieme. */}
+          {cue && <CueBurst key={cue.id} kind={cue.kind} />}
+        </div>
+        {silenceShown && <SilenceCard key={silenceShown.id} text={silenceShown.text} leaving={silenceShown.leaving} />}
       </main>
       {verify && <VerifyFrame />}
       {preview && (

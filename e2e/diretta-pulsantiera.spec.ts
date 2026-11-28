@@ -93,7 +93,7 @@ test("pulsantiera: un tocco manda la scritta, i suoni si caricano, si servono co
   expect(light.headers()["cache-control"]).toBe("no-store");
   const lightReading = await light.json();
   expect(lightReading.cue).toMatchObject({ id: reading.cue.id, kind: "ace", sound: null });
-  expect(Object.keys(lightReading).sort()).toEqual(["cue", "cueSounds"]);
+  expect(Object.keys(lightReading).sort()).toEqual(["cue", "cueSounds", "silence"]);
 
   // Il suono del tasto: l'Ace è solo animazione; si carica un file, lo si scarica come audio, poi lo si toglie e torna muto.
   await page.locator("[data-pulsantiera-sounds] summary").click();
@@ -138,4 +138,62 @@ test("pulsantiera: dalla scheda Diretta video si apre la pagina, e senza accesso
   await anonymous.goto(new URL("/admin/scout/pulsantiera", page.url()).href);
   await expect(anonymous).toHaveURL(/\/login/);
   await anonymous.close();
+});
+
+type Silence = { id: string; text: string | null; since: number };
+
+test("grafica: il minuto di silenzio toglie punteggio e scritte, mostra la sua scritta con la dedica e poi tutto torna", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const state: { cue: Cue | null; silence: Silence | null } = { cue: null, silence: null };
+  await page.route(/\/api\/livescore\/pubblico/, (route) => route.fulfill({ json: { live: LIVE, cue: state.cue, cueSounds: {}, silence: state.silence } }));
+  await page.goto("/diretta/grafica");
+  await expect(page.locator("main")).toHaveAttribute("data-grafica", "live");
+  await expect(page.locator("[data-grafica-score]").first()).toBeVisible();
+
+  state.silence = { id: "s1", text: "In ricordo di un amico della squadra", since: 300 };
+  const card = page.locator("[data-grafica-silence]");
+  await expect(card).toBeVisible({ timeout: 5000 });
+  await expect(card).toContainText("Un minuto di silenzio");
+  await expect(page.locator("[data-grafica-silence-text]")).toHaveText("In ricordo di un amico della squadra");
+  // Tutto il resto sparisce (in dissolvenza), e una scritta della pulsantiera non parte.
+  await expect(page.locator("[data-grafica-quiet]")).toHaveCount(1);
+  await expect.poll(() => page.locator("[data-grafica-quiet]").evaluate((element) => getComputedStyle(element).opacity)).toBe("0");
+  state.cue = { id: "durante", kind: "monsterBlock", age: 200, sound: null };
+  await page.waitForTimeout(2500);
+  await expect(page.locator("[data-grafica-cue]")).toHaveCount(0);
+
+  // «Termina»: la scritta se ne va piano, punteggio e grafiche tornano.
+  state.cue = null;
+  state.silence = null;
+  await expect(card).toHaveCount(0, { timeout: 6000 });
+  await expect(page.locator("[data-grafica-quiet]")).toHaveCount(0);
+  await expect.poll(() => page.locator("main > div").first().evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
+});
+
+test("pulsantiera: il minuto di silenzio con la dedica arriva alla grafica, spegne i tasti e si termina", async ({ page }) => {
+  test.setTimeout(120_000);
+  await loginAsDev(page);
+  await page.goto("/admin/scout/pulsantiera");
+  const panel = page.locator("[data-pulsantiera-silence]");
+  await expect(panel).toHaveAttribute("data-pulsantiera-silence", "off");
+  await page.locator("[data-silence-text]").fill("  In ricordo   di un amico  ");
+  await page.locator("[data-silence-start]").click();
+  await expect(panel).toHaveAttribute("data-pulsantiera-silence", "on", { timeout: 15_000 });
+  await expect(page.locator("[data-pulsantiera-status]")).toHaveAttribute("data-pulsantiera-status", "silence");
+  await expect(panel).toContainText("In ricordo di un amico");
+  // I tasti sono spenti, e il server le scritte le rifiuta comunque.
+  await expect(page.locator('[data-cue-button="ace"]')).toBeDisabled();
+  const reading = await (await page.request.get("/api/diretta/scritta")).json();
+  expect(reading.silence).toMatchObject({ text: "In ricordo di un amico" });
+  expect(Object.keys(reading.silence).sort()).toEqual(["id", "since", "text"]);
+  const viewer = await (await page.request.get("/api/livescore/pubblico?prima=1&regia=1")).json();
+  expect(viewer.silence).toMatchObject({ text: "In ricordo di un amico" });
+
+  // Ricaricata la pagina, la pulsantiera sa che è ancora acceso.
+  await page.reload();
+  await expect(panel).toHaveAttribute("data-pulsantiera-silence", "on");
+  await page.locator("[data-silence-stop]").click();
+  await expect(panel).toHaveAttribute("data-pulsantiera-silence", "off", { timeout: 15_000 });
+  await expect(page.locator('[data-cue-button="ace"]')).toBeEnabled();
+  expect((await (await page.request.get("/api/diretta/scritta")).json()).silence).toBeNull();
 });

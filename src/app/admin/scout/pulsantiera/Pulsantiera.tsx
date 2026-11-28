@@ -1,25 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, useTransition, type ComponentType } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition, type ComponentType, type CSSProperties } from "react";
 import Link from "next/link";
-import { ArrowLeft, BrickWall, ExternalLink, Flame, Megaphone, Music, Play, Repeat, Shield, Trash2, Upload, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowLeft, BrickWall, ExternalLink, Flame, Megaphone, Music, Play, Repeat, Ribbon, Shield, Trash2, Upload, Volume2, VolumeX, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
-import { CUE_COOLDOWN_MS, CUE_DURATION_MS, CUE_KINDS, CUE_META, defaultSoundUrl, MAX_SOUND_BYTES, type CueKind } from "@/lib/diretta/cues";
-import { playCue } from "@/lib/diretta/jingles";
-import { keepWarmAction, removeCueSoundAction, sendCueAction, uploadCueSoundAction } from "./actions";
+import { CUE_COOLDOWN_MS, CUE_DURATION_MS, CUE_KINDS, CUE_META, defaultSoundUrl, MAX_SOUND_BYTES, SILENCE_MAX_MS, SILENCE_TEXT_MAX, type CueKind } from "@/lib/diretta/cues";
+import { playCue, stopCueSound } from "@/lib/diretta/jingles";
+import { keepWarmAction, removeCueSoundAction, sendCueAction, startSilenceAction, stopSilenceAction, uploadCueSoundAction } from "./actions";
 
 /** Ogni quanto il tablet tiene «sveglio» il server mentre la pulsantiera è aperta (Vercel lo addormenta dopo qualche minuto). */
 const KEEP_WARM_MS = 4 * 60_000;
 
-/** Il colore di ogni tasto (come i tasti di uno Stream Deck: si riconoscono a colpo d'occhio) e la sua icona. */
-const LOOK: Record<CueKind, { background: string; icon: ComponentType<{ className?: string }> }> = {
-  monsterBlock: { background: "linear-gradient(160deg,#1d4ed8 0%,#0b1b4d 100%)", icon: BrickWall },
-  ace: { background: "linear-gradient(160deg,#ffd23f 0%,#ff8a3d 100%)", icon: Zap },
-  attack: { background: "linear-gradient(160deg,#ff4f8b 0%,#b5179e 100%)", icon: Flame },
-  dig: { background: "linear-gradient(160deg,#22b8f0 0%,#1d4ed8 100%)", icon: Shield },
-  rally: { background: "linear-gradient(160deg,#2ee07a 0%,#0f8a5f 100%)", icon: Repeat },
-  cheer: { background: "linear-gradient(160deg,#8b5cf6 0%,#4c1d95 100%)", icon: Megaphone },
+/**
+ * Ogni tasto: il colore (lo stesso del riquadro della scritta nella grafica, vedi CueBurst) e l'icona. I tasti sono scuri come
+ * quelli di un banco di regia: il colore sta nella striscia in alto e nell'icona, così si riconoscono a colpo d'occhio.
+ */
+const LOOK: Record<CueKind, { accent: string; icon: ComponentType<{ className?: string; style?: CSSProperties }> }> = {
+  monsterBlock: { accent: "#22b8f0", icon: BrickWall },
+  ace: { accent: "#ffd23f", icon: Zap },
+  attack: { accent: "#ff4f8b", icon: Flame },
+  dig: { accent: "#2ee07a", icon: Shield },
+  rally: { accent: "#ff8a3d", icon: Repeat },
+  cheer: { accent: "#8b5cf6", icon: Megaphone },
 };
 
 const LOCAL_SOUND_KEY = "pulsantiera-suono-qui";
@@ -38,16 +41,26 @@ function playPreview(kind: CueKind, sounds: Record<string, number>) {
   playCue(kind, sounds[kind] ?? null);
 }
 
+/** I minuti e i secondi passati, «0:42». */
+function elapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+type Silence = { id: string; at: number; text: string | null };
+
 /**
- * La pulsantiera: sei tasti grandi, un tocco manda in onda la scritta (nella grafica di Streamlabs / OBS in meno di un secondo, grazie al campanello in tempo
- * reale: vedi src/lib/diretta/realtime.ts).
- * Il tasto toccato si illumina finché la scritta è in onda; un secondo tocco subito dopo aspetta (CUE_COOLDOWN_MS). Il suono
- * esce dalla diretta, non dal tablet: «Suono anche qui» serve per provarlo. Sotto, i suoni: ascolta, carica il tuo, torna
- * all'originale.
+ * La pulsantiera, come un banco di regia: in alto la spia di stato (pronta, in onda, minuto di silenzio), sei tasti grandi e
+ * scuri; un tocco manda in onda la scritta (nella grafica di Streamlabs / OBS in meno di un secondo, grazie al campanello in
+ * tempo reale: vedi src/lib/diretta/realtime.ts). Il tasto toccato si illumina finché la scritta è in onda; un secondo tocco
+ * subito dopo aspetta (CUE_COOLDOWN_MS). Sotto, il minuto di silenzio: con una dedica facoltativa, toglie dalla grafica tutto il
+ * resto finché non si preme «Termina» (o da solo dopo qualche minuto); intanto i tasti sono spenti. Il suono esce dalla diretta,
+ * non dal tablet: «Suono anche qui» serve per provarlo. In fondo, i suoni: ascolta, carica il tuo, torna all'originale.
  */
-export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, number>; testMode: boolean }) {
+export function Pulsantiera({ sounds, silence: initialSilence = null, testMode }: { sounds: Record<string, number>; silence?: Silence | null; testMode: boolean }) {
   const [onAir, setOnAir] = useState<{ kind: CueKind; until: number } | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [silence, setSilence] = useState<Silence | null>(initialSilence);
   // «Suono anche qui»: ricordato dal browser (letto dopo il primo disegno), poi quello che si sceglie.
   const storedLocalSound = useSyncExternalStore(subscribeNothing, readLocalSound, () => false);
   const [chosenLocalSound, setLocalSound] = useState<boolean | null>(null);
@@ -75,6 +88,13 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
     return () => clearTimeout(timer);
   }, [onAir]);
 
+  // Il minuto di silenzio si spegne da solo dopo SILENCE_MAX_MS (lo fa anche il sito): la pulsantiera lo segue.
+  useEffect(() => {
+    if (!silence) return;
+    const timer = setTimeout(() => setSilence(null), Math.max(0, silence.at + SILENCE_MAX_MS - clock()));
+    return () => clearTimeout(timer);
+  }, [silence]);
+
   function toggleLocalSound() {
     const next = !localSound;
     setLocalSound(next);
@@ -87,7 +107,7 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
 
   function send(kind: CueKind) {
     const now = clock();
-    if (now - lastTap.current < CUE_COOLDOWN_MS) return;
+    if (silence || now - lastTap.current < CUE_COOLDOWN_MS) return;
     lastTap.current = now;
     if (localSound) playPreview(kind, sounds);
     setOnAir({ kind, until: now + CUE_DURATION_MS });
@@ -100,6 +120,34 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
       }
     });
   }
+
+  function startSilence(text: string) {
+    startTransition(async () => {
+      const result = await startSilenceAction(text);
+      if (result.ok) {
+        setOnAir(null);
+        stopCueSound();
+        setSilence(result.silence);
+        setMessage({ tone: "ok", text: result.message });
+      } else setMessage({ tone: "error", text: result.error });
+    });
+  }
+
+  function stopSilence() {
+    startTransition(async () => {
+      const result = await stopSilenceAction();
+      if (result.ok) {
+        setSilence(null);
+        setMessage({ tone: "ok", text: result.message });
+      } else setMessage({ tone: "error", text: result.error });
+    });
+  }
+
+  const status = silence
+    ? { tone: "silence" as const, text: "Minuto di silenzio" }
+    : onAir
+      ? { tone: "live" as const, text: `In onda: ${CUE_META[onAir.kind].button}` }
+      : { tone: "ready" as const, text: "Pronta" };
 
   return (
     <div className="space-y-5" data-pulsantiera>
@@ -125,41 +173,70 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" role="group" aria-label="Scritte da mandare in diretta">
-        {CUE_KINDS.map((kind) => {
-          const meta = CUE_META[kind];
-          const Icon = LOOK[kind].icon;
-          const live = onAir?.kind === kind;
-          return (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => send(kind)}
-              disabled={pending && !live}
-              data-cue-button={kind}
-              data-cue-live={live ? "" : undefined}
-              aria-label={`Manda in diretta: ${meta.button}`}
+      {/* Il banco: sempre scuro, come in regia, qualunque sia il tema del sito. */}
+      <section className="rounded-3xl bg-[#0a1020] p-3 text-white shadow-[0_18px_40px_-24px_rgba(5,10,30,0.8)] ring-1 ring-white/5 sm:p-4" data-pulsantiera-console>
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/45">Grafica della diretta</span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold uppercase tracking-[0.12em]",
+              status.tone === "live" ? "bg-[#e11d48] text-white" : status.tone === "silence" ? "bg-white text-[#0a1020]" : "bg-white/8 text-white/80",
+            )}
+            data-pulsantiera-status={status.tone}
+          >
+            <span
+              aria-hidden
               className={cn(
-                "relative flex min-h-[9.5rem] flex-col items-start justify-between overflow-hidden rounded-2xl p-4 text-left text-white shadow-[0_10px_30px_-12px_rgba(9,26,38,0.6)] transition-transform active:scale-[0.97] sm:min-h-[12rem] sm:p-5",
-                live && "ring-4 ring-white ring-offset-2 ring-offset-background",
+                "h-2 w-2 rounded-full",
+                status.tone === "live" ? "animate-pulse bg-white" : status.tone === "silence" ? "bg-[#0a1020]" : "bg-[#2ee07a]",
               )}
-              style={{ background: LOOK[kind].background }}
-            >
-              <Icon className="h-9 w-9 drop-shadow sm:h-11 sm:w-11" />
-              <span>
-                <span className="block font-display text-[1.35rem] font-extrabold uppercase leading-tight tracking-wide drop-shadow sm:text-[1.7rem]">{meta.button}</span>
-                <span className="mt-1 hidden text-[13px] leading-snug text-white/85 sm:block">{meta.hint}</span>
-              </span>
-              {live && (
-                <span className="absolute right-3 top-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0b1b4d]">In onda</span>
-              )}
-              {live && (
-                <span aria-hidden className="absolute inset-x-0 bottom-0 h-1.5 origin-left bg-white/80" style={{ animation: `pulsantiera-bar ${CUE_DURATION_MS}ms linear both` }} />
-              )}
-            </button>
-          );
-        })}
-      </div>
+            />
+            {status.text}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3" role="group" aria-label="Scritte da mandare in diretta">
+          {CUE_KINDS.map((kind) => {
+            const meta = CUE_META[kind];
+            const { accent, icon: Icon } = LOOK[kind];
+            const live = onAir?.kind === kind;
+            const off = silence !== null || (pending && !live);
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => send(kind)}
+                disabled={off}
+                data-cue-button={kind}
+                data-cue-live={live ? "" : undefined}
+                aria-label={`Manda in diretta: ${meta.button}`}
+                className={cn(
+                  "relative flex min-h-[9rem] flex-col items-start justify-between overflow-hidden rounded-2xl p-4 text-left transition-[transform,box-shadow,opacity] active:scale-[0.97] disabled:opacity-40 sm:min-h-[11rem] sm:p-5",
+                  "bg-[linear-gradient(180deg,#18233d_0%,#101a30_100%)] ring-1 ring-white/8 hover:ring-white/20",
+                )}
+                style={live ? { boxShadow: `0 0 0 2px ${accent}, 0 0 28px ${accent}55` } : undefined}
+              >
+                <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ background: accent }} />
+                <span className="grid h-12 w-12 place-items-center rounded-xl sm:h-14 sm:w-14" style={{ background: `${accent}1f`, color: accent }}>
+                  <Icon className="h-7 w-7 sm:h-8 sm:w-8" />
+                </span>
+                <span>
+                  <span className="block font-display text-[1.3rem] font-extrabold uppercase leading-tight tracking-wide text-white sm:text-[1.6rem]">{meta.button}</span>
+                  <span className="mt-1 hidden text-[13px] leading-snug text-white/55 sm:block">{meta.hint}</span>
+                </span>
+                {live && (
+                  <span className="absolute right-3 top-4 rounded-full bg-[#e11d48] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white">In onda</span>
+                )}
+                {live && (
+                  <span aria-hidden className="absolute inset-x-0 bottom-0 h-1.5 origin-left" style={{ background: accent, animation: `pulsantiera-bar ${CUE_DURATION_MS}ms linear both` }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <SilencePanel silence={silence} pending={pending} disabled={testMode} onStart={startSilence} onStop={stopSilence} />
+      </section>
 
       <p
         className={cn("min-h-[1.5rem] text-sm font-medium", message?.tone === "error" ? "text-destructive" : "text-muted-foreground")}
@@ -196,6 +273,93 @@ export function Pulsantiera({ sounds, testMode }: { sounds: Record<string, numbe
           Guarda le scritte nella partita finta
         </a>
       </details>
+    </div>
+  );
+}
+
+/**
+ * Il minuto di silenzio, in fondo al banco: la dedica (facoltativa) e «Inizia»; acceso, da quanto è in onda e «Termina». Sobrio
+ * come la scritta che mette nella grafica.
+ */
+function SilencePanel({
+  silence,
+  pending,
+  disabled,
+  onStart,
+  onStop,
+}: {
+  silence: Silence | null;
+  pending: boolean;
+  disabled: boolean;
+  onStart: (text: string) => void;
+  onStop: () => void;
+}) {
+  const [text, setText] = useState("");
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    if (!silence) return;
+    const tick = () => setNow(clock());
+    tick();
+    const timer = setInterval(tick, 500);
+    return () => clearInterval(timer);
+  }, [silence]);
+
+  return (
+    <div className="mt-3 rounded-2xl bg-white/[0.04] p-4 ring-1 ring-white/8 sm:p-5" data-pulsantiera-silence={silence ? "on" : "off"}>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10">
+          <Ribbon className="h-6 w-6 text-white" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-[1.15rem] font-extrabold uppercase tracking-wide text-white">Minuto di silenzio</p>
+          <p className="text-[13px] text-white/55">
+            {silence
+              ? `In onda da ${now !== null ? elapsed(now - silence.at) : "0:00"}${silence.text ? ` · ${silence.text}` : ""}`
+              : "Nella grafica una scritta sobria in basso; punteggio, scritte e suoni spariscono finché non premi «Termina»."}
+          </p>
+        </div>
+        {silence && (
+          <button
+            type="button"
+            onClick={onStop}
+            disabled={pending}
+            className="h-11 rounded-xl bg-white px-5 text-sm font-bold text-[#0a1020] transition-opacity hover:opacity-90 disabled:opacity-50"
+            data-silence-stop
+          >
+            Termina
+          </button>
+        )}
+      </div>
+      {!silence && (
+        <form
+          className="mt-3 flex flex-wrap gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onStart(text);
+          }}
+        >
+          <label htmlFor="silence-text" className="sr-only">
+            Dedica (facoltativa)
+          </label>
+          <input
+            id="silence-text"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            maxLength={SILENCE_TEXT_MAX}
+            placeholder="In ricordo di… (facoltativo)"
+            className="h-11 min-w-0 flex-1 basis-56 rounded-xl border border-white/15 bg-white/5 px-3.5 text-base text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none sm:text-sm"
+            data-silence-text
+          />
+          <button
+            type="submit"
+            disabled={pending || disabled}
+            className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+            data-silence-start
+          >
+            Inizia il minuto di silenzio
+          </button>
+        </form>
+      )}
     </div>
   );
 }

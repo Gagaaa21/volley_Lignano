@@ -6,17 +6,23 @@ import { requireStaffPage } from "@/lib/auth/guard";
 import { getRepo } from "@/lib/db";
 import { ringCue } from "@/lib/diretta/realtimeServer";
 import {
+  cleanSilenceText,
   CUE_COOLDOWN_MS,
   CUE_META,
   cueSoundKey,
   defaultSoundUrl,
   isCueKind,
+  isSilenceOn,
   lastCueOf,
   lastCueValue,
   LIVE_CUE_LAST_KEY,
   LIVE_CUES_KEY,
+  LIVE_SILENCE_KEY,
   MAX_SOUND_BYTES,
   parseCues,
+  parseSilence,
+  silenceValue,
+  stoppedSilenceValue,
   soundTypeOf,
   withSound,
 } from "@/lib/diretta/cues";
@@ -37,9 +43,13 @@ export async function sendCueAction(kind: string): Promise<CueResult> {
   if (session.testMode) return { ok: false, error: TEST_MODE_ERROR };
   try {
     const repo = await getRepo();
-    const settings = await repo.getAppSettings([LIVE_CUES_KEY, LIVE_CUE_LAST_KEY]);
+    const settings = await repo.getAppSettings([LIVE_CUES_KEY, LIVE_CUE_LAST_KEY, LIVE_SILENCE_KEY]);
     const last = lastCueOf(parseCues(settings[LIVE_CUES_KEY] ?? null), settings[LIVE_CUE_LAST_KEY] ?? null);
     const now = Date.now();
+    // Durante il minuto di silenzio niente scritte né suoni.
+    if (isSilenceOn(parseSilence(settings[LIVE_SILENCE_KEY] ?? null), now)) {
+      return { ok: false, error: "Durante il minuto di silenzio le scritte non partono: prima «Termina»." };
+    }
     // Due tocchi di fila (anche da due tablet) non si accavallano: il secondo aspetta un attimo.
     if (last && now - last.at >= 0 && now - last.at < CUE_COOLDOWN_MS) {
       return { ok: false, error: "Un attimo: è appena partita un'altra scritta." };
@@ -98,6 +108,47 @@ export async function removeCueSoundAction(kind: string): Promise<CueResult> {
   } catch (error) {
     console.error("[removeCueSoundAction]", error);
     return { ok: false, error: "Non è stato possibile togliere il suono. Riprova." };
+  }
+}
+
+export type SilenceResult = { ok: true; message: string; silence: { id: string; at: number; text: string | null } | null } | { ok: false; error: string };
+
+/**
+ * Accende il minuto di silenzio (vedi LIVE_SILENCE_KEY in cues.ts): la grafica mostra la scritta sobria, con la dedica se c'è, e
+ * nasconde tutto il resto; il campanello la fa comparire subito. Si spegne con «Termina» o da sola dopo qualche minuto.
+ */
+export async function startSilenceAction(text: string): Promise<SilenceResult> {
+  const session = await requireStaffPage("scout");
+  if (session.testMode) return { ok: false, error: TEST_MODE_ERROR };
+  try {
+    const repo = await getRepo();
+    const id = randomUUID();
+    const at = Date.now();
+    const dedication = cleanSilenceText(text);
+    await repo.setAppSetting(LIVE_SILENCE_KEY, silenceValue(id, dedication, at));
+    await ringCue(id);
+    return { ok: true, message: "In onda: minuto di silenzio. La grafica ha tolto punteggio e scritte.", silence: { id, at, text: dedication } };
+  } catch (error) {
+    console.error("[startSilenceAction]", error);
+    return { ok: false, error: "Non è partito: controlla la connessione e riprova." };
+  }
+}
+
+/** Spegne il minuto di silenzio: la grafica torna com'era. */
+export async function stopSilenceAction(): Promise<SilenceResult> {
+  const session = await requireStaffPage("scout");
+  if (session.testMode) return { ok: false, error: TEST_MODE_ERROR };
+  try {
+    const repo = await getRepo();
+    const stored = parseSilence(await repo.getAppSetting(LIVE_SILENCE_KEY));
+    if (stored) {
+      await repo.setAppSetting(LIVE_SILENCE_KEY, stoppedSilenceValue(stored, Date.now()));
+      await ringCue(stored.id);
+    }
+    return { ok: true, message: "Minuto di silenzio finito: la grafica torna come prima.", silence: null };
+  } catch (error) {
+    console.error("[stopSilenceAction]", error);
+    return { ok: false, error: "Non si è chiuso: controlla la connessione e riprova." };
   }
 }
 

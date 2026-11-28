@@ -16,6 +16,14 @@ import {
   soundTypeOf,
   soundUrl,
   lastCueValue,
+  cleanSilenceText,
+  isSilenceOn,
+  parseSilence,
+  publicSilenceFrom,
+  SILENCE_MAX_MS,
+  SILENCE_TEXT_MAX,
+  silenceValue,
+  stoppedSilenceValue,
   CUE_VIEWER_FRESH_MS,
   withSound,
 } from "@/lib/diretta/cues";
@@ -127,5 +135,31 @@ test.describe("pulsantiera della diretta", () => {
     expect(SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")).toBe(true);
     const shared = readFileSync(join(process.cwd(), "src", "lib", "diretta", "realtime.ts"), "utf8");
     expect(shared).not.toMatch(/SERVICE_ROLE|sb_secret_/);
+  });
+});
+
+test.describe("minuto di silenzio", () => {
+  test("la dedica si pulisce: spazi in più via, al massimo 80 caratteri, vuota = nessuna", () => {
+    expect(cleanSilenceText("  In ricordo   di  Mario  ")).toBe("In ricordo di Mario");
+    expect(cleanSilenceText("   ")).toBeNull();
+    expect(cleanSilenceText(null)).toBeNull();
+    expect(cleanSilenceText("x".repeat(200))).toHaveLength(SILENCE_TEXT_MAX);
+  });
+
+  test("acceso finché non si termina, e comunque al massimo qualche minuto; alla grafica la dedica e da quanto dura", () => {
+    const raw = silenceValue("s1", "In ricordo di Mario", T0);
+    expect(publicSilenceFrom(raw, T0 + 20_000)).toEqual({ id: "s1", text: "In ricordo di Mario", since: 20_000 });
+    // Da solo si spegne dopo SILENCE_MAX_MS, se ci si dimentica di «Termina».
+    expect(publicSilenceFrom(raw, T0 + SILENCE_MAX_MS)).toBeNull();
+    // «Termina»: spento da subito.
+    const stopped = stoppedSilenceValue(parseSilence(raw)!, T0 + 65_000);
+    expect(publicSilenceFrom(stopped, T0 + 65_000)).toBeNull();
+    expect(isSilenceOn(parseSilence(stopped), T0 + 64_999)).toBe(true);
+    // Senza dedica, o un valore rovinato.
+    expect(publicSilenceFrom(silenceValue("s2", null, T0), T0 + 1)).toEqual({ id: "s2", text: null, since: 1 });
+    expect(publicSilenceFrom("{rotto", T0)).toBeNull();
+    expect(publicSilenceFrom(null, T0)).toBeNull();
+    // Solo l'id, la dedica e il tempo: nient'altro esce.
+    expect(Object.keys(publicSilenceFrom(raw, T0 + 1)!).sort()).toEqual(["id", "since", "text"]);
   });
 });

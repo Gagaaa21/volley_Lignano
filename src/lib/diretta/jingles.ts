@@ -172,6 +172,10 @@ function playFile(url: string, fallback: () => void): void {
 }
 
 /** Ferma il suono in corso: una scritta nuova (anche senza suono) non si porta dietro il grido di quella prima. */
+export function stopCueSound(): void {
+  stopPlaying();
+}
+
 function stopPlaying(): void {
   playing?.pause();
   playing = null;
