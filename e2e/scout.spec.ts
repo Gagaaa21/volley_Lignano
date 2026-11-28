@@ -130,6 +130,10 @@ test("scout: si prepara la squadra, si segnano i punti, si corregge e si legge i
   await expect(page.locator("[data-scout-sheet^='player']")).toHaveCount(0);
   // 3) Errore loro: battuta sbagliata → 2-1 (punto nostro), anche qui senza chiedere chi.
   await page.locator('[data-scout-add="us-error"]').click();
+  // «Errore generale» sta subito sotto gli errori di gioco, prima dei falli: si vede senza scorrere la finestra.
+  const errorOrder = await page.locator("[data-scout-sheet='error'] [data-scout-error]").evaluateAll((buttons) => buttons.map((b) => b.getAttribute("data-scout-error")));
+  expect(errorOrder.slice(0, 7)).toEqual(["serveError", "receptionError", "attackError", "blockError", "setError", "digError", "generalError"]);
+  await expect(page.locator('[data-scout-error="generalError"]')).toBeInViewport({ ratio: 1 });
   await page.locator('[data-scout-error="serveError"]').click();
   await expect(score(page)).toHaveText("2–1");
   await expect(page.locator("[data-scout-sheet^='player']")).toHaveCount(0);

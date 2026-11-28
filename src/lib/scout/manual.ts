@@ -680,7 +680,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
           "Il titolo dice cosa stai segnando e a chi va il punto.",
           "I numeri di maglia, per le nostre anche il nome. La «L» indica la libero.",
           "«Non so / non indicare»: il punto conta lo stesso.",
-          "Gli errori di gioco e, più in basso, i falli fischiati dall'arbitro.",
+          "Gli errori di gioco; subito sotto «Errore generale» e poi i falli fischiati dall'arbitro.",
         ],
         maxHeight: 360,
       },
@@ -697,7 +697,7 @@ export const SCOUT_MANUAL: ManualChapter[] = [
       { type: "sub", title: "Errori e falli" },
       {
         type: "p",
-        text: "Toccando «Errore loro» o «Errore nostro» si apre l'elenco di cosa è successo. Sono due gruppi: gli **errori di gioco** (battuta, ricezione, attacco, muro, alzata, difesa) e i **falli fischiati dall'arbitro**. Per la rotazione e la sanzione non si sceglie la giocatrice: riguardano tutta la squadra.",
+        text: "Toccando «Errore loro» o «Errore nostro» si apre l'elenco di cosa è successo. Prima gli **errori di gioco** (battuta, ricezione, attacco, muro, alzata, difesa), subito sotto l'**errore generale** (un punto che non è colpa di una giocatrice precisa) e poi i **falli fischiati dall'arbitro**. Per la rotazione, la sanzione e l'errore generale non si sceglie la giocatrice: riguardano tutta la squadra.",
       },
       { type: "hows" },
       { type: "sub", title: "Esempi, tocco per tocco" },

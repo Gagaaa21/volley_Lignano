@@ -200,9 +200,10 @@ function PlayerPicker({
 function ErrorPicker({ scorer, onPick, onClose }: { scorer: ScoutSide; onPick: (how: ScoutHow) => void; onClose: () => void }) {
   const groups: { title: string; hows: ScoutHow[] }[] = [
     { title: "Errori di gioco", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "error") },
-    { title: "Falli fischiati dall'arbitro", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "foul") },
     // L'errore generale: il punto va all'altra squadra senza darlo a nessuna giocatrice (non si chiede chi, non pesa sul V-P).
+    // Subito sotto gli errori di gioco, non in fondo: si usa spesso e così si tocca senza scorrere la finestra.
     { title: "Senza giocatrice", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "general") },
+    { title: "Falli fischiati dall'arbitro", hows: ERROR_HOWS.filter((how) => HOW_META[how].group === "foul") },
   ];
   return (
     <Sheet
