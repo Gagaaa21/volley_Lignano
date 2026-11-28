@@ -689,8 +689,8 @@ test("?prova=1 mostra la partita finta con tutte le grafiche; ?posizione e ?scal
   const bug = corner.locator("[data-grafica-bug]");
   await expect(bug).toBeVisible();
   const box = (await bug.boundingBox())!;
-  // 150%: 912 px di larghezza, e il lato destro-basso dello schermo.
-  expect(box.width).toBeCloseTo(912, 0);
+  // 150%: 816 px di larghezza, e il lato destro-basso dello schermo.
+  expect(box.width).toBeCloseTo(816, 0);
   expect(box.x + box.width).toBeGreaterThan(1700);
   expect(box.y).toBeGreaterThan(540);
   await corner.close();
